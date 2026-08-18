@@ -1314,3 +1314,21 @@
   .meridian .m-chart-ladder { width: 42px; font-size: 8px; }
   .meridian .m-chart { gap: 8px; }
 }
+
+/* The chart's own header: the block label on the left, the horizon strip on
+   the right, on one ruled line. */
+.meridian .m-chart-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding-bottom: 18px;
+}
+.meridian .m-block > .m-chart { margin-bottom: 4px; }
+.meridian .m-stats { margin-top: 18px; }
+
+/* The illustrative note closes the chart block, so the next block needs its
+   own air rather than butting straight onto it. */
+.meridian .m-block > .m-illus { padding-bottom: 4px; }
+.meridian .m-group > .m-panel-head { padding-top: 8px; border-top: 1px solid var(--m-rule-section); }

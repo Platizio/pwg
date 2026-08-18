@@ -1,6 +1,9 @@
+import { useState } from 'react'
 import type { Quote } from '../../types/market'
 import type { Instrument } from '../../data/terminalUniverse'
 import { formatPrice, formatChange } from '../../lib/format'
+import PriceChart from './PriceChart'
+import RangeChips from './RangeChips'
 import MovePlot from './MovePlot'
 
 interface OverviewPanelProps {
@@ -11,19 +14,23 @@ interface OverviewPanelProps {
 }
 
 /**
- * What we can say about today, and nothing else.
+ * The session, then the day.
  *
- * Four figures, every one of them either returned by the proxy or derived
- * from two that were. Previous close is `price - change`, which is
- * arithmetic on the payload rather than a second data source — the one
- * derivation on the page, and it is exact.
+ * The chart leads, because that is what a terminal is: a price ladder,
+ * hairline gridlines, the dashed previous-close reference, the area under the
+ * line, a volume histogram and the session times. Both ends of the line are
+ * live — it opens at the previous close and closes at the last traded price —
+ * and the four figures beneath it come straight from the quote. The path
+ * between the ends is an illustrative shape, said in words directly under it,
+ * because our provider has no intraday endpoint.
  *
- * There is no day range, no volume, no 52-week high: the quotes endpoint does
- * not return them, and a stock page that shows an empty "—" where every other
- * site shows a number teaches a visitor to distrust the numbers that ARE
- * there. Absent beats guessed, and absent beats blank.
+ * Beneath it sits the thing a US terminal never shows: where that move
+ * actually sits among the whole index today. It needs no history at all, and
+ * it answers the question the chart cannot — is this ordinary, or is it not.
  */
 export default function OverviewPanel({ instrument, quote, indexMoves, ready }: OverviewPanelProps) {
+  const [range, setRange] = useState('1D')
+
   if (!quote) {
     return (
       <div className="m-block">
@@ -41,6 +48,19 @@ export default function OverviewPanel({ instrument, quote, indexMoves, ready }: 
   return (
     <>
       <div className="m-block">
+        <div className="m-chart-bar">
+          <span className="m-label m-label--accent">Session</span>
+          <RangeChips active={range} onChange={setRange} />
+        </div>
+
+        <PriceChart
+          symbol={instrument.symbol}
+          price={quote.price}
+          previousClose={previousClose}
+          changePercent={quote.changePercent}
+          height={252}
+        />
+
         <div className="m-stats">
           <div className="m-stat">
             <div className="m-stat-v">${formatPrice(quote.price)}</div>
@@ -59,6 +79,13 @@ export default function OverviewPanel({ instrument, quote, indexMoves, ready }: 
             <div className="m-stat-l m-label">Quoted in</div>
           </div>
         </div>
+
+        <p className="m-illus">
+          Last traded, change and previous close are live delayed quotes, and the line
+          runs between the last two of them. The intraday path itself is an illustrative
+          shape — our data provider exposes no intraday history, and drawing an invented
+          one without saying so is the one thing this page is built not to do.
+        </p>
       </div>
 
       {indexMoves.length > 0 && (
