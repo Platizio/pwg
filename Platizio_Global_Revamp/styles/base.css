@@ -27,6 +27,11 @@ h4 { font-size: var(--text-lg); line-height: 1.3; letter-spacing: var(--tracking
 
 body {
   font-family: var(--font);
+  /* Inter at 400 reads thin against Bricolage's 700 headings, and thinner
+     still on the large white fields this design uses. 450 is one variable
+     step, not a jump to medium: heavier where it is read, unchanged where a
+     component already sets its own weight. */
+  font-weight: 450;
   color: var(--gray-700);
   background: var(--surface);
   line-height: 1.62;
@@ -35,7 +40,7 @@ body {
   font-feature-settings: 'cv05' 1, 'cv08' 1, 'calt' 1;
 }
 
-p { color: var(--gray-600); text-wrap: pretty; }
+p { color: var(--gray-600); font-weight: 450; text-wrap: pretty; }
 
 /* The eyebrow was 1.07rem — larger than the body text it introduced, which
    inverted the hierarchy. A label should be quieter than what it labels. */

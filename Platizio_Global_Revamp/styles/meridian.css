@@ -126,12 +126,14 @@
   --m-display-w: 700;
   --m-display-track: -0.022em;
 
-  --m-prose: 0.875rem;
-  --m-prose-lg: 0.9375rem;
-  --m-data: 0.78125rem;
-  --m-data-lg: 0.8125rem;
-  --m-label: 0.625rem;
-  --m-track: 0.26em;
+  --m-prose: 0.9375rem;      /* 15px */
+  --m-prose-lg: 1.0625rem;   /* 17px */
+  --m-data: 0.8125rem;       /* 13px */
+  --m-data-lg: 0.875rem;     /* 14px */
+  --m-label: 0.6875rem;      /* 11px — the floor, and it is a floor */
+  --m-fig-sm: 0.6875rem;     /* 11px  chrome, axes, breadcrumbs */
+  --m-fig: 0.75rem;          /* 12px  row figures */
+  --m-track: 0.2em;          /* wide tracking costs legibility at 11px */
 
   /* -------------------------------------------------------------- motion */
   --m-ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -139,10 +141,10 @@
   --m-t-row: 0.28s var(--m-ease);
 
   /* --------------------------------------------------------------- shape */
-  --m-gutter: 30px;
-  --m-rail-l: 246px;
-  --m-rail-r: 358px;
-  --m-max: 1560px;
+  --m-gutter: clamp(20px, 2.6vw, 40px);
+  --m-rail-l: 320px;
+  --m-rail-r: 396px;
+  --m-max: none;
 
   position: relative;
   isolation: isolate;
@@ -150,6 +152,7 @@
   color: var(--m-ink);
   font-family: var(--m-sans);
   font-size: var(--m-prose);
+  font-weight: 500;
   line-height: 1.65;
 }
 
@@ -161,7 +164,7 @@
   border-radius: 0;
   box-sizing: border-box;
 }
-.meridian .m-shell { border-radius: 3px; }
+
 .meridian .m-dot,
 .meridian .m-avatar { border-radius: 9999px; }
 
@@ -238,11 +241,11 @@
 .meridian .m-label {
   font-family: var(--m-sans);
   font-size: var(--m-label);
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: var(--m-track);
   text-transform: uppercase;
-  color: var(--m-ink-3);
-  line-height: 1.4;
+  color: var(--m-ink-2);
+  line-height: 1.45;
 }
 .meridian .m-label--accent { color: var(--m-accent-dim); }
 
@@ -260,6 +263,7 @@
    column of prices shimmers sideways each time a value updates. */
 .meridian .m-fig {
   font-family: var(--m-mono);
+  font-weight: 500;
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: 'tnum' 1, 'lnum' 1;
   letter-spacing: 0.02em;
@@ -271,8 +275,8 @@
   letter-spacing: var(--m-display-track);
 }
 
-.meridian p { color: var(--m-ink-3); margin: 0; text-wrap: pretty; }
-.meridian .m-prose { font-size: var(--m-prose); line-height: 1.75; color: var(--m-ink-3); max-width: 68ch; }
+.meridian p { color: var(--m-ink-3); font-weight: 500; margin: 0; text-wrap: pretty; }
+.meridian .m-prose { font-size: var(--m-prose); font-weight: 500; line-height: 1.75; color: var(--m-ink-3); max-width: 68ch; }
 .meridian .m-prose strong { color: var(--m-ink-2); font-weight: 600; }
 
 /* ------------------------------------------------------------------ rules */
@@ -296,12 +300,14 @@
   align-items: center;
   gap: 5px;
   font-family: var(--m-mono);
+  font-weight: 500;
   font-variant-numeric: tabular-nums lining-nums;
   font-size: var(--m-data);
+  font-weight: 600;
   letter-spacing: 0.02em;
   white-space: nowrap;
 }
-.meridian .m-chg svg { width: 7px; height: 7px; flex: none; }
+.meridian .m-chg svg { width: 9px; height: 9px; flex: none; }
 .meridian .m-chg.is-up { color: var(--m-up); }
 .meridian .m-chg.is-down { color: var(--m-down); }
 .meridian .m-chg.is-flat { color: var(--m-flat); }
@@ -310,20 +316,20 @@
 
 /* ------------------------------------------------------------------ shell */
 
+/* Edge to edge. A terminal that floats in a margin is a screenshot of a
+   terminal; the rails should run into the viewport the way an application's
+   do. The only borders left are the ones BETWEEN columns. */
 .meridian .m-shell {
   max-width: var(--m-max);
-  margin: 0 auto;
+  margin: 0;
   background: var(--m-shell);
-  border: 1px solid var(--m-rule);
+  border: 0;
+  border-bottom: 1px solid var(--m-rule);
   display: grid;
   grid-template-columns: var(--m-rail-l) minmax(0, 1fr) var(--m-rail-r);
   align-items: stretch;
 }
-@media (min-width: 1281px) {
-  /* The one very large, very soft shadow that seats the whole instrument on
-     the page. Desktop only, and the only resting shadow in the system. */
-  .meridian .m-shell { box-shadow: 0 2px 4px rgba(5, 19, 31, 0.04), 0 24px 60px rgba(5, 19, 31, 0.10); }
-}
+
 
 /* The tape runs the full width of the shell, above all three columns. */
 .meridian .m-shell > .m-tape { grid-column: 1 / -1; }
@@ -331,7 +337,7 @@
 .meridian .m-rail-left {
   border-right: 1px solid var(--m-rule);
   background: var(--m-rail);
-  padding: 22px 0;
+  padding: 22px 0 34px;
   min-width: 0;
 }
 .meridian .m-col {
@@ -341,7 +347,7 @@
 .meridian .m-rail-right {
   border-left: 1px solid var(--m-rule);
   background: var(--m-rail);
-  padding: 26px 24px 34px;
+  padding: 26px var(--m-gutter) 40px;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -357,7 +363,7 @@
 /* -------------------------------------------------------------- the tape */
 
 .meridian .m-tape {
-  height: 34px;
+  height: 46px;
   border-bottom: 1px solid var(--m-rule-list);
   display: flex;
   align-items: center;
@@ -384,8 +390,9 @@
   padding: 0 22px;
   border-right: 1px solid var(--m-rule-list);
   font-family: var(--m-mono);
+  font-weight: 500;
   font-variant-numeric: tabular-nums lining-nums;
-  font-size: 10px;
+  font-size: var(--m-fig);
   letter-spacing: 0.08em;
   color: var(--m-ink-3);
 }
@@ -400,15 +407,15 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  padding: 0 18px 12px;
+  padding: 0 var(--m-gutter) 12px;
 }
 .meridian .m-srow {
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
   gap: 10px;
-  padding: 11px 18px;
-  min-height: 44px;
+  padding: 12px var(--m-gutter);
+  min-height: 48px;
   border-top: 1px solid var(--m-rule-list);
   color: inherit;
   position: relative;
@@ -444,16 +451,18 @@
 .meridian .m-srow-id {
   display: block;
   font-family: var(--m-mono);
-  font-size: 10.5px;
+  font-weight: 500;
+  font-size: var(--m-fig);
   letter-spacing: 0.06em;
   color: var(--m-ink-2);
 }
 .meridian .m-srow[aria-current='page'] .m-srow-id { color: var(--m-ink); }
 .meridian .m-srow-name {
   display: block;
-  font-size: 10.5px;
-  color: var(--m-ink-4);
-  margin-top: 2px;
+  font-size: var(--m-data);
+  font-weight: 500;
+  color: var(--m-ink-3);
+  margin-top: 3px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -488,7 +497,8 @@
   gap: 9px;
   padding: 18px 0 16px;
   font-family: var(--m-mono);
-  font-size: 9.5px;
+  font-weight: 500;
+  font-size: var(--m-fig-sm);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--m-ink-4);
@@ -515,7 +525,8 @@
 }
 .meridian .m-head-ex {
   font-family: var(--m-mono);
-  font-size: 9.5px;
+  font-weight: 500;
+  font-size: var(--m-fig-sm);
   letter-spacing: 0.14em;
   color: var(--m-ink-4);
   margin-top: 8px;
@@ -550,24 +561,25 @@
    A 1px gold underline that slides between tabs. Roving tabindex, arrow keys
    move, Home/End jump, selection follows focus — the implementation lives in
    TabBar.tsx; this only dresses it. */
+/* Eight tabs will not fit one line at every width, and a tab row that
+   scrolls hides the tabs nobody thought to drag for. It wraps instead: two
+   short lines beat one line with three tabs off the edge. */
 .meridian .m-tabs {
   display: flex;
-  gap: 0;
+  flex-wrap: wrap;
+  gap: 0 4px;
   border-bottom: 1px solid var(--m-rule-section);
-  overflow-x: auto;
-  scrollbar-width: none;
 }
-.meridian .m-tabs::-webkit-scrollbar { display: none; }
 .meridian .m-tab {
   appearance: none;
   background: none;
   border: 0;
-  padding: 16px 22px 14px 0;
-  margin-right: 22px;
+  min-height: 48px;
+  padding: 15px 18px 13px;
   font-family: var(--m-sans);
   font-size: var(--m-label);
   font-weight: 700;
-  letter-spacing: 0.24em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--m-ink-4);
   cursor: pointer;
@@ -580,8 +592,8 @@
 .meridian .m-tab::after {
   content: '';
   position: absolute;
-  left: 0;
-  right: 22px;
+  left: 18px;
+  right: 18px;
   bottom: -1px;
   height: 1px;
   background: var(--m-accent);
@@ -606,6 +618,7 @@
 .meridian .m-stat:last-child { border-right: 0; }
 .meridian .m-stat-v {
   font-family: var(--m-mono);
+  font-weight: 500;
   font-variant-numeric: tabular-nums lining-nums;
   font-size: 0.875rem;
   color: var(--m-ink);
@@ -627,7 +640,8 @@
   justify-content: space-between;
   padding-top: 10px;
   font-family: var(--m-mono);
-  font-size: 9px;
+  font-weight: 500;
+  font-size: var(--m-fig-sm);
   letter-spacing: 0.1em;
   color: var(--m-ink-4);
 }
@@ -647,14 +661,14 @@
 }
 .meridian .m-dist-flag-id {
   font-family: var(--m-mono);
-  font-size: 9.5px;
+  font-size: var(--m-fig-sm);
   letter-spacing: 0.14em;
   color: var(--m-accent);
 }
 .meridian .m-dist-flag-v {
   font-family: var(--m-mono);
   font-variant-numeric: tabular-nums lining-nums;
-  font-size: 11px;
+  font-size: var(--m-fig);
 }
 .meridian .m-dist-flag-v.is-up { color: var(--m-up); }
 .meridian .m-dist-flag-v.is-down { color: var(--m-down); }
@@ -665,7 +679,7 @@
   bottom: 6px;
   transform: translateX(-50%);
   font-family: var(--m-mono);
-  font-size: 8.5px;
+  font-size: var(--m-fig-sm);
   letter-spacing: 0.18em;
   color: var(--m-ink-4);
   white-space: nowrap;
@@ -716,6 +730,7 @@
 .meridian .m-tname { font-family: var(--m-display); font-weight: var(--m-display-w); font-size: 1rem; color: var(--m-ink); }
 .meridian .m-tnum {
   font-family: var(--m-mono);
+  font-weight: 500;
   font-variant-numeric: tabular-nums lining-nums;
   font-size: var(--m-data);
   color: var(--m-ink-2);
@@ -737,6 +752,7 @@
 .meridian .m-kv-k { font-size: var(--m-data-lg); color: var(--m-ink-3); }
 .meridian .m-kv-v {
   font-family: var(--m-mono);
+  font-weight: 500;
   font-variant-numeric: tabular-nums lining-nums;
   font-size: var(--m-data-lg);
   color: var(--m-ink);
@@ -745,7 +761,7 @@
 .meridian .m-kv-row.is-total { border-bottom: 0; border-top: 1px solid var(--m-rule-mono); padding-top: 18px; }
 .meridian .m-kv-row.is-total .m-kv-k { color: var(--m-ink-2); font-weight: 600; }
 .meridian .m-kv-row.is-total .m-kv-v { font-family: var(--m-display); font-weight: var(--m-display-w); font-size: 1.75rem; color: var(--m-accent); }
-.meridian .m-kv-note { font-size: 11px; color: var(--m-ink-4); padding-top: 10px; }
+.meridian .m-kv-note { font-size: var(--m-fig); color: var(--m-ink-4); padding-top: 10px; }
 
 /* --------------------------------------------------------- quantity stepper
 
@@ -790,7 +806,8 @@
   padding: 10px 15px;
   min-height: 44px;
   font-family: var(--m-mono);
-  font-size: 9.5px;
+  font-weight: 500;
+  font-size: var(--m-fig-sm);
   letter-spacing: 0.1em;
   color: var(--m-ink-4);
   cursor: pointer;
@@ -816,7 +833,7 @@
   font-family: var(--m-sans);
   font-size: var(--m-label);
   font-weight: 800;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   box-shadow: 0 10px 34px rgba(226, 104, 42, 0.22);
   transition: transform 0.2s var(--m-ease), box-shadow var(--m-t);
@@ -842,7 +859,7 @@
   font-family: var(--m-sans);
   font-size: var(--m-label);
   font-weight: 800;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   background: none;
   cursor: pointer;
@@ -876,7 +893,7 @@
   line-height: 1.2;
 }
 .meridian .m-step-t { font-size: var(--m-data-lg); color: var(--m-ink-2); font-weight: 600; }
-.meridian .m-step-b { font-size: 12px; color: var(--m-ink-4); line-height: 1.6; margin-top: 5px; }
+.meridian .m-step-b { font-size: var(--m-data); color: var(--m-ink-4); line-height: 1.6; margin-top: 5px; }
 
 /* --------------------------------------------------------- links to guides */
 
@@ -897,7 +914,7 @@
 .meridian .m-guide:focus-visible { color: var(--m-accent); }
 .meridian .m-guide:hover .m-guide-label,
 .meridian .m-guide:focus-visible .m-guide-label { transform: translateX(8px); }
-.meridian .m-guide span { font-family: var(--m-mono); font-size: 9px; letter-spacing: 0.16em; color: var(--m-ink-4); flex: none; }
+.meridian .m-guide span { font-family: var(--m-mono); font-size: var(--m-fig-sm); letter-spacing: 0.16em; color: var(--m-ink-4); flex: none; }
 
 /* -------------------------------------------------------------- disclosure
 
@@ -908,7 +925,7 @@
   border-top: 1px solid var(--m-rule-section);
   background: none;
   color: var(--m-ink-4);
-  font-size: 11px;
+  font-size: var(--m-fig);
   line-height: 1.7;
   padding: 16px 0 0;
   border-radius: 0;
@@ -1063,7 +1080,7 @@
 }
 .meridian .m-kv-tag {
   font-family: var(--m-mono);
-  font-size: 9px;
+  font-size: var(--m-fig-sm);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--m-accent-dim);
@@ -1087,6 +1104,7 @@
 }
 .meridian .m-rule-v {
   font-family: var(--m-mono);
+  font-weight: 500;
   font-variant-numeric: tabular-nums lining-nums;
   font-size: var(--m-data-lg);
   color: var(--m-accent);
@@ -1130,7 +1148,7 @@
 .meridian .m-cta--block { width: 100%; margin-top: 20px; }
 .meridian .m-guide--tail { margin-top: 18px; }
 .meridian .m-note--span { grid-column: 1 / -1; padding-top: 18px; }
-.meridian .m-cost-summary { margin-top: 20px; font-size: 12px; }
+.meridian .m-cost-summary { margin-top: 20px; font-size: var(--m-data); }
 
 @media (max-width: 1024px) {
   .meridian .m-cost { grid-template-columns: 1fr; gap: 34px; }
@@ -1158,7 +1176,7 @@
    programmatically, never from a keypress the user would want acknowledged. */
 .meridian .m-panel { padding-top: 26px; }
 .meridian .m-panel:focus { outline: none; }
-.meridian.terminal { padding: 20px 20px 48px; }
+.meridian.terminal { padding: 0 0 48px; }
 
 /* =========================================================
    Corrections found by looking at the render
@@ -1202,15 +1220,16 @@
 
 .meridian .m-chart-ladder {
   flex: none;
-  width: 52px;
+  width: 62px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   padding: 2px 0 18px;
   text-align: right;
   font-family: var(--m-mono);
+  font-weight: 500;
   font-variant-numeric: tabular-nums lining-nums;
-  font-size: 8.5px;
+  font-size: var(--m-fig-sm);
   letter-spacing: 0.02em;
   color: var(--m-ink-4);
 }
@@ -1261,7 +1280,8 @@
   justify-content: space-between;
   padding-top: 9px;
   font-family: var(--m-mono);
-  font-size: 8.5px;
+  font-weight: 500;
+  font-size: var(--m-fig-sm);
   letter-spacing: 0.1em;
   color: var(--m-ink-4);
 }
@@ -1285,7 +1305,8 @@
   border-right: 1px solid var(--m-rule-section);
   padding: 7px 13px;
   font-family: var(--m-mono);
-  font-size: 9px;
+  font-weight: 500;
+  font-size: var(--m-fig-sm);
   letter-spacing: 0.1em;
   color: var(--m-ink-4);
   cursor: pointer;
@@ -1300,7 +1321,7 @@
 
 /* An illustrative-shape note, said once per block that draws one. */
 .meridian .m-illus {
-  font-size: 10.5px;
+  font-size: var(--m-fig);
   line-height: 1.6;
   color: var(--m-ink-4);
   margin-top: 12px;
@@ -1311,7 +1332,7 @@
 }
 
 @media (max-width: 620px) {
-  .meridian .m-chart-ladder { width: 42px; font-size: 8px; }
+  .meridian .m-chart-ladder { width: 42px; font-size: var(--m-fig-sm); }
   .meridian .m-chart { gap: 8px; }
 }
 
@@ -1332,3 +1353,169 @@
    own air rather than butting straight onto it. */
 .meridian .m-block > .m-illus { padding-bottom: 4px; }
 .meridian .m-group > .m-panel-head { padding-top: 8px; border-top: 1px solid var(--m-rule-section); }
+
+/* =========================================================
+   Profile panels
+   =========================================================
+   The asymmetric split the source system uses everywhere: the denser side
+   always on the left, at roughly 1.25–1.4 : 1, separated by a rule and space
+   rather than by two boxes.
+   ========================================================= */
+
+.meridian .m-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: clamp(2rem, 3.5vw, 3.5rem);
+  padding-top: 8px;
+}
+
+/* Meters are hairlines too: 2px, never a rounded pill. */
+.meridian .m-meter {
+  flex: 1;
+  min-width: 40px;
+  height: 2px;
+  background: var(--m-rule-table);
+  position: relative;
+  overflow: hidden;
+}
+.meridian .m-meter-fill {
+  display: block;
+  height: 100%;
+  background: var(--m-accent);
+  transform-origin: left;
+}
+.meridian .m-meter-fill.is-up { background: var(--m-up); }
+.meridian .m-meter-fill.is-down { background: var(--m-down); }
+.meridian .m-meter-fill.is-neutral { background: var(--m-accent); }
+
+/* A key/value row that also carries a meter needs three tracks, not two. */
+.meridian .m-kv-row { flex-wrap: nowrap; }
+.meridian .m-kv-row .m-meter { margin-inline: 14px; }
+
+.meridian .m-tech {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px 74px 76px;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+  min-height: 48px;
+  border-bottom: 1px solid var(--m-rule-table);
+}
+.meridian .m-signal {
+  font-family: var(--m-mono);
+  font-size: var(--m-fig-sm);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-align: right;
+}
+.meridian .m-signal.is-up { color: var(--m-up); }
+.meridian .m-signal.is-down { color: var(--m-down); }
+.meridian .m-signal.is-neutral { color: var(--m-accent); }
+
+/* ------------------------------------------------------- revenue bars */
+
+.meridian .m-bars {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  align-items: end;
+  gap: 14px;
+  height: 236px;
+  padding-top: 14px;
+  border-top: 1px solid var(--m-rule-section);
+  margin-top: 12px;
+}
+.meridian .m-bar { display: grid; grid-template-rows: auto 1fr auto; align-items: end; height: 100%; gap: 10px; }
+.meridian .m-bar-v {
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: var(--m-fig);
+  font-weight: 600;
+  color: var(--m-ink-3);
+  text-align: center;
+}
+.meridian .m-bar-fill { align-self: end; width: 100%; background: var(--m-rule); }
+/* The current fiscal year is the only bar that earns the accent. */
+.meridian .m-bar-fill.is-latest { background: linear-gradient(180deg, var(--m-accent-hi), var(--m-accent-deep)); }
+.meridian .m-bar-y {
+  font-family: var(--m-mono);
+  font-size: var(--m-fig-sm);
+  font-weight: 500;
+  color: var(--m-ink-4);
+  text-align: center;
+  padding-top: 8px;
+  border-top: 1px solid var(--m-rule-table);
+}
+
+/* -------------------------------------------------------- consensus */
+
+.meridian .m-consensus { padding-top: 14px; border-top: 1px solid var(--m-rule-section); margin-top: 12px; }
+.meridian .m-consensus-target {
+  display: block;
+  font-family: var(--m-display);
+  font-weight: var(--m-display-w);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: clamp(2rem, 3vw, 2.75rem);
+  line-height: 1;
+  color: var(--m-accent);
+}
+.meridian .m-consensus-upside {
+  display: block;
+  font-size: var(--m-data-lg);
+  font-weight: 500;
+  color: var(--m-ink-3);
+  margin-top: 10px;
+}
+/* The split is a 3px bar, not a donut. */
+.meridian .m-consensus-split { display: flex; height: 3px; margin: 22px 0 18px; gap: 2px; }
+.meridian .m-consensus-bar { flex: none; min-width: 2px; }
+.meridian .m-consensus-bar.is-up { background: var(--m-up); }
+.meridian .m-consensus-bar.is-down { background: var(--m-down); }
+.meridian .m-consensus-bar.is-neutral { background: var(--m-ink-4); }
+/* Legend swatches are a 1px line, never a filled chip. */
+.meridian .m-swatch { display: inline-block; width: 14px; height: 2px; margin-right: 10px; vertical-align: middle; }
+.meridian .m-swatch.is-up { background: var(--m-up); }
+.meridian .m-swatch.is-down { background: var(--m-down); }
+.meridian .m-swatch.is-neutral { background: var(--m-ink-4); }
+
+/* ------------------------------------------------------------ share */
+
+.meridian .m-share { display: flex; height: 4px; gap: 2px; margin: 16px 0; }
+.meridian .m-share-seg { font-size: 0; flex: none; min-width: 2px; }
+.meridian .m-share-seg.t0, .meridian .m-legend-key.t0 { background: var(--m-accent); }
+.meridian .m-share-seg.t1, .meridian .m-legend-key.t1 { background: var(--m-blue-2); }
+.meridian .m-share-seg.t2, .meridian .m-legend-key.t2 { background: var(--m-accent-dim); }
+.meridian .m-share-seg.t3, .meridian .m-legend-key.t3 { background: var(--m-rule-mono); }
+.meridian .m-share-key { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.meridian .m-share-key .m-legend-item {
+  font-size: var(--m-data);
+  font-weight: 500;
+  color: var(--m-ink-3);
+}
+
+/* ----------------------------------------------------------- holders */
+
+.meridian .m-holder { padding: 14px 0; border-bottom: 1px solid var(--m-rule-table); }
+.meridian .m-holder-top { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
+
+/* ------------------------------------------------------- peer table */
+
+.meridian .m-table--peers .m-thead,
+.meridian .m-table--peers .m-trow {
+  grid-template-columns: minmax(0, 1.4fr) 104px 104px 84px 96px;
+}
+.meridian .m-tpeer { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.meridian .m-tnum.is-up { color: var(--m-up); }
+.meridian .m-tnum.is-down { color: var(--m-down); }
+
+@media (max-width: 1024px) {
+  .meridian .m-split { grid-template-columns: minmax(0, 1fr); gap: 34px; }
+  .meridian .m-tech { grid-template-columns: minmax(0, 1fr) 64px 70px 72px; gap: 10px; }
+}
+@media (max-width: 620px) {
+  .meridian .m-tech { grid-template-columns: minmax(0, 1fr) auto; row-gap: 8px; }
+  .meridian .m-tech .m-meter { grid-column: 1 / -1; }
+  .meridian .m-bars { height: 180px; gap: 8px; }
+  .meridian .m-table--peers .m-thead,
+  .meridian .m-table--peers .m-trow { grid-template-columns: minmax(0, 1fr) auto; }
+}

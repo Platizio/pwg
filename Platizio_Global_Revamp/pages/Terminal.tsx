@@ -10,13 +10,22 @@ import SymbolRail from '../components/terminal/SymbolRail'
 import InstrumentHeader from '../components/terminal/InstrumentHeader'
 import TabBar, { type TabDef } from '../components/terminal/TabBar'
 import OverviewPanel from '../components/terminal/OverviewPanel'
+import FundamentalsPanel from '../components/terminal/FundamentalsPanel'
+import TechnicalsPanel from '../components/terminal/TechnicalsPanel'
+import CompetitorsPanel from '../components/terminal/CompetitorsPanel'
+import HoldingsPanel from '../components/terminal/HoldingsPanel'
 import CostPanel from '../components/terminal/CostPanel'
 import RulesPanel from '../components/terminal/RulesPanel'
 import IndexPanel from '../components/terminal/IndexPanel'
 import ContextRail from '../components/terminal/ContextRail'
 
+/* The source design's five, plus the two only this site can answer. */
 const TABS: readonly TabDef[] = [
   { id: 'overview', label: 'Overview' },
+  { id: 'fundamentals', label: 'Fundamentals' },
+  { id: 'technicals', label: 'Technicals' },
+  { id: 'competitors', label: 'Competitors' },
+  { id: 'holdings', label: 'Holdings' },
   { id: 'cost', label: 'Cost to buy' },
   { id: 'rules', label: 'Tax & rules' },
   { id: 'index', label: 'The index' },
@@ -103,6 +112,10 @@ export default function Terminal() {
                   ready={ready}
                 />
               )}
+              {tab === 'fundamentals' && <FundamentalsPanel instrument={instrument} />}
+              {tab === 'technicals' && <TechnicalsPanel instrument={instrument} quote={quote} />}
+              {tab === 'competitors' && <CompetitorsPanel instrument={instrument} quote={quote} />}
+              {tab === 'holdings' && <HoldingsPanel instrument={instrument} />}
               {tab === 'cost' && (
                 <CostPanel instrument={instrument} quote={quote} ready={ready} />
               )}

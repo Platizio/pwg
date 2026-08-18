@@ -165,13 +165,30 @@ function lcg(seed: number): () => number {
 export function shapeSeries(seed: number, n: number, open: number, close: number): number[] {
   const rnd = lcg(seed || 1)
   const drift = close - open
-  const vol = Math.max(Math.abs(close) * 0.004, Math.abs(drift) * 0.55, 0.02)
+
+  /* Per-step volatility, sized so the SESSION's range lands near 1.5% of
+     price rather than the walk running away.
+     A random walk's spread grows with sqrt(n), so a step of price*0.0006
+     over 170 steps gives roughly price*0.008 of wander either side of the
+     drift — about what a normal US session actually does. The earlier value
+     was six times that, which is why the line looked like a seismograph. */
+  const vol = Math.max(Math.abs(close) * 0.0006, Math.abs(drift) * 0.18, 0.004)
+
   const out: number[] = []
   let v = open
   for (let i = 0; i < n; i++) {
     const t = i / (n - 1)
     v += (rnd() - 0.47) * vol + drift / n
-    out.push(v + (rnd() - 0.5) * vol * 1.1 + Math.sin(t * 17.3 + seed * 0.7) * vol * 0.7)
+    /* Three components, in descending scale: the walk above, a slow swell
+       that gives the session a shape, and a small tick-level jitter. Without
+       the swell a random walk reads as noise; without the jitter it reads as
+       a smooth curve nobody would mistake for a tape. */
+    out.push(
+      v
+      + Math.sin(t * 5.1 + seed * 0.37) * vol * 3.2
+      + Math.sin(t * 13.7 + seed * 0.71) * vol * 1.1
+      + (rnd() - 0.5) * vol * 0.45,
+    )
   }
   // Pin both ends: the first point is the previous close, the last is the
   // live price, so the two real numbers the page prints are on the line.
