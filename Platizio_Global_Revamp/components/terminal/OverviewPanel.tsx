@@ -1,97 +1,116 @@
 import { useState } from 'react'
 import type { Quote } from '../../types/market'
 import type { Instrument } from '../../data/terminalUniverse'
-import { formatPrice, formatChange } from '../../lib/format'
+import { profileOf } from '../../data/instrumentProfile'
+import { shapeSeries, seedOf } from '../../lib/plot'
+import { dayStats } from '../../lib/profile'
+import PriceHeader from './PriceHeader'
 import PriceChart from './PriceChart'
-import RangeChips from './RangeChips'
+import InsightsPanel from './InsightsPanel'
+import ReturnsPanel from './ReturnsPanel'
 import MovePlot from './MovePlot'
 
 interface OverviewPanelProps {
   instrument: Instrument
   quote?: Quote
   indexMoves: number[]
+  delayed: boolean
   ready: boolean
 }
 
 /**
- * The session, then the day.
+ * Price, chart, the day in five figures, then what it means.
  *
- * The chart leads, because that is what a terminal is: a price ladder,
- * hairline gridlines, the dashed previous-close reference, the area under the
- * line, a volume histogram and the session times. Both ends of the line are
- * live — it opens at the previous close and closes at the last traded price —
- * and the four figures beneath it come straight from the quote. The path
- * between the ends is an illustrative shape, said in words directly under it,
- * because our provider has no intraday endpoint.
+ * The composition is the source design's: the traded price set large with its
+ * move in a bordered chip and the chart's controls opposite; the plot; the
+ * ruled strip of five intraday figures; then insights numbered rather than
+ * iconified, beside trailing returns as meters.
  *
- * Beneath it sits the thing a US terminal never shows: where that move
- * actually sits among the whole index today. It needs no history at all, and
- * it answers the question the chart cannot — is this ordinary, or is it not.
+ * The strip reads off the SAME series the plot draws, so the two can never
+ * disagree — the source computes them separately and this does not.
  */
-export default function OverviewPanel({ instrument, quote, indexMoves, ready }: OverviewPanelProps) {
+export default function OverviewPanel({
+  instrument, quote, indexMoves, delayed, ready,
+}: OverviewPanelProps) {
   const [range, setRange] = useState('1D')
+  const [showVolume, setShowVolume] = useState(true)
 
   if (!quote) {
     return (
-      <div className="m-block">
-        <p className="m-prose">
-          {ready
-            ? 'Live prices are unavailable right now, so this panel has nothing honest to show. Everything else on this page is unaffected.'
-            : 'Loading the tape…'}
-        </p>
-      </div>
+      <p className="m-prose">
+        {ready
+          ? 'Live prices are unavailable right now, so this panel has nothing honest to show. Everything else on this page is unaffected.'
+          : 'Loading the tape…'}
+      </p>
     )
   }
 
   const previousClose = quote.price - quote.change
+  const values = shapeSeries(seedOf(instrument.symbol), 170, previousClose, quote.price)
+  const stats = dayStats(values, previousClose, quote.price)
+  const profile = profileOf(instrument.symbol)
 
   return (
     <>
-      <div className="m-block">
-        <div className="m-chart-bar">
-          <span className="m-label m-label--accent">Session</span>
-          <RangeChips active={range} onChange={setRange} />
-        </div>
+      <PriceHeader
+        quote={quote}
+        delayed={delayed}
+        range={range}
+        onRange={setRange}
+        showVolume={showVolume}
+        onToggleVolume={() => setShowVolume((v) => !v)}
+      />
 
-        <PriceChart
-          symbol={instrument.symbol}
-          price={quote.price}
-          previousClose={previousClose}
-          changePercent={quote.changePercent}
-          height={252}
-        />
+      <PriceChart
+        symbol={instrument.symbol}
+        price={quote.price}
+        previousClose={previousClose}
+        changePercent={quote.changePercent}
+        height={264}
+        showVolume={showVolume}
+      />
 
-        <div className="m-stats">
-          <div className="m-stat">
-            <div className="m-stat-v">${formatPrice(quote.price)}</div>
-            <div className="m-stat-l m-label">Last traded</div>
+      {/* A ruled strip, not five cards. */}
+      <dl className="m-day">
+        {stats.map((s) => (
+          <div className="m-day-cell" key={s.label}>
+            <dt className="m-label">{s.label}</dt>
+            <dd className="m-day-v">{s.value}</dd>
           </div>
-          <div className="m-stat">
-            <div className="m-stat-v">{formatChange(quote.change)}</div>
-            <div className="m-stat-l m-label">Change today</div>
-          </div>
-          <div className="m-stat">
-            <div className="m-stat-v">${formatPrice(previousClose)}</div>
-            <div className="m-stat-l m-label">Previous close</div>
-          </div>
-          <div className="m-stat">
-            <div className="m-stat-v">{quote.currency}</div>
-            <div className="m-stat-l m-label">Quoted in</div>
-          </div>
-        </div>
+        ))}
+      </dl>
 
-        <p className="m-illus">
-          Last traded, change and previous close are live delayed quotes, and the line
-          runs between the last two of them. The intraday path itself is an illustrative
-          shape — our data provider exposes no intraday history, and drawing an invented
-          one without saying so is the one thing this page is built not to do.
-        </p>
+      <p className="m-illus">
+        Last traded and previous close are live delayed quotes, and the line runs between
+        them. The open, high and low are read off the drawn session — our data provider
+        exposes no intraday history, so that path is an illustrative shape rather than the
+        tape, and it is labelled here rather than left to be assumed.
+      </p>
+
+      <div className="m-split">
+        <section>
+          <div className="m-panel-head">
+            <h3 className="m-h3">Insights</h3>
+            <span className="m-label">Reference</span>
+          </div>
+          {profile
+            ? <InsightsPanel insights={profile.insights} />
+            : <p className="m-prose">No reference profile for this instrument yet.</p>}
+        </section>
+
+        <section>
+          <div className="m-panel-head">
+            <h3 className="m-h3">Returns</h3>
+            <span className="m-label">Scaled from today</span>
+          </div>
+          <ReturnsPanel changePercent={quote.changePercent} />
+        </section>
       </div>
 
       {indexMoves.length > 0 && (
         <div className="m-group">
           <div className="m-panel-head">
-            <span className="m-label m-label--accent">Today, against the index</span>
+            <h3 className="m-h3">Today, against the index</h3>
             <span className="m-label">Nasdaq-100 · {indexMoves.length} constituents</span>
           </div>
           <MovePlot

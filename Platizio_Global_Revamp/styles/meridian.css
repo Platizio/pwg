@@ -1519,3 +1519,306 @@
   .meridian .m-table--peers .m-thead,
   .meridian .m-table--peers .m-trow { grid-template-columns: minmax(0, 1fr) auto; }
 }
+
+/* =========================================================
+   Price header
+   ========================================================= */
+
+.meridian .m-price-head {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+@media (min-width: 1100px) {
+  .meridian .m-price-head { flex-direction: row; align-items: flex-end; justify-content: space-between; }
+}
+.meridian .m-price-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 18px; margin-top: 12px; }
+.meridian .m-price {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--m-display);
+  font-weight: var(--m-display-w);
+  font-variant-numeric: tabular-nums lining-nums;
+  margin: 0;
+}
+.meridian .m-price .cur { font-size: 1.375rem; color: var(--m-accent-dim); }
+.meridian .m-price .val { font-size: clamp(2.625rem, 4.4vw, 3.625rem); line-height: 0.9; letter-spacing: var(--m-display-track); }
+/* The move sits in a hairline box tinted to its own direction — the only
+   bordered chip in the system, and it is read-only. */
+.meridian .m-price-chip {
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: var(--m-data);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 6px 12px;
+  border: 1px solid;
+}
+.meridian .m-price-chip.is-up { color: var(--m-up); border-color: rgba(14, 124, 88, 0.4); }
+.meridian .m-price-chip.is-down { color: var(--m-down); border-color: rgba(200, 30, 67, 0.4); }
+.meridian .m-price-chip.is-flat { color: var(--m-ink-4); border-color: var(--m-rule); }
+.meridian .m-price-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--m-label);
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--m-ink-3);
+}
+.meridian .m-price-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.meridian .m-vol-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--m-rule);
+  background: none;
+  font-family: var(--m-mono);
+  font-size: var(--m-fig);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--m-ink-3);
+  cursor: pointer;
+  transition: color var(--m-t), background var(--m-t), border-color var(--m-t);
+}
+.meridian .m-vol-toggle svg { width: 14px; height: 14px; }
+.meridian .m-vol-toggle[aria-pressed='true'] {
+  border-color: var(--m-rule-raised);
+  background: var(--m-wash);
+  color: var(--m-accent);
+}
+.meridian .m-range { min-height: 44px; padding: 0 15px; }
+
+/* ---------------------------------------------- chart crosshair + tag */
+
+.meridian .m-prev { display: block; }
+.meridian .m-prev-tag {
+  position: absolute;
+  right: 0;
+  top: -8px;
+  transform: translateY(-100%);
+  font-family: var(--m-mono);
+  font-size: var(--m-fig-sm);
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--m-accent-dim);
+  background: var(--m-shell);
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+.meridian .m-cross { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--m-accent); opacity: 0.4; }
+.meridian .m-cross-dot {
+  position: absolute;
+  width: 7px; height: 7px;
+  border-radius: 9999px;
+  transform: translate(-50%, -50%);
+  border: 1.5px solid var(--m-shell);
+}
+.meridian .m-cross-dot.is-up { background: var(--m-up); }
+.meridian .m-cross-dot.is-down { background: var(--m-down); }
+/* The readout is displaced above the plot, which is the one case besides the
+   CTA where this system allows a shadow. */
+.meridian .m-readout {
+  position: absolute;
+  top: 6px;
+  transform: translateX(-50%);
+  display: grid;
+  gap: 3px;
+  padding: 9px 12px;
+  background: var(--m-shell);
+  border: 1px solid var(--m-rule);
+  box-shadow: 0 8px 24px rgba(5, 19, 31, 0.14);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 2;
+}
+.meridian .m-readout-px {
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: var(--m-data-lg);
+  font-weight: 600;
+  color: var(--m-ink);
+}
+.meridian .m-readout-chg { font-family: var(--m-mono); font-size: var(--m-fig); font-weight: 500; }
+.meridian .m-readout-chg.is-up { color: var(--m-up); }
+.meridian .m-readout-chg.is-down { color: var(--m-down); }
+.meridian .m-readout-meta {
+  font-family: var(--m-mono);
+  font-size: var(--m-fig-sm);
+  letter-spacing: 0.1em;
+  color: var(--m-ink-4);
+}
+
+/* ------------------------------------------------------- the day strip */
+
+.meridian .m-day {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  border-top: 1px solid var(--m-rule-section);
+  border-bottom: 1px solid var(--m-rule-section);
+  margin: 28px 0 0;
+}
+.meridian .m-day-cell {
+  padding: 20px 20px 20px 0;
+  border-right: 1px solid var(--m-rule-section);
+  transition: background var(--m-t);
+}
+.meridian .m-day-cell:last-child { border-right: 0; }
+.meridian .m-day-cell:hover { background: var(--m-wash-row); }
+.meridian .m-day-v {
+  margin: 12px 0 0;
+  font-family: var(--m-display);
+  font-weight: var(--m-display-w);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--m-ink);
+}
+
+/* ----------------------------------------------------------- insights */
+
+.meridian .m-h3 {
+  font-family: var(--m-display);
+  font-weight: var(--m-display-w);
+  font-size: 1.3125rem;
+  line-height: 1.2;
+  color: var(--m-ink);
+  margin: 0;
+}
+.meridian .m-insights { list-style: none; margin: 0; padding: 0; }
+.meridian .m-insight { display: flex; gap: 18px; padding: 16px 0; border-top: 1px solid var(--m-rule-list); }
+/* Graded by colour on the numeral, not by a badge. */
+.meridian .m-insight-n {
+  font-family: var(--m-display);
+  font-weight: var(--m-display-w);
+  font-size: 1.25rem;
+  line-height: 1;
+  width: 30px;
+  flex: none;
+}
+.meridian .m-insight-n.is-up { color: var(--m-up); }
+.meridian .m-insight-n.is-note { color: var(--m-accent); }
+.meridian .m-insight-n.is-warn { color: var(--m-down); }
+.meridian .m-insight-t { font-size: var(--m-data-lg); font-weight: 700; color: var(--m-ink); margin: 0 0 6px; }
+.meridian .m-insight-b { font-size: var(--m-data); font-weight: 500; line-height: 1.7; color: var(--m-ink-3); }
+
+/* ------------------------------------------------------------ returns */
+
+.meridian .m-returns { display: flex; flex-direction: column; gap: 20px; padding-top: 4px; }
+.meridian .m-return-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.meridian .m-return-v {
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: var(--m-data-lg);
+  font-weight: 600;
+}
+.meridian .m-return-v.is-up { color: var(--m-up); }
+.meridian .m-return-v.is-down { color: var(--m-down); }
+.meridian .m-return .m-meter { display: block; width: 100%; }
+
+/* --------------------------------------------------------- reference rail */
+
+.meridian .m-rail-h { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
+.meridian .m-caps {
+  font-size: var(--m-label);
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--m-accent);
+}
+.meridian .m-about { font-size: var(--m-data-lg); font-weight: 500; line-height: 1.75; color: var(--m-ink-3); }
+.meridian .m-about::first-letter {
+  float: left;
+  font-family: var(--m-display);
+  font-weight: var(--m-display-w);
+  font-size: 3.25rem;
+  line-height: 0.82;
+  padding: 4px 10px 0 0;
+  color: var(--m-accent);
+}
+.meridian .m-about-links { display: flex; border-top: 1px solid var(--m-rule-section); margin-top: 18px; }
+.meridian .m-about-links .m-caps { flex: 1; padding: 14px 0; }
+.meridian .m-about-links .m-caps:first-child { border-right: 1px solid var(--m-rule-section); }
+.meridian .m-about-links .m-caps:last-child { padding-left: 16px; }
+
+.meridian .m-moves { list-style: none; margin: 0; padding: 0; }
+.meridian .m-move {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 0;
+  border-top: 1px solid var(--m-rule-list);
+}
+.meridian .m-move-when { flex: 1; min-width: 0; display: grid; gap: 5px; }
+.meridian .m-move-date { font-size: var(--m-data); font-weight: 600; color: var(--m-ink-2); }
+.meridian .m-move-chg {
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: var(--m-data);
+  font-weight: 600;
+}
+.meridian .m-move-chg.is-up { color: var(--m-up); }
+.meridian .m-move-chg.is-down { color: var(--m-down); }
+
+.meridian .m-wire { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 24px; }
+.meridian .m-wire-item { display: block; color: inherit; }
+.meridian .m-wire-plate {
+  position: relative;
+  display: block;
+  height: 116px;
+  border: 1px solid var(--m-rule-section);
+  background: linear-gradient(125deg, var(--m-rail), var(--m-wash) 46%, var(--m-rail));
+  overflow: hidden;
+  transition: border-color var(--m-t);
+}
+.meridian .m-wire-item:hover .m-wire-plate { border-color: var(--m-rule-raised); }
+.meridian .m-wire-tag {
+  position: absolute;
+  left: 12px;
+  bottom: 11px;
+  font-size: var(--m-label);
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--m-accent-dim);
+}
+.meridian .m-wire-src {
+  display: block;
+  margin: 14px 0 8px;
+  font-size: var(--m-label);
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--m-accent);
+}
+.meridian .m-wire-title {
+  display: block;
+  font-family: var(--m-display);
+  font-weight: var(--m-display-w);
+  font-size: 1.0625rem;
+  line-height: 1.35;
+  color: var(--m-ink);
+  text-wrap: pretty;
+  transition: color var(--m-t);
+}
+.meridian .m-wire-item:hover .m-wire-title { color: var(--m-accent); }
+.meridian .m-wire-age { display: block; margin-top: 8px; font-family: var(--m-mono); font-size: var(--m-fig-sm); color: var(--m-ink-4); }
+
+@media (max-width: 1024px) {
+  .meridian .m-day { grid-template-columns: repeat(3, 1fr); }
+  .meridian .m-day-cell:nth-child(3) { border-right: 0; }
+  .meridian .m-day-cell:nth-child(-n+3) { border-bottom: 1px solid var(--m-rule-section); }
+}
+@media (max-width: 620px) {
+  .meridian .m-day { grid-template-columns: repeat(2, 1fr); }
+  .meridian .m-day-cell:nth-child(3) { border-right: 1px solid var(--m-rule-section); }
+  .meridian .m-day-cell:nth-child(2n) { border-right: 0; }
+  .meridian .m-day-v { font-size: 1.25rem; }
+  .meridian .m-readout { display: none; }
+}

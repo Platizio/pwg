@@ -159,3 +159,43 @@ export function allocation(slices: readonly ShareSlice[]): Slice[] {
 export function holderBars<T extends { pct: string }>(holders: readonly T[]): (T & { width: string })[] {
   return holders.map((h) => ({ ...h, width: `${Math.min(100, parseFloat(h.pct) * 11)}%` }))
 }
+
+
+/* --------------------------------------------------------- day figures
+
+   The five in the ruled strip under the chart. Two are live — previous close
+   comes straight off the quote, and the last traded price anchors the series
+   — and the other three are read off the same illustrative session the chart
+   draws, so the strip and the plot can never disagree with each other.
+*/
+
+export interface DayStat { label: string; value: string; live: boolean }
+
+export function dayStats(
+  values: readonly number[],
+  previousClose: number,
+  price: number,
+): DayStat[] {
+  return [
+    { label: "Day's open", value: `$${formatPrice(values[0] ?? previousClose)}`, live: false },
+    { label: 'Previous close', value: `$${formatPrice(previousClose)}`, live: true },
+    { label: 'Intraday high', value: `$${formatPrice(Math.max(...values))}`, live: false },
+    { label: 'Intraday low', value: `$${formatPrice(Math.min(...values))}`, live: false },
+    { label: 'Last traded', value: `$${formatPrice(price)}`, live: true },
+  ]
+}
+
+/* ------------------------------------------------------- notable moves
+
+   The composition the source design uses in the reference rail: a date, the
+   move, and its shape. Reference material like the rest of the profile data,
+   and the block that renders it says so.
+*/
+
+export interface NotableMove { date: string; change: number }
+
+export const NOTABLE_MOVES: readonly NotableMove[] = [
+  { date: '30 April 2026', change: -2.56 },
+  { date: '24 February 2026', change: -9.89 },
+  { date: '1 December 2025', change: 24.85 },
+]

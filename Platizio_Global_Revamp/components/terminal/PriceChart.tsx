@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react'
 import { shapeSeries, seedOf, mapPoints, polyPath } from '../../lib/plot'
 import { formatPrice } from '../../lib/format'
 
@@ -11,6 +12,9 @@ interface PriceChartProps {
   height?: number
   /** Session times along the foot. */
   xLabels?: readonly string[]
+  showVolume?: boolean
+  /** Exposed so the day-stat strip reads the same series the plot draws. */
+  onSeries?: (values: number[]) => void
 }
 
 const W = 700
@@ -38,7 +42,10 @@ const DEFAULT_X = ['09:30', '11:00', '12:30', '14:00', '15:30', '16:00'] as cons
  */
 export default function PriceChart({
   symbol, price, previousClose, changePercent, height = 188, xLabels = DEFAULT_X,
+  showVolume = true,
 }: PriceChartProps) {
+  const plotRef = useRef<HTMLDivElement>(null)
+  const [hover, setHover] = useState<number | null>(null)
   const H = height
   const values = shapeSeries(seedOf(symbol), POINTS, previousClose, price)
   const { pts, min, max } = mapPoints(values, W, H, PAD)
@@ -69,6 +76,23 @@ export default function PriceChart({
     })
   }
 
+  /* The crosshair reads the nearest sample rather than interpolating: a
+     readout that shows a price the series never held is a readout that lies
+     about the tape. Pointer position -> index, index -> the real point. */
+  const onMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const box = plotRef.current?.getBoundingClientRect()
+    if (!box || box.width === 0) return
+    const t = Math.min(1, Math.max(0, (e.clientX - box.left) / box.width))
+    setHover(Math.round(t * (values.length - 1)))
+  }
+
+  const hv = hover === null ? null : values[hover]
+  const hp = hover === null ? null : pts[hover]
+  const hoverDelta = hv === null ? 0 : ((hv - previousClose) / previousClose) * 100
+  const hoverTime = hover === null
+    ? ''
+    : xLabels[Math.min(xLabels.length - 1, Math.round((hover / (values.length - 1)) * (xLabels.length - 1)))]
+
   return (
     <div className="m-chart">
       <div className="m-chart-ladder" style={{ height: `${H}px` }}>
@@ -76,10 +100,18 @@ export default function PriceChart({
       </div>
 
       <div className="m-chart-plot-wrap">
-        <div className="m-chart-plot" style={{ height: `${H}px` }}>
+        <div
+          ref={plotRef}
+          className="m-chart-plot"
+          style={{ height: `${H}px` }}
+          onPointerMove={onMove}
+          onPointerLeave={() => setHover(null)}
+        >
           {gridTops.map((t) => <span className="m-grid-h" key={t} style={{ top: t }} />)}
           {gridLefts.map((l) => <span className="m-grid-v" key={l} style={{ left: l }} />)}
-          <span className="m-prev" style={{ top: `${((prevY / H) * 100).toFixed(2)}%` }} />
+          <span className="m-prev" style={{ top: `${((prevY / H) * 100).toFixed(2)}%` }}>
+            <span className="m-prev-tag">Prev close {formatPrice(previousClose)}</span>
+          </span>
 
           <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none"
                className="m-chart-svg" aria-hidden="true" focusable="false">
@@ -99,13 +131,35 @@ export default function PriceChart({
 
           <span className={`m-chart-dot is-${up ? 'up' : 'down'}`}
                 style={{ left: `${((last.x / W) * 100).toFixed(2)}%`, top: `${((last.y / H) * 100).toFixed(2)}%` }} />
+
+          {hp && hv !== null && (
+            <>
+              <span className="m-cross" style={{ left: `${((hp.x / W) * 100).toFixed(2)}%` }} />
+              <span className={`m-cross-dot is-${up ? 'up' : 'down'}`}
+                    style={{ left: `${((hp.x / W) * 100).toFixed(2)}%`, top: `${((hp.y / H) * 100).toFixed(2)}%` }} />
+              <span
+                className="m-readout"
+                style={{ left: `${((hp.x / W) * 100).toFixed(2)}%` }}
+                role="status"
+                aria-live="polite"
+              >
+                <span className="m-readout-px">{formatPrice(hv)}</span>
+                <span className={`m-readout-chg is-${hoverDelta >= 0 ? 'up' : 'down'}`}>
+                  {hoverDelta >= 0 ? '+' : ''}{hoverDelta.toFixed(2)}%
+                </span>
+                <span className="m-readout-meta">{symbol} · {hoverTime}</span>
+              </span>
+            </>
+          )}
         </div>
 
-        <div className="m-vol">
-          {bars.map((b, i) => (
-            <span key={i} className={`m-vol-bar is-${b.up ? 'up' : 'down'}`} style={{ height: b.h }} />
-          ))}
-        </div>
+        {showVolume && (
+          <div className="m-vol">
+            {bars.map((b, i) => (
+              <span key={i} className={`m-vol-bar is-${b.up ? 'up' : 'down'}`} style={{ height: b.h }} />
+            ))}
+          </div>
+        )}
 
         <div className="m-chart-x">
           {xLabels.map((x) => <span key={x}>{x}</span>)}
