@@ -5,7 +5,6 @@ import NotFound from '../../src/pages/NotFound'
 import { findInstrument, terminalPath } from '../data/terminalUniverse'
 import { useTerminalData } from '../hooks/useTerminalData'
 import MarketNote from '../components/MarketNote'
-import MeridianFonts from '../components/terminal/MeridianFonts'
 import TickerTape from '../components/terminal/TickerTape'
 import SymbolRail from '../components/terminal/SymbolRail'
 import InstrumentHeader from '../components/terminal/InstrumentHeader'
@@ -69,7 +68,6 @@ export default function Terminal() {
           [instrument.symbol, path],
         ])}
       />
-      <MeridianFonts />
 
       <div className="meridian terminal">
         <div className="m-shell">

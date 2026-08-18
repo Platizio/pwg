@@ -9,11 +9,12 @@ import { calculateTradeCost, formatUsd } from '../lib/pricing'
 import { RATES, pct } from '../data/pricingRates'
 import { summarise, axisLabel } from '../lib/plot'
 import MarketNote from '../components/MarketNote'
-import MeridianFonts from '../components/terminal/MeridianFonts'
 import TickerTape from '../components/terminal/TickerTape'
 import Mark from '../components/terminal/Mark'
 import Change from '../components/terminal/Change'
-import MovePlot from '../components/terminal/MovePlot'
+import PriceChart from '../components/terminal/PriceChart'
+import RangeChips from '../components/terminal/RangeChips'
+import Sparkline from '../components/terminal/Sparkline'
 import { ArrowRight, ArrowUpRight } from '../components/terminal/Icons'
 
 /* ------------------------------------------------------------------ rooms */
@@ -59,6 +60,7 @@ export default function Products() {
   const { quotes, indexMoves, indexLeaders, asOf, delayed, ready } = useTerminalData()
   const [lens, setLens] = useState<Lens>('all')
   const [preview, setPreview] = useState<string | null>(null)
+  const [range, setRange] = useState('1D')
 
   const lensSet = TERMINAL_UNIVERSE.filter((i) => lens === 'all' || i.kind === lens)
   const lensQuoted = lensSet.map((i) => quotes.get(i.symbol)).filter(Boolean) as { changePercent: number }[]
@@ -88,7 +90,6 @@ export default function Products() {
         canonical="/products"
         jsonLd={breadcrumbSchema([['Home', '/'], ['Products', '/products']])}
       />
-      <MeridianFonts />
 
       <div className="meridian mh">
         <TickerTape quotes={quotes} />
@@ -124,15 +125,17 @@ export default function Products() {
                 </div>
               </div>
 
-              {/* The product, doing its job, before a word about it. */}
+              {/* The product, doing its job, before a word about it. The
+                  composition is the source design's: chrome line, instrument
+                  head, range strip, ladder + plot + volume + session times,
+                  then four figures on a ruled foot. */}
               <Link className="mh-card" to={terminalPath(hero.symbol)}>
                 <div className="mh-card-chrome">
+                  <span className="mh-dots" aria-hidden="true"><i /><i /><i /></span>
                   <span className="mh-crumb-path">
                     platizioglobal.com / terminal / {hero.symbol.toLowerCase()}
                   </span>
-                  <span className="mh-card-state">
-                    {delayed ? 'DELAYED' : 'LIVE'}
-                  </span>
+                  <span className="mh-card-state">{delayed ? 'DELAYED' : 'LIVE'}</span>
                 </div>
 
                 <div className="mh-card-head">
@@ -147,26 +150,55 @@ export default function Products() {
                         <span className="mh-card-price">
                           <span className="cur" aria-hidden="true">$</span>{formatPrice(heroQuote.price)}
                         </span>
-                        <Change changePercent={heroQuote.changePercent} />
+                        <span className={`mh-card-chg is-${direction(heroQuote.changePercent)}`}>
+                          {formatPercent(heroQuote.changePercent)} TODAY
+                        </span>
                       </>
                     ) : ready ? (
                       <span className="m-absent">Unavailable</span>
                     ) : (
                       <>
                         <span className="mh-card-price is-loading-text is-load-price">000.00</span>
-                        <span className="m-chg is-loading-text is-load-chg">+0.00%</span>
+                        <span className="mh-card-chg is-loading-text is-load-chg">+0.00%</span>
                       </>
                     )}
                   </span>
                 </div>
 
-                {heroQuote && indexMoves.length > 0 ? (
-                  <MovePlot
-                    symbol={hero.symbol}
-                    self={heroQuote.changePercent}
-                    moves={indexMoves}
-                    external={hero.kind === 'etf'}
-                  />
+                <RangeChips active={range} onChange={setRange} />
+
+                {heroQuote ? (
+                  <>
+                    <div className="mh-card-chart">
+                      <PriceChart
+                        symbol={hero.symbol}
+                        price={heroQuote.price}
+                        previousClose={heroQuote.price - heroQuote.change}
+                        changePercent={heroQuote.changePercent}
+                      />
+                    </div>
+
+                    <div className="mh-card-stats">
+                      <span className="mh-stat">
+                        <span className="mh-stat-v">${formatPrice(heroQuote.price - heroQuote.change)}</span>
+                        <span className="m-label">Prev close</span>
+                      </span>
+                      <span className="mh-stat">
+                        <span className="mh-stat-v">
+                          ${formatUsd(calculateTradeCost(heroQuote.price, 'buy')?.total ?? 0)}
+                        </span>
+                        <span className="m-label">Cost of one</span>
+                      </span>
+                      <span className="mh-stat">
+                        <span className="mh-stat-v">{pct(RATES.brokeragePct)}</span>
+                        <span className="m-label">Brokerage</span>
+                      </span>
+                      <span className="mh-stat">
+                        <span className="mh-stat-v">$0</span>
+                        <span className="m-label">To open</span>
+                      </span>
+                    </div>
+                  </>
                 ) : (
                   <p className="mh-card-empty">
                     {ready
@@ -174,31 +206,15 @@ export default function Products() {
                       : 'Loading the tape…'}
                   </p>
                 )}
-
-                {heroQuote && (
-                  <div className="mh-card-stats">
-                    <span className="mh-stat">
-                      <span className="mh-stat-v">${formatPrice(heroQuote.price - heroQuote.change)}</span>
-                      <span className="m-label">Prev close</span>
-                    </span>
-                    <span className="mh-stat">
-                      <span className="mh-stat-v">
-                        ${formatUsd(calculateTradeCost(heroQuote.price, 'buy')?.total ?? 0)}
-                      </span>
-                      <span className="m-label">Cost of one</span>
-                    </span>
-                    <span className="mh-stat">
-                      <span className="mh-stat-v">{pct(RATES.brokeragePct)}</span>
-                      <span className="m-label">Brokerage</span>
-                    </span>
-                    <span className="mh-stat">
-                      <span className="mh-stat-v">$0</span>
-                      <span className="m-label">To open</span>
-                    </span>
-                  </div>
-                )}
               </Link>
             </div>
+
+            <p className="m-illus">
+              Last price, change and previous close are live delayed quotes. The intraday
+              path between them is an illustrative shape — our data provider exposes no
+              intraday history, and drawing an invented one without saying so would be the
+              one thing this page is built not to do.
+            </p>
           </div>
         </section>
 
@@ -209,38 +225,53 @@ export default function Products() {
               <div className="mh-sec-head-l">
                 <h2 id="morning-heading" className="mh-h2-sm">Markets this morning</h2>
                 <span className="m-label">
-                  {day ? `NASDAQ-100 · ${day.count} CONSTITUENTS` : 'NASDAQ-100'}
+                  {day ? `NASDAQ-100 · ${day.advancing} UP · ${day.declining} DOWN · MEDIAN ${axisLabel(day.median)}` : 'INDEX FUNDS'}
                 </span>
               </div>
-              <Link className="mh-more" to={terminalPath('aapl')}>
+              <Link className="mh-more" to={terminalPath('spy')}>
                 All markets <ArrowRight />
               </Link>
             </div>
 
-            {/* The source design opened on four index levels. Our provider has
-                no index endpoint, so these are the same morning read from the
-                constituents we do receive. */}
+            {/* The source opened on four index levels. Our provider has no
+                index endpoint, so these are the four index FUNDS we quote —
+                the same reading, through instruments that are actually
+                tradeable from an Indian account. */}
             <div className="mh-morning">
-              {(day
-                ? [
-                    { l: 'Advancing', v: String(day.advancing), t: 'up', s: `of ${day.count}` },
-                    { l: 'Declining', v: String(day.declining), t: 'down', s: `of ${day.count}` },
-                    { l: 'Median move', v: axisLabel(day.median), t: day.median >= 0 ? 'up' : 'down', s: 'across the index' },
-                    { l: 'Widest move', v: axisLabel(day.widest), t: day.widestIsUp ? 'up' : 'down', s: 'single constituent' },
-                  ]
-                : [
-                    { l: 'Advancing', v: '—', t: 'flat', s: '' },
-                    { l: 'Declining', v: '—', t: 'flat', s: '' },
-                    { l: 'Median move', v: '—', t: 'flat', s: '' },
-                    { l: 'Widest move', v: '—', t: 'flat', s: '' },
-                  ]
-              ).map((cell) => (
-                <div className="mh-cell" key={cell.l}>
-                  <span className="m-label">{cell.l}</span>
-                  <span className={`mh-cell-v is-${cell.t}`}>{cell.v}</span>
-                  <span className="mh-cell-s">{cell.s}</span>
-                </div>
-              ))}
+              {['SPY', 'QQQ', 'VOO', 'SOXX'].map((sym) => {
+                const inst = findInstrument(sym)!
+                const q = quotes.get(sym)
+                return (
+                  <Link className="mh-index" to={terminalPath(sym)} key={sym}>
+                    <div className="mh-index-top">
+                      <div>
+                        <span className="m-label">{inst.category}</span>
+                        <span className="mh-index-name">{inst.name}</span>
+                      </div>
+                      {q
+                        ? <Sparkline symbol={sym} changePercent={q.changePercent} />
+                        : <span className="mh-spark-ph" aria-hidden="true" />}
+                    </div>
+                    <div className="mh-index-foot">
+                      {q ? (
+                        <>
+                          <span className="mh-index-px">${formatPrice(q.price)}</span>
+                          <span className={`mh-index-chg is-${direction(q.changePercent)}`}>
+                            {formatPercent(q.changePercent)}
+                          </span>
+                        </>
+                      ) : ready ? (
+                        <span className="m-absent">—</span>
+                      ) : (
+                        <>
+                          <span className="mh-index-px is-loading-text is-load-price">000.00</span>
+                          <span className="mh-index-chg is-loading-text is-load-chg">+0.00%</span>
+                        </>
+                      )}
+                    </div>
+                  </Link>
+                )
+              })}
             </div>
           </div>
         </section>
@@ -269,6 +300,9 @@ export default function Products() {
                             {q.name === q.symbol ? '' : q.name}
                           </span>
                           <span className="mh-mover-px">${formatPrice(q.price)}</span>
+                          <span className="mh-mover-spark">
+                            <Sparkline symbol={q.symbol} changePercent={q.changePercent} width={70} height={20} />
+                          </span>
                           <span className="mh-mover-chg">
                             <Change changePercent={q.changePercent} />
                           </span>
@@ -285,6 +319,10 @@ export default function Products() {
                   </div>
                 ))}
               </div>
+              <p className="m-illus">
+                Prices and moves are live delayed quotes; the session shapes beside them
+                are illustrative.
+              </p>
               <MarketNote asOf={asOf} delayed={delayed} tone="light" />
             </div>
           </section>

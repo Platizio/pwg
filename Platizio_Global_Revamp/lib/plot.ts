@@ -134,3 +134,96 @@ export function summarise(moves: readonly number[]): DaySummary | null {
     count: moves.length,
   }
 }
+
+/* ============================================================ series
+
+   The source design draws a real chart: a price ladder, gridlines, a dashed
+   previous-close reference, an area fill, a volume histogram and an axis of
+   session times. Reproducing that shape needs a series, and our data provider
+   exposes no intraday history (docs/03-viewtrade-api.md).
+
+   So the SHAPE is generated and the ENDPOINTS are real: the series is
+   anchored to the live last price and the live previous close, and every
+   figure printed beside it — last, change, previous close, cost — comes from
+   the quote. The path between those two points is illustrative and is
+   labelled as such on screen, every time it is drawn.
+
+   The generator is the source design's own seeded LCG, kept because it is
+   deterministic: the server and the hydrating client must produce identical
+   coordinates or React tears the markup apart. Nothing here touches
+   Math.random, Date, Intl or the DOM. */
+
+function lcg(seed: number): () => number {
+  let s = (seed * 2654435761) % 4294967296
+  return () => {
+    s = (s * 1664525 + 1013904223) % 4294967296
+    return s / 4294967296
+  }
+}
+
+/** A deterministic walk from `open` to `close`, `n` points long. */
+export function shapeSeries(seed: number, n: number, open: number, close: number): number[] {
+  const rnd = lcg(seed || 1)
+  const drift = close - open
+  const vol = Math.max(Math.abs(close) * 0.004, Math.abs(drift) * 0.55, 0.02)
+  const out: number[] = []
+  let v = open
+  for (let i = 0; i < n; i++) {
+    const t = i / (n - 1)
+    v += (rnd() - 0.47) * vol + drift / n
+    out.push(v + (rnd() - 0.5) * vol * 1.1 + Math.sin(t * 17.3 + seed * 0.7) * vol * 0.7)
+  }
+  // Pin both ends: the first point is the previous close, the last is the
+  // live price, so the two real numbers the page prints are on the line.
+  const last = out[out.length - 1]
+  const adj = close - last
+  const pinned = out.map((p, i) => p + adj * (i / (n - 1)))
+  pinned[0] = open
+  pinned[pinned.length - 1] = close
+  return pinned
+}
+
+/** A stable seed from a symbol, so a chart does not reshuffle between renders. */
+export function seedOf(symbol: string): number {
+  let h = 0
+  for (let i = 0; i < symbol.length; i++) h = (h * 31 + symbol.charCodeAt(i)) % 100000
+  return h + 7
+}
+
+export interface Pt { x: number; y: number }
+
+export function mapPoints(values: readonly number[], w: number, h: number, pad: number): {
+  pts: Pt[]; min: number; max: number
+} {
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const span = max - min || 1
+  return {
+    pts: values.map((v, i) => ({
+      x: (i / (values.length - 1)) * w,
+      y: pad + (1 - (v - min) / span) * (h - pad * 2),
+    })),
+    min, max,
+  }
+}
+
+/** Straight polyline — used for dense series where curvature is invented. */
+export function polyPath(pts: readonly Pt[]): string {
+  return pts.map((p, i) => `${i ? 'L' : 'M'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')
+}
+
+/** Catmull-Rom to cubic — used for sparklines, which are too short to read raw. */
+export function smoothPath(pts: readonly Pt[]): string {
+  if (pts.length < 2) return ''
+  let d = `M ${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)}`
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] ?? pts[i]
+    const p1 = pts[i]
+    const p2 = pts[i + 1]
+    const p3 = pts[i + 2] ?? p2
+    d += ` C ${(p1.x + (p2.x - p0.x) / 6).toFixed(2)} ${(p1.y + (p2.y - p0.y) / 6).toFixed(2)},` +
+         ` ${(p2.x - (p3.x - p1.x) / 6).toFixed(2)} ${(p2.y - (p3.y - p1.y) / 6).toFixed(2)},` +
+         ` ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`
+  }
+  return d
+}

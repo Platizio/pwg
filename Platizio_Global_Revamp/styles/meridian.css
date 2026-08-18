@@ -112,9 +112,19 @@
      Three voices with strict jobs: serif for names and figures, mono for
      everything comparable, sans for labels and prose. Inter is the site's
      own body face, so the terminal loads one extra family, not two. */
-  --m-serif: 'Instrument Serif', ui-serif, Georgia, 'Times New Roman', serif;
+  /* The site's three faces, doing the site's three jobs. The source design
+     set its names in Instrument Serif; using it here would put a fourth
+     family on the page and a different voice on one route, so the display
+     slot is the home page's own Bricolage Grotesque. Nothing extra loads —
+     all three are already in index.html. */
+  --m-display: var(--font-display, 'Bricolage Grotesque', 'Inter', system-ui, sans-serif);
+  --m-serif: var(--m-display);
   --m-sans: var(--font, 'Inter', ui-sans-serif, system-ui, sans-serif);
-  --m-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --m-mono: var(--font-mono, 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace);
+  /* Bricolage is a variable grotesque, not a serif: its display weight is 700
+     with tight tracking, the way base.css sets every heading site-wide. */
+  --m-display-w: 700;
+  --m-display-track: -0.022em;
 
   --m-prose: 0.875rem;
   --m-prose-lg: 0.9375rem;
@@ -237,10 +247,10 @@
 .meridian .m-label--accent { color: var(--m-accent-dim); }
 
 .meridian .m-serif {
-  font-family: var(--m-serif);
-  font-weight: 400;
+  font-family: var(--m-display);
+  font-weight: var(--m-display-w);
   line-height: 1;
-  letter-spacing: 0.005em;
+  letter-spacing: var(--m-display-track);
 }
 .meridian h1.m-serif { font-size: clamp(2.25rem, 4vw, 3.625rem); line-height: 0.95; margin: 0; }
 .meridian h2.m-serif { font-size: clamp(1.75rem, 3vw, 2.5rem); margin: 0; }
@@ -255,9 +265,10 @@
   letter-spacing: 0.02em;
 }
 .meridian .m-fig--serif {
-  font-family: var(--m-serif);
+  font-family: var(--m-display);
+  font-weight: var(--m-display-w);
   font-variant-numeric: tabular-nums lining-nums;
-  letter-spacing: normal;
+  letter-spacing: var(--m-display-track);
 }
 
 .meridian p { color: var(--m-ink-3); margin: 0; text-wrap: pretty; }
@@ -457,7 +468,8 @@
   display: grid;
   place-items: center;
   border: 1px solid var(--m-rule-mono);
-  font-family: var(--m-serif);
+  font-family: var(--m-display);
+  font-weight: var(--m-display-w);
   line-height: 1;
   flex: none;
 }
@@ -494,11 +506,11 @@
   flex-wrap: wrap;
 }
 .meridian .m-head-name {
-  font-family: var(--m-serif);
-  font-weight: 400;
+  font-family: var(--m-display);
+  font-weight: var(--m-display-w);
   font-size: clamp(1.75rem, 2.6vw, 2.25rem);
   line-height: 1;
-  letter-spacing: 0.005em;
+  letter-spacing: var(--m-display-track);
   color: var(--m-ink);
 }
 .meridian .m-head-ex {
@@ -515,7 +527,7 @@
   display: flex;
   align-items: baseline;
   gap: 5px;
-  font-family: var(--m-serif);
+  font-family: var(--m-display); font-weight: var(--m-display-w);
   font-variant-numeric: tabular-nums lining-nums;
   justify-content: flex-end;
 }
@@ -598,7 +610,7 @@
   font-size: 0.875rem;
   color: var(--m-ink);
 }
-.meridian .m-stat-v--serif { font-family: var(--m-serif); font-size: 1.625rem; color: var(--m-accent); line-height: 1; }
+.meridian .m-stat-v--serif { font-family: var(--m-display); font-weight: var(--m-display-w); font-size: 1.625rem; color: var(--m-accent); line-height: 1; }
 .meridian .m-stat-l { margin-top: 9px; }
 
 /* ------------------------------------------------------- distribution plot
@@ -701,7 +713,7 @@
 }
 .meridian .m-trow { border-bottom: 1px solid var(--m-rule-table); min-height: 44px; }
 .meridian .m-trow.is-self { background: var(--m-wash-row); }
-.meridian .m-tname { font-family: var(--m-serif); font-size: 1rem; color: var(--m-ink); }
+.meridian .m-tname { font-family: var(--m-display); font-weight: var(--m-display-w); font-size: 1rem; color: var(--m-ink); }
 .meridian .m-tnum {
   font-family: var(--m-mono);
   font-variant-numeric: tabular-nums lining-nums;
@@ -732,7 +744,7 @@
 }
 .meridian .m-kv-row.is-total { border-bottom: 0; border-top: 1px solid var(--m-rule-mono); padding-top: 18px; }
 .meridian .m-kv-row.is-total .m-kv-k { color: var(--m-ink-2); font-weight: 600; }
-.meridian .m-kv-row.is-total .m-kv-v { font-family: var(--m-serif); font-size: 1.75rem; color: var(--m-accent); }
+.meridian .m-kv-row.is-total .m-kv-v { font-family: var(--m-display); font-weight: var(--m-display-w); font-size: 1.75rem; color: var(--m-accent); }
 .meridian .m-kv-note { font-size: 11px; color: var(--m-ink-4); padding-top: 10px; }
 
 /* --------------------------------------------------------- quantity stepper
@@ -762,7 +774,7 @@
   flex: 1;
   display: grid;
   place-items: center;
-  font-family: var(--m-serif);
+  font-family: var(--m-display); font-weight: var(--m-display-w);
   font-variant-numeric: tabular-nums lining-nums;
   font-size: 1.625rem;
   border-inline: 1px solid var(--m-rule);
@@ -857,7 +869,8 @@
   border-bottom: 1px solid var(--m-rule-table);
 }
 .meridian .m-step-n {
-  font-family: var(--m-serif);
+  font-family: var(--m-display);
+  font-weight: var(--m-display-w);
   font-size: 1.0625rem;
   color: var(--m-accent-dim);
   line-height: 1.2;
@@ -1176,3 +1189,128 @@
    the ruled context around them. */
 .meridian .m-guide { font-family: var(--m-sans); }
 .meridian .m-guide-label { font-family: var(--m-sans); }
+
+/* =========================================================
+   The chart
+   =========================================================
+   A price ladder, hairline gridlines, a dashed previous-close reference, an
+   area under the line, a volume histogram and the session times. Everything
+   is a hairline; nothing is filled but the area, and that is a 20% wash.
+   ========================================================= */
+
+.meridian .m-chart { display: flex; gap: 11px; }
+
+.meridian .m-chart-ladder {
+  flex: none;
+  width: 52px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 2px 0 18px;
+  text-align: right;
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: 8.5px;
+  letter-spacing: 0.02em;
+  color: var(--m-ink-4);
+}
+
+.meridian .m-chart-plot-wrap { flex: 1; min-width: 0; }
+.meridian .m-chart-plot { position: relative; }
+.meridian .m-chart-svg { position: absolute; inset: 0; overflow: visible; }
+
+.meridian .m-grid-h { position: absolute; left: 0; right: 0; height: 1px; background: var(--m-grid); }
+.meridian .m-grid-v { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--m-grid-v); }
+
+/* The reference the whole session is read against. Dashed, in the accent's
+   deepest tone, because it is a rule rather than a data series. */
+.meridian .m-prev {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: repeating-linear-gradient(90deg, var(--m-accent-dim) 0 4px, transparent 4px 10px);
+  opacity: 0.85;
+}
+
+.meridian .m-chart-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  border: 1.5px solid var(--m-shell);
+  transform: translate(-50%, -50%);
+}
+.meridian .m-chart-dot.is-up { background: var(--m-up); box-shadow: 0 0 0 3px rgba(14, 124, 88, 0.16); }
+.meridian .m-chart-dot.is-down { background: var(--m-down); box-shadow: 0 0 0 3px rgba(200, 30, 67, 0.16); }
+
+.meridian .m-vol {
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 30px;
+  margin-top: 7px;
+  border-bottom: 1px solid var(--m-rule-list);
+}
+.meridian .m-vol-bar { flex: 1; min-width: 0; }
+.meridian .m-vol-bar.is-up { background: rgba(14, 124, 88, 0.30); }
+.meridian .m-vol-bar.is-down { background: rgba(200, 30, 67, 0.30); }
+
+.meridian .m-chart-x {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 9px;
+  font-family: var(--m-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+  color: var(--m-ink-4);
+}
+
+/* The one authored motion moment: the session draws itself in, left to right.
+   fill-mode is `none` so the chart is fully visible whenever the animation
+   does not run — a browser that skips it, or print. */
+@keyframes m-draw {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+.meridian .m-chart-reveal { animation: m-draw 1.25s var(--m-ease); }
+
+/* ------------------------------------------------------------- ranges */
+
+.meridian .m-ranges { display: flex; border: 1px solid var(--m-rule-section); width: max-content; }
+.meridian .m-range {
+  appearance: none;
+  background: none;
+  border: 0;
+  border-right: 1px solid var(--m-rule-section);
+  padding: 7px 13px;
+  font-family: var(--m-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--m-ink-4);
+  cursor: pointer;
+  transition: color var(--m-t), background var(--m-t);
+}
+.meridian .m-range:last-child { border-right: 0; }
+.meridian .m-range:hover:not(:disabled) { color: var(--m-ink-2); }
+.meridian .m-range[aria-pressed='true'] { background: var(--m-wash); color: var(--m-accent); }
+.meridian .m-range:disabled { color: var(--m-rule-mono); cursor: not-allowed; }
+
+.meridian .m-spark { flex: none; }
+
+/* An illustrative-shape note, said once per block that draws one. */
+.meridian .m-illus {
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--m-ink-4);
+  margin-top: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meridian .m-chart-reveal { animation: none; }
+}
+
+@media (max-width: 620px) {
+  .meridian .m-chart-ladder { width: 42px; font-size: 8px; }
+  .meridian .m-chart { gap: 8px; }
+}
