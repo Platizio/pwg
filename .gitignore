@@ -36,3 +36,4 @@ Global_API/
 client-url-config.json
 *.pem
 *.key
+tsconfig.node.tsbuildinfo

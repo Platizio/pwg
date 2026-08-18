@@ -7,8 +7,13 @@
  */
 
 import type { RawQuote } from './viewtrade'
-import type { Quote, QuotesResponse } from '../../Platizio_Global_Revamp/types/market'
-import { POPULAR_8, TRENDING_COUNT } from '../../Platizio_Global_Revamp/data/marketUniverse'
+import type { Quote, QuotesResponse, SymbolsResponse } from '../../Platizio_Global_Revamp/types/market'
+import {
+  POPULAR_8,
+  TRENDING_COUNT,
+  DISPLAY_NAMES,
+  NASDAQ_100_SET,
+} from '../../Platizio_Global_Revamp/data/marketUniverse'
 
 /**
  * Prices always render to 2 decimals.
@@ -108,10 +113,15 @@ export function buildPayload(raws: RawQuote[]): QuotesResponse {
     })
     .filter((q): q is Quote => q !== null)
 
-  const trending = [...usable]
+  // Ranked over NASDAQ_100 membership, not over everything fetched. The proxy
+  // now also carries five ETFs for the Products page and the terminal, and
+  // three of them are NYSE Arca listings — letting those into a list the UI
+  // labels "Top movers — Nasdaq-100" would make the label untrue.
+  const trending = usable
+    .filter((raw) => NASDAQ_100_SET.has(raw.symbol))
     .sort((a, b) => Math.abs(b.changePercent!) - Math.abs(a.changePercent!))
     .slice(0, TRENDING_COUNT)
-    .map((raw) => normalise(raw))
+    .map((raw) => normalise(raw, DISPLAY_NAMES.get(raw.symbol)))
 
   // Only the quotes actually rendered feed the freshness and delayed notices.
   const shownSymbols = new Set([
@@ -128,4 +138,57 @@ export function buildPayload(raws: RawQuote[]): QuotesResponse {
     // conservative direction for a disclosure.
     delayed: shown.length === 0 || shown.some((r) => r.delayed !== false),
   }
+}
+
+/**
+ * Response for an explicit `?symbols=` request.
+ *
+ * Used by the terminal, which needs one named instrument plus enough of the
+ * index to say where its move sits. Deliberately a separate builder rather
+ * than a reshaping of buildPayload: `trending` and `popular` carry editorial
+ * decisions (a ranked cut, a curated eight) that a symbol lookup must not
+ * inherit.
+ *
+ * Order follows the REQUEST, not the API's response order, so the caller can
+ * rely on index alignment. A symbol the upstream could not serve is simply
+ * absent — the caller decides whether that is fatal.
+ */
+export function buildSymbolsPayload(
+  raws: RawQuote[],
+  requested: readonly string[],
+): SymbolsResponse {
+  const usable = raws.filter(isUsable)
+  const bySymbol = new Map(usable.map((r) => [r.symbol, r]))
+
+  const quotes = requested
+    .map((symbol) => {
+      const raw = bySymbol.get(symbol)
+      return raw ? normalise(raw, DISPLAY_NAMES.get(symbol)) : null
+    })
+    .filter((q): q is Quote => q !== null)
+
+  const shown = quotes
+    .map((q) => bySymbol.get(q.symbol))
+    .filter((r): r is RawQuote => !!r)
+
+  return {
+    quotes,
+    asOf: oldestUpdateTime(shown),
+    delayed: shown.length === 0 || shown.some((r) => r.delayed !== false),
+  }
+}
+
+/**
+ * Every usable Nasdaq-100 change, as plain numbers, for the distribution plot.
+ *
+ * The terminal draws each constituent's move as a tick on one axis so a
+ * visitor can see whether a given move is ordinary or exceptional. That is the
+ * whole index, not the ranked cut, so it cannot reuse `trending`.
+ */
+export function buildIndexMoves(raws: RawQuote[]): number[] {
+  return raws
+    .filter(isUsable)
+    .filter((raw) => NASDAQ_100_SET.has(raw.symbol))
+    .map((raw) => round((raw.changePercent as number) * 100, 2))
+    .sort((a, b) => a - b)
 }

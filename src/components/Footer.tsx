@@ -93,8 +93,8 @@ export default function Footer() {
           <div className="footer-col">
             <h3>Products</h3>
             <ul>
-              <li><Link to="/products#us-stocks">US Stocks</Link></li>
-              <li><Link to="/products#us-etfs">US ETFs</Link></li>
+              <li><Link to="/products">US Stocks &amp; ETFs</Link></li>
+              <li><Link to="/terminal/aapl">Live terminal</Link></li>
               <li><Link to="/pricing">Pricing &amp; Charges</Link></li>
             </ul>
           </div>

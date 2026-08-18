@@ -7,6 +7,7 @@ import ContactModal from './components/ContactModal'
 import WhatsAppFloat from './components/WhatsAppFloat'
 import Home from './pages/Home'
 import Products from './pages/Products'
+import Terminal from './pages/Terminal'
 import Pricing from './pages/Pricing'
 import Media from './pages/Media'
 import About from './pages/About'
@@ -87,6 +88,9 @@ export default function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<Home />} />
           <Route path="/products" element={<Products />} />
+          {/* One instrument per page. Only symbols in TERMINAL_UNIVERSE
+              resolve; anything else falls through to <NotFound/>. */}
+          <Route path="/terminal/:symbol" element={<Terminal />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/media" element={<Media />} />
           <Route path="/about" element={<About />} />

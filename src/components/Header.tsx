@@ -5,7 +5,6 @@ import { TRADING_PLATFORM_URL } from '../constants'
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [productsOpen, setProductsOpen] = useState(false)
   const [resourcesOpen, setResourcesOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const { openContact } = useAppContext()
@@ -22,7 +21,6 @@ export default function Header() {
   // Close mobile menu and dropdowns on navigation
   useEffect(() => {
     setMenuOpen(false)
-    setProductsOpen(false)
     setResourcesOpen(false)
   }, [location.pathname])
 
@@ -45,32 +43,10 @@ export default function Header() {
               Home
             </NavLink>
           </li>
-          <li className={`has-dropdown${productsOpen ? ' products-open' : ''}`}>
-            <NavLink
-              to="/products"
-              className={({ isActive }) => (isActive ? 'active' : undefined)}
-              onClick={(e) => {
-                // On mobile, toggle the dropdown instead of navigating immediately
-                if (menuOpen) { e.preventDefault(); setProductsOpen((v) => !v) }
-              }}
-              aria-expanded={productsOpen}
-            >
-              Products <span className="dropdown-chevron" aria-hidden="true" />
+          <li>
+            <NavLink to="/products" className={({ isActive }) => (isActive ? 'active' : undefined)}>
+              Products
             </NavLink>
-            <ul className="dropdown">
-              <li>
-                <Link to="/products#us-stocks" onClick={() => setMenuOpen(false)}>
-                  <strong>US Stocks</strong>
-                  <span>Invest in leading US-listed companies</span>
-                </Link>
-              </li>
-              <li>
-                <Link to="/products#us-etfs" onClick={() => setMenuOpen(false)}>
-                  <strong>US ETFs</strong>
-                  <span>Diversified baskets, indices &amp; themes</span>
-                </Link>
-              </li>
-            </ul>
           </li>
           <li>
             <NavLink to="/pricing" className={({ isActive }) => (isActive ? 'active' : undefined)}>

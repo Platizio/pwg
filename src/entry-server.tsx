@@ -6,7 +6,7 @@ import App from './App'
 
 // Re-exported so the build scripts read the route list through the compiled
 // bundle rather than needing a TypeScript parser of their own.
-export { ROUTES, STATIC_ROUTES, TOPIC_ROUTES, ARTICLE_ROUTES } from './routes'
+export { ROUTES, STATIC_ROUTES, TERMINAL_ROUTES, TOPIC_ROUTES, ARTICLE_ROUTES } from './routes'
 export type { RouteEntry } from './routes'
 
 // Exposed for scripts/generate-article-images.mjs, which needs title/category/

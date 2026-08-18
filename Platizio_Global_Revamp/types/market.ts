@@ -40,3 +40,33 @@ export interface QuotesResponse {
   /** True when the upstream marks the data delayed. Drives the notice. */
   delayed: boolean
 }
+
+/**
+ * Response body of GET /api/quotes?symbols=AAPL,MSFT
+ *
+ * A flat list rather than the two curated arrays: the caller asked for exactly
+ * these symbols, so there is no ranking or selection left to express.
+ */
+export interface SymbolsResponse {
+  /** In the order requested. A symbol the upstream could not serve is absent. */
+  quotes: Quote[]
+  /** ISO timestamp of the stalest quote returned. */
+  asOf: string
+  /** True when the upstream marks the data delayed. Drives the notice. */
+  delayed: boolean
+  /**
+   * Every usable Nasdaq-100 constituent's percentage change today, ascending.
+   *
+   * Present only when `index=1` is requested. The terminal plots the requested
+   * symbol's move against this distribution, which is the one honest way we
+   * can say whether a move is large without a fundamentals or history feed.
+   */
+  indexMoves?: number[]
+  /**
+   * The eight largest absolute movers in the index today, with names.
+   *
+   * The same ranking `trending` uses on Home, reused rather than recomputed —
+   * "biggest movers" must mean one thing across the site.
+   */
+  indexLeaders?: Quote[]
+}

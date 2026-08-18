@@ -46,6 +46,27 @@ export const POPULAR_8: readonly { symbol: string; name: string }[] = [
   { symbol: 'NFLX', name: 'Netflix' },
 ]
 
+/**
+ * The five ETFs the Products page and the terminal cover.
+ *
+ * Held apart from NASDAQ_100 on purpose. The trending section is labelled
+ * "Top movers — Nasdaq-100", and that label is only honest while the ranked
+ * set is the index it names — so buildPayload ranks over NASDAQ_100
+ * membership, not over everything the proxy happens to have fetched.
+ *
+ * Three of these list on NYSE Arca rather than Nasdaq. Whether the equity
+ * quotes endpoint resolves NYSEARCA symbols is UNVERIFIED against UAT; if it
+ * returns `notFound` for them, `isUsable` drops them and the ETF rows render
+ * their unavailable state rather than breaking. See docs/04-decisions.md.
+ */
+export const ETF_UNIVERSE: readonly { symbol: string; name: string }[] = [
+  { symbol: 'SPY', name: 'SPDR S&P 500' },
+  { symbol: 'QQQ', name: 'Invesco QQQ' },
+  { symbol: 'VOO', name: 'Vanguard S&P 500' },
+  { symbol: 'SOXX', name: 'iShares Semiconductor' },
+  { symbol: 'XLK', name: 'Technology Select' },
+]
+
 /** How many movers the trending banner shows. */
 export const TRENDING_COUNT = 8
 
@@ -58,5 +79,23 @@ export const MIN_USABLE_QUOTES = 4
 
 /** Every symbol the proxy needs, deduplicated. */
 export const ALL_SYMBOLS: readonly string[] = [
-  ...new Set([...NASDAQ_100, ...POPULAR_8.map((p) => p.symbol)]),
+  ...new Set([
+    ...NASDAQ_100,
+    ...POPULAR_8.map((p) => p.symbol),
+    ...ETF_UNIVERSE.map((e) => e.symbol),
+  ]),
 ]
+
+/**
+ * Display names for anything the API would otherwise name badly.
+ *
+ * ViewTrade returns SHOUTING legal entities ("ALPHABET INC C", "INVESCO QQQ
+ * TRUST SERIES 1"). Both curated lists feed one lookup so a symbol resolves to
+ * the same name wherever it appears.
+ */
+export const DISPLAY_NAMES: ReadonlyMap<string, string> = new Map(
+  [...POPULAR_8, ...ETF_UNIVERSE].map((e) => [e.symbol, e.name]),
+)
+
+/** Membership test used to keep the "Nasdaq-100" ranking honest. */
+export const NASDAQ_100_SET: ReadonlySet<string> = new Set(NASDAQ_100)

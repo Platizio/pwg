@@ -1,0 +1,1178 @@
+/* =========================================================
+   Meridian — the terminal's visual world, in Platizio's light
+   =========================================================
+
+   The structure and rigour of the Meridian design system, rendered in the
+   brand rather than against it: white paper, burnt orange where the source
+   had champagne gilt, and Platizio navy carrying the structure.
+
+   THE SCOPE RULE, which is load-bearing: every token below is declared on
+   `.meridian` and NOTHING here touches `:root`. tokens.css is a global
+   override layer — anything leaking out of this scope repaints the site.
+
+   The world is "The Private Ledger", read in daylight instead of a dim room:
+   structure comes from lines, never from boxes. A hairline separates every
+   row, column and section, and nothing is put in a card to look important.
+   Names are set in a serif, figures in a monospace that holds its columns,
+   and the micro-labels between them are tiny and widely tracked, the way a
+   printed ledger annotates its own margins.
+
+   Six laws, carried over from the source system:
+     1. Structure by 1px rule and vertical space, never by card fill.
+     2. Radius 0. Only true circles are exempt.
+     3. Exactly one filled accent element per view. All other orange is a
+        line, a dot, or type.
+     4. No resting shadow. Shadow marks the one CTA, nothing else.
+     5. Paper grain is a cached image tile, never a live feTurbulence filter,
+        which would re-rasterise on every paint.
+     6. Drop a column at a breakpoint; never narrow one past its design width.
+
+   Contrast, measured rather than eyeballed, against --m-page #ffffff:
+     ink 15.54  ink-2 10.77  ink-3 7.19  ink-4 4.83
+     accent 5.15  accent-dim 6.99  up 4.86  down 5.32
+     on-accent over the CTA gradient 4.51 -> 9.08
+   --m-rule tones are DECORATION ONLY and may never carry text.
+   ========================================================= */
+
+.meridian {
+  /* ------------------------------------------------------------- grounds
+     Paper, not grey. The rail is a half-degree warmer than the page so a
+     flat system still separates its regions without a single border. */
+  --m-page: #ffffff;
+  --m-shell: #ffffff;
+  --m-rail: #fbfaf8;
+  --m-raised: #f5f8fa;
+
+  /* --------------------------------------------------------------- rules
+     A graded family tinted with the brand navy, so hairlines sit inside the
+     palette rather than as grey laid on top of it. */
+  --m-rule: rgba(10, 37, 64, 0.15);
+  --m-rule-section: rgba(10, 37, 64, 0.11);
+  --m-rule-list: rgba(10, 37, 64, 0.085);
+  --m-rule-table: rgba(10, 37, 64, 0.06);
+  --m-rule-raised: rgba(185, 75, 18, 0.30);
+  --m-rule-mono: rgba(10, 37, 64, 0.22);
+  --m-rule-control: rgba(10, 37, 64, 0.18);
+  --m-grid: rgba(10, 37, 64, 0.07);
+  --m-grid-v: rgba(10, 37, 64, 0.045);
+
+  /* ------------------------------------------------------------------ ink
+     Four levels, all blue-black. A neutral grey next to burnt orange goes
+     muddy; tinting the ink toward the navy keeps the two in one family. */
+  --m-ink: #0a2540;
+  --m-ink-2: #2e3f52;
+  --m-ink-3: #47596e;
+  --m-ink-4: #607488;
+
+  /* --------------------------------------------------------------- accent
+     Burnt orange, unchanged in hue from the brand. It covers roughly a tenth
+     of any view: because so little is filled, the one CTA is unmissable
+     without being loud. */
+  --m-accent: #b94b12;
+  --m-accent-hi: #e2682a;
+  --m-accent-dim: #9a3d0d;
+  --m-accent-deep: #7e3008;
+  --m-on-accent: #ffffff;
+  /* The brand's four-stop ramp starts at #f0894f, which measures 2.50:1
+     against the white label on it — the label here is 10px, so it needs 4.5.
+     This ramp is the same hue over the range that actually passes: #c1541b
+     is the lightest orange that clears AA for small white text (4.61), and
+     the foot is #7e3008 at 9.08. */
+  --m-cta: linear-gradient(135deg, #c1541b 0%, #b94b12 42%, #7e3008 100%);
+  --m-wash: rgba(226, 104, 42, 0.08);
+  --m-wash-row: rgba(226, 104, 42, 0.055);
+
+  /* ----------------------------------------------------------- structure
+     The second accent. Navy carries weight — section grounds, the tape, the
+     figures that are structural rather than directional. */
+  --m-blue: #0a2540;
+  --m-blue-2: #103154;
+  --m-blue-wash: rgba(10, 37, 64, 0.045);
+
+  /* ----------------------------------------------------------- direction
+     The site's existing gain and loss, which were chosen against white and
+     measured there. Loss is a rose-red rather than a true red on purpose: a
+     true red sits too close to the orange accent, and a falling price must
+     never be mistaken for a brand element. Colour is never the only carrier
+     — every change also ships a glyph and a sign. */
+  --m-up: #0e7c58;
+  --m-down: #c81e43;
+  --m-flat: #607488;
+
+  /* ---------------------------------------------- instrument mark tints
+     Four muted inks for the monograms, so thirteen symbols read as a set
+     rather than as confetti. */
+  --m-mark-bone: #47596e;
+  --m-mark-gold: #b94b12;
+  --m-mark-sage: #0e7c58;
+  --m-mark-slate: #103154;
+  --m-mark-clay: #9a3d0d;
+
+  /* ---------------------------------------------------------------- type
+     Three voices with strict jobs: serif for names and figures, mono for
+     everything comparable, sans for labels and prose. Inter is the site's
+     own body face, so the terminal loads one extra family, not two. */
+  --m-serif: 'Instrument Serif', ui-serif, Georgia, 'Times New Roman', serif;
+  --m-sans: var(--font, 'Inter', ui-sans-serif, system-ui, sans-serif);
+  --m-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --m-prose: 0.875rem;
+  --m-prose-lg: 0.9375rem;
+  --m-data: 0.78125rem;
+  --m-data-lg: 0.8125rem;
+  --m-label: 0.625rem;
+  --m-track: 0.26em;
+
+  /* -------------------------------------------------------------- motion */
+  --m-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --m-t: 0.25s var(--m-ease);
+  --m-t-row: 0.28s var(--m-ease);
+
+  /* --------------------------------------------------------------- shape */
+  --m-gutter: 30px;
+  --m-rail-l: 246px;
+  --m-rail-r: 358px;
+  --m-max: 1560px;
+
+  position: relative;
+  isolation: isolate;
+  background: var(--m-page);
+  color: var(--m-ink);
+  font-family: var(--m-sans);
+  font-size: var(--m-prose);
+  line-height: 1.65;
+}
+
+/* Square by law. The two exemptions are re-granted explicitly below, which is
+   the only way a reader of this file can tell they were decisions. */
+.meridian *,
+.meridian *::before,
+.meridian *::after {
+  border-radius: 0;
+  box-sizing: border-box;
+}
+.meridian .m-shell { border-radius: 3px; }
+.meridian .m-dot,
+.meridian .m-avatar { border-radius: 9999px; }
+
+/* ----------------------------------------------------------- the material
+
+   One radial wash from above the fold, and grain over everything. The grain
+   is a data-URI image, so the browser rasterises the noise once and reuses
+   the tile; a live <filter> on a full-bleed rect re-runs the turbulence on
+   every paint and is the single most expensive way to ship this texture. */
+.meridian::before,
+.meridian::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.meridian::before {
+  background: radial-gradient(1100px 480px at 50% -16%, rgba(226, 104, 42, 0.055), transparent 64%);
+  z-index: 0;
+}
+.meridian::after {
+  z-index: 3;
+  opacity: 0.035;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+.meridian > * { position: relative; z-index: 1; }
+
+/* -------------------------------------------------------- browser surfaces
+
+   The parts nobody draws still belong to the design. A default blue selection
+   or a grey scrollbar on a warm-black ledger is the tell that a page was
+   assembled rather than built. */
+.meridian ::selection {
+  background: rgba(226, 104, 42, 0.20);
+  color: var(--m-accent-deep);
+}
+.meridian { scrollbar-color: rgba(10, 37, 64, 0.28) transparent; scrollbar-width: thin; }
+.meridian ::-webkit-scrollbar { width: 7px; height: 7px; }
+.meridian ::-webkit-scrollbar-thumb { background: rgba(10, 37, 64, 0.28); }
+.meridian ::-webkit-scrollbar-track { background: transparent; }
+.meridian :focus-visible {
+  outline: 1px solid var(--m-accent);
+  outline-offset: 3px;
+}
+.meridian a { color: var(--m-accent); text-decoration: none; text-underline-offset: 0.25em; }
+.meridian a:hover { color: var(--m-accent-hi); }
+.meridian a.m-underline { text-decoration: underline; text-decoration-thickness: 1px; }
+
+/* ------------------------------------------------------------------- type
+
+   base.css restyles every h1–h5 site-wide: Bricolage Grotesque at weight 700
+   with tight tracking. This world sets its names in Instrument Serif at 400,
+   so every heading inside it would otherwise arrive in the wrong voice. The
+   reset is scoped, explicit and first, so nothing inherits across. */
+.meridian h1,
+.meridian h2,
+.meridian h3,
+.meridian h4,
+.meridian h5,
+.meridian h6 {
+  font-family: var(--m-sans);
+  font-weight: 600;
+  color: var(--m-ink);
+  line-height: 1.3;
+  letter-spacing: normal;
+  text-wrap: pretty;
+  margin: 0;
+}
+
+/* ------------------------------------------------------------------- type */
+
+.meridian .m-label {
+  font-family: var(--m-sans);
+  font-size: var(--m-label);
+  font-weight: 700;
+  letter-spacing: var(--m-track);
+  text-transform: uppercase;
+  color: var(--m-ink-3);
+  line-height: 1.4;
+}
+.meridian .m-label--accent { color: var(--m-accent-dim); }
+
+.meridian .m-serif {
+  font-family: var(--m-serif);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.005em;
+}
+.meridian h1.m-serif { font-size: clamp(2.25rem, 4vw, 3.625rem); line-height: 0.95; margin: 0; }
+.meridian h2.m-serif { font-size: clamp(1.75rem, 3vw, 2.5rem); margin: 0; }
+.meridian h3.m-serif { font-size: 1.3125rem; line-height: 1.2; margin: 0; }
+
+/* Every comparable figure. tabular-nums is not cosmetic here: without it a
+   column of prices shimmers sideways each time a value updates. */
+.meridian .m-fig {
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+  letter-spacing: 0.02em;
+}
+.meridian .m-fig--serif {
+  font-family: var(--m-serif);
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: normal;
+}
+
+.meridian p { color: var(--m-ink-3); margin: 0; text-wrap: pretty; }
+.meridian .m-prose { font-size: var(--m-prose); line-height: 1.75; color: var(--m-ink-3); max-width: 68ch; }
+.meridian .m-prose strong { color: var(--m-ink-2); font-weight: 600; }
+
+/* ------------------------------------------------------------------ rules */
+
+.meridian .m-rule { height: 1px; background: var(--m-rule-section); border: 0; margin: 0; }
+.meridian .m-rule--gilt {
+  height: 1px;
+  border: 0;
+  margin: 0;
+  background: linear-gradient(90deg, var(--m-accent), transparent);
+  transform-origin: left;
+}
+
+/* --------------------------------------------------------------- direction
+
+   The glyph is not decoration. WCAG 1.4.1 forbids colour as the sole carrier
+   of meaning, and this is the same contract QuoteChange holds on the light
+   side of the site. Never remove the arrow to tidy the design. */
+.meridian .m-chg {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: var(--m-data);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.meridian .m-chg svg { width: 7px; height: 7px; flex: none; }
+.meridian .m-chg.is-up { color: var(--m-up); }
+.meridian .m-chg.is-down { color: var(--m-down); }
+.meridian .m-chg.is-flat { color: var(--m-flat); }
+.meridian .m-chg--lg { font-size: var(--m-data-lg); }
+.meridian .m-chg--lg svg { width: 9px; height: 9px; }
+
+/* ------------------------------------------------------------------ shell */
+
+.meridian .m-shell {
+  max-width: var(--m-max);
+  margin: 0 auto;
+  background: var(--m-shell);
+  border: 1px solid var(--m-rule);
+  display: grid;
+  grid-template-columns: var(--m-rail-l) minmax(0, 1fr) var(--m-rail-r);
+  align-items: stretch;
+}
+@media (min-width: 1281px) {
+  /* The one very large, very soft shadow that seats the whole instrument on
+     the page. Desktop only, and the only resting shadow in the system. */
+  .meridian .m-shell { box-shadow: 0 2px 4px rgba(5, 19, 31, 0.04), 0 24px 60px rgba(5, 19, 31, 0.10); }
+}
+
+/* The tape runs the full width of the shell, above all three columns. */
+.meridian .m-shell > .m-tape { grid-column: 1 / -1; }
+
+.meridian .m-rail-left {
+  border-right: 1px solid var(--m-rule);
+  background: var(--m-rail);
+  padding: 22px 0;
+  min-width: 0;
+}
+.meridian .m-col {
+  min-width: 0;
+  padding: 0 var(--m-gutter) 34px;
+}
+.meridian .m-rail-right {
+  border-left: 1px solid var(--m-rule);
+  background: var(--m-rail);
+  padding: 26px 24px 34px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+/* Block rhythm: 26px between blocks, 34px between panel groups. Spacing is
+   almost entirely gaps and rules — a ruled system breathes through its rules,
+   not its padding. */
+.meridian .m-block + .m-block { margin-top: 26px; }
+.meridian .m-group + .m-group { margin-top: 34px; }
+
+/* -------------------------------------------------------------- the tape */
+
+.meridian .m-tape {
+  height: 34px;
+  border-bottom: 1px solid var(--m-rule-list);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  /* Feather both ends so items enter and leave rather than being clipped. */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+}
+.meridian .m-tape-track {
+  display: flex;
+  white-space: nowrap;
+  animation: m-tape 64s linear infinite;
+  will-change: transform;
+}
+.meridian .m-tape:hover .m-tape-track,
+.meridian .m-tape:focus-within .m-tape-track { animation-play-state: paused; }
+/* No `gap` on the track, deliberately. Flex gap gives N-1 gaps for N items,
+   so a -50% loop over a doubled list jumps by one gap every cycle. Spacing
+   lives on the item instead. */
+.meridian .m-tape-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 22px;
+  border-right: 1px solid var(--m-rule-list);
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--m-ink-3);
+}
+.meridian .m-tape-item b { color: var(--m-ink-2); font-weight: 400; }
+
+/* ------------------------------------------------------------ symbol rail
+
+   The row indent is the signature interaction of the whole system: hover or
+   focus pulls a row 8px right and warms it, and the current row grows a gold
+   bar at its left edge. Nothing lights up, nothing fills. */
+.meridian .m-rail-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 18px 12px;
+}
+.meridian .m-srow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 18px;
+  min-height: 44px;
+  border-top: 1px solid var(--m-rule-list);
+  color: inherit;
+  position: relative;
+  transition: background var(--m-t-row);
+}
+/* The 8px indent is this system's signature interaction, and it moves the
+   identity block rather than the row's own padding: padding-left animates
+   layout on every hover, a transform composites. The figure on the right
+   stays put, which is also what the design wants — the columns must not
+   drift sideways as the pointer moves down the rail. */
+.meridian .m-srow > :first-child {
+  transition: transform var(--m-t-row);
+}
+.meridian .m-srow::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: transparent;
+  transition: background var(--m-t);
+}
+.meridian .m-srow:hover,
+.meridian .m-srow:focus-visible {
+  background: var(--m-wash-row);
+  color: inherit;
+}
+.meridian .m-srow:hover > :first-child,
+.meridian .m-srow:focus-visible > :first-child { transform: translateX(8px); }
+.meridian .m-srow[aria-current='page'] { background: var(--m-wash-row); }
+.meridian .m-srow[aria-current='page']::before { background: var(--m-accent); }
+.meridian .m-srow-id {
+  display: block;
+  font-family: var(--m-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--m-ink-2);
+}
+.meridian .m-srow[aria-current='page'] .m-srow-id { color: var(--m-ink); }
+.meridian .m-srow-name {
+  display: block;
+  font-size: 10.5px;
+  color: var(--m-ink-4);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------- instrument header
+
+   The recurring silhouette: a 1px outlined square holding a serif monogram.
+   Never filled — the instrument's colour lives in the letter, which is what
+   keeps thirteen tinted symbols from turning the rail into confetti. */
+.meridian .m-mark {
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--m-rule-mono);
+  font-family: var(--m-serif);
+  line-height: 1;
+  flex: none;
+}
+.meridian .m-mark--lg { width: 56px; height: 56px; font-size: 26px; }
+.meridian .m-mark--md { width: 40px; height: 40px; font-size: 19px; }
+.meridian .m-mark--sm { width: 26px; height: 26px; font-size: 13px; }
+.meridian .m-mark.t-bone { color: var(--m-mark-bone); }
+.meridian .m-mark.t-gold { color: var(--m-mark-gold); }
+.meridian .m-mark.t-sage { color: var(--m-mark-sage); }
+.meridian .m-mark.t-slate { color: var(--m-mark-slate); }
+.meridian .m-mark.t-clay { color: var(--m-mark-clay); }
+
+.meridian .m-crumb {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 18px 0 16px;
+  font-family: var(--m-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--m-ink-4);
+}
+.meridian .m-crumb a { color: var(--m-ink-4); }
+.meridian .m-crumb a:hover { color: var(--m-accent); }
+.meridian .m-crumb .sep { color: var(--m-rule-mono); }
+
+.meridian .m-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--m-rule-section);
+  flex-wrap: wrap;
+}
+.meridian .m-head-name {
+  font-family: var(--m-serif);
+  font-weight: 400;
+  font-size: clamp(1.75rem, 2.6vw, 2.25rem);
+  line-height: 1;
+  letter-spacing: 0.005em;
+  color: var(--m-ink);
+}
+.meridian .m-head-ex {
+  font-family: var(--m-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  color: var(--m-ink-4);
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.meridian .m-head-price {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-family: var(--m-serif);
+  font-variant-numeric: tabular-nums lining-nums;
+  justify-content: flex-end;
+}
+.meridian .m-head-price .cur { font-size: 1.125rem; color: var(--m-accent-dim); }
+.meridian .m-head-price .val { font-size: clamp(2.25rem, 3.4vw, 3rem); line-height: 0.9; }
+
+/* A static gilt dot, used as a separator. Deliberately NOT a pulsing "live"
+   indicator: these quotes are delayed, and a pulse is the standard visual
+   shorthand for claiming they are not. Home's ticker band omits it for the
+   same reason. */
+.meridian .m-dot {
+  width: 4px;
+  height: 4px;
+  background: var(--m-accent-dim);
+  flex: none;
+}
+
+/* -------------------------------------------------------------------- tabs
+
+   A 1px gold underline that slides between tabs. Roving tabindex, arrow keys
+   move, Home/End jump, selection follows focus — the implementation lives in
+   TabBar.tsx; this only dresses it. */
+.meridian .m-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--m-rule-section);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.meridian .m-tabs::-webkit-scrollbar { display: none; }
+.meridian .m-tab {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 16px 22px 14px 0;
+  margin-right: 22px;
+  font-family: var(--m-sans);
+  font-size: var(--m-label);
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--m-ink-4);
+  cursor: pointer;
+  position: relative;
+  white-space: nowrap;
+  transition: color var(--m-t);
+}
+.meridian .m-tab:hover { color: var(--m-ink-2); }
+.meridian .m-tab[aria-selected='true'] { color: var(--m-ink); }
+.meridian .m-tab::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 22px;
+  bottom: -1px;
+  height: 1px;
+  background: var(--m-accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.32s var(--m-ease);
+}
+.meridian .m-tab[aria-selected='true']::after { transform: scaleX(1); }
+
+/* ------------------------------------------------------- ruled stat strip */
+
+.meridian .m-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  border-top: 1px solid var(--m-rule-section);
+}
+.meridian .m-stat {
+  padding: 18px 20px 16px 0;
+  border-right: 1px solid var(--m-rule-section);
+  border-bottom: 1px solid var(--m-rule-section);
+}
+.meridian .m-stat:last-child { border-right: 0; }
+.meridian .m-stat-v {
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: 0.875rem;
+  color: var(--m-ink);
+}
+.meridian .m-stat-v--serif { font-family: var(--m-serif); font-size: 1.625rem; color: var(--m-accent); line-height: 1; }
+.meridian .m-stat-l { margin-top: 9px; }
+
+/* ------------------------------------------------------- distribution plot
+
+   Every Nasdaq-100 constituent's move today as a 1px tick on one axis, with
+   the instrument in view drawn in gilt. It is the honest answer to "is this
+   move big?" on a data plan with no history and no fundamentals. */
+.meridian .m-dist { position: relative; padding: 8px 0 0; }
+.meridian .m-dist-plot { position: relative; height: 108px; }
+.meridian .m-dist-axis { position: absolute; left: 0; right: 0; height: 1px; background: var(--m-rule); }
+.meridian .m-dist-svg { display: block; width: 100%; height: 108px; overflow: visible; }
+.meridian .m-dist-scale {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 10px;
+  font-family: var(--m-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--m-ink-4);
+}
+/* Labels are HTML positioned by percentage, not SVG <text>: the plot's
+   viewBox stretches horizontally so the axis can fill any width, and text
+   inside it would stretch with it. */
+.meridian .m-dist-flag {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.meridian .m-dist-flag-id {
+  font-family: var(--m-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  color: var(--m-accent);
+}
+.meridian .m-dist-flag-v {
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: 11px;
+}
+.meridian .m-dist-flag-v.is-up { color: var(--m-up); }
+.meridian .m-dist-flag-v.is-down { color: var(--m-down); }
+.meridian .m-dist-flag-v.is-flat { color: var(--m-flat); }
+.meridian .m-dist-zero,
+.meridian .m-dist-med {
+  position: absolute;
+  bottom: 6px;
+  transform: translateX(-50%);
+  font-family: var(--m-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.18em;
+  color: var(--m-ink-4);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.meridian .m-dist-zero { bottom: 14px; color: var(--m-accent-dim); }
+.meridian .m-dist-read {
+  font-size: var(--m-data-lg);
+  line-height: 1.7;
+  color: var(--m-ink-3);
+  max-width: 72ch;
+  padding-top: 16px;
+  margin-top: 14px;
+  border-top: 1px solid var(--m-rule-table);
+}
+
+.meridian .m-dist-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--m-rule-table);
+  margin-top: 14px;
+}
+.meridian .m-legend-item { display: flex; align-items: center; gap: 8px; }
+/* Legend swatches are a 1px line, not a filled chip — bars are hairlines too. */
+.meridian .m-legend-key { width: 14px; height: 1px; flex: none; }
+
+/* ------------------------------------------------------------ data tables
+
+   Hairline-separated rows with tracked-caps headers. Names in serif, every
+   figure in mono and right-aligned. The row for the instrument in view is
+   tinted so a visitor can find it among its peers. */
+.meridian .m-table { width: 100%; }
+.meridian .m-thead,
+.meridian .m-trow {
+  display: grid;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 0;
+}
+.meridian .m-thead {
+  border-bottom: 1px solid var(--m-rule-section);
+  padding-bottom: 11px;
+}
+.meridian .m-trow { border-bottom: 1px solid var(--m-rule-table); min-height: 44px; }
+.meridian .m-trow.is-self { background: var(--m-wash-row); }
+.meridian .m-tname { font-family: var(--m-serif); font-size: 1rem; color: var(--m-ink); }
+.meridian .m-tnum {
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: var(--m-data);
+  color: var(--m-ink-2);
+  text-align: right;
+}
+
+/* -------------------------------------------------------- ruled key/value */
+
+.meridian .m-kv { border-top: 1px solid var(--m-rule-section); }
+.meridian .m-kv-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--m-rule-table);
+  min-height: 44px;
+}
+.meridian .m-kv-k { font-size: var(--m-data-lg); color: var(--m-ink-3); }
+.meridian .m-kv-v {
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: var(--m-data-lg);
+  color: var(--m-ink);
+  white-space: nowrap;
+}
+.meridian .m-kv-row.is-total { border-bottom: 0; border-top: 1px solid var(--m-rule-mono); padding-top: 18px; }
+.meridian .m-kv-row.is-total .m-kv-k { color: var(--m-ink-2); font-weight: 600; }
+.meridian .m-kv-row.is-total .m-kv-v { font-family: var(--m-serif); font-size: 1.75rem; color: var(--m-accent); }
+.meridian .m-kv-note { font-size: 11px; color: var(--m-ink-4); padding-top: 10px; }
+
+/* --------------------------------------------------------- quantity stepper
+
+   The one place a serif figure sits inside a form. A 50px bordered row with
+   square minus/plus ends and the count set large. */
+.meridian .m-qty {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--m-rule);
+  height: 50px;
+  max-width: 220px;
+}
+.meridian .m-qty button {
+  width: 46px;
+  appearance: none;
+  background: none;
+  border: 0;
+  color: var(--m-ink-3);
+  font-size: 16px;
+  cursor: pointer;
+  transition: color var(--m-t), background var(--m-t);
+}
+.meridian .m-qty button:hover:not(:disabled) { color: var(--m-accent); background: var(--m-wash-row); }
+.meridian .m-qty button:disabled { color: var(--m-rule-mono); cursor: not-allowed; }
+.meridian .m-qty-val {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  font-family: var(--m-serif);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: 1.625rem;
+  border-inline: 1px solid var(--m-rule);
+}
+
+/* Segmented control: one border round the group, 1px dividers between. */
+.meridian .m-seg { display: flex; border: 1px solid var(--m-rule); width: max-content; max-width: 100%; flex-wrap: wrap; }
+.meridian .m-seg button {
+  appearance: none;
+  background: none;
+  border: 0;
+  border-right: 1px solid var(--m-rule);
+  padding: 10px 15px;
+  min-height: 44px;
+  font-family: var(--m-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  color: var(--m-ink-4);
+  cursor: pointer;
+  transition: color var(--m-t), background var(--m-t);
+}
+.meridian .m-seg button:last-child { border-right: 0; }
+.meridian .m-seg button:hover { color: var(--m-ink-2); }
+.meridian .m-seg button[aria-pressed='true'] { background: rgba(226, 104, 42, 0.1); color: var(--m-accent); }
+
+/* ------------------------------------------------------------ the one fill
+
+   Exactly one filled gilt element per view, carrying the only coloured
+   shadow in the system. If two gold surfaces are on screen, one is wrong. */
+.meridian .m-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 17px 30px;
+  min-height: 44px;
+  background: var(--m-cta);
+  color: var(--m-on-accent);
+  font-family: var(--m-sans);
+  font-size: var(--m-label);
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  box-shadow: 0 10px 34px rgba(226, 104, 42, 0.22);
+  transition: transform 0.2s var(--m-ease), box-shadow var(--m-t);
+}
+.meridian .m-cta:hover {
+  color: var(--m-on-accent);
+  transform: translateY(-2px);
+  box-shadow: 0 16px 44px rgba(226, 104, 42, 0.36);
+}
+.meridian .m-cta:active { transform: scale(0.985) translateY(0); }
+.meridian .m-cta svg { width: 14px; height: 14px; }
+
+/* Outline: transparent, hairline, warms to gold. Every secondary action. */
+.meridian .m-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 26px;
+  min-height: 44px;
+  border: 1px solid var(--m-rule-control);
+  color: var(--m-ink-2);
+  font-family: var(--m-sans);
+  font-size: var(--m-label);
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  background: none;
+  cursor: pointer;
+  transition: border-color var(--m-t), color var(--m-t);
+}
+.meridian .m-btn:hover { border-color: var(--m-accent); color: var(--m-ink); }
+.meridian .m-btn svg { width: 14px; height: 14px; }
+
+/* The only panel in the system that carries a wash rather than a rule. */
+.meridian .m-panel-wash {
+  border: 1px solid var(--m-rule-raised);
+  background: linear-gradient(165deg, var(--m-wash), transparent 70%);
+  padding: 24px;
+}
+
+/* ------------------------------------------------- steps in the right rail */
+
+.meridian .m-steps { counter-reset: m-step; border-top: 1px solid var(--m-rule-section); }
+.meridian .m-step {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  gap: 14px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--m-rule-table);
+}
+.meridian .m-step-n {
+  font-family: var(--m-serif);
+  font-size: 1.0625rem;
+  color: var(--m-accent-dim);
+  line-height: 1.2;
+}
+.meridian .m-step-t { font-size: var(--m-data-lg); color: var(--m-ink-2); font-weight: 600; }
+.meridian .m-step-b { font-size: 12px; color: var(--m-ink-4); line-height: 1.6; margin-top: 5px; }
+
+/* --------------------------------------------------------- links to guides */
+
+.meridian .m-guide {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 0;
+  min-height: 44px;
+  border-bottom: 1px solid var(--m-rule-table);
+  color: var(--m-ink-2);
+  font-size: var(--m-data-lg);
+  transition: color var(--m-t-row);
+}
+.meridian .m-guide-label { transition: transform var(--m-t-row); }
+.meridian .m-guide:hover,
+.meridian .m-guide:focus-visible { color: var(--m-accent); }
+.meridian .m-guide:hover .m-guide-label,
+.meridian .m-guide:focus-visible .m-guide-label { transform: translateX(8px); }
+.meridian .m-guide span { font-family: var(--m-mono); font-size: 9px; letter-spacing: 0.16em; color: var(--m-ink-4); flex: none; }
+
+/* -------------------------------------------------------------- disclosure
+
+   MarketNote is one shared component across the whole site precisely so a
+   regulated intermediary showing delayed quotes cannot forget it. It is
+   restyled into this world rather than duplicated. */
+.meridian .market-note {
+  border-top: 1px solid var(--m-rule-section);
+  background: none;
+  color: var(--m-ink-4);
+  font-size: 11px;
+  line-height: 1.7;
+  padding: 16px 0 0;
+  border-radius: 0;
+  max-width: 76ch;
+}
+.meridian .market-note strong { color: var(--m-ink-3); font-weight: 600; }
+
+/* ------------------------------------------------------- loading skeleton
+
+   The same element wearing a shimmer, never a separate bar sized to guess at
+   the real thing — widths in em so they track the type scale and the layout
+   does not jump when data lands. */
+.meridian .is-loading-text { position: relative; color: transparent !important; user-select: none; }
+.meridian .is-loading-text::before { content: none !important; }
+.meridian .is-loading-text::after {
+  content: '';
+  position: absolute;
+  top: 0.18em;
+  bottom: 0.18em;
+  left: 0;
+  width: 4.2em;
+  background: linear-gradient(90deg, var(--m-rule-table) 25%, var(--m-rule) 37%, var(--m-rule-table) 63%);
+  background-size: 400% 100%;
+  animation: m-sweep 1.4s ease-in-out infinite;
+}
+.meridian .is-load-sym::after { width: 3.4em; }
+.meridian .is-load-price::after { width: 5em; }
+.meridian .is-load-chg::after { width: 3.8em; }
+
+/* Anything that cannot be shown honestly says so rather than showing a zero. */
+.meridian .m-absent { color: var(--m-ink-4); font-family: var(--m-mono); font-size: var(--m-data); }
+
+/* ------------------------------------------------------------------ a11y */
+
+.meridian .m-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ------------------------------------------------------------- animation */
+
+@keyframes m-tape { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes m-sweep { from { background-position: 100% 50%; } to { background-position: 0 50%; } }
+@keyframes m-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes m-rule-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+.meridian .m-rise { animation: m-rise 0.55s var(--m-ease) both; }
+.meridian .m-rule--gilt { animation: m-rule-grow 0.9s var(--m-ease) both; }
+
+/* The one authored motion moment: the field of constituent ticks wipes in
+   from the left, so a hundred lines assemble into a distribution rather than
+   appearing all at once.
+
+   fill-mode is deliberately `none`. With `both` the element would sit at the
+   from-state whenever the animation does not run — a browser that skips it,
+   or a print stylesheet — and the plot would be invisible. Content is visible
+   by default; the wipe is the enhancement. */
+@keyframes m-wipe {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+.meridian .m-dist-reveal { animation: m-wipe 1.15s var(--m-ease); }
+
+@media (prefers-reduced-motion: reduce) {
+  .meridian .m-tape-track { animation: none; }
+  .meridian .m-rise,
+  .meridian .m-rule--gilt { animation: none; }
+  .meridian .is-loading-text::after { animation: none; }
+  .meridian .m-dist-reveal { animation: none; }
+  .meridian .m-tab::after { transition: none; }
+  .meridian .m-srow,
+  .meridian .m-guide { transition: none; }
+}
+
+/* ----------------------------------------------------------- responsive
+
+   Drop, don't squeeze. A 358px reference rail rendered at 240px is worse
+   than no rail, so the rail leaves the grid and re-flows full width beneath
+   the working column instead. */
+@media (max-width: 1280px) {
+  .meridian .m-shell { grid-template-columns: var(--m-rail-l) minmax(0, 1fr); }
+  .meridian .m-rail-right {
+    grid-column: 1 / -1;
+    border-left: 0;
+    border-top: 1px solid var(--m-rule);
+    background: var(--m-shell);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 26px 34px;
+    padding: 28px var(--m-gutter) 34px;
+  }
+}
+
+@media (max-width: 900px) {
+  .meridian { --m-gutter: 16px; }
+  .meridian .m-shell { grid-template-columns: minmax(0, 1fr); }
+  /* Below the shell's two-column point the symbol rail becomes a horizontal
+     ruled strip: still every instrument, still one tap, no drawer to learn. */
+  .meridian .m-rail-left {
+    border-right: 0;
+    border-top: 1px solid var(--m-rule);
+    padding: 18px 0;
+    overflow-x: auto;
+  }
+  .meridian .m-rail-list { display: flex; }
+  .meridian .m-srow {
+    grid-template-columns: 1fr;
+    border-top: 0;
+    border-left: 1px solid var(--m-rule-list);
+    padding: 10px 16px;
+    min-width: 132px;
+  }
+  .meridian .m-srow::before { width: 100%; height: 2px; bottom: auto; }
+  /* The horizontal strip has no room to indent sideways, so the row lifts
+     its identity block instead. */
+  .meridian .m-srow:hover > :first-child,
+  .meridian .m-srow:focus-visible > :first-child { transform: translateY(-2px); }
+}
+
+@media (max-width: 620px) {
+  .meridian .m-head { gap: 14px; }
+  .meridian .m-stats { grid-template-columns: repeat(2, 1fr); }
+  /* A data table never scrolls sideways here; it collapses into ruled
+     blocks, one instrument per block. */
+  .meridian .m-thead { display: none; }
+  .meridian .m-trow {
+    grid-template-columns: 1fr auto !important;
+    row-gap: 6px;
+    padding: 14px 0;
+  }
+}
+
+/* =========================================================
+   Panels
+   ========================================================= */
+
+/* Cost to buy: the denser side always on the left, on the system's 1.25–1.4:1
+   asymmetric split. */
+.meridian .m-cost {
+  display: grid;
+  grid-template-columns: 1fr 1.35fr;
+  gap: 40px;
+  padding-top: 26px;
+}
+.meridian .m-kv-tag {
+  font-family: var(--m-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--m-accent-dim);
+  margin-left: 8px;
+}
+
+/* Rules: two ruled columns of question and answer, not six cards. */
+.meridian .m-rules {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0 40px;
+  padding-top: 12px;
+  border-top: 1px solid var(--m-rule-section);
+}
+.meridian .m-rule-item { padding: 22px 0; border-bottom: 1px solid var(--m-rule-table); }
+.meridian .m-rule-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+.meridian .m-rule-v {
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: var(--m-data-lg);
+  color: var(--m-accent);
+  white-space: nowrap;
+}
+.meridian .m-rule-b {
+  font-size: var(--m-data-lg);
+  line-height: 1.75;
+  color: var(--m-ink-3);
+  margin: 10px 0 4px;
+}
+
+/* Peers table: symbol, name, last, change. */
+.meridian .m-table--peers .m-thead,
+.meridian .m-table--peers .m-trow {
+  grid-template-columns: 72px minmax(0, 1fr) 110px 96px;
+}
+.meridian .m-trow.is-link { color: inherit; transition: background var(--m-t-row); }
+.meridian .m-trow.is-link > * { transition: transform var(--m-t-row); }
+.meridian .m-trow.is-link:hover,
+.meridian .m-trow.is-link:focus-visible { background: var(--m-wash-row); color: inherit; }
+.meridian .m-trow.is-link:hover > :first-child,
+.meridian .m-trow.is-link:focus-visible > :first-child { transform: translateX(8px); }
+.meridian .m-tname {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------- placement, not utility
+
+   Named for what they hold rather than what they do, so the markup still
+   reads as a document rather than as a stylesheet. */
+.meridian .m-head-figure { text-align: right; margin-left: auto; }
+.meridian .m-head-id { min-width: 0; }
+.meridian .m-head-move { margin-top: 9px; display: flex; justify-content: flex-end; }
+.meridian .m-panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 18px; padding-bottom: 14px; }
+.meridian .m-after-label { margin-top: 14px; }
+.meridian .m-after-block { margin-top: 20px; }
+.meridian .m-rail-group { padding-top: 26px; }
+.meridian .m-cta--block { width: 100%; margin-top: 20px; }
+.meridian .m-guide--tail { margin-top: 18px; }
+.meridian .m-note--span { grid-column: 1 / -1; padding-top: 18px; }
+.meridian .m-cost-summary { margin-top: 20px; font-size: 12px; }
+
+@media (max-width: 1024px) {
+  .meridian .m-cost { grid-template-columns: 1fr; gap: 34px; }
+  .meridian .m-rules { grid-template-columns: 1fr; gap: 0; }
+}
+
+@media (max-width: 620px) {
+  .meridian .m-table--peers .m-thead,
+  .meridian .m-table--peers .m-trow { grid-template-columns: 1fr auto; }
+  /* The name and the last price fold under the symbol rather than the table
+     scrolling sideways. */
+  .meridian .m-table--peers .m-trow .m-tname { grid-column: 1; font-size: 0.875rem; }
+  .meridian .m-table--peers .m-trow .m-tnum { grid-column: 1; text-align: left; }
+  .meridian .m-dist-plot { height: 92px; }
+  .meridian .m-dist-svg { height: 92px; }
+}
+.meridian .m-tape-chg.is-up { color: var(--m-up); }
+.meridian .m-tape-chg.is-down { color: var(--m-down); }
+.meridian .m-tape-chg.is-flat { color: var(--m-flat); }
+.meridian .m-th-num { text-align: right; }
+.meridian .m-td-end { display: flex; justify-content: flex-end; }
+
+/* The panel below the tabs. tabIndex=-1 makes it focusable so the tab pattern
+   can move focus into it; the outline is suppressed because focus arrives
+   programmatically, never from a keypress the user would want acknowledged. */
+.meridian .m-panel { padding-top: 26px; }
+.meridian .m-panel:focus { outline: none; }
+.meridian.terminal { padding: 20px 20px 48px; }
+
+/* =========================================================
+   Corrections found by looking at the render
+   ========================================================= */
+
+/* The step title and body are spans inside a span so the grid keeps its two
+   columns; without an explicit block they ran together as one sentence. */
+.meridian .m-step-t,
+.meridian .m-step-b { display: block; }
+
+/* css/styles.css centres .market-note. Under a left-ruled ledger that reads
+   as a caption floating loose of the column it belongs to. */
+.meridian .market-note { text-align: left; }
+
+/* The arrow in a guide link had no box, so it collapsed to the parent's 9px
+   label sizing and rendered as a smear. */
+.meridian .m-guide svg { width: 13px; height: 13px; flex: none; }
+.meridian .m-guide > span { display: inline-flex; align-items: center; }
+
+/* The exchange line's separator needed real air on both sides. */
+.meridian .m-head-ex { gap: 12px; flex-wrap: wrap; }
+
+/* The plot's own gutter, so the leftmost and rightmost ticks are not flush
+   against the column edge and the min/max labels sit under real ticks. */
+.meridian .m-dist { padding-inline: 2px; }
+
+/* Guide links are prose, not data — they were inheriting the mono stack from
+   the ruled context around them. */
+.meridian .m-guide { font-family: var(--m-sans); }
+.meridian .m-guide-label { font-family: var(--m-sans); }
