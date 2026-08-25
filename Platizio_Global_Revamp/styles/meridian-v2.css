@@ -1,0 +1,490 @@
+/* =========================================================
+   Meridian v2 — the lit-card surface
+   =========================================================
+
+   Loaded after meridian.css and products.css, scoped to `.meridian`, which
+   only /products and /terminal/:symbol carry. The rest of the site keeps the
+   light brand untouched.
+
+   Ported from the rebuilt design source. Its own DESIGN.md still describes
+   the first system — "square by law, radius 0, structure by hairline" — and
+   is stale: the code moved on and the code is what shipped. Its note on why
+   is worth carrying across verbatim, because it is the whole argument for
+   this file:
+
+     "The original system was square by law and structured by hairline. That
+      reads as a ledger, and it also reads as a spreadsheet: the exact
+      complaint the redesign answers. Cards return, but they are not the
+      rounded filled panels the first system was written to refuse — those
+      were flat grey boxes with a border. These are lit: a warm vertical
+      gradient, a one-pixel inner highlight along the top edge where the light
+      lands, and a deep soft shadow that seats them on the page."
+
+   Three things changed from the version this replaces:
+     1. One family in three roles. Outfit sets display, body and figures. The
+        role names survive because they are how the interface reasons, not
+        because two of them are still a serif and a mono. They are not.
+     2. Radius returns: 16px cards, 12px tiles, 999px pills.
+     3. The champagne wash sits on the shell rather than the page, so the
+        light falls on the surface instead of behind it.
+
+   Two alpha ceilings below are measured, not chosen, and are load-bearing:
+   the wash at 0.16 and the card tints at 0.10. Both raise the ground's
+   luminance, and ink-3 is the dimmest tone set on them. Push either and the
+   text tones have to come up with it.
+   ========================================================= */
+
+.meridian {
+  /* ------------------------------------------------------------- grounds */
+  --m-page: #080706;
+  --m-shell: #0b0a09;
+  --m-rail: #0a0908;
+  --m-raised: #15120f;
+
+  /* --------------------------------------------------------------- rules */
+  --m-rule: #241f1a;
+  --m-rule-section: #201b17;
+  --m-rule-list: #1c1815;
+  --m-rule-table: #16130f;
+  --m-rule-raised: #34291f;
+  --m-rule-mono: #3a2f22;
+  --m-rule-control: #302821;
+  --m-rule-dot: #2a231c;
+  --m-grid: #15120f;
+  --m-grid-v: #131110;
+
+  /* ----------------------------------------------------------------- ink */
+  --m-ink: #f2ede5;
+  --m-ink-2: #c7bfb4;
+  --m-ink-3: #9a9186;
+  --m-ink-4: #8a8076;
+
+  /* ---------------------------------------------------------------- gilt */
+  --m-accent: #d9bd8b;
+  --m-accent-hi: #f0dcb8;
+  --m-accent-dim: #b8945c;
+  --m-accent-deep: #8a6e43;
+  --m-on-accent: #1a1207;
+  --m-cta: linear-gradient(135deg, #e8cfa3, #c9a46f);
+
+  --m-tint: rgba(217, 189, 139, 0.1);
+  --m-tint-soft: rgba(217, 189, 139, 0.06);
+  --m-tint-faint: rgba(217, 189, 139, 0.04);
+  --m-tint-ghost: rgba(217, 189, 139, 0.03);
+  --m-wash: var(--m-tint);
+  --m-wash-row: var(--m-tint-ghost);
+
+  --m-blue: #b0bfcb;
+  --m-blue-2: #93c7a8;
+
+  /* ----------------------------------------------------------- direction */
+  --m-up: #7dd3a0;
+  --m-down: #e0796b;
+  --m-on-down: #1a0907;
+  --m-flat: #9a9186;
+  --m-tint-up: rgba(125, 211, 160, 0.14);
+  --m-tint-down: rgba(224, 121, 107, 0.14);
+
+  /* -------------------------------------------------------- mark tints */
+  --m-mark-bone: #e5ddd1;
+  --m-mark-gold: #d9bd8b;
+  --m-mark-sage: #93c7a8;
+  --m-mark-slate: #b0bfcb;
+  --m-mark-clay: #c9a88a;
+
+  /* ---------------------------------------------------------------- type
+     One family, three roles. Outfit is a geometric sans, so the display role
+     takes NEGATIVE tracking where the serif it replaces took positive, and
+     the figure role gets tabular-nums because the face is proportional —
+     without it a price column visibly jitters as digits change, which is the
+     most obvious tell of a non-financial UI. */
+  --m-display: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+  --m-serif: var(--m-display);
+  --m-sans: var(--m-display);
+  --m-mono: var(--m-display);
+  --m-display-w: 500;
+  --m-display-track: -0.018em;
+
+  /* The reading floor. The source's 8–8.5px eyebrows and 11.5px prose read on
+     a 1560px mock and not on a display; 72% of its text was landing at or
+     under 11.5px. 11px labels, 13.5px prose, tracking eased 0.26em -> 0.18em. */
+  --m-prose: 0.9375rem;
+  --m-prose-lg: 1.0625rem;
+  --m-data: 0.84375rem;
+  --m-data-lg: 0.875rem;
+  --m-label: 0.6875rem;
+  --m-fig-sm: 0.75rem;
+  --m-fig: 0.8125rem;
+  --m-track: 0.16em;
+
+  /* -------------------------------------------------------------- shape */
+  --m-radius-card: 16px;
+  --m-radius-tile: 12px;
+  --m-radius-pill: 999px;
+
+  --m-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  background: var(--m-page);
+  color: var(--m-ink);
+  font-family: var(--m-sans);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* The v2 surface has radii, so the blanket radius-0 reset in meridian.css is
+   lifted inside this world. Each component states its own. */
+.meridian *,
+.meridian *::before,
+.meridian *::after { border-radius: 0; }
+.meridian .card,
+.meridian .card-lit,
+.meridian .card-glow,
+.meridian .card-up,
+.meridian .card-down { border-radius: var(--m-radius-card); }
+.meridian .tile { border-radius: var(--m-radius-tile); }
+.meridian .pill,
+.meridian .m-cta,
+.meridian .m-btn,
+.meridian .badge,
+.meridian .delta-pill { border-radius: var(--m-radius-pill); }
+
+/* ---------------------------------------------------------------- ground
+
+   The champagne wash. Its peak sits just inside the top of the surface rather
+   than above it, so the light has somewhere to fall off from — spread over
+   2400px it has no edge and reads as flat however much alpha it carries.
+
+   0.16 is the ceiling, not a taste value: lighting the ground raises its
+   luminance 6.6x and ink-3 holds 4.78:1 there. At 0.20 it drops to 4.34 and
+   the page stops meeting AA. */
+.meridian::before {
+  background:
+    radial-gradient(880px 440px at 50% 0%, rgba(217, 189, 139, 0.16), transparent 68%),
+    radial-gradient(520px 300px at 88% 14%, rgba(217, 189, 139, 0.05), transparent 64%),
+    radial-gradient(640px 420px at 4% 96%, rgba(217, 189, 139, 0.04), transparent 66%);
+}
+.meridian::after { opacity: 0.04; mix-blend-mode: overlay; }
+
+.meridian ::selection { background: var(--m-accent); color: var(--m-on-accent); }
+.meridian { scrollbar-color: var(--m-rule-dot) transparent; }
+.meridian ::-webkit-scrollbar-thumb { background: var(--m-rule-dot); }
+.meridian ::-webkit-scrollbar-thumb:hover { background: var(--m-rule-mono); }
+.meridian :focus-visible { outline: 1px solid var(--m-accent); outline-offset: 3px; }
+
+/* ------------------------------------------------------------------ type */
+
+.meridian h1, .meridian h2, .meridian h3, .meridian h4, .meridian h5, .meridian h6 {
+  font-family: var(--m-display);
+  font-weight: var(--m-display-w);
+  letter-spacing: var(--m-display-track);
+  color: var(--m-ink);
+  line-height: 1.1;
+}
+
+/* The display role — names, headings, headline figures. */
+.meridian .m-display,
+.meridian .m-serif {
+  font-family: var(--m-display);
+  font-weight: var(--m-display-w);
+  letter-spacing: var(--m-display-track);
+}
+
+/* The figure role — anything that sits in a column. */
+.meridian .m-fig,
+.meridian .m-tnum,
+.meridian .m-kv-v,
+.meridian .m-stat-v,
+.meridian .m-day-v,
+.meridian .m-chg,
+.meridian .m-srow-id,
+.meridian .m-tape-item,
+.meridian .m-price .val,
+.meridian .m-head-price .val {
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  letter-spacing: 0;
+}
+
+/* The tracked-caps micro-label, retuned for reading. The tone moves up a step
+   — ink-4 5.1:1 to ink-3 6.4:1 — because these are read, not merely present. */
+.meridian .m-label,
+.meridian .eyebrow {
+  font-family: var(--m-sans);
+  font-size: var(--m-label);
+  font-weight: 600;
+  letter-spacing: var(--m-track);
+  line-height: 1.45;
+  color: var(--m-ink-3);
+  text-transform: uppercase;
+  background: none;
+  padding: 0;
+  border: 0;
+  display: inline-block;
+}
+.meridian .m-label--accent,
+.meridian .eyebrow-gold { color: var(--m-accent-dim); }
+.meridian .eyebrow-wide { letter-spacing: 0.22em; }
+
+/* Title case at 14px rather than tracked caps, for where a card is NAMED
+   rather than annotated. */
+.meridian .card-label {
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.4;
+  color: var(--m-ink-3);
+}
+
+.meridian p { color: var(--m-ink-3); font-weight: 400; }
+.meridian .m-prose { font-size: var(--m-prose); font-weight: 400; line-height: 1.75; color: var(--m-ink-3); }
+
+/* ================================================================ surfaces
+
+   Three things make a card read as lit rather than filled: the gradient runs
+   along the light's axis, the inset highlight sits only on the top edge, and
+   the shadow has a negative spread so it pools under the card instead of
+   haloing it. */
+
+.meridian .card {
+  background: linear-gradient(180deg, #16130f 0%, #131009 100%);
+  border: 1px solid rgba(217, 189, 139, 0.07);
+  box-shadow:
+    inset 0 1px 0 rgba(240, 220, 184, 0.04),
+    0 16px 36px -22px rgba(0, 0, 0, 0.9);
+}
+
+.meridian .card-hover {
+  transition:
+    border-color 0.32s var(--m-ease),
+    box-shadow 0.32s var(--m-ease),
+    transform 0.32s var(--m-ease);
+}
+.meridian .card-hover:hover {
+  border-color: rgba(217, 189, 139, 0.2);
+  box-shadow:
+    inset 0 1px 0 rgba(240, 220, 184, 0.08),
+    0 26px 54px -20px rgba(0, 0, 0, 0.86);
+  transform: translateY(-2px);
+}
+
+/* The feature surface. Sits between .card, which is flat, and .card-glow,
+   which is the one extravagance. Only the cards that carry the page get it:
+   a tint on every surface stops being light falling on a few things and
+   becomes a wash over everything.
+
+   0.10 is measured. Tinting the ground raises its luminance and ink-3 is the
+   dimmest tone set on it — 4.96:1 at 0.10, 4.52:1 at 0.14 with no headroom,
+   failing AA by 0.16. The two pools are placed so they never overlap at
+   strength, so the alphas cannot stack into a bright patch in the middle. */
+.meridian .card-lit {
+  background:
+    radial-gradient(74% 86% at 6% 0%, rgba(217, 189, 139, 0.1) 0%, rgba(217, 189, 139, 0.05) 34%, transparent 72%),
+    radial-gradient(52% 58% at 100% 100%, rgba(217, 189, 139, 0.05), transparent 66%),
+    linear-gradient(180deg, #16130f 0%, #131009 100%);
+  border: 1px solid rgba(217, 189, 139, 0.13);
+  box-shadow:
+    inset 0 1px 0 rgba(240, 220, 184, 0.07),
+    0 20px 44px -22px rgba(0, 0, 0, 0.9);
+}
+
+/* The two directional boards. Gainers and losers are the only cards whose
+   subject IS a direction, so they are the only ones where a coloured ground
+   states something instead of decorating. On green, ink-3 holds 4.98:1 and
+   the green figures 8.60:1; on terracotta, ink-3 holds 5.25:1 and the
+   terracotta figures 5.52:1 — the tightest pair here, and why neither goes
+   past 0.10. */
+.meridian .card-up,
+.meridian .card-down {
+  box-shadow:
+    inset 0 1px 0 rgba(240, 220, 184, 0.06),
+    0 18px 40px -22px rgba(0, 0, 0, 0.9);
+}
+.meridian .card-up {
+  background:
+    radial-gradient(74% 86% at 6% 0%, rgba(125, 211, 160, 0.1) 0%, rgba(125, 211, 160, 0.05) 34%, transparent 72%),
+    radial-gradient(52% 58% at 100% 100%, rgba(125, 211, 160, 0.045), transparent 66%),
+    linear-gradient(180deg, #16130f 0%, #131009 100%);
+  border: 1px solid rgba(125, 211, 160, 0.14);
+}
+.meridian .card-down {
+  background:
+    radial-gradient(74% 86% at 6% 0%, rgba(224, 121, 107, 0.1) 0%, rgba(224, 121, 107, 0.05) 34%, transparent 72%),
+    radial-gradient(52% 58% at 100% 100%, rgba(224, 121, 107, 0.045), transparent 66%),
+    linear-gradient(180deg, #16130f 0%, #131009 100%);
+  border: 1px solid rgba(224, 121, 107, 0.14);
+}
+
+/* A square-ish inner tile: icon wells, monogram plates. */
+.meridian .tile {
+  background: linear-gradient(158deg, #221c14, #171310);
+  border: 1px solid rgba(217, 189, 139, 0.1);
+  box-shadow: inset 0 1px 0 rgba(240, 220, 184, 0.06);
+}
+
+/* The single detail that separates a lit card from a filled one: a hairline
+   along the top, brightest at the centre, gone at the corners, the way a real
+   bevel picks up a lamp. */
+.meridian .edge-lit { position: relative; overflow: hidden; }
+.meridian .edge-lit::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(240, 220, 184, 0.06) 14%,
+    rgba(253, 243, 221, 0.42) 50%,
+    rgba(240, 220, 184, 0.06) 86%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+.meridian .rule-gilt {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(217, 189, 139, 0.34) 22%, rgba(217, 189, 139, 0.34) 78%, transparent);
+}
+
+/* ================================================================== gilt
+
+   Struck gilt: the hero figure. A gradient clipped to the glyphs, angled so
+   the light runs ACROSS the number rather than down it — a vertical sweep on
+   a wide figure looks like a fade, a raking one looks like a struck surface.
+   `color` is set first as a real fallback: if background-clip:text is not
+   honoured the number is still legible gold, never invisible. */
+.meridian .gilt {
+  color: #e8cfa3;
+  background: linear-gradient(104deg, #8a6e43 0%, #d9bd8b 18%, #fdf3dd 38%, #f0dcb8 52%, #c9a46f 72%, #8a6e43 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 230% 100%;
+  animation: m-gilt-strike 2.6s var(--m-ease) both;
+}
+@keyframes m-gilt-strike {
+  from { background-position: 100% 0; }
+  to { background-position: 0 0; }
+}
+
+/* ================================================================= ticks
+
+   A solid bar states a proportion; a ruled one states that the proportion was
+   COUNTED — the ledger idea surviving into the card surface. */
+.meridian .tick-track {
+  --tick: repeating-linear-gradient(90deg, currentColor 0 2px, transparent 2px 6px);
+  background-image: var(--tick);
+  color: #2a2119;
+}
+.meridian .tick-fill {
+  --tick: repeating-linear-gradient(90deg, currentColor 0 2px, transparent 2px 6px);
+  background-image: var(--tick);
+  color: var(--m-accent);
+}
+
+/* The two-tone comb, split. The comb is a MASK rather than a background, so
+   one continuous set of ticks runs the full width and only the colour changes
+   at the split. Two adjacent combed elements would each start their pattern
+   at their own origin and leave a visible phase break exactly where the eye
+   is trying to read the proportion. */
+.meridian .tick-split {
+  -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 2px, transparent 2px 5px);
+  mask-image: repeating-linear-gradient(90deg, #000 0 2px, transparent 2px 5px);
+}
+
+/* =============================================================== controls */
+
+.meridian .badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  font-size: var(--m-label);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+.meridian .badge--gold { background: var(--m-accent-hi); color: var(--m-on-accent); }
+.meridian .badge--quiet { border: 1px solid rgba(217, 189, 139, 0.22); background: rgba(217, 189, 139, 0.09); color: var(--m-accent); }
+.meridian .badge--outline { border: 1px solid var(--m-rule-control); color: var(--m-ink-3); }
+
+/* Direction as a pill: a drawn caret and a tinted border as well as colour,
+   so the meaning never rests on hue alone. */
+.meridian .delta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid;
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--m-fig);
+}
+.meridian .delta-pill svg { width: 12px; height: 12px; flex: none; }
+.meridian .delta-pill.is-up { color: var(--m-up); border-color: rgba(125, 211, 160, 0.3); background: rgba(125, 211, 160, 0.08); }
+.meridian .delta-pill.is-down { color: var(--m-down); border-color: rgba(224, 121, 107, 0.3); background: rgba(224, 121, 107, 0.08); }
+.meridian .delta-pill.is-flat { color: var(--m-ink-3); border-color: var(--m-rule-control); }
+
+/* A bare signed figure, for dense rows where a pill would be too much. */
+.meridian .m-chg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  background: none;
+  font-size: var(--m-fig);
+  font-weight: 400;
+}
+
+/* The cream pill that carries the one primary action on a view. */
+.meridian .m-cta {
+  background: linear-gradient(140deg, #f6e6c6, #dcbb8a);
+  color: var(--m-on-accent);
+  font-size: var(--m-fig);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  padding: 0 24px 0 24px;
+  min-height: 44px;
+  box-shadow: 0 12px 30px -10px rgba(217, 189, 139, 0.55);
+  transition: box-shadow 0.3s var(--m-ease), filter 0.3s var(--m-ease), transform 0.3s var(--m-ease);
+}
+.meridian .m-cta:hover {
+  box-shadow: 0 18px 40px -10px rgba(217, 189, 139, 0.7);
+  filter: brightness(1.04);
+  transform: none;
+  color: var(--m-on-accent);
+}
+
+.meridian .m-btn {
+  border: 1px solid var(--m-rule-control);
+  color: var(--m-ink-3);
+  background: none;
+  font-size: var(--m-fig);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  min-height: 44px;
+  box-shadow: none;
+}
+.meridian .m-btn:hover { border-color: var(--m-accent); color: var(--m-ink); transform: none; }
+
+/* Rounded segmented control. */
+.meridian .pill-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.meridian .pill {
+  appearance: none;
+  min-height: 44px;
+  padding: 0 18px;
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--m-fig);
+  letter-spacing: 0.06em;
+  border: 1px solid var(--m-rule-control);
+  background: none;
+  color: var(--m-ink-3);
+  cursor: pointer;
+  transition: border-color 0.25s var(--m-ease), color 0.25s var(--m-ease), background 0.25s var(--m-ease);
+}
+.meridian .pill:hover { border-color: var(--m-accent); color: var(--m-ink); }
+.meridian .pill[aria-pressed='true'] { background: var(--m-accent-hi); color: var(--m-on-accent); border-color: transparent; }

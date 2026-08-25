@@ -1,669 +1,407 @@
 /* =========================================================
-   Products — the Meridian Home layout, in Platizio's light
+   Products — the dashboard, on the lit-card surface
    =========================================================
 
-   Loaded last, after meridian.css, whose `.meridian` scope supplies every
-   token used here. Nothing in this file touches :root.
+   Loaded before meridian-v2.css, which supplies every token and every surface
+   class used here. Nothing in this file touches :root.
 
-   The page is one continuous world rather than a stack of alternating
-   marketing bands: a ruled sheet, white, with the structure carried by
-   hairlines and vertical space. Sections are separated by a rule and air,
-   never by a background swap — that is the source system's first law and it
-   is what keeps a long page reading as one document.
-
-   Nothing here uses `.feature-card` or `.feature-grid`. css/styles.css forces
-   `.feature-card:nth-child(1..5)` onto explicit six-column grid lines between
-   640px and 960px, and that placement hijacks any grid whose children carry
-   the class.
-
-   Breakpoints are restated all the way down: a later stylesheet's WIDER
-   media query beats an earlier one's NARROWER query at equal specificity.
+   The page is the design source's Overview: a session card carrying the
+   tracked figure, the breadth comb and the day's extremes; two directional
+   boards beneath it; then the covered instruments, the rooms, the reading and
+   the close. Cards carry the structure — this is the v2 surface, not the
+   hairline ledger the first system used.
    ========================================================= */
 
-.meridian.mh {
-  --mh-gutter: clamp(1.5rem, 4vw, 4rem);
-  padding-bottom: clamp(4rem, 7vw, 7rem);
+.meridian.mh { --mh-gutter: clamp(1rem, 3vw, 2.5rem); padding-bottom: clamp(3rem, 6vw, 6rem); }
+
+.meridian .mh-page {
+  max-width: 1560px;
+  margin: 0 auto;
+  padding: clamp(1.25rem, 2.5vw, 2rem) var(--mh-gutter) 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1.25rem, 2vw, 1.75rem);
 }
 
-/* The page is a sheet, not a column floating in a margin. The container
-   still exists so text does not run to the bezel, but it is wide and its
-   gutter is the page's own. */
-.meridian.mh .container { max-width: none; padding-inline: var(--mh-gutter); }
+.meridian .is-block { display: block; }
 
-/* Sections are rules and space. The first carries no top rule because the
-   ticker tape above it already draws one. */
-.meridian .mh-sec { padding-top: clamp(3.25rem, 5.5vw, 6.5rem); }
-.meridian .mh-sec--tight { padding-top: clamp(1.75rem, 2.5vw, 2.75rem); }
-.meridian .mh-hero { padding-top: clamp(2.75rem, 4.5vw, 5rem); }
+/* ===================================================== 1. the session */
 
-/* ===================================================== type */
+.meridian .mh-session { padding: clamp(1.5rem, 2.6vw, 2.25rem); }
 
-.meridian .mh-h1 {
+.meridian .mh-tracks { margin-bottom: clamp(1.5rem, 2.4vw, 2rem); }
+
+.meridian .mh-figure {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+}
+.meridian .mh-figure-v {
   font-family: var(--m-display);
-  font-weight: var(--m-display-w);
-  font-size: clamp(2.5rem, 6vw, 5.25rem);
-  line-height: 0.98;
-  letter-spacing: var(--m-display-track);
-  color: var(--m-ink);
-  margin: 0;
-  max-width: 15ch;
-  text-wrap: balance;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(3rem, 7vw, 5.25rem);
+  line-height: 0.92;
+  letter-spacing: -0.03em;
 }
-.meridian .mh-h1 em { font-style: normal; color: var(--m-accent); }
-.meridian .mh-h1--center { max-width: 20ch; margin-inline: auto; text-align: center; }
-
-.meridian .mh-h2 {
-  font-family: var(--m-display);
-  font-weight: var(--m-display-w);
-  font-size: clamp(2rem, 4vw, 3.5rem);
-  line-height: 1.04;
-  letter-spacing: var(--m-display-track);
-  color: var(--m-ink);
-  margin: 0;
-  max-width: 18ch;
+.meridian .mh-figure-v.is-absent {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  color: var(--m-ink-4);
+  font-weight: 400;
 }
-.meridian .mh-h2-md {
-  font-family: var(--m-display);
-  font-weight: var(--m-display-w);
-  font-size: clamp(1.75rem, 3vw, 2.75rem);
-  line-height: 1.06;
-  color: var(--m-ink);
-  margin: 14px 0 0;
-}
-.meridian .mh-h2-sm {
-  font-family: var(--m-display);
-  font-weight: var(--m-display-w);
-  font-size: clamp(1.35rem, 2vw, 1.625rem);
-  line-height: 1.1;
-  color: var(--m-ink);
-  margin: 0;
-}
-
-.meridian .mh-lede {
-  font-size: clamp(0.9375rem, 1.1vw, 1.0625rem);
-  line-height: 1.72;
+.meridian .mh-figure-meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.meridian .mh-figure-abs {
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--m-fig);
   color: var(--m-ink-3);
-  max-width: 52ch;
-  margin: 26px 0 0;
-  text-wrap: pretty;
 }
-.meridian .mh-lede--sm { font-size: var(--m-prose-lg); max-width: 54ch; }
-.meridian .mh-lede--center { margin-inline: auto; text-align: center; max-width: 46ch; }
-
-.meridian .mh-kicker { display: flex; align-items: center; gap: 12px; }
-
-.meridian .mh-actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 34px; }
-.meridian .mh-actions--center { justify-content: center; }
-
-/* An underlined-by-rule text link — the source's signature tail. */
-.meridian .mh-text-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 44px;
+.meridian .mh-figure-sym {
+  flex-basis: 100%;
   font-size: var(--m-label);
-  font-weight: 800;
-  letter-spacing: 0.16em;
+  font-weight: 600;
+  letter-spacing: var(--m-track);
   text-transform: uppercase;
-  color: var(--m-accent);
+  color: var(--m-ink-3);
+  margin-top: 6px;
 }
-.meridian .mh-rule {
-  display: inline-block;
-  width: 26px;
-  height: 1px;
-  background: currentColor;
-  /* Scaled rather than widened: animating `width` lays out the whole flex
-     row on every hover, a transform composites. */
-  transform-origin: left center;
-  transition: transform var(--m-t);
+
+.meridian .mh-session-note {
+  font-size: var(--m-data-lg);
+  line-height: 1.7;
+  color: var(--m-ink-3);
+  max-width: 46ch;
+  margin-top: 20px;
 }
-.meridian .mh-text-link:hover .mh-rule,
-.meridian a:hover > .mh-rule { transform: scaleX(1.55); }
 
-.meridian .mh-more {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  font-size: var(--m-label);
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--m-accent);
-  white-space: nowrap;
+/* ------------------------------------------------------------- breadth */
+
+.meridian .mh-breadth { padding: clamp(1.125rem, 2vw, 1.5rem); margin-top: clamp(1.5rem, 2.4vw, 2rem); }
+.meridian .breadth { margin-top: 16px; }
+/* One continuous comb over two coloured halves, masked — see meridian-v2.css
+   for why this is a mask and not two adjacent combed elements. */
+.meridian .breadth-bar { display: flex; height: 26px; width: 100%; }
+.meridian .breadth-up { background: var(--m-up); }
+.meridian .breadth-down { background: var(--m-down); }
+.meridian .breadth-counts {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 14px;
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(0.9375rem, 1.4vw, 1.125rem);
 }
-.meridian .mh-more svg { width: 13px; height: 13px; }
+.meridian .breadth-rose { color: var(--m-up); }
+.meridian .breadth-fell { color: var(--m-down); }
+.meridian .mh-breadth-note {
+  font-size: var(--m-data);
+  line-height: 1.7;
+  color: var(--m-ink-4);
+  margin-top: 18px;
+  max-width: 82ch;
+}
+.meridian .mh-breadth-note strong { color: var(--m-ink-2); font-weight: 600; }
 
-/* ===================================================== 1. hero */
+/* ------------------------------------------------------- the extremes */
 
-.meridian .mh-hero-grid {
+.meridian .mh-extremes {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.02fr);
-  gap: clamp(2rem, 4vw, 4.5rem);
-  align-items: center;
-  margin-top: 26px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(1.5rem, 3vw, 3rem);
+  margin-top: clamp(1.75rem, 2.8vw, 2.5rem);
 }
+.meridian .mh-extremes-sub { font-size: var(--m-data); color: var(--m-ink-4); margin-top: 4px; }
+.meridian .mh-rows { margin-top: 14px; }
 
-/* The product doing its job, framed as an instrument rather than a mockup:
-   a ruled plate with a browser-chrome line, not a rounded card with a
-   drop shadow. */
-.meridian .mh-card {
-  display: block;
-  border: 1px solid var(--m-rule);
-  background: var(--m-shell);
-  padding: 20px;
-  color: inherit;
-  box-shadow: 0 2px 4px rgba(5, 19, 31, 0.03), 0 24px 60px rgba(5, 19, 31, 0.08);
-  transition: transform var(--m-t), border-color var(--m-t), box-shadow var(--m-t);
-}
-.meridian .mh-card:hover {
-  transform: translateY(-4px);
-  border-color: var(--m-rule-raised);
-  box-shadow: 0 4px 8px rgba(5, 19, 31, 0.04), 0 34px 80px rgba(5, 19, 31, 0.12);
-  color: inherit;
-}
-.meridian .mh-card-chrome {
+/* One instrument, as a row. */
+.meridian .irow {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--m-rule-list);
+  padding: 12px 12px 12px 10px;
+  min-height: 56px;
+  border-radius: var(--m-radius-tile);
+  color: inherit;
+  transition: background 0.24s var(--m-ease);
 }
-.meridian .mh-crumb-path,
-.meridian .mh-card-state {
-  font-family: var(--m-mono);
-  font-size: var(--m-fig-sm);
-  letter-spacing: 0.14em;
-  color: var(--m-ink-4);
-  text-transform: uppercase;
-  white-space: nowrap;
+.meridian .irow.is-link:hover,
+.meridian .irow.is-link:focus-visible { background: var(--m-tint-ghost); color: inherit; }
+.meridian .plate {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  font-family: var(--m-display);
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--m-ink-2);
+}
+.meridian .irow-id { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.meridian .irow-name {
+  font-size: var(--m-data-lg);
+  color: var(--m-ink);
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.meridian .mh-crumb-path { flex: 1; }
-.meridian .mh-card-state { color: var(--m-accent-dim); font-weight: 600; flex: none; }
-
-.meridian .mh-dots { display: inline-flex; gap: 6px; flex: none; }
-.meridian .mh-dots i {
-  width: 6px;
-  height: 6px;
-  border-radius: 9999px;
-  background: var(--m-rule-mono);
-}
-.meridian .mh-card-head { display: flex; align-items: flex-end; gap: 14px; padding: 18px 0 16px; }
-.meridian .mh-card-id { min-width: 0; }
-.meridian .mh-card-name {
-  display: block;
-  font-family: var(--m-display); font-weight: var(--m-display-w);
-  font-size: 1.5rem;
-  line-height: 1.05;
-  color: var(--m-ink);
-}
-.meridian .mh-card-ex {
-  display: block;
-  font-family: var(--m-mono);
+.meridian .irow-sym {
   font-size: var(--m-fig-sm);
-  letter-spacing: 0.14em;
-  color: var(--m-ink-4);
-  margin-top: 5px;
-}
-.meridian .mh-card-figure { margin-left: auto; display: grid; justify-items: end; gap: 6px; }
-.meridian .mh-card-price {
-  font-family: var(--m-display); font-weight: var(--m-display-w);
-  font-variant-numeric: tabular-nums lining-nums;
-  font-size: 2.125rem;
-  line-height: 0.95;
-  color: var(--m-ink);
-}
-.meridian .mh-card-price .cur { font-size: 0.44em; color: var(--m-accent-dim); margin-right: 2px; }
-.meridian .mh-card-chg {
-  font-family: var(--m-mono);
-  font-variant-numeric: tabular-nums lining-nums;
-  font-size: var(--m-fig);
   letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--m-ink-4);
 }
-.meridian .mh-card-chg.is-up { color: var(--m-up); }
-.meridian .mh-card-chg.is-down { color: var(--m-down); }
-.meridian .mh-card-chg.is-flat { color: var(--m-ink-4); }
-.meridian .mh-card-chart { margin-top: 16px; }
-.meridian .mh-card-empty {
-  font-size: var(--m-prose);
-  line-height: 1.7;
-  color: var(--m-ink-3);
-  padding: 28px 0;
-  border-block: 1px solid var(--m-rule-table);
-}
-
-.meridian .mh-card-stats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  border-top: 1px solid var(--m-rule-section);
-  margin-top: 14px;
-}
-.meridian .mh-stat {
-  display: grid;
-  gap: 8px;
-  align-content: start;
-  padding: 16px 14px 4px 0;
-  border-right: 1px solid var(--m-rule-section);
-}
-.meridian .mh-stat:last-child { border-right: 0; }
-.meridian .mh-stat-v {
+.meridian .irow-fig { display: grid; justify-items: end; gap: 4px; flex: none; }
+.meridian .irow-px {
   font-family: var(--m-mono);
-  font-variant-numeric: tabular-nums lining-nums;
-  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--m-data-lg);
   color: var(--m-ink);
 }
-.meridian .mh-stat-v--lg {
-  font-family: var(--m-display); font-weight: var(--m-display-w);
-  font-size: 1.75rem;
-  line-height: 1;
-  color: var(--m-accent);
-}
 
-/* ============================== 2. markets this morning */
+/* ============================================== 2. the two boards */
 
-.meridian .mh-sec-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 32px;
-  padding-bottom: 18px;
-  border-bottom: 1px solid var(--m-rule-section);
-}
-.meridian .mh-sec-head--rule { align-items: flex-end; padding-bottom: 22px; }
-.meridian .mh-sec-head-l { display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; }
-
-.meridian .mh-morning {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  border-bottom: 1px solid var(--m-rule-section);
-}
-.meridian .mh-index {
-  display: block;
-  padding: 24px 26px 24px 0;
-  border-right: 1px solid var(--m-rule-section);
-  color: inherit;
-  transition: background var(--m-t);
-}
-.meridian .mh-index:last-child { border-right: 0; }
-.meridian .mh-index:hover { background: var(--m-wash-row); color: inherit; }
-.meridian .mh-index-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
-.meridian .mh-index-name {
-  display: block;
-  font-family: var(--m-display); font-weight: var(--m-display-w);
-  font-size: 1.375rem;
-  line-height: 1.1;
-  color: var(--m-ink);
-  margin-top: 9px;
-}
-.meridian .mh-index-foot { display: flex; align-items: baseline; gap: 12px; margin-top: 16px; }
-.meridian .mh-index-px {
-  font-family: var(--m-mono);
-  font-variant-numeric: tabular-nums lining-nums;
-  font-size: 1.0625rem;
-  color: var(--m-ink);
-}
-.meridian .mh-index-chg {
-  font-family: var(--m-mono);
-  font-variant-numeric: tabular-nums lining-nums;
-  font-size: var(--m-data);
-}
-.meridian .mh-index-chg.is-up { color: var(--m-up); }
-.meridian .mh-index-chg.is-down { color: var(--m-down); }
-.meridian .mh-index-chg.is-flat { color: var(--m-ink-4); }
-.meridian .mh-spark-ph { width: 66px; height: 26px; flex: none; }
-
-/* ============================== 3. leaders / laggards */
-
-.meridian .mh-movers {
+.meridian .mh-boards {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 clamp(2rem, 5vw, 4.5rem);
+  gap: clamp(1.25rem, 2vw, 1.75rem);
 }
-.meridian .mh-movers-head {
+.meridian .mh-board { padding: clamp(1.25rem, 2.2vw, 1.75rem); }
+.meridian .mh-board-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  padding-bottom: 12px;
+  gap: 16px;
+  margin-bottom: 16px;
 }
-.meridian .mh-mover {
-  display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) 84px 78px 76px;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 0;
-  min-height: 44px;
-  border-top: 1px solid var(--m-rule-list);
-  color: inherit;
-  transition: background var(--m-t-row);
-}
-.meridian .mh-mover.is-link > * { transition: transform var(--m-t-row); }
-.meridian .mh-mover.is-link:hover,
-.meridian .mh-mover.is-link:focus-visible { background: var(--m-wash-row); color: inherit; }
-.meridian .mh-mover.is-link:hover > :first-child,
-.meridian .mh-mover.is-link:focus-visible > :first-child { transform: translateX(8px); }
-.meridian .mh-mover-id {
-  font-family: var(--m-mono);
-  font-size: var(--m-fig);
-  letter-spacing: 0.06em;
+.meridian .mh-board-title {
+  font-family: var(--m-display);
+  font-weight: var(--m-display-w);
+  font-size: clamp(1.25rem, 2vw, 1.5rem);
+  letter-spacing: var(--m-display-track);
   color: var(--m-ink);
+  margin: 0;
 }
-.meridian .mh-mover-name {
+.meridian .mh-board-note {
+  font-size: var(--m-data);
+  line-height: 1.65;
+  color: var(--m-ink-4);
+  margin: 14px 0 6px;
+}
+
+/* ================================================ 3. covered */
+
+.meridian .mh-block { margin-top: clamp(1.5rem, 3vw, 3rem); }
+.meridian .mh-block-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: clamp(1.5rem, 4vw, 3rem);
+  flex-wrap: wrap;
+  margin-bottom: clamp(1.25rem, 2.2vw, 1.75rem);
+}
+.meridian .mh-h2 {
+  font-family: var(--m-display);
+  font-weight: var(--m-display-w);
+  font-size: clamp(1.5rem, 3vw, 2.375rem);
+  line-height: 1.1;
+  letter-spacing: var(--m-display-track);
+  color: var(--m-ink);
+  margin: 0;
+  max-width: 22ch;
+}
+.meridian .mh-block-sub {
   font-size: var(--m-data-lg);
+  line-height: 1.7;
   color: var(--m-ink-3);
+  max-width: 58ch;
+  margin-top: 12px;
+}
+
+.meridian .mh-covered {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+  gap: clamp(0.75rem, 1.2vw, 1rem);
+}
+.meridian .mh-cov { padding: 16px; display: grid; gap: 10px; align-content: start; }
+.meridian .mh-cov-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.meridian .mh-cov-sym {
+  font-size: var(--m-fig);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--m-ink-2);
+}
+.meridian .mh-cov-name {
+  font-size: var(--m-data);
+  color: var(--m-ink-4);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.meridian .mh-mover-px {
+.meridian .mh-cov-px {
   font-family: var(--m-mono);
-  font-variant-numeric: tabular-nums lining-nums;
-  font-size: var(--m-fig);
-  color: var(--m-ink-4);
-  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.125rem;
+  color: var(--m-ink);
 }
-.meridian .mh-mover-spark { display: flex; justify-content: flex-end; }
-.meridian .mh-mover-chg { display: flex; justify-content: flex-end; }
 
-.meridian .mh-sec .market-note { margin-top: 26px; text-align: left; }
-
-/* ============================== 4. rooms */
-
-.meridian .mh-open {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: clamp(2rem, 5vw, 4rem);
-  flex-wrap: wrap;
-}
-.meridian .mh-open-p {
-  font-size: var(--m-prose-lg);
-  line-height: 1.75;
-  color: var(--m-ink-3);
-  max-width: 36ch;
-  margin: 0;
-  text-wrap: pretty;
-}
+/* ================================================ 4. rooms */
 
 .meridian .mh-rooms {
   display: grid;
-  grid-template-columns: minmax(0, 1.32fr) minmax(0, 1fr);
-  gap: 24px;
-  margin-top: clamp(2rem, 3.5vw, 3.25rem);
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: clamp(1rem, 1.6vw, 1.5rem);
 }
-
-.meridian .mh-flagship {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--m-rule-raised);
-  background: linear-gradient(160deg, var(--m-wash), transparent 62%);
-  padding: clamp(1.75rem, 2.6vw, 2.5rem);
-  color: inherit;
-  transition: transform var(--m-t), border-color var(--m-t);
-}
-.meridian .mh-flagship:hover { transform: translateY(-4px); border-color: var(--m-accent); color: inherit; }
+.meridian .mh-flagship { padding: clamp(1.5rem, 2.6vw, 2.25rem); display: flex; flex-direction: column; }
 .meridian .mh-flagship-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.meridian .mh-badge {
-  font-size: var(--m-fig-sm);
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--m-on-accent);
-  background: var(--m-cta);
-  padding: 6px 10px;
-}
 .meridian .mh-flagship-title {
   display: block;
-  font-family: var(--m-display); font-weight: var(--m-display-w);
-  font-size: clamp(1.875rem, 3vw, 2.75rem);
-  line-height: 1.04;
+  font-family: var(--m-display);
+  font-weight: var(--m-display-w);
+  font-size: clamp(1.625rem, 2.8vw, 2.25rem);
+  line-height: 1.08;
+  letter-spacing: var(--m-display-track);
   color: var(--m-ink);
   margin-top: 20px;
 }
 .meridian .mh-flagship-p {
-  font-size: var(--m-prose-lg);
-  line-height: 1.75;
+  font-size: var(--m-data-lg);
+  line-height: 1.7;
   color: var(--m-ink-3);
-  margin: 14px 0 24px;
-  max-width: 54ch;
+  margin: 12px 0 24px;
+  max-width: 52ch;
 }
-
-.meridian .mh-lens {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  flex-wrap: wrap;
-  padding-top: 18px;
-  border-top: 1px solid var(--m-rule-section);
-}
-.meridian .mh-lens-read {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
-  margin-top: 14px;
-  font-family: var(--m-mono);
-  font-size: var(--m-fig);
-  letter-spacing: 0.08em;
-  color: var(--m-ink-3);
-}
-.meridian .mh-lens-sep { width: 1px; height: 10px; background: var(--m-rule-mono); }
-.meridian .mh-lens-move.is-up { color: var(--m-up); }
-.meridian .mh-lens-move.is-down { color: var(--m-down); }
-.meridian .mh-lens-move.is-flat { color: var(--m-ink-4); }
-.meridian .mh-lens-count { font-family: var(--m-sans); font-size: var(--m-fig); letter-spacing: normal; }
-
 .meridian .mh-flagship-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  border-top: 1px solid var(--m-rule-section);
-  margin-top: 26px;
+  gap: 14px;
+  padding-top: 20px;
+  border-top: 1px solid var(--m-rule-list);
+  margin-top: auto;
+}
+.meridian .mh-fstat { display: grid; gap: 8px; }
+.meridian .mh-fstat-v {
+  font-family: var(--m-display);
+  font-weight: var(--m-display-w);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.375rem, 2.2vw, 1.75rem);
+  line-height: 1;
+  color: var(--m-accent);
 }
 .meridian .mh-flagship-go {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-top: 26px;
-  font-size: var(--m-label);
-  font-weight: 800;
-  letter-spacing: 0.16em;
+  gap: 10px;
+  margin-top: 22px;
+  font-size: var(--m-fig);
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--m-accent);
 }
+.meridian .mh-flagship-go svg { width: 14px; height: 14px; }
 
-.meridian .mh-room-stack { display: flex; flex-direction: column; gap: 24px; }
-.meridian .mh-room {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  border: 1px solid var(--m-rule-section);
-  padding: 24px 26px;
-  color: inherit;
-  transition: transform var(--m-t), border-color var(--m-t), background var(--m-t);
-}
-.meridian .mh-room:hover {
-  transform: translateY(-3px);
-  border-color: var(--m-rule-mono);
-  background: var(--m-rail);
-  color: inherit;
-}
-.meridian .mh-room-top { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; }
-.meridian .mh-room-meta { font-family: var(--m-mono); font-size: var(--m-fig); letter-spacing: 0.1em; color: var(--m-accent-dim); }
+.meridian .mh-room-stack { display: flex; flex-direction: column; gap: clamp(1rem, 1.6vw, 1.5rem); }
+.meridian .mh-room { flex: 1; padding: clamp(1.125rem, 1.8vw, 1.5rem); display: flex; flex-direction: column; justify-content: center; }
+.meridian .mh-room-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.meridian .mh-room-meta { font-size: var(--m-fig-sm); color: var(--m-accent-dim); }
 .meridian .mh-room-title {
   display: block;
-  font-family: var(--m-display); font-weight: var(--m-display-w);
-  font-size: 1.75rem;
-  line-height: 1.05;
+  font-family: var(--m-display);
+  font-weight: var(--m-display-w);
+  font-size: 1.375rem;
+  letter-spacing: var(--m-display-track);
   color: var(--m-ink);
   margin-top: 10px;
 }
-.meridian .mh-room-p { font-size: var(--m-data-lg); line-height: 1.7; color: var(--m-ink-3); margin: 9px 0 0; }
+.meridian .mh-room-p { font-size: var(--m-data); line-height: 1.65; color: var(--m-ink-3); margin-top: 8px; }
 
-/* ============================== 5. notes */
+/* ================================================ 5. notes */
 
 .meridian .mh-notes {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(1.5rem, 2.5vw, 2.25rem);
-  margin-top: 30px;
+  gap: clamp(1rem, 1.6vw, 1.5rem);
 }
-.meridian .mh-note { display: block; color: inherit; }
+.meridian .mh-note { padding: 0 0 20px; display: grid; gap: 10px; }
 .meridian .mh-note-plate {
   display: block;
-  position: relative;
-  height: 168px;
-  border: 1px solid var(--m-rule-section);
-  background: linear-gradient(125deg, var(--m-rail), var(--m-wash) 46%, var(--m-rail));
-  overflow: hidden;
-  transition: border-color var(--m-t);
+  height: 132px;
+  background:
+    radial-gradient(120% 120% at 20% 0%, rgba(217, 189, 139, 0.14), transparent 62%),
+    linear-gradient(158deg, #221c14, #171310);
+  border-bottom: 1px solid var(--m-rule-list);
 }
-.meridian .mh-note:hover .mh-note-plate { border-color: var(--m-rule-raised); }
-.meridian .mh-note-tag {
-  position: absolute;
-  left: 14px;
-  bottom: 13px;
-  font-size: var(--m-fig-sm);
-  font-weight: 800;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--m-accent-dim);
-}
+.meridian .mh-note .m-label,
+.meridian .mh-note-title,
+.meridian .mh-note-go { margin-inline: 18px; }
 .meridian .mh-note-title {
-  display: block;
-  font-family: var(--m-display); font-weight: var(--m-display-w);
-  font-size: 1.3125rem;
-  line-height: 1.3;
+  font-family: var(--m-display);
+  font-weight: var(--m-display-w);
+  font-size: 1.0625rem;
+  line-height: 1.35;
+  letter-spacing: var(--m-display-track);
   color: var(--m-ink);
-  margin-top: 16px;
   text-wrap: pretty;
 }
 .meridian .mh-note-go {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 12px;
+  gap: 8px;
   font-size: var(--m-fig-sm);
-  font-weight: 800;
-  letter-spacing: 0.16em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--m-accent);
 }
 .meridian .mh-note-go svg { width: 12px; height: 12px; }
 
-/* ============================== 6. the firm */
+/* ================================================ 6. close */
 
-.meridian .mh-firm {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: clamp(2rem, 5vw, 5rem);
-  align-items: center;
-}
-.meridian .mh-firm-stats {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  border-top: 1px solid var(--m-rule-section);
-  border-left: 1px solid var(--m-rule-section);
-}
-.meridian .mh-firm-stat {
-  display: grid;
-  gap: 12px;
-  align-content: start;
-  padding: 28px 26px;
-  border-right: 1px solid var(--m-rule-section);
-  border-bottom: 1px solid var(--m-rule-section);
-}
-.meridian .mh-firm-v {
-  font-family: var(--m-display); font-weight: var(--m-display-w);
-  font-variant-numeric: tabular-nums lining-nums;
-  font-size: clamp(1.75rem, 2.4vw, 2.375rem);
-  line-height: 1;
-  color: var(--m-accent);
-}
-
-/* ============================== 7. close */
-
-.meridian .mh-close-inner {
-  border-top: 1px solid var(--m-rule-section);
-  padding-top: clamp(3rem, 5vw, 4.5rem);
+.meridian .mh-close {
+  padding: clamp(2.25rem, 5vw, 4rem) clamp(1.5rem, 4vw, 3rem);
   text-align: center;
-  background: radial-gradient(700px 300px at 50% 24%, var(--m-wash), transparent 66%);
+  display: grid;
+  justify-items: center;
+  gap: 16px;
 }
-.meridian .mh-close-inner .m-label { display: inline-block; }
-.meridian .mh-close-inner .mh-h1 { margin-top: 22px; }
+.meridian .mh-close-title {
+  font-family: var(--m-display);
+  font-weight: var(--m-display-w);
+  font-size: clamp(1.75rem, 4vw, 3rem);
+  line-height: 1.06;
+  letter-spacing: var(--m-display-track);
+  color: var(--m-ink);
+  max-width: 20ch;
+  margin: 0;
+}
+.meridian .mh-close-p { font-size: var(--m-data-lg); line-height: 1.7; color: var(--m-ink-3); max-width: 46ch; }
+.meridian .mh-close-actions { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 10px; }
+.meridian .mh-page .market-note { margin: 0; padding: 0; border: 0; background: none; text-align: left; }
 
-/* ============================== responsive */
+/* ================================================ responsive */
 
 @media (max-width: 1180px) {
-  .meridian .mh-hero-grid { grid-template-columns: minmax(0, 1fr); gap: 2.5rem; }
-  .meridian .mh-h1 { max-width: 18ch; }
   .meridian .mh-rooms { grid-template-columns: minmax(0, 1fr); }
   .meridian .mh-room-stack { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
-
 @media (max-width: 960px) {
-  .meridian .mh-morning { grid-template-columns: repeat(2, 1fr); }
-  .meridian .mh-index:nth-child(2) { border-right: 0; }
-  .meridian .mh-index { padding-right: 20px; }
-  .meridian .mh-index:nth-child(-n+2) { border-bottom: 1px solid var(--m-rule-section); }
-  .meridian .mh-movers { grid-template-columns: minmax(0, 1fr); gap: 34px; }
+  .meridian .mh-boards { grid-template-columns: minmax(0, 1fr); }
   .meridian .mh-notes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .meridian .mh-room-stack { grid-template-columns: minmax(0, 1fr); }
-  .meridian .mh-firm { grid-template-columns: minmax(0, 1fr); gap: 2.5rem; }
-}
-
-@media (max-width: 760px) {
-  .meridian .mh-card-stats { grid-template-columns: repeat(2, 1fr); }
-  .meridian .mh-stat:nth-child(2) { border-right: 0; }
   .meridian .mh-flagship-stats { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 760px) {
+  .meridian .mh-extremes { grid-template-columns: minmax(0, 1fr); gap: 1.75rem; }
   .meridian .mh-notes { grid-template-columns: minmax(0, 1fr); }
-  .meridian .mh-note-plate { height: 132px; }
-  .meridian .mh-sec-head { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .meridian .mh-covered { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 }
-
-@media (max-width: 620px) {
-  .meridian .mh-card { padding: 14px; }
-  .meridian .mh-card-head { flex-wrap: wrap; }
-  .meridian .mh-card-figure { margin-left: 0; justify-items: start; width: 100%; }
-  .meridian .mh-mover { grid-template-columns: 58px minmax(0, 1fr) 76px; }
-  .meridian .mh-mover-px,
-  .meridian .mh-mover-spark { display: none; }
-  .meridian .mh-morning { grid-template-columns: 1fr; }
-  .meridian .mh-index { border-right: 0; border-bottom: 1px solid var(--m-rule-section); padding: 20px 0; }
-  .meridian .mh-index:last-child { border-bottom: 0; }
-  .meridian .mh-mover { grid-template-columns: 54px minmax(0, 1fr) 74px; }
-  .meridian .mh-firm-stats { grid-template-columns: 1fr; }
-  .meridian .mh-flagship-stats { grid-template-columns: 1fr; }
-  .meridian .mh-actions .m-cta,
-  .meridian .mh-actions .m-btn { width: 100%; }
+@media (max-width: 560px) {
+  .meridian .mh-flagship-stats { grid-template-columns: minmax(0, 1fr); }
+  .meridian .mh-close-actions .m-cta,
+  .meridian .mh-close-actions .m-btn { width: 100%; justify-content: center; }
+  .meridian .breadth-bar { height: 20px; }
 }
-
-@media (max-width: 480px) {
-  .meridian .mh-notes { grid-template-columns: 1fr; }
-  .meridian .mh-mover { grid-template-columns: 54px minmax(0, 1fr) 74px; }
-}
-
-/* css/styles.css underlines links on hover at a specificity this world's
-   base reset does not beat. Card-shaped links carry their affordance in the
-   whole card, never in an underline through a fund's name. */
-.meridian .mh-index,
-.meridian .mh-index:hover,
-.meridian .mh-card,
-.meridian .mh-card:hover,
-.meridian .mh-note,
-.meridian .mh-note:hover,
-.meridian .mh-room,
-.meridian .mh-room:hover,
-.meridian .mh-flagship,
-.meridian .mh-flagship:hover,
-.meridian .mh-mover,
-.meridian .mh-mover:hover { text-decoration: none; }
-
-/* A two-line fund name must not push its figures out of line with the three
-   beside it, so the foot is pinned to the bottom of every card. */
-.meridian .mh-index {
-  display: flex;
-  flex-direction: column;
-}
-.meridian .mh-index-foot { margin-top: auto; padding-top: 16px; }

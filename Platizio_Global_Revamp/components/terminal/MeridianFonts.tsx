@@ -1,25 +1,24 @@
 import { Helmet } from 'react-helmet-async'
 
 /**
- * The terminal's two faces, loaded on the terminal route only.
+ * Outfit, on the two product routes only.
  *
- * Instrument Serif and Manrope belong to the dark world. Putting them in
- * index.html would bill all 49 prerendered pages for a download that 13 of
- * them need, so they mount through Helmet instead — which renders into
- * <!--app-head--> during renderToString exactly as it does during client
- * navigation, so the prerendered page and the hydrated one agree.
+ * The design source sets display, body and figures in one geometric sans
+ * rather than the serif/sans/mono trio the first system used — so this is one
+ * family, not three, and the whole terminal loads a single extra face.
  *
- * A separate Helmet rather than a prop on <SEO/>: helmet-async merges
- * instances and dedupes links by href, so this composes without widening the
- * SEO component's contract for one route's typography. The preconnects are
- * already in index.html, so this is one request.
+ * Loaded through Helmet rather than index.html so the other 47 prerendered
+ * pages do not pay for it. Helmet renders into <!--app-head--> during
+ * renderToString exactly as it does during client navigation, so the
+ * prerendered page and the hydrated one agree. The preconnects already sit in
+ * index.html, so this is one request.
  */
 export default function MeridianFonts() {
   return (
     <Helmet>
       <link
         rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital,wght@0,400;1,400&family=Manrope:wght@400;500;600;700;800&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
       />
     </Helmet>
   )

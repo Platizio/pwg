@@ -10,7 +10,12 @@
  */
 
 import { fetchQuotes } from './_lib/viewtrade'
-import { buildPayload, buildSymbolsPayload, buildIndexMoves } from './_lib/buildPayload'
+import {
+  buildPayload,
+  buildSymbolsPayload,
+  buildIndexMoves,
+  buildIndexQuotes,
+} from './_lib/buildPayload'
 import { ALL_SYMBOLS, MIN_USABLE_QUOTES } from '../Platizio_Global_Revamp/data/marketUniverse'
 
 /**
@@ -98,6 +103,7 @@ export default async function handler(request: Request): Promise<Response> {
 
     if (wantsIndex) {
       payload.indexMoves = buildIndexMoves(raws)
+      payload.indexQuotes = buildIndexQuotes(raws)
       // Reuses buildPayload's ranking rather than sorting again here, so
       // "biggest movers" means exactly the same thing on the terminal as it
       // does in Home's banner.

@@ -138,6 +138,7 @@ function synthesise(url: URL, universe: Record<string, any>) {
       body.indexLeaders = [...constituents]
         .sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent))
         .slice(0, TRENDING_COUNT)
+      body.indexQuotes = constituents
     }
     return body
   }

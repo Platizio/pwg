@@ -9,6 +9,8 @@ export interface TerminalData {
   indexMoves: number[]
   /** The largest absolute movers in the index today, with names. */
   indexLeaders: Quote[]
+  /** Every usable index constituent, with names. */
+  indexQuotes: Quote[]
   asOf: string | null
   delayed: boolean
   /** null = still loading, render skeletons. true/false = settled. */
@@ -20,6 +22,7 @@ const EMPTY: TerminalData = {
   quotes: new Map(),
   indexMoves: [],
   indexLeaders: [],
+  indexQuotes: [],
   asOf: null,
   delayed: true,
   ready: false,
@@ -83,6 +86,7 @@ export function useTerminalData(): TerminalData {
     quotes: new Map(data.quotes.map((q) => [q.symbol, q])),
     indexMoves: data.indexMoves ?? [],
     indexLeaders: data.indexLeaders ?? [],
+    indexQuotes: data.indexQuotes ?? [],
     asOf: data.asOf ?? null,
     // Absent means unknown, and unknown must disclose. Only an explicit false
     // removes the delayed notice.

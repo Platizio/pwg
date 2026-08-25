@@ -192,3 +192,18 @@ export function buildIndexMoves(raws: RawQuote[]): number[] {
     .map((raw) => round((raw.changePercent as number) * 100, 2))
     .sort((a, b) => a - b)
 }
+
+/**
+ * Every usable Nasdaq-100 constituent, normalised.
+ *
+ * The dashboard reads breadth, biggest gains and biggest falls off this one
+ * array rather than asking the server to rank three different ways. One
+ * ranking rule lives in one place — here, in the client that renders it —
+ * instead of three that can drift apart.
+ */
+export function buildIndexQuotes(raws: RawQuote[]): Quote[] {
+  return raws
+    .filter(isUsable)
+    .filter((raw) => NASDAQ_100_SET.has(raw.symbol))
+    .map((raw) => normalise(raw, DISPLAY_NAMES.get(raw.symbol)))
+}

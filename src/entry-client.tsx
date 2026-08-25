@@ -16,9 +16,10 @@ import '../Platizio_Global_Revamp/styles/about.css'
 // can load beside the others without reaching the rest of the site.
 import '../Platizio_Global_Revamp/styles/meridian.css'
 import '../Platizio_Global_Revamp/styles/products.css'
-// Scoped to .meridian, so it moves both product surfaces into the source
-// design's world and leaves the rest of the site in the light brand.
-import '../Platizio_Global_Revamp/styles/meridian-dark.css'
+// Meridian v2 — the lit-card surface. Scoped to .meridian, so it moves both
+// product surfaces into the source design's world and leaves the rest of the
+// site in the light brand.
+import '../Platizio_Global_Revamp/styles/meridian-v2.css'
 
 const container = document.getElementById('root')!
 

@@ -69,4 +69,13 @@ export interface SymbolsResponse {
    * "biggest movers" must mean one thing across the site.
    */
   indexLeaders?: Quote[]
+  /**
+   * Every usable Nasdaq-100 constituent, with names.
+   *
+   * ~103 quotes, about 8KB. It supersedes `indexMoves` for anything that
+   * needs a symbol attached to a move — breadth counts, biggest gains,
+   * biggest falls — and it means those three do not each need their own
+   * endpoint or their own ranking rule on the server.
+   */
+  indexQuotes?: Quote[]
 }
