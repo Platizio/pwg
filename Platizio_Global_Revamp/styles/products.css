@@ -1,222 +1,426 @@
 /* =========================================================
-   Products — the site's own light theme
+   Products — the datasheet
    =========================================================
 
-   This file used to hold 437 lines of `.meridian .mh-*`, from a pass that put
-   the terminal's dark world on the marketing page. That world now lives only
-   on /terminal/:symbol, where it belongs. Everything here is the light system:
-   tokens.css for colour and type, base.css for the primitives, home-market.css
-   for the ticker band, the stock grid and the skeletons.
+   THE DIRECTION. This page sells an instrument, so it is laid out like the
+   instrument's documentation, not like a brochure. Nothing is centred.
+   Nothing sits in a rounded card. Structure comes from hairline rules and an
+   asymmetric two-column grid, sections are numbered in monospace, figures are
+   set large in tabular numerals, and every capability is shown as a real crop
+   of the running terminal rather than an icon above a paragraph.
 
-   Nothing in this file is scoped under `.meridian`, and nothing in the dark
-   sheets reaches these rules — they only activate under that class, which this
-   page never carries.
+   WHAT IT REFUSES. The version this replaces was the category default: a
+   centred eyebrow, a centred heading, a centred paragraph, then a three-column
+   grid of icon cards — repeated four times down the page. It is what every
+   fintech marketing page looks like, it proved nothing, and a visitor could
+   not tell from it whether the product existed.
+
+   The palette and faces are the site's own, unchanged: white ground, navy
+   ink, burnt orange as the single accent, Bricolage Grotesque for display,
+   Inter for prose, IBM Plex Mono for every figure and every label.
+
+   The `ds-` prefix keeps it clear which rules belong to this page. Nothing
+   here is scoped under `.meridian`, and the dark terminal sheets never reach
+   it — they only activate under that class, which this page never carries.
    ========================================================= */
 
-/* ===================================================== 1. hero */
-
-.products-hero {
-  /* The hero carries the shot, so it needs less air beneath it than a text
-     section would; the ticker band directly under it supplies the edge. */
-  padding-bottom: clamp(2rem, 4vw, 3.5rem);
-  /* 0.045 is measured, not chosen. The wash lifts the ground's luminance and
-     every tone on it loses contrast: at 0.07 the eyebrow held 4.48:1 and the
-     caption 4.20:1, both under AA. At 0.045 they hold 4.61 and 6.44. This is
-     the same trap tokens.css already documents for --gray-500, where a
-     hundredth of a point failed five places at once. */
-  background:
-    radial-gradient(900px 420px at 88% -10%, rgba(226, 104, 42, 0.045), transparent 62%),
-    linear-gradient(180deg, var(--surface-sunken), var(--surface) 62%);
+.ds-wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding-inline: clamp(1.25rem, 4vw, 2.5rem);
 }
 
-.products-hero-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
-  gap: clamp(2rem, 4vw, 4rem);
+/* ------------------------------------------------------------- primitives */
+
+/* The monospace key that heads every block. It replaces the site's `.eyebrow`
+   here deliberately: an accent-coloured, letter-spaced kicker over a centred
+   heading is the exact pattern this page is built to avoid. */
+.ds-meta {
+  display: flex;
   align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gray-500);
+  margin: 0;
+}
+.ds-meta-key { color: var(--accent-500); }
+.ds-rule { flex: 1; height: 1px; background: var(--line-strong); max-width: 120px; }
+
+.ds-n {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--accent-500);
+  margin-bottom: var(--space-3);
 }
 
-.products-hero-copy h1 { margin-bottom: var(--space-5); }
+.ds-h1 {
+  font-size: clamp(2.4rem, 5.4vw, 4.4rem);
+  line-height: 1.02;
+  letter-spacing: var(--tracking-tight);
+  margin: var(--space-6) 0 0;
+  text-wrap: balance;
+}
+/* The one italic on the page, on the half of the sentence that names the
+   reader. Bricolage has a real italic, so this is a drawn face, not a slant. */
+.ds-h1 em { font-style: italic; color: var(--accent-500); }
 
-.products-hero-lede {
+.ds-h2 {
+  font-size: clamp(1.8rem, 3.4vw, 2.85rem);
+  line-height: 1.06;
+  letter-spacing: var(--tracking-tight);
+  margin: var(--space-5) 0 0;
+  max-width: 18ch;
+  text-wrap: balance;
+}
+
+.ds-lede {
   font-size: var(--text-lg);
   line-height: 1.7;
   color: var(--gray-600);
   max-width: 46ch;
+  margin-top: var(--space-5);
 }
 
-.products-hero-actions {
+.ds-head-note {
+  font-size: var(--text-base);
+  line-height: 1.65;
+  color: var(--gray-500);
+  max-width: 44ch;
+  margin-top: var(--space-4);
+}
+
+.ds-actions {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
-  gap: var(--space-3);
+  gap: var(--space-5);
   margin-top: var(--space-8);
 }
 
-/* The product shot. A hairline and a deep, ink-tinted shadow so the dark
-   capture seats on the light page instead of floating as a black rectangle. */
-.products-hero-shot { margin: 0; }
+/* A text link that draws its own rule and extends it on hover — the page's
+   secondary action everywhere, so a second filled button never competes with
+   the one that matters. */
+.ds-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--ink-800);
+  white-space: nowrap;
+}
+.ds-link-rule {
+  width: 28px;
+  height: 1px;
+  background: var(--accent-500);
+  transition: width var(--t);
+}
+.ds-link:hover { color: var(--accent-600); }
+.ds-link:hover .ds-link-rule { width: 46px; }
 
-.products-hero-shot picture,
-.products-hero-shot img {
-  display: block;
-  width: 100%;
-  height: auto;
+/* ===================================================== 1. hero */
+
+.ds-hero {
+  padding-top: clamp(2.5rem, 5vw, 4.5rem);
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--surface-sunken), var(--surface) 78%);
+  border-bottom: 1px solid var(--line);
 }
 
-.products-hero-shot img {
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--line-strong);
-  box-shadow: var(--shadow-xl);
-  /* The capture is 1600x1000; reserving the ratio stops the hero reflowing
-     between the HTML arriving and the image decoding. */
+.ds-hero-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding-left: clamp(1.25rem, 4vw, 2.5rem);
+  display: grid;
+  grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr);
+  gap: clamp(2rem, 4vw, 3.5rem);
+  align-items: center;
+}
+
+/* The shot runs past the right edge of the container. The instrument does not
+   stop where the page does — that is the claim, made in layout. */
+.ds-shot { margin: 0; min-width: 0; }
+.ds-shot picture, .ds-shot img { display: block; }
+.ds-shot img {
+  width: calc(100% + 6vw);
+  max-width: none;
+  height: auto;
   aspect-ratio: 1600 / 1000;
   object-fit: cover;
   object-position: top left;
+  border: 1px solid var(--line-strong);
+  border-right: 0;
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  box-shadow: var(--shadow-xl);
   background: var(--ink-950);
 }
-
-.products-hero-shot figcaption {
+.ds-shot figcaption {
   margin-top: var(--space-3);
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
-  /* gray-500 measures 4.20:1 over the wash; gray-600 holds 6.44:1. Small
-     supplementary text is exactly where the extra step matters. */
   color: var(--gray-600);
-  text-align: right;
 }
 
-/* ===================================================== 4. features
-
-   Seven cards do not divide into four. A three-column grid leaves one orphan
-   on the last row; this lets the last two share the width instead, so the row
-   reads as deliberate rather than short. */
-
-.features-section { background: var(--surface-sunken); }
-
-.feature-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-4);
+/* One live figure, on a rule, under the actions. */
+.ds-live {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-5);
+  margin: var(--space-10) 0 clamp(2.5rem, 5vw, 4rem);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
 }
-
-/* css/styles.css forces .feature-card:nth-child(1..5) onto explicit
-   six-column grid lines between 640px and 960px. That placement hijacks any
-   grid whose children carry the class, and .why-grid had to cancel it the
-   same way. :nth-child(n) matches every card, so no per-index rule survives. */
-@media (max-width: 960px) {
-  .feature-row > .feature-card:nth-child(n) { grid-column: auto; }
+.ds-live dt { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase; }
+.ds-live dd { display: flex; align-items: baseline; gap: var(--space-3); margin: 0; }
+.ds-live-sym {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--ink-800);
 }
-
-.feature-row .feature-card {
-  display: grid;
-  grid-template-rows: auto auto 1fr;
-  gap: var(--space-3);
-  padding: var(--space-5);
-  background: var(--surface-raised);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-}
-
-.feature-row .feature-card h3 { font-size: var(--text-lg); line-height: 1.3; }
-.feature-row .feature-card p { font-size: var(--text-sm); line-height: 1.6; margin: 0; }
-
-.feature-row .feature-icon {
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-}
-.feature-row .feature-icon svg { width: 20px; height: 20px; }
-
-/* ===================================================== 5. what it costs */
-
-.cost-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-4);
-}
-
-.cost-card {
-  display: grid;
-  gap: var(--space-2);
-  align-content: start;
-  padding: var(--space-5);
-  background: var(--surface-raised);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  transition: transform var(--t), box-shadow var(--t), border-color var(--t);
-}
-.cost-card:hover {
-  transform: translateY(-3px);
-  border-color: var(--line-strong);
-  box-shadow: var(--shadow-md);
-}
-
-.cost-v {
+.ds-live-px {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: 'tnum' 1, 'lnum' 1;
-  font-size: var(--text-3xl);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--ink-900);
+}
+
+/* ===================================================== sections */
+
+.ds-section { padding: clamp(3.5rem, 7vw, 6.5rem) 0; }
+
+.ds-head { max-width: 640px; }
+.ds-head--sticky { align-self: start; }
+@media (min-width: 961px) {
+  .ds-head--sticky { position: sticky; top: 110px; }
+}
+
+/* ===================================================== 3. capabilities
+
+   Each entry is a ruled row, not a card: copy on one side, the real crop on
+   the other, and the sides alternate so the eye is never scanning a column of
+   identical boxes. */
+
+.ds-caps { list-style: none; margin: clamp(2.5rem, 5vw, 4rem) 0 0; padding: 0; }
+
+.ds-cap {
+  display: grid;
+  grid-template-columns: minmax(0, 0.78fr) minmax(0, 1fr);
+  gap: clamp(1.75rem, 4vw, 3.5rem);
+  align-items: center;
+  padding: clamp(2rem, 4vw, 3.25rem) 0;
+  border-top: 1px solid var(--line);
+}
+.ds-cap:last-child { border-bottom: 1px solid var(--line); }
+/* Alternate the sides. `direction` would flip the text too, so the copy is
+   placed by column instead. */
+.ds-cap:nth-child(even) .ds-cap-copy { grid-column: 2; }
+.ds-cap:nth-child(even) .ds-cap-shot { grid-column: 1; grid-row: 1; }
+
+.ds-cap-title {
+  font-size: var(--text-2xl);
+  line-height: 1.18;
+  letter-spacing: var(--tracking-snug);
+}
+.ds-cap-body {
+  font-size: var(--text-base);
+  line-height: 1.68;
+  color: var(--gray-600);
+  margin-top: var(--space-4);
+  max-width: 42ch;
+}
+
+/* The crop is a piece of a dark instrument on a white page. A hairline and a
+   deep shadow seat it; without them it reads as a hole punched in the sheet. */
+.ds-cap-shot {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  background: var(--ink-950);
+}
+/* The two narrow crops are tall portraits; capping them stops a 328px-wide
+   image being blown up to 600px and going soft. */
+.ds-cap:not(.is-wide) .ds-cap-shot { max-width: 340px; }
+.ds-cap:not(.is-wide):nth-child(odd) .ds-cap-shot { margin-left: auto; }
+
+/* The three that are argument rather than screen: a ruled three-up, no cards. */
+.ds-claims {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(1.5rem, 3vw, 2.75rem);
+  margin: clamp(2.5rem, 5vw, 4rem) 0 0;
+  padding: 0;
+}
+.ds-claim { padding-top: var(--space-5); border-top: 2px solid var(--ink-800); }
+.ds-claim-title { font-size: var(--text-lg); line-height: 1.3; letter-spacing: var(--tracking-snug); }
+.ds-claim-body { font-size: var(--text-sm); line-height: 1.65; color: var(--gray-600); margin-top: var(--space-3); }
+
+/* ===================================================== 5. costs */
+
+.ds-costs-section { background: var(--surface-sunken); border-block: 1px solid var(--line); }
+
+.ds-split {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: clamp(2rem, 5vw, 4.5rem);
+}
+
+.ds-costs { margin: 0; border-top: 1px solid var(--line-strong); }
+.ds-cost {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+  gap: var(--space-4) var(--space-6);
+  align-items: baseline;
+  padding: var(--space-6) 0;
+  border-bottom: 1px solid var(--line);
+}
+.ds-cost dt { display: grid; gap: var(--space-2); }
+.ds-cost dd { margin: 0; font-size: var(--text-sm); line-height: 1.6; color: var(--gray-500); }
+
+/* The figure carries the section. Mono, tabular, and large enough that the
+   four of them read as a spec block rather than as body copy. */
+.ds-cost-v {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+  font-size: clamp(2rem, 3.6vw, 3rem);
   font-weight: 600;
   line-height: 1;
-  letter-spacing: var(--tracking-snug);
+  letter-spacing: var(--tracking-tight);
   color: var(--accent-500);
 }
+.ds-cost-l { font-size: var(--text-base); font-weight: 600; color: var(--ink-800); }
 
-.cost-card h3 { font-size: var(--text-base); line-height: 1.35; }
-.cost-card p { font-size: var(--text-sm); line-height: 1.55; margin: 0; }
+/* ===================================================== 6. reading */
 
-.cost-note {
-  margin: var(--space-6) auto 0;
-  max-width: 680px;
-  text-align: center;
-  font-size: var(--text-sm);
-  color: var(--gray-500);
+.ds-guides {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0 clamp(2rem, 5vw, 4rem);
+  margin: clamp(2rem, 4vw, 3rem) 0 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
 }
 
-/* ===================================================== 6 & 7. tail */
+/* A ruled row that indents on hover, rather than a card that lifts. */
+.ds-guide {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: var(--space-6) 0;
+  border-bottom: 1px solid var(--line);
+  color: inherit;
+  transition: padding-left var(--t), border-color var(--t);
+}
+.ds-guide:hover, .ds-guide:focus-visible { padding-left: var(--space-3); border-color: var(--accent-400); }
+.ds-guide h3 { font-size: var(--text-lg); line-height: 1.3; letter-spacing: var(--tracking-snug); }
+.ds-guide p { grid-column: 1; font-size: var(--text-sm); line-height: 1.6; color: var(--gray-600); margin-top: var(--space-2); max-width: 46ch; }
+.ds-guide-go { color: var(--accent-500); display: inline-flex; }
+.ds-guide-go svg { width: 16px; height: 16px; }
 
-.reading-section { background: var(--surface-sunken); }
-.products-cta-section { padding-top: 0; }
+/* ===================================================== 7. close */
+
+.ds-close {
+  padding: clamp(3.5rem, 7vw, 6rem) 0;
+  background:
+    radial-gradient(720px 320px at 18% 0%, rgba(226, 104, 42, 0.10), transparent 64%),
+    var(--ink-900);
+  color: var(--white);
+}
+.ds-close-inner { max-width: 720px; }
+.ds-close .ds-h2 { color: var(--white); max-width: 16ch; margin-top: 0; }
+.ds-close .ds-head-note { color: rgba(255, 255, 255, 0.72); }
+.ds-close .ds-link { color: var(--white); }
+.ds-close .ds-link:hover { color: var(--accent-300); }
+.ds-close .ds-link-rule { background: var(--accent-300); }
 
 /* ===================================================== responsive
 
-   Restated at every step down, not just the widest. A later stylesheet's
+   Restated at every step down, not only the widest: a later stylesheet's
    WIDER media query beats an earlier one's NARROWER query at equal
-   specificity, so a rule set only at 1024px here would also override
-   css/styles.css at 480px. */
+   specificity. */
 
 @media (max-width: 1100px) {
-  .products-hero-grid { grid-template-columns: minmax(0, 1fr); gap: var(--space-10); }
-  .products-hero-lede { max-width: 60ch; }
-  .cost-grid { grid-template-columns: repeat(2, 1fr); }
+  .ds-hero-inner { grid-template-columns: minmax(0, 1fr); gap: var(--space-10); padding-right: clamp(1.25rem, 4vw, 2.5rem); }
+  .ds-shot img { width: 100%; border-right: 1px solid var(--line-strong); border-radius: var(--radius-lg); }
+  .ds-lede { max-width: 58ch; }
+  .ds-split { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 960px) {
-  .feature-row { grid-template-columns: repeat(2, 1fr); }
-  .cost-grid { grid-template-columns: repeat(2, 1fr); }
+  .ds-claims { grid-template-columns: repeat(2, 1fr); }
+  .ds-guides { grid-template-columns: minmax(0, 1fr); }
+  .ds-cap { grid-template-columns: minmax(0, 1fr); gap: var(--space-6); }
+  /* The alternation was a wide-screen device; stacked, every row reads copy
+     first, which is the order the sentence wants. */
+  .ds-cap:nth-child(even) .ds-cap-copy,
+  .ds-cap:nth-child(even) .ds-cap-shot { grid-column: 1; grid-row: auto; }
+  .ds-cap:not(.is-wide) .ds-cap-shot { max-width: 340px; margin-left: 0; }
+  .ds-cap:not(.is-wide):nth-child(odd) .ds-cap-shot { margin-left: 0; }
 }
 
 @media (max-width: 620px) {
-  .feature-row { grid-template-columns: 1fr; }
-  .cost-grid { grid-template-columns: 1fr; }
-  .products-hero-actions .btn { width: 100%; justify-content: center; }
-  .products-hero-shot figcaption { text-align: left; }
+  .ds-claims { grid-template-columns: minmax(0, 1fr); }
+  .ds-guides { grid-template-columns: minmax(0, 1fr); }
+  .ds-cost { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
+  .ds-actions { gap: var(--space-4); }
+  .ds-actions .btn { width: 100%; justify-content: center; }
+  .ds-h2 { max-width: none; }
 }
 
 @media (max-width: 480px) {
-  .feature-row { grid-template-columns: 1fr; }
-  .cost-grid { grid-template-columns: 1fr; }
+  .ds-claims { grid-template-columns: minmax(0, 1fr); }
+  .ds-cap:not(.is-wide) .ds-cap-shot { max-width: 100%; }
 }
 
-/* ===================================================== the ticker's scope
+/* ===================================================== the shared 8-up
 
-   home-market.css sets `.trending-label { flex: none }` and
-   `.trending-scope { white-space: nowrap }`, sized for the word "Nasdaq-100".
-   This page's basis is a sentence — "Largest 500 US companies by market
-   value" — and at 360px it was being clipped by the band's own
-   `overflow: hidden`. The basis is the one part of a ranking that cannot be
-   allowed to disappear, so below the band's stacking point it wraps instead. */
-@media (max-width: 860px) {
-  .trending-label { flex-wrap: wrap; }
-  .trending-scope { white-space: normal; }
+   PopularStocks is reused verbatim so this page and Home cannot drift about
+   which eight names are "popular". It centres its own header, which is right
+   on Home and wrong here: this page is left-ruled throughout, and one centred
+   block in the middle of it reads as a section from another site.
+
+   Scoped to `.ds-popular`, so Home is untouched. */
+
+.ds-popular .section-header {
+  max-width: 1180px;
+  margin-inline: auto;
+  margin-bottom: clamp(2rem, 4vw, 3rem);
+  padding-inline: clamp(1.25rem, 4vw, 2.5rem);
+  text-align: left;
 }
+.ds-popular .section-header p { margin-inline: 0; max-width: 44ch; }
+
+/* The site's `.eyebrow` carries a gradient rule before it; this page's blocks
+   are headed by a monospace key instead, so the two are reconciled rather
+   than left to sit next to each other. */
+.ds-popular .eyebrow {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--accent-500);
+}
+.ds-popular .eyebrow::before { display: none; }
+
+.ds-popular .container { max-width: 1180px; padding-inline: clamp(1.25rem, 4vw, 2.5rem); }
+.ds-popular .market-note { text-align: left; margin-inline: 0; }
