@@ -1,407 +1,222 @@
 /* =========================================================
-   Products — the dashboard, on the lit-card surface
+   Products — the site's own light theme
    =========================================================
 
-   Loaded before meridian-v2.css, which supplies every token and every surface
-   class used here. Nothing in this file touches :root.
+   This file used to hold 437 lines of `.meridian .mh-*`, from a pass that put
+   the terminal's dark world on the marketing page. That world now lives only
+   on /terminal/:symbol, where it belongs. Everything here is the light system:
+   tokens.css for colour and type, base.css for the primitives, home-market.css
+   for the ticker band, the stock grid and the skeletons.
 
-   The page is the design source's Overview: a session card carrying the
-   tracked figure, the breadth comb and the day's extremes; two directional
-   boards beneath it; then the covered instruments, the rooms, the reading and
-   the close. Cards carry the structure — this is the v2 surface, not the
-   hairline ledger the first system used.
+   Nothing in this file is scoped under `.meridian`, and nothing in the dark
+   sheets reaches these rules — they only activate under that class, which this
+   page never carries.
    ========================================================= */
 
-.meridian.mh { --mh-gutter: clamp(1rem, 3vw, 2.5rem); padding-bottom: clamp(3rem, 6vw, 6rem); }
+/* ===================================================== 1. hero */
 
-.meridian .mh-page {
-  max-width: 1560px;
-  margin: 0 auto;
-  padding: clamp(1.25rem, 2.5vw, 2rem) var(--mh-gutter) 0;
-  display: flex;
-  flex-direction: column;
-  gap: clamp(1.25rem, 2vw, 1.75rem);
+.products-hero {
+  /* The hero carries the shot, so it needs less air beneath it than a text
+     section would; the ticker band directly under it supplies the edge. */
+  padding-bottom: clamp(2rem, 4vw, 3.5rem);
+  /* 0.045 is measured, not chosen. The wash lifts the ground's luminance and
+     every tone on it loses contrast: at 0.07 the eyebrow held 4.48:1 and the
+     caption 4.20:1, both under AA. At 0.045 they hold 4.61 and 6.44. This is
+     the same trap tokens.css already documents for --gray-500, where a
+     hundredth of a point failed five places at once. */
+  background:
+    radial-gradient(900px 420px at 88% -10%, rgba(226, 104, 42, 0.045), transparent 62%),
+    linear-gradient(180deg, var(--surface-sunken), var(--surface) 62%);
 }
 
-.meridian .is-block { display: block; }
-
-/* ===================================================== 1. the session */
-
-.meridian .mh-session { padding: clamp(1.5rem, 2.6vw, 2.25rem); }
-
-.meridian .mh-tracks { margin-bottom: clamp(1.5rem, 2.4vw, 2rem); }
-
-.meridian .mh-figure {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 10px 22px;
-}
-.meridian .mh-figure-v {
-  font-family: var(--m-display);
-  font-weight: 300;
-  font-variant-numeric: tabular-nums;
-  font-size: clamp(3rem, 7vw, 5.25rem);
-  line-height: 0.92;
-  letter-spacing: -0.03em;
-}
-.meridian .mh-figure-v.is-absent {
-  font-size: clamp(1.5rem, 3vw, 2rem);
-  color: var(--m-ink-4);
-  font-weight: 400;
-}
-.meridian .mh-figure-meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.meridian .mh-figure-abs {
-  font-family: var(--m-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--m-fig);
-  color: var(--m-ink-3);
-}
-.meridian .mh-figure-sym {
-  flex-basis: 100%;
-  font-size: var(--m-label);
-  font-weight: 600;
-  letter-spacing: var(--m-track);
-  text-transform: uppercase;
-  color: var(--m-ink-3);
-  margin-top: 6px;
-}
-
-.meridian .mh-session-note {
-  font-size: var(--m-data-lg);
-  line-height: 1.7;
-  color: var(--m-ink-3);
-  max-width: 46ch;
-  margin-top: 20px;
-}
-
-/* ------------------------------------------------------------- breadth */
-
-.meridian .mh-breadth { padding: clamp(1.125rem, 2vw, 1.5rem); margin-top: clamp(1.5rem, 2.4vw, 2rem); }
-.meridian .breadth { margin-top: 16px; }
-/* One continuous comb over two coloured halves, masked — see meridian-v2.css
-   for why this is a mask and not two adjacent combed elements. */
-.meridian .breadth-bar { display: flex; height: 26px; width: 100%; }
-.meridian .breadth-up { background: var(--m-up); }
-.meridian .breadth-down { background: var(--m-down); }
-.meridian .breadth-counts {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 14px;
-  font-family: var(--m-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: clamp(0.9375rem, 1.4vw, 1.125rem);
-}
-.meridian .breadth-rose { color: var(--m-up); }
-.meridian .breadth-fell { color: var(--m-down); }
-.meridian .mh-breadth-note {
-  font-size: var(--m-data);
-  line-height: 1.7;
-  color: var(--m-ink-4);
-  margin-top: 18px;
-  max-width: 82ch;
-}
-.meridian .mh-breadth-note strong { color: var(--m-ink-2); font-weight: 600; }
-
-/* ------------------------------------------------------- the extremes */
-
-.meridian .mh-extremes {
+.products-hero-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: clamp(1.5rem, 3vw, 3rem);
-  margin-top: clamp(1.75rem, 2.8vw, 2.5rem);
-}
-.meridian .mh-extremes-sub { font-size: var(--m-data); color: var(--m-ink-4); margin-top: 4px; }
-.meridian .mh-rows { margin-top: 14px; }
-
-/* One instrument, as a row. */
-.meridian .irow {
-  display: flex;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  gap: clamp(2rem, 4vw, 4rem);
   align-items: center;
-  gap: 14px;
-  padding: 12px 12px 12px 10px;
-  min-height: 56px;
-  border-radius: var(--m-radius-tile);
-  color: inherit;
-  transition: background 0.24s var(--m-ease);
-}
-.meridian .irow.is-link:hover,
-.meridian .irow.is-link:focus-visible { background: var(--m-tint-ghost); color: inherit; }
-.meridian .plate {
-  width: 34px;
-  height: 34px;
-  flex: none;
-  display: grid;
-  place-items: center;
-  font-family: var(--m-display);
-  font-weight: 500;
-  font-size: 0.875rem;
-  color: var(--m-ink-2);
-}
-.meridian .irow-id { flex: 1; min-width: 0; display: grid; gap: 3px; }
-.meridian .irow-name {
-  font-size: var(--m-data-lg);
-  color: var(--m-ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.meridian .irow-sym {
-  font-size: var(--m-fig-sm);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--m-ink-4);
-}
-.meridian .irow-fig { display: grid; justify-items: end; gap: 4px; flex: none; }
-.meridian .irow-px {
-  font-family: var(--m-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--m-data-lg);
-  color: var(--m-ink);
 }
 
-/* ============================================== 2. the two boards */
+.products-hero-copy h1 { margin-bottom: var(--space-5); }
 
-.meridian .mh-boards {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: clamp(1.25rem, 2vw, 1.75rem);
+.products-hero-lede {
+  font-size: var(--text-lg);
+  line-height: 1.7;
+  color: var(--gray-600);
+  max-width: 46ch;
 }
-.meridian .mh-board { padding: clamp(1.25rem, 2.2vw, 1.75rem); }
-.meridian .mh-board-head {
+
+.products-hero-actions {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-.meridian .mh-board-title {
-  font-family: var(--m-display);
-  font-weight: var(--m-display-w);
-  font-size: clamp(1.25rem, 2vw, 1.5rem);
-  letter-spacing: var(--m-display-track);
-  color: var(--m-ink);
-  margin: 0;
-}
-.meridian .mh-board-note {
-  font-size: var(--m-data);
-  line-height: 1.65;
-  color: var(--m-ink-4);
-  margin: 14px 0 6px;
-}
-
-/* ================================================ 3. covered */
-
-.meridian .mh-block { margin-top: clamp(1.5rem, 3vw, 3rem); }
-.meridian .mh-block-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: clamp(1.5rem, 4vw, 3rem);
   flex-wrap: wrap;
-  margin-bottom: clamp(1.25rem, 2.2vw, 1.75rem);
-}
-.meridian .mh-h2 {
-  font-family: var(--m-display);
-  font-weight: var(--m-display-w);
-  font-size: clamp(1.5rem, 3vw, 2.375rem);
-  line-height: 1.1;
-  letter-spacing: var(--m-display-track);
-  color: var(--m-ink);
-  margin: 0;
-  max-width: 22ch;
-}
-.meridian .mh-block-sub {
-  font-size: var(--m-data-lg);
-  line-height: 1.7;
-  color: var(--m-ink-3);
-  max-width: 58ch;
-  margin-top: 12px;
+  gap: var(--space-3);
+  margin-top: var(--space-8);
 }
 
-.meridian .mh-covered {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
-  gap: clamp(0.75rem, 1.2vw, 1rem);
-}
-.meridian .mh-cov { padding: 16px; display: grid; gap: 10px; align-content: start; }
-.meridian .mh-cov-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.meridian .mh-cov-sym {
-  font-size: var(--m-fig);
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--m-ink-2);
-}
-.meridian .mh-cov-name {
-  font-size: var(--m-data);
-  color: var(--m-ink-4);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.meridian .mh-cov-px {
-  font-family: var(--m-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 1.125rem;
-  color: var(--m-ink);
-}
+/* The product shot. A hairline and a deep, ink-tinted shadow so the dark
+   capture seats on the light page instead of floating as a black rectangle. */
+.products-hero-shot { margin: 0; }
 
-/* ================================================ 4. rooms */
-
-.meridian .mh-rooms {
-  display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-  gap: clamp(1rem, 1.6vw, 1.5rem);
-}
-.meridian .mh-flagship { padding: clamp(1.5rem, 2.6vw, 2.25rem); display: flex; flex-direction: column; }
-.meridian .mh-flagship-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.meridian .mh-flagship-title {
+.products-hero-shot picture,
+.products-hero-shot img {
   display: block;
-  font-family: var(--m-display);
-  font-weight: var(--m-display-w);
-  font-size: clamp(1.625rem, 2.8vw, 2.25rem);
-  line-height: 1.08;
-  letter-spacing: var(--m-display-track);
-  color: var(--m-ink);
-  margin-top: 20px;
+  width: 100%;
+  height: auto;
 }
-.meridian .mh-flagship-p {
-  font-size: var(--m-data-lg);
-  line-height: 1.7;
-  color: var(--m-ink-3);
-  margin: 12px 0 24px;
-  max-width: 52ch;
+
+.products-hero-shot img {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-xl);
+  /* The capture is 1600x1000; reserving the ratio stops the hero reflowing
+     between the HTML arriving and the image decoding. */
+  aspect-ratio: 1600 / 1000;
+  object-fit: cover;
+  object-position: top left;
+  background: var(--ink-950);
 }
-.meridian .mh-flagship-stats {
+
+.products-hero-shot figcaption {
+  margin-top: var(--space-3);
+  font-size: var(--text-xs);
+  /* gray-500 measures 4.20:1 over the wash; gray-600 holds 6.44:1. Small
+     supplementary text is exactly where the extra step matters. */
+  color: var(--gray-600);
+  text-align: right;
+}
+
+/* ===================================================== 4. features
+
+   Seven cards do not divide into four. A three-column grid leaves one orphan
+   on the last row; this lets the last two share the width instead, so the row
+   reads as deliberate rather than short. */
+
+.features-section { background: var(--surface-sunken); }
+
+.feature-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-  padding-top: 20px;
-  border-top: 1px solid var(--m-rule-list);
-  margin-top: auto;
+  gap: var(--space-4);
 }
-.meridian .mh-fstat { display: grid; gap: 8px; }
-.meridian .mh-fstat-v {
-  font-family: var(--m-display);
-  font-weight: var(--m-display-w);
-  font-variant-numeric: tabular-nums;
-  font-size: clamp(1.375rem, 2.2vw, 1.75rem);
-  line-height: 1;
-  color: var(--m-accent);
-}
-.meridian .mh-flagship-go {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 22px;
-  font-size: var(--m-fig);
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--m-accent);
-}
-.meridian .mh-flagship-go svg { width: 14px; height: 14px; }
 
-.meridian .mh-room-stack { display: flex; flex-direction: column; gap: clamp(1rem, 1.6vw, 1.5rem); }
-.meridian .mh-room { flex: 1; padding: clamp(1.125rem, 1.8vw, 1.5rem); display: flex; flex-direction: column; justify-content: center; }
-.meridian .mh-room-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.meridian .mh-room-meta { font-size: var(--m-fig-sm); color: var(--m-accent-dim); }
-.meridian .mh-room-title {
-  display: block;
-  font-family: var(--m-display);
-  font-weight: var(--m-display-w);
-  font-size: 1.375rem;
-  letter-spacing: var(--m-display-track);
-  color: var(--m-ink);
-  margin-top: 10px;
-}
-.meridian .mh-room-p { font-size: var(--m-data); line-height: 1.65; color: var(--m-ink-3); margin-top: 8px; }
-
-/* ================================================ 5. notes */
-
-.meridian .mh-notes {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(1rem, 1.6vw, 1.5rem);
-}
-.meridian .mh-note { padding: 0 0 20px; display: grid; gap: 10px; }
-.meridian .mh-note-plate {
-  display: block;
-  height: 132px;
-  background:
-    radial-gradient(120% 120% at 20% 0%, rgba(217, 189, 139, 0.14), transparent 62%),
-    linear-gradient(158deg, #221c14, #171310);
-  border-bottom: 1px solid var(--m-rule-list);
-}
-.meridian .mh-note .m-label,
-.meridian .mh-note-title,
-.meridian .mh-note-go { margin-inline: 18px; }
-.meridian .mh-note-title {
-  font-family: var(--m-display);
-  font-weight: var(--m-display-w);
-  font-size: 1.0625rem;
-  line-height: 1.35;
-  letter-spacing: var(--m-display-track);
-  color: var(--m-ink);
-  text-wrap: pretty;
-}
-.meridian .mh-note-go {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--m-fig-sm);
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--m-accent);
-}
-.meridian .mh-note-go svg { width: 12px; height: 12px; }
-
-/* ================================================ 6. close */
-
-.meridian .mh-close {
-  padding: clamp(2.25rem, 5vw, 4rem) clamp(1.5rem, 4vw, 3rem);
-  text-align: center;
-  display: grid;
-  justify-items: center;
-  gap: 16px;
-}
-.meridian .mh-close-title {
-  font-family: var(--m-display);
-  font-weight: var(--m-display-w);
-  font-size: clamp(1.75rem, 4vw, 3rem);
-  line-height: 1.06;
-  letter-spacing: var(--m-display-track);
-  color: var(--m-ink);
-  max-width: 20ch;
-  margin: 0;
-}
-.meridian .mh-close-p { font-size: var(--m-data-lg); line-height: 1.7; color: var(--m-ink-3); max-width: 46ch; }
-.meridian .mh-close-actions { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 10px; }
-.meridian .mh-page .market-note { margin: 0; padding: 0; border: 0; background: none; text-align: left; }
-
-/* ================================================ responsive */
-
-@media (max-width: 1180px) {
-  .meridian .mh-rooms { grid-template-columns: minmax(0, 1fr); }
-  .meridian .mh-room-stack { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
+/* css/styles.css forces .feature-card:nth-child(1..5) onto explicit
+   six-column grid lines between 640px and 960px. That placement hijacks any
+   grid whose children carry the class, and .why-grid had to cancel it the
+   same way. :nth-child(n) matches every card, so no per-index rule survives. */
 @media (max-width: 960px) {
-  .meridian .mh-boards { grid-template-columns: minmax(0, 1fr); }
-  .meridian .mh-notes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .meridian .mh-room-stack { grid-template-columns: minmax(0, 1fr); }
-  .meridian .mh-flagship-stats { grid-template-columns: repeat(3, 1fr); }
+  .feature-row > .feature-card:nth-child(n) { grid-column: auto; }
 }
-@media (max-width: 760px) {
-  .meridian .mh-extremes { grid-template-columns: minmax(0, 1fr); gap: 1.75rem; }
-  .meridian .mh-notes { grid-template-columns: minmax(0, 1fr); }
-  .meridian .mh-covered { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+
+.feature-row .feature-card {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
 }
-@media (max-width: 560px) {
-  .meridian .mh-flagship-stats { grid-template-columns: minmax(0, 1fr); }
-  .meridian .mh-close-actions .m-cta,
-  .meridian .mh-close-actions .m-btn { width: 100%; justify-content: center; }
-  .meridian .breadth-bar { height: 20px; }
+
+.feature-row .feature-card h3 { font-size: var(--text-lg); line-height: 1.3; }
+.feature-row .feature-card p { font-size: var(--text-sm); line-height: 1.6; margin: 0; }
+
+.feature-row .feature-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+}
+.feature-row .feature-icon svg { width: 20px; height: 20px; }
+
+/* ===================================================== 5. what it costs */
+
+.cost-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+}
+
+.cost-card {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  padding: var(--space-5);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  transition: transform var(--t), box-shadow var(--t), border-color var(--t);
+}
+.cost-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.cost-v {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+  font-size: var(--text-3xl);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: var(--tracking-snug);
+  color: var(--accent-500);
+}
+
+.cost-card h3 { font-size: var(--text-base); line-height: 1.35; }
+.cost-card p { font-size: var(--text-sm); line-height: 1.55; margin: 0; }
+
+.cost-note {
+  margin: var(--space-6) auto 0;
+  max-width: 680px;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--gray-500);
+}
+
+/* ===================================================== 6 & 7. tail */
+
+.reading-section { background: var(--surface-sunken); }
+.products-cta-section { padding-top: 0; }
+
+/* ===================================================== responsive
+
+   Restated at every step down, not just the widest. A later stylesheet's
+   WIDER media query beats an earlier one's NARROWER query at equal
+   specificity, so a rule set only at 1024px here would also override
+   css/styles.css at 480px. */
+
+@media (max-width: 1100px) {
+  .products-hero-grid { grid-template-columns: minmax(0, 1fr); gap: var(--space-10); }
+  .products-hero-lede { max-width: 60ch; }
+  .cost-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 960px) {
+  .feature-row { grid-template-columns: repeat(2, 1fr); }
+  .cost-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 620px) {
+  .feature-row { grid-template-columns: 1fr; }
+  .cost-grid { grid-template-columns: 1fr; }
+  .products-hero-actions .btn { width: 100%; justify-content: center; }
+  .products-hero-shot figcaption { text-align: left; }
+}
+
+@media (max-width: 480px) {
+  .feature-row { grid-template-columns: 1fr; }
+  .cost-grid { grid-template-columns: 1fr; }
+}
+
+/* ===================================================== the ticker's scope
+
+   home-market.css sets `.trending-label { flex: none }` and
+   `.trending-scope { white-space: nowrap }`, sized for the word "Nasdaq-100".
+   This page's basis is a sentence — "Largest 500 US companies by market
+   value" — and at 360px it was being clipped by the band's own
+   `overflow: hidden`. The basis is the one part of a ranking that cannot be
+   allowed to disappear, so below the band's stacking point it wraps instead. */
+@media (max-width: 860px) {
+  .trending-label { flex-wrap: wrap; }
+  .trending-scope { white-space: normal; }
 }

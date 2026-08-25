@@ -79,3 +79,21 @@ export interface SymbolsResponse {
    */
   indexQuotes?: Quote[]
 }
+
+/**
+ * Response body of GET /api/quotes?gainers=1
+ *
+ * A separate mode because the large-cap sample is ~500 symbols — twenty
+ * upstream batches rather than five. Home's default call must not pay for a
+ * universe only the Products ticker reads.
+ */
+export interface GainersResponse {
+  /** Sorted by percentage change, descending. Risers only. */
+  gainers: Quote[]
+  /** The wording that must travel with the ranking. Never claims membership. */
+  basis: string
+  /** How many of the sample actually quoted, so the count can be honest. */
+  counted: number
+  asOf: string
+  delayed: boolean
+}

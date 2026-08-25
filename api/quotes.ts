@@ -15,8 +15,10 @@ import {
   buildSymbolsPayload,
   buildIndexMoves,
   buildIndexQuotes,
+  buildGainersPayload,
 } from './_lib/buildPayload'
 import { ALL_SYMBOLS, MIN_USABLE_QUOTES } from '../Platizio_Global_Revamp/data/marketUniverse'
+import { LARGE_CAP_SYMBOLS } from '../Platizio_Global_Revamp/data/largeCapSample'
 
 /**
  * Requests are whitelisted against ALL_SYMBOLS, never passed through.
@@ -69,8 +71,22 @@ export default async function handler(request: Request): Promise<Response> {
   const url = new URL(request.url)
   const requested = parseSymbols(url.searchParams.get('symbols'))
   const wantsIndex = url.searchParams.get('index') === '1'
+  const wantsGainers = url.searchParams.get('gainers') === '1'
 
   try {
+    // The large-cap ticker. Its own mode and its own cache key, because the
+    // sample is ~500 symbols — twenty upstream batches against the default
+    // call's five — and Home must not pay for a universe it never renders.
+    if (wantsGainers) {
+      const raws = await fetchQuotes(LARGE_CAP_SYMBOLS)
+      const payload = buildGainersPayload(raws)
+
+      if (payload.gainers.length < MIN_USABLE_QUOTES) {
+        return json({ error: 'Insufficient market data' }, 503, 'no-store')
+      }
+      return json(payload, 200, CACHE_CONTROL)
+    }
+
     // The default response is untouched: no query string, same payload, same
     // shape. Home has consumed it since the revamp landed and must not notice
     // that this route grew a second mode.

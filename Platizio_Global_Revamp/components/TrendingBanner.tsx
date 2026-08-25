@@ -4,6 +4,14 @@ import QuoteChange from './QuoteChange'
 import MarketNote from './MarketNote'
 
 interface TrendingBannerProps {
+  /** Heading. Defaults to Home's wording. */
+  label?: string
+  /**
+   * The universe the ranking was drawn from. Not a caption — the label is only
+   * honest while it names the set that was actually ranked, so every caller
+   * that changes the feed must change this with it.
+   */
+  scope?: string
   /** null while loading — renders the skeleton at identical height. */
   quotes: Quote[] | null
   asOf: string | null
@@ -33,7 +41,9 @@ function TickerItem({ quote }: { quote: Quote }) {
  * There is deliberately no pulsing "live" indicator. The data is delayed, and
  * that dot is the standard way of implying it isn't.
  */
-export default function TrendingBanner({ quotes, asOf, delayed }: TrendingBannerProps) {
+export default function TrendingBanner({
+  quotes, asOf, delayed, label = 'Top movers', scope = 'Nasdaq-100',
+}: TrendingBannerProps) {
   // Loaded but empty means the proxy gave us too little to show honestly.
   if (quotes && quotes.length === 0) return null
 
@@ -44,8 +54,8 @@ export default function TrendingBanner({ quotes, asOf, delayed }: TrendingBanner
     <section className="trending-band" aria-labelledby="trending-heading">
       <div className="container trending-inner">
         <h2 className="trending-label" id="trending-heading">
-          Top movers
-          <span className="trending-scope">Nasdaq-100</span>
+          {label}
+          <span className="trending-scope">{scope}</span>
         </h2>
 
         <div className="trending-viewport">

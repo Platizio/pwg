@@ -37,3 +37,10 @@ client-url-config.json
 *.pem
 *.key
 tsconfig.node.tsbuildinfo
+
+# The market terminal is a separate Next.js app with its own .git, its own
+# lockfile and 2.4GB of node_modules and build output. Committing it from here
+# would create a gitlink to a repo that has no remote — Vercel or Render would
+# clone an empty directory. It ships as its own service; see the deployment
+# task in the plan.
+screener/

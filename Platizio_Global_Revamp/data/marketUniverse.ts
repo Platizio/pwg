@@ -77,6 +77,15 @@ export const TRENDING_COUNT = 8
  */
 export const MIN_USABLE_QUOTES = 4
 
+/**
+ * The large-cap sample is whitelisted but NOT folded into ALL_SYMBOLS.
+ *
+ * ALL_SYMBOLS is what the default /api/quotes call fetches, and Home depends on
+ * that call staying five upstream batches. Adding 500 names would make every
+ * homepage load twenty. The sample is fetched only by the ?gainers=1 mode.
+ */
+export { LARGE_CAP_SYMBOLS, LARGE_CAP_SET, LARGE_CAP_BASIS, LARGE_CAP_SAMPLE } from './largeCapSample'
+
 /** Every symbol the proxy needs, deduplicated. */
 export const ALL_SYMBOLS: readonly string[] = [
   ...new Set([

@@ -7,13 +7,23 @@
  */
 
 import type { RawQuote } from './viewtrade'
-import type { Quote, QuotesResponse, SymbolsResponse } from '../../Platizio_Global_Revamp/types/market'
+import type {
+  Quote,
+  QuotesResponse,
+  SymbolsResponse,
+  GainersResponse,
+} from '../../Platizio_Global_Revamp/types/market'
 import {
   POPULAR_8,
   TRENDING_COUNT,
   DISPLAY_NAMES,
   NASDAQ_100_SET,
 } from '../../Platizio_Global_Revamp/data/marketUniverse'
+import {
+  LARGE_CAP_SET,
+  LARGE_CAP_BASIS,
+  LARGE_CAP_SAMPLE,
+} from '../../Platizio_Global_Revamp/data/largeCapSample'
 
 /**
  * Prices always render to 2 decimals.
@@ -206,4 +216,39 @@ export function buildIndexQuotes(raws: RawQuote[]): Quote[] {
     .filter(isUsable)
     .filter((raw) => NASDAQ_100_SET.has(raw.symbol))
     .map((raw) => normalise(raw, DISPLAY_NAMES.get(raw.symbol)))
+}
+
+/**
+ * The day's risers among the large-cap sample.
+ *
+ * Ranked over LARGE_CAP_SET membership only, so the basis the UI prints stays
+ * true of the set that was actually ranked — the same discipline `trending`
+ * follows for the Nasdaq-100.
+ *
+ * Risers ONLY, sorted descending. `trending` ranks by ABSOLUTE move because it
+ * answers "what moved"; this answers "what rose", and mixing a -6% into a list
+ * captioned "top gainers" would be the label lying about its contents.
+ *
+ * Display names come from the sample rather than the API, which returns
+ * shouting legal entities ("NVIDIA CORP", "AMAZON COM INC").
+ */
+export function buildGainersPayload(raws: RawQuote[], count = 14): GainersResponse {
+  const names = new Map(LARGE_CAP_SAMPLE.map((e) => [e.symbol, e.name]))
+  const usable = raws.filter(isUsable).filter((r) => LARGE_CAP_SET.has(r.symbol))
+
+  const gainers = usable
+    .filter((r) => (r.changePercent as number) > 0)
+    .sort((a, b) => (b.changePercent as number) - (a.changePercent as number))
+    .slice(0, count)
+    .map((raw) => normalise(raw, names.get(raw.symbol)))
+
+  const shown = usable.filter((r) => gainers.some((g) => g.symbol === r.symbol))
+
+  return {
+    gainers,
+    basis: LARGE_CAP_BASIS,
+    counted: usable.length,
+    asOf: oldestUpdateTime(shown),
+    delayed: shown.length === 0 || shown.some((r) => r.delayed !== false),
+  }
 }
