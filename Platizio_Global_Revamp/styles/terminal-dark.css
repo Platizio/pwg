@@ -1,0 +1,170 @@
+/* =========================================================
+   The terminal, in the screener's own world
+   =========================================================
+
+   Loaded after meridian.css and products.css, and scoped to `.meridian.terminal`
+   — which only /terminal/:symbol carries. /products is `.meridian.mh` and keeps
+   the light brand, so the two worlds never touch.
+
+   This is the palette, the faces and the material of the design-system source
+   verbatim: warm near-black ground, champagne gilt as punctuation, Instrument
+   Serif for names and figures, IBM Plex Mono for anything comparable, Manrope
+   for the micro-labels between them. Every component rule in meridian.css
+   already reads its colours from tokens, so redefining the tokens moves the
+   whole terminal across; what follows the token block is the short list of
+   places that hardcoded a value and therefore need saying twice.
+
+   Contrast against #080706, measured:
+     ink 17.27  ink-2 11.06  ink-3 6.49  ink-4 5.20
+     gilt 11.12  gilt-dim 7.12  up 11.21  down 6.82
+     on-gilt over the CTA gradient 12.25 -> 7.96
+   --m-accent-deep (#8a6e43) measures 4.21 and stays DECORATION ONLY: the
+   dashed previous-close rule and the gridlines. It may never carry text.
+   ========================================================= */
+
+.meridian.terminal {
+  /* ------------------------------------------------------------- grounds
+     Four near-blacks, all warm. In a flat system with no elevation ladder,
+     the separation between page, shell and rail is what creates depth. */
+  --m-page: #080706;
+  --m-shell: #0b0a09;
+  --m-rail: #0a0908;
+  --m-raised: #15120f;
+
+  /* --------------------------------------------------------------- rules
+     A graded family, not one border colour: heavier rules separate sections,
+     lighter ones separate table rows, so hierarchy is legible without a
+     single fill anywhere. */
+  --m-rule: #241f1a;
+  --m-rule-section: #201b17;
+  --m-rule-list: #1c1815;
+  --m-rule-table: #16130f;
+  --m-rule-raised: #34291f;
+  --m-rule-mono: #3a2f22;
+  --m-rule-control: #302821;
+  --m-grid: #15120f;
+  --m-grid-v: #131110;
+
+  /* ----------------------------------------------------------------- ink */
+  --m-ink: #f2ede5;
+  --m-ink-2: #c7bfb4;
+  --m-ink-3: #9a9186;
+  --m-ink-4: #8a8076;
+
+  /* ---------------------------------------------------------------- gilt
+     Roughly a tenth of any view. Because so little is filled, the one gold
+     CTA is unmissable without being loud. */
+  --m-accent: #d9bd8b;
+  --m-accent-hi: #f0dcb8;
+  --m-accent-dim: #b8945c;
+  --m-accent-deep: #8a6e43;   /* decoration only — 4.21:1 */
+  --m-on-accent: #1a1207;
+  --m-cta: linear-gradient(135deg, #e8cfa3, #c9a46f);
+  --m-wash: rgba(217, 189, 139, 0.07);
+  --m-wash-row: rgba(217, 189, 139, 0.045);
+
+  --m-blue: #b0bfcb;
+  --m-blue-2: #93c7a8;
+
+  /* ----------------------------------------------------------- direction
+     Deliberately muted sage and terracotta, never saturated green and red.
+     A falling price should read as a fact, not an alarm. */
+  --m-up: #7dd3a0;
+  --m-down: #e0796b;
+  --m-flat: #9a9186;
+
+  /* ------------------------------------------- instrument mark tints */
+  --m-mark-bone: #e5ddd1;
+  --m-mark-gold: #d9bd8b;
+  --m-mark-sage: #93c7a8;
+  --m-mark-slate: #b0bfcb;
+  --m-mark-clay: #c9a88a;
+
+  /* ---------------------------------------------------------------- type
+     Three voices, three jobs. IBM Plex Mono is the face this world shares
+     with the light one, which is why the two never look unrelated where a
+     visitor crosses between them. */
+  --m-display: 'Instrument Serif', ui-serif, Georgia, 'Times New Roman', serif;
+  --m-serif: var(--m-display);
+  --m-sans: 'Manrope', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --m-display-w: 400;
+  --m-display-track: 0.005em;
+
+  --m-track: 0.2em;
+
+  background: var(--m-page);
+  color: var(--m-ink);
+  /* The seam. The site chrome above is light and this is not; a single gilt
+     hairline says that was a decision rather than a rendering fault. */
+  border-top: 1px solid var(--m-accent-deep);
+}
+
+/* --------------------------------------------------------- the material
+
+   One radial wash of gilt from above the fold, and film grain over the whole
+   shell. The grain is a cached data-URI tile at 5% — on a light ground it
+   multiplies, here it overlays. */
+.meridian.terminal::before {
+  background: radial-gradient(1200px 520px at 50% -14%, rgba(217, 189, 139, 0.10), transparent 62%);
+}
+.meridian.terminal::after { opacity: 0.05; mix-blend-mode: overlay; }
+
+/* -------------------------------------------------------- browser surfaces */
+
+.meridian.terminal ::selection { background: rgba(217, 189, 139, 0.26); color: var(--m-accent-hi); }
+.meridian.terminal { scrollbar-color: var(--m-rule-mono) transparent; }
+.meridian.terminal ::-webkit-scrollbar-thumb { background: var(--m-rule-mono); }
+
+/* ------------------------------------------------------------ exceptions
+
+   Everything below hardcoded a colour in meridian.css because the light world
+   only ever needed one value there. Each needs its dark counterpart stated
+   once. */
+
+/* The one very large, very soft shadow that seats the terminal on the page. */
+@media (min-width: 1281px) {
+  .meridian.terminal .m-shell { box-shadow: 0 50px 140px rgba(0, 0, 0, 0.75); }
+}
+
+/* The gilt bloom under the one filled element — this system's only coloured
+   shadow. */
+.meridian.terminal .m-cta { box-shadow: 0 10px 34px rgba(217, 189, 139, 0.22); }
+.meridian.terminal .m-cta:hover { box-shadow: 0 16px 44px rgba(217, 189, 139, 0.36); }
+
+/* Direction, wherever it was written as a light-world rgba. */
+.meridian.terminal .m-vol-bar.is-up { background: rgba(125, 211, 160, 0.4); }
+.meridian.terminal .m-vol-bar.is-down { background: rgba(224, 121, 107, 0.4); }
+.meridian.terminal .m-chart-dot.is-up { box-shadow: 0 0 16px rgba(125, 211, 160, 0.6); }
+.meridian.terminal .m-chart-dot.is-down { box-shadow: 0 0 16px rgba(224, 121, 107, 0.6); }
+.meridian.terminal .m-price-chip.is-up { border-color: rgba(125, 211, 160, 0.35); }
+.meridian.terminal .m-price-chip.is-down { border-color: rgba(224, 121, 107, 0.35); }
+
+/* The crosshair readout is displaced above the plot, so it keeps a shadow —
+   dark, not ink-tinted. */
+.meridian.terminal .m-readout { box-shadow: 0 16px 34px rgba(0, 0, 0, 0.7); }
+
+/* The revenue bar that earns gilt, and the share segments. */
+.meridian.terminal .m-bar-fill.is-latest { background: linear-gradient(180deg, #e8cfa3, #8a6e43); }
+.meridian.terminal .m-share-seg.t1,
+.meridian.terminal .m-legend-key.t1 { background: #93c7a8; }
+.meridian.terminal .m-share-seg.t2,
+.meridian.terminal .m-legend-key.t2 { background: #8a6e43; }
+.meridian.terminal .m-share-seg.t3,
+.meridian.terminal .m-legend-key.t3 { background: #221d18; }
+
+/* The skeleton shimmer, which was a light sweep. */
+.meridian.terminal .is-loading-text::after {
+  background: linear-gradient(90deg, var(--m-rule-table) 25%, var(--m-rule) 37%, var(--m-rule-table) 63%);
+  background-size: 400% 100%;
+}
+
+/* Instrument Serif carries no bold, so a heading set at 700 synthesises one.
+   The display weight token above handles the shared rules; these two set
+   their own and need saying again. */
+.meridian.terminal .m-head-name,
+.meridian.terminal .m-price .val { font-weight: 400; }
+
+/* The plates behind the guide cards, which were warm-light gradients. */
+.meridian.terminal .m-wire-plate {
+  background: linear-gradient(125deg, #151210, #231d17 46%, #12100e);
+}

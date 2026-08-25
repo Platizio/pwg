@@ -16,6 +16,9 @@ import '../Platizio_Global_Revamp/styles/about.css'
 // can load beside the others without reaching the rest of the site.
 import '../Platizio_Global_Revamp/styles/meridian.css'
 import '../Platizio_Global_Revamp/styles/products.css'
+// Scoped to .meridian.terminal, so it moves the terminal into the source
+// design's dark world and leaves /products in the light brand.
+import '../Platizio_Global_Revamp/styles/terminal-dark.css'
 
 const container = document.getElementById('root')!
 
