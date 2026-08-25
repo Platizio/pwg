@@ -2,7 +2,7 @@
    The terminal, in the screener's own world
    =========================================================
 
-   Loaded after meridian.css and products.css, and scoped to `.meridian.terminal`
+   Loaded after meridian.css and products.css, and scoped to `.meridian`
    — which only /terminal/:symbol carries. /products is `.meridian.mh` and keeps
    the light brand, so the two worlds never touch.
 
@@ -22,7 +22,7 @@
    dashed previous-close rule and the gridlines. It may never carry text.
    ========================================================= */
 
-.meridian.terminal {
+.meridian {
   /* ------------------------------------------------------------- grounds
      Four near-blacks, all warm. In a flat system with no elevation ladder,
      the separation between page, shell and rail is what creates depth. */
@@ -99,21 +99,24 @@
   border-top: 1px solid var(--m-accent-deep);
 }
 
+/* The page's own ground, so the strip below the last section is not white. */
+.meridian.mh { background: var(--m-page); }
+
 /* --------------------------------------------------------- the material
 
    One radial wash of gilt from above the fold, and film grain over the whole
    shell. The grain is a cached data-URI tile at 5% — on a light ground it
    multiplies, here it overlays. */
-.meridian.terminal::before {
+.meridian::before {
   background: radial-gradient(1200px 520px at 50% -14%, rgba(217, 189, 139, 0.10), transparent 62%);
 }
-.meridian.terminal::after { opacity: 0.05; mix-blend-mode: overlay; }
+.meridian::after { opacity: 0.05; mix-blend-mode: overlay; }
 
 /* -------------------------------------------------------- browser surfaces */
 
-.meridian.terminal ::selection { background: rgba(217, 189, 139, 0.26); color: var(--m-accent-hi); }
-.meridian.terminal { scrollbar-color: var(--m-rule-mono) transparent; }
-.meridian.terminal ::-webkit-scrollbar-thumb { background: var(--m-rule-mono); }
+.meridian ::selection { background: rgba(217, 189, 139, 0.26); color: var(--m-accent-hi); }
+.meridian { scrollbar-color: var(--m-rule-mono) transparent; }
+.meridian ::-webkit-scrollbar-thumb { background: var(--m-rule-mono); }
 
 /* ------------------------------------------------------------ exceptions
 
@@ -123,37 +126,37 @@
 
 /* The one very large, very soft shadow that seats the terminal on the page. */
 @media (min-width: 1281px) {
-  .meridian.terminal .m-shell { box-shadow: 0 50px 140px rgba(0, 0, 0, 0.75); }
+  .meridian .m-shell { box-shadow: 0 50px 140px rgba(0, 0, 0, 0.75); }
 }
 
 /* The gilt bloom under the one filled element — this system's only coloured
    shadow. */
-.meridian.terminal .m-cta { box-shadow: 0 10px 34px rgba(217, 189, 139, 0.22); }
-.meridian.terminal .m-cta:hover { box-shadow: 0 16px 44px rgba(217, 189, 139, 0.36); }
+.meridian .m-cta { box-shadow: 0 10px 34px rgba(217, 189, 139, 0.22); }
+.meridian .m-cta:hover { box-shadow: 0 16px 44px rgba(217, 189, 139, 0.36); }
 
 /* Direction, wherever it was written as a light-world rgba. */
-.meridian.terminal .m-vol-bar.is-up { background: rgba(125, 211, 160, 0.4); }
-.meridian.terminal .m-vol-bar.is-down { background: rgba(224, 121, 107, 0.4); }
-.meridian.terminal .m-chart-dot.is-up { box-shadow: 0 0 16px rgba(125, 211, 160, 0.6); }
-.meridian.terminal .m-chart-dot.is-down { box-shadow: 0 0 16px rgba(224, 121, 107, 0.6); }
-.meridian.terminal .m-price-chip.is-up { border-color: rgba(125, 211, 160, 0.35); }
-.meridian.terminal .m-price-chip.is-down { border-color: rgba(224, 121, 107, 0.35); }
+.meridian .m-vol-bar.is-up { background: rgba(125, 211, 160, 0.4); }
+.meridian .m-vol-bar.is-down { background: rgba(224, 121, 107, 0.4); }
+.meridian .m-chart-dot.is-up { box-shadow: 0 0 16px rgba(125, 211, 160, 0.6); }
+.meridian .m-chart-dot.is-down { box-shadow: 0 0 16px rgba(224, 121, 107, 0.6); }
+.meridian .m-price-chip.is-up { border-color: rgba(125, 211, 160, 0.35); }
+.meridian .m-price-chip.is-down { border-color: rgba(224, 121, 107, 0.35); }
 
 /* The crosshair readout is displaced above the plot, so it keeps a shadow —
    dark, not ink-tinted. */
-.meridian.terminal .m-readout { box-shadow: 0 16px 34px rgba(0, 0, 0, 0.7); }
+.meridian .m-readout { box-shadow: 0 16px 34px rgba(0, 0, 0, 0.7); }
 
 /* The revenue bar that earns gilt, and the share segments. */
-.meridian.terminal .m-bar-fill.is-latest { background: linear-gradient(180deg, #e8cfa3, #8a6e43); }
-.meridian.terminal .m-share-seg.t1,
-.meridian.terminal .m-legend-key.t1 { background: #93c7a8; }
-.meridian.terminal .m-share-seg.t2,
-.meridian.terminal .m-legend-key.t2 { background: #8a6e43; }
-.meridian.terminal .m-share-seg.t3,
-.meridian.terminal .m-legend-key.t3 { background: #221d18; }
+.meridian .m-bar-fill.is-latest { background: linear-gradient(180deg, #e8cfa3, #8a6e43); }
+.meridian .m-share-seg.t1,
+.meridian .m-legend-key.t1 { background: #93c7a8; }
+.meridian .m-share-seg.t2,
+.meridian .m-legend-key.t2 { background: #8a6e43; }
+.meridian .m-share-seg.t3,
+.meridian .m-legend-key.t3 { background: #221d18; }
 
 /* The skeleton shimmer, which was a light sweep. */
-.meridian.terminal .is-loading-text::after {
+.meridian .is-loading-text::after {
   background: linear-gradient(90deg, var(--m-rule-table) 25%, var(--m-rule) 37%, var(--m-rule-table) 63%);
   background-size: 400% 100%;
 }
@@ -161,10 +164,22 @@
 /* Instrument Serif carries no bold, so a heading set at 700 synthesises one.
    The display weight token above handles the shared rules; these two set
    their own and need saying again. */
-.meridian.terminal .m-head-name,
-.meridian.terminal .m-price .val { font-weight: 400; }
+.meridian .m-head-name,
+.meridian .m-price .val { font-weight: 400; }
 
 /* The plates behind the guide cards, which were warm-light gradients. */
-.meridian.terminal .m-wire-plate {
+.meridian .m-wire-plate {
   background: linear-gradient(125deg, #151210, #231d17 46%, #12100e);
 }
+
+/* -------------------------------------------------- the Products page
+
+   products.css was written against a white ground and hardcoded two
+   ink-tinted shadows there. On warm black an ink shadow reads as grey haze;
+   these are the same two elevations in black. */
+.meridian .mh-card { box-shadow: 0 44px 120px rgba(0, 0, 0, 0.75); }
+.meridian .mh-card:hover { box-shadow: 0 54px 140px rgba(0, 0, 0, 0.8); }
+
+/* The seam between the site chrome and this world sits at the top of the
+   page rather than at the top of a shell. */
+.meridian.mh { border-top: 1px solid var(--m-accent-deep); }

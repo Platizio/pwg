@@ -9,6 +9,7 @@ import { calculateTradeCost, formatUsd } from '../lib/pricing'
 import { RATES, pct } from '../data/pricingRates'
 import { summarise, axisLabel } from '../lib/plot'
 import MarketNote from '../components/MarketNote'
+import MeridianFonts from '../components/terminal/MeridianFonts'
 import TickerTape from '../components/terminal/TickerTape'
 import Mark from '../components/terminal/Mark'
 import Change from '../components/terminal/Change'
@@ -90,6 +91,8 @@ export default function Products() {
         canonical="/products"
         jsonLd={breadcrumbSchema([['Home', '/'], ['Products', '/products']])}
       />
+      {/* Instrument Serif and Manrope: this route and the terminal only. */}
+      <MeridianFonts />
 
       <div className="meridian mh">
         <TickerTape quotes={quotes} />
