@@ -119,14 +119,19 @@
   color: var(--ink-800);
   white-space: nowrap;
 }
+/* The rule is laid out at its full extended length and scaled back, so the
+   link's box never changes size and the growth costs no layout. */
 .ds-link-rule {
-  width: 28px;
+  width: 46px;
   height: 1px;
   background: var(--accent-500);
-  transition: width var(--t);
+  transform: scaleX(0.6);
+  transform-origin: left center;
+  transition: transform var(--t);
 }
 .ds-link:hover { color: var(--accent-600); }
-.ds-link:hover .ds-link-rule { width: 46px; }
+.ds-link:hover .ds-link-rule,
+.ds-link:focus-visible .ds-link-rule { transform: scaleX(1); }
 
 /* ===================================================== 1. hero */
 
@@ -330,9 +335,19 @@
   padding: var(--space-6) 0;
   border-bottom: 1px solid var(--line);
   color: inherit;
-  transition: padding-left var(--t), border-color var(--t);
+  transition: border-color var(--t);
 }
-.ds-guide:hover, .ds-guide:focus-visible { padding-left: var(--space-3); border-color: var(--accent-400); }
+/* The copy indents, the rule underneath it does not move. Translating the
+   children rather than padding the row keeps the indent off the layout path
+   and leaves the ruled grid dead straight. */
+.ds-guide > h3,
+.ds-guide > p,
+.ds-guide > .ds-guide-go { transition: transform var(--t); }
+.ds-guide:hover, .ds-guide:focus-visible { border-color: var(--accent-400); }
+.ds-guide:hover > h3, .ds-guide:focus-visible > h3,
+.ds-guide:hover > p, .ds-guide:focus-visible > p { transform: translateX(var(--space-3)); }
+.ds-guide:hover > .ds-guide-go,
+.ds-guide:focus-visible > .ds-guide-go { transform: translateX(4px); }
 .ds-guide h3 { font-size: var(--text-lg); line-height: 1.3; letter-spacing: var(--tracking-snug); }
 .ds-guide p { grid-column: 1; font-size: var(--text-sm); line-height: 1.6; color: var(--gray-600); margin-top: var(--space-2); max-width: 46ch; }
 .ds-guide-go { color: var(--accent-500); display: inline-flex; }
@@ -368,7 +383,10 @@
 }
 
 @media (max-width: 960px) {
-  .ds-claims { grid-template-columns: repeat(2, 1fr); }
+  /* Three claims in two columns strand the third against an empty half. The
+     guides already drop to one column here, so the claims follow and the
+     section reads as three ruled rows rather than a broken grid. */
+  .ds-claims { grid-template-columns: minmax(0, 1fr); }
   .ds-guides { grid-template-columns: minmax(0, 1fr); }
   .ds-cap { grid-template-columns: minmax(0, 1fr); gap: var(--space-6); }
   /* The alternation was a wide-screen device; stacked, every row reads copy
@@ -424,3 +442,21 @@
 
 .ds-popular .container { max-width: 1180px; padding-inline: clamp(1.25rem, 4vw, 2.5rem); }
 .ds-popular .market-note { text-align: left; margin-inline: 0; }
+
+/* ===================================================== reduced motion
+   Every ds- transition is decorative: the indent, the rule that extends, the
+   crop that lifts. None of them carries meaning that the still state loses,
+   so they are simply switched off rather than shortened. */
+@media (prefers-reduced-motion: reduce) {
+  .ds-link-rule { transform: scaleX(1); }
+  .ds-link-rule,
+  .ds-guide,
+  .ds-guide > h3,
+  .ds-guide > p,
+  .ds-guide > .ds-guide-go,
+  .ds-cap-shot { transition: none; }
+  .ds-guide:hover > h3, .ds-guide:focus-visible > h3,
+  .ds-guide:hover > p, .ds-guide:focus-visible > p,
+  .ds-guide:hover > .ds-guide-go,
+  .ds-guide:focus-visible > .ds-guide-go { transform: none; }
+}

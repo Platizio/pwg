@@ -495,6 +495,19 @@ a.stock-card:hover {
     gap: var(--space-3);
   }
   .trending-viewport { width: 100%; }
+
+  /* The scope states its own basis, and a basis can be a full phrase rather
+     than an index's name. Home's is two words and fits either way; the
+     products page's is forty characters and, held on one line inside a band
+     that clips its overflow, the end of it was simply cut off. Let the chip
+     drop under the label and wrap, so a longer basis is read rather than
+     truncated. */
+  .trending-label {
+    flex-wrap: wrap;
+    max-width: 100%;
+    row-gap: var(--space-2);
+  }
+  .trending-scope { white-space: normal; }
 }
 
 @media (max-width: 560px) {
