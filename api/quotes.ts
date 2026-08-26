@@ -21,17 +21,29 @@ import { ALL_SYMBOLS, MIN_USABLE_QUOTES } from '../Platizio_Global_Revamp/data/m
 import { LARGE_CAP_SYMBOLS } from '../Platizio_Global_Revamp/data/largeCapSample'
 
 /**
- * Requests are whitelisted against ALL_SYMBOLS, never passed through.
+ * Requests are whitelisted, never passed through.
  *
  * Without this, `?symbols=` turns a public URL into an open proxy for our
  * ViewTrade credentials: anyone could bill our quota for any ticker they like.
  * The cap is a second bound on the same abuse — the terminal asks for at most
  * a handful, and the index distribution comes from `index=1`, not from a long
  * symbol list.
+ *
+ * The allowed set is deliberately WIDER than the set the default response
+ * fetches. Products lets a reader look up any name in the large-cap sample,
+ * and refusing to price a company we happily rank in the gainers ticker is not
+ * a security boundary — it is a bug. Every one of those 500 is a static,
+ * vetted, in-repo symbol that `?gainers=1` already sends upstream. What stays
+ * closed is the part that matters: a symbol a caller invents still never
+ * reaches ViewTrade.
+ *
+ * ALL_SYMBOLS stays exactly what the DEFAULT response fetches. Widening that
+ * instead would make Home pay twenty upstream batches for a universe it never
+ * renders.
  */
 const MAX_REQUESTED_SYMBOLS = 40
 
-const ALLOWED = new Set(ALL_SYMBOLS)
+const ALLOWED = new Set([...ALL_SYMBOLS, ...LARGE_CAP_SYMBOLS])
 
 /** Parsed `?symbols=`, uppercased, deduplicated, whitelisted, capped. */
 function parseSymbols(raw: string | null): string[] {

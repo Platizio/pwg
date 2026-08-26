@@ -66,8 +66,23 @@ function ScrollHandler() {
 }
 
 function Layout() {
+  const { pathname } = useLocation()
+
+  /*
+   * /products carries the Meridian world, which is dark. The shared header and
+   * footer are the site's light chrome, and a light header sitting on #080706
+   * reads as a page that failed to load rather than a page with a point of
+   * view — so the route flags itself and the chrome follows it down.
+   *
+   * `display: contents` so the wrapper adds a class without adding a box: the
+   * header's sticky positioning and the footer's flow are untouched. The flag
+   * is derived from the path, which prerender already knows, so the server and
+   * the client's first render agree and nothing flashes.
+   */
+  const chrome = pathname === '/products' ? 'chrome-dark' : undefined
+
   return (
-    <>
+    <div className={chrome} style={{ display: 'contents' }}>
       <a href="#main-content" className="skip-link">Skip to main content</a>
       <Header />
       <main id="main-content">
@@ -76,7 +91,7 @@ function Layout() {
       <Footer />
       <ContactModal />
       <WhatsAppFloat />
-    </>
+    </div>
   )
 }
 
