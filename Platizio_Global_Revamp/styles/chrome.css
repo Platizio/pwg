@@ -12,53 +12,99 @@
    1. Header
    ========================================================= */
 
+/* =========================================================
+   1. Header
+   =========================================================
+
+   The wordmark asset was 500x500 with the actual lettering occupying a
+   439x68 strip in the middle of it — 96.8% of the file was empty. styles.css
+   worked around that by drawing it at 250px and pulling `margin: -120px 0`
+   to collapse the void, which left a 250x250 hit area lying across the nav
+   and made the header's height a side effect of two negative numbers rather
+   than a decision. The asset is cropped to its lettering now
+   (/logo-wordmark), so it can simply be given a height.
+   ========================================================= */
+
 .site-header {
-  background: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.86);
   backdrop-filter: saturate(180%) blur(16px);
   -webkit-backdrop-filter: saturate(180%) blur(16px);
   border-bottom: 1px solid var(--line);
-  transition: background var(--t), border-color var(--t);
+  transition: background var(--t), border-color var(--t), box-shadow var(--t);
 }
 
+/* The bar shares the page's own measure. Given its own wider max-width the
+   wordmark sat 112px to the left of the first word of every page beneath it,
+   which reads as the header belonging to a different document. */
 .nav {
-  gap: var(--space-6);
-  padding: var(--space-3) var(--space-6);
+  gap: var(--space-8);
+  padding: var(--space-4) 1.5rem;
+  max-width: var(--container);
+  margin-inline: auto;
+}
+
+/* A height and nothing else. No negative margins, and the link's box is the
+   lettering rather than a square four times its size. */
+.logo { display: flex; align-items: center; }
+.logo-img {
+  display: block;
+  height: 30px;
+  width: auto;
+  margin: 0;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 /* ── Nav links ───────────────────────────────────────────
-   The old active state was an 18px underline bar centred under the label.
-   A pill reads as "you are here" at a glance and matches the hover
-   affordance, so the two states are the same shape at different strengths
-   rather than two unrelated ideas. */
+   The active state was a filled grey pill — the heaviest object in the bar,
+   competing with the actions for attention and reading as a foreign block on
+   any page whose ground is not white. It is the label's own weight and colour
+   now, marked underneath in the brand accent: present at a glance, and it
+   costs no box. */
 
 .nav-links { gap: var(--space-1); }
 
 .nav-links a:not(.btn),
 .nav-links .nav-trigger {
+  position: relative;
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
   font-size: var(--text-sm);
   font-weight: 500;
   letter-spacing: var(--tracking-snug);
   color: var(--gray-600);
-  transition: color var(--t-fast), background var(--t-fast);
+  background: none;
+  transition: color var(--t-fast);
+}
+
+.nav-links a:not(.btn)::after,
+.nav-links .nav-trigger::after {
+  content: '';
+  position: absolute;
+  left: var(--space-3);
+  right: var(--space-3);
+  bottom: 2px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent-500);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform var(--t) var(--ease-out);
 }
 
 .nav-links a:not(.btn):hover,
-.nav-links .nav-trigger:hover {
-  color: var(--ink-800);
-  background: var(--gray-100);
-}
+.nav-links .nav-trigger:hover { color: var(--ink-800); }
+.nav-links a:not(.btn):hover::after,
+.nav-links .nav-trigger:hover::after { transform: scaleX(0.55); }
 
 .nav-links a.active,
 .nav-links .nav-trigger.active {
   color: var(--ink-900);
   font-weight: 600;
-  background: var(--gray-100);
+  background: none;
 }
-
-/* Replaced by the pill. */
-.nav-links a.active::after { display: none; }
+.nav-links a.active::after,
+.nav-links .nav-trigger.active::after { display: block; transform: scaleX(1); }
 
 .dropdown-chevron { opacity: 0.55; }
 
@@ -81,30 +127,57 @@
 }
 
 .dropdown a:hover { background: var(--gray-100); }
+.dropdown a strong { color: var(--ink-800); font-size: var(--text-sm); font-weight: 600; }
+.dropdown a span { font-size: var(--text-xs); line-height: 1.45; color: var(--gray-500); }
 
-.dropdown a strong {
-  color: var(--ink-800);
-  font-size: var(--text-sm);
+/* ── Actions ──────────────────────────────────────────────
+   The hierarchy was inverted. Contact Us — the secondary action — carried the
+   gold gradient plus two infinite animations, a glow and an expanding ring,
+   while Start Investing, the one action the business actually wants, was a
+   flat navy button beside it. The gold goes to the action that earns it and
+   Contact Us becomes a quiet button. The pulse is gone: a nav that never
+   stops moving is not urgency, it is noise, and it was pulling the eye away
+   from the thing it was meant to be selling. */
+
+.nav-actions { gap: var(--space-3); align-items: center; }
+
+.btn-quiet {
+  background: none;
+  color: var(--gray-700);
+  border: 1px solid var(--line-strong);
+  box-shadow: none;
+  animation: none;
   font-weight: 600;
 }
-
-.dropdown a span {
-  font-size: var(--text-xs);
-  line-height: 1.45;
-  color: var(--gray-500);
+.btn-quiet::before { content: none; }
+.btn-quiet:hover {
+  background: var(--gray-100);
+  border-color: var(--gray-300);
+  color: var(--ink-800);
+  box-shadow: none;
+  transform: none;
 }
 
-/* ── Actions ─────────────────────────────────────────────── */
+.nav-actions .btn { height: 44px; }
 
-.nav-actions { gap: var(--space-2); }
-
+/* styles.css draws this as a filled navy square with a white icon. This sheet
+   was overriding the icon to navy and leaving the fill alone, which painted a
+   navy glyph on a navy ground — the button rendered as a solid block with no
+   icon in it at all. It takes the same quiet outline as Contact Us instead, so
+   the bar has one button language rather than three. */
 .menu-toggle {
   border-radius: var(--radius-sm);
+  background: none;
+  border: 1px solid var(--line-strong);
   color: var(--ink-800);
-  transition: background var(--t-fast);
+  transition: background var(--t-fast), border-color var(--t-fast);
 }
+.menu-toggle:hover { background: var(--gray-100); border-color: var(--gray-300); }
+.menu-toggle svg { width: 20px; height: 20px; }
 
-.menu-toggle:hover { background: var(--gray-100); }
+@media (max-width: 768px) {
+  .logo-img { height: 26px; }
+}
 
 /* =========================================================
    2. Footer
@@ -329,7 +402,14 @@
     padding: 0 0 0 var(--space-4);
   }
 
-  /* Top bar keeps only logo + burger; the CTAs live in the panel. */
+  /* Top bar keeps only logo + burger; the CTAs live in the panel.
+
+     Selector kept in step with the header's classes: renaming them to
+     .btn-quiet and .btn-gold left this rule matching nothing, and both bars
+     of buttons rendered at once. The old names stay listed so the same rule
+     still covers any page that has not been migrated. */
+  .nav-actions .btn-quiet,
+  .nav-actions .btn-gold,
   .nav-actions .btn-pulse,
   .nav-actions .btn-primary { display: none; }
 
@@ -347,4 +427,19 @@
 
 @media (max-width: 768px) {
   .nav { padding: var(--space-2) var(--space-4); }
+}
+
+/* The footer inverts the wordmark to a white silhouette. With the asset
+   cropped, that no longer needs a height four times the mark and a negative
+   margin to hide the difference. */
+.site-footer .logo-img {
+  height: 34px;
+  margin: 0;
+  filter: brightness(0) invert(1);
+  opacity: 0.92;
+}
+
+/* styles.css sizes the header's Contact button by its old class at 480. */
+@media (max-width: 480px) {
+  .nav-cta-mobile .btn { min-height: 46px; font-size: 0.9rem; }
 }

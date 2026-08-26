@@ -12,8 +12,14 @@ export default function Footer() {
           <div className="footer-brand">
             <div className="logo">
               <picture>
-                <source srcSet="/Logo_V2.webp" type="image/webp" />
-                <img src="/Logo_V2.png" alt="Platizio Global" className="logo-img" width={500} height={500} />
+                <source srcSet="/logo-wordmark.webp" type="image/webp" />
+                <img
+                  src="/logo-wordmark.png"
+                  alt="Platizio Global"
+                  className="logo-img"
+                  width={451}
+                  height={80}
+                />
               </picture>
             </div>
             <p>

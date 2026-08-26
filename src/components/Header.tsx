@@ -32,8 +32,14 @@ export default function Header() {
       <nav className="nav" aria-label="Primary">
         <Link to="/" className="logo" aria-label="Platizio Global home">
           <picture>
-            <source srcSet="/Logo_V2.webp" type="image/webp" />
-            <img src="/Logo_V2.png" alt="Platizio Global" className="logo-img" width={500} height={500} />
+            <source srcSet="/logo-wordmark.webp" type="image/webp" />
+            <img
+              src="/logo-wordmark.png"
+              alt="Platizio Global"
+              className="logo-img"
+              width={451}
+              height={80}
+            />
           </picture>
         </Link>
 
@@ -95,13 +101,13 @@ export default function Header() {
           {/* Mobile-only CTAs inside the slide-out menu */}
           <li className="nav-cta-mobile">
             <button
-              className="btn btn-pulse"
+              className="btn btn-quiet"
               onClick={() => { openContact(); setMenuOpen(false) }}
             >
               Contact Us
             </button>
             <a
-              className="btn btn-primary"
+              className="btn btn-gold"
               href={TRADING_PLATFORM_URL}
               target="_blank"
               rel="noopener noreferrer"
@@ -117,13 +123,13 @@ export default function Header() {
 
         <div className="nav-actions">
           <button
-            className="btn btn-pulse"
+            className="btn btn-quiet"
             onClick={() => { openContact(); setMenuOpen(false) }}
           >
             Contact Us
           </button>
           <a
-            className="btn btn-primary"
+            className="btn btn-gold"
             href={TRADING_PLATFORM_URL}
             target="_blank"
             rel="noopener noreferrer"
@@ -139,8 +145,10 @@ export default function Header() {
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((v) => !v)}
           >
+            {/* The label already says "Close menu"; the glyph should agree with
+                it, or the control looks like it will open a second menu. */}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 6h18M3 12h18M3 18h18" />
+              {menuOpen ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M3 6h18M3 12h18M3 18h18" />}
             </svg>
           </button>
         </div>
