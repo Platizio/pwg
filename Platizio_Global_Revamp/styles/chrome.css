@@ -33,15 +33,32 @@
   transition: background var(--t), border-color var(--t), box-shadow var(--t);
 }
 
-/* The bar shares the page's own measure. Given its own wider max-width the
-   wordmark sat 112px to the left of the first word of every page beneath it,
-   which reads as the header belonging to a different document. */
+/* Measure and gutter both match /products exactly — 1360 with the same
+   clamped gutter — so the wordmark sits on the same line as the first word of
+   that page. The site's other routes still run at --container (1200), so the
+   bar now overhangs them by 56px a side; that is the trade this alignment
+   makes, and it is deliberate. */
 .nav {
   gap: var(--space-8);
-  padding: var(--space-4) 1.5rem;
-  max-width: var(--container);
+  max-width: 1360px;
   margin-inline: auto;
+  padding-block: var(--space-4);
+  padding-inline: clamp(1.25rem, 4vw, 3rem);
 }
+
+/* The bar tightens once the page has moved: less height, a smaller wordmark,
+   and the ground goes more opaque so type crossing under it stays legible.
+
+   The height change is deliberately NOT transitioned. This header is
+   position:sticky, so its height is part of the document's flow — animating
+   the padding would relayout the whole page on every frame of the condense,
+   dragging the content the reader is currently reading up the screen 60 times
+   a second. The padding snaps at the threshold; what carries the smoothness is
+   the wordmark, which scales on the compositor, and the shadow and ground
+   fading in with it. */
+.site-header.is-condensed { box-shadow: var(--shadow-sm); background: rgba(255, 255, 255, 0.94); }
+.site-header.is-condensed .nav { padding-block: var(--space-2); }
+.site-header.is-condensed .logo-img { transform: scale(0.87); }
 
 /* A height and nothing else. No negative margins, and the link's box is the
    lettering rather than a square four times its size. */
@@ -53,6 +70,8 @@
   margin: 0;
   user-select: none;
   -webkit-user-drag: none;
+  transform-origin: left center;
+  transition: transform var(--t) var(--ease-out);
 }
 
 /* ── Nav links ───────────────────────────────────────────
@@ -62,7 +81,29 @@
    now, marked underneath in the brand accent: present at a glance, and it
    costs no box. */
 
-.nav-links { gap: var(--space-1); }
+.nav-links { gap: var(--space-1); position: relative; }
+
+/* One indicator for the whole list. Laid out at 100px and scaled to the width
+   it needs, so the glide is transform-only and never relayouts the nav. */
+.nav-marker {
+  position: absolute;
+  left: 0;
+  bottom: 2px;
+  width: 100px;
+  height: 2px;
+  background: var(--accent-500);
+  transform-origin: left center;
+  pointer-events: none;
+  transition:
+    transform 0.42s var(--ease-out),
+    opacity 0.2s var(--ease);
+}
+
+/* Once the marker is measured and placed, the per-link underlines stand down.
+   They remain the no-JS state: without them a reader with scripting off would
+   have no indication of where they are. */
+.nav-links.has-marker a:not(.btn)::after,
+.nav-links.has-marker .nav-trigger::after { display: none; }
 
 .nav-links a:not(.btn),
 .nav-links .nav-trigger {
@@ -177,6 +218,9 @@
 
 @media (max-width: 768px) {
   .logo-img { height: 26px; }
+  /* The bar is already short here; condensing it further only jitters it. */
+  .site-header.is-condensed .logo-img { transform: none; }
+  .site-header.is-condensed .nav { padding-block: var(--space-4); }
 }
 
 /* =========================================================
@@ -338,6 +382,15 @@
    One breakpoint rather than duplicating the panel at two widths; below 768
    this simply restates what styles.css already does. */
 @media (max-width: 1080px) {
+  /* Below this width the list is a vertical slide-out panel, and a marker
+     positioned along its bottom edge is stranded hundreds of pixels from the
+     item it belongs to — while still suppressing the per-link underlines, so
+     the menu showed a loose orange bar and no current page at all. The marker
+     is a desktop device; the underline comes back with it. */
+  .nav-marker { display: none; }
+  .nav-links.has-marker a:not(.btn)::after,
+  .nav-links.has-marker .nav-trigger::after { display: block; }
+
   .menu-toggle { display: grid; }
 
   /* Anchored to the header itself rather than a hardcoded offset.

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext'
 import { TRADING_PLATFORM_URL } from '../constants'
@@ -10,13 +10,54 @@ export default function Header() {
   const { openContact } = useAppContext()
   const location = useLocation()
 
-  // Sticky shadow on scroll
+  /*
+   * The bar condenses once the page has moved. It starts at its full height so
+   * the prerendered markup and the client's first render agree, and the effect
+   * only ever tightens it — a header that begins condensed and expands would
+   * shift the page under the reader on load.
+   */
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8)
     onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
+
+  /*
+   * One indicator that travels between the links rather than eight that each
+   * fade in place. It is an enhancement layered over a working base: every
+   * link keeps its own CSS underline, and the list only switches to the
+   * travelling marker once this has measured where it belongs — so a reader
+   * without JavaScript still sees which page they are on.
+   *
+   * It moves on transform alone. The bar is laid out at 100px and scaled to
+   * the width it needs, because animating `width` would relayout the nav on
+   * every frame of the glide.
+   */
+  const listRef = useRef<HTMLUListElement>(null)
+  const [marker, setMarker] = useState<{ x: number; w: number } | null>(null)
+
+  const placeMarker = useCallback((target?: HTMLElement | null) => {
+    const list = listRef.current
+    if (!list) return
+    const el = target ?? list.querySelector<HTMLElement>('.active')
+    if (!el) return setMarker(null)
+    const lr = list.getBoundingClientRect()
+    const er = el.getBoundingClientRect()
+    // the marker underlines the label, not the padding around it
+    const pad = parseFloat(getComputedStyle(el).paddingLeft) || 0
+    setMarker({ x: er.left - lr.left + pad, w: Math.max(er.width - pad * 2, 0) })
+  }, [])
+
+  useEffect(() => {
+    placeMarker()
+    const onResize = () => placeMarker()
+    window.addEventListener('resize', onResize)
+    /* Web fonts land after first paint and change every label's width. */
+    const fonts = (document as Document & { fonts?: FontFaceSet }).fonts
+    fonts?.ready.then(() => placeMarker())
+    return () => window.removeEventListener('resize', onResize)
+  }, [location.pathname, placeMarker])
 
   // Close mobile menu and dropdowns on navigation
   useEffect(() => {
@@ -28,7 +69,7 @@ export default function Header() {
   const isResourcesActive = location.pathname === '/faqs' || location.pathname === '/user-guide'
 
   return (
-    <header className="site-header" style={{ boxShadow: scrolled ? 'var(--shadow-sm)' : 'none' }}>
+    <header className={`site-header${scrolled ? ' is-condensed' : ''}`}>
       <nav className="nav" aria-label="Primary">
         <Link to="/" className="logo" aria-label="Platizio Global home">
           <picture>
@@ -43,19 +84,46 @@ export default function Header() {
           </picture>
         </Link>
 
-        <ul className={`nav-links${menuOpen ? ' is-open' : ''}`}>
+        <ul
+          ref={listRef}
+          className={`nav-links${menuOpen ? ' is-open' : ''}${marker ? ' has-marker' : ''}`}
+          onPointerLeave={() => placeMarker()}
+        >
+          {/* Travels between the links. aria-hidden: the current page is already
+              announced by NavLink's aria-current. */}
+          <span
+            className="nav-marker"
+            aria-hidden="true"
+            style={
+              marker
+                ? { transform: `translateX(${marker.x}px) scaleX(${marker.w / 100})`, opacity: 1 }
+                : { opacity: 0 }
+            }
+          />
           <li>
-            <NavLink to="/" className={({ isActive }) => (isActive ? 'active' : undefined)} end>
+            <NavLink
+              to="/"
+              className={({ isActive }) => (isActive ? 'active' : undefined)} end
+              onPointerEnter={(e) => placeMarker(e.currentTarget)}
+            >
               Home
             </NavLink>
           </li>
           <li>
-            <NavLink to="/products" className={({ isActive }) => (isActive ? 'active' : undefined)}>
+            <NavLink
+              to="/products"
+              className={({ isActive }) => (isActive ? 'active' : undefined)}
+              onPointerEnter={(e) => placeMarker(e.currentTarget)}
+            >
               Products
             </NavLink>
           </li>
           <li>
-            <NavLink to="/pricing" className={({ isActive }) => (isActive ? 'active' : undefined)}>
+            <NavLink
+              to="/pricing"
+              className={({ isActive }) => (isActive ? 'active' : undefined)}
+              onPointerEnter={(e) => placeMarker(e.currentTarget)}
+            >
               Pricing
             </NavLink>
           </li>
@@ -63,12 +131,17 @@ export default function Header() {
             <NavLink
               to="/media"
               className={() => (isMediaActive ? 'active' : undefined)}
+              onPointerEnter={(e) => placeMarker(e.currentTarget)}
             >
               Media
             </NavLink>
           </li>
           <li>
-            <NavLink to="/about" className={({ isActive }) => (isActive ? 'active' : undefined)}>
+            <NavLink
+              to="/about"
+              className={({ isActive }) => (isActive ? 'active' : undefined)}
+              onPointerEnter={(e) => placeMarker(e.currentTarget)}
+            >
               About Us
             </NavLink>
           </li>
@@ -77,6 +150,7 @@ export default function Header() {
               type="button"
               className={`nav-trigger${isResourcesActive ? ' active' : ''}`}
               onClick={() => setResourcesOpen((v) => !v)}
+              onPointerEnter={(e) => placeMarker(e.currentTarget)}
               aria-expanded={resourcesOpen}
               aria-haspopup="true"
             >
