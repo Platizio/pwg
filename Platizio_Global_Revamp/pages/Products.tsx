@@ -6,13 +6,12 @@
  * equally refuses its opposite, the austere spec sheet, which the previous
  * build shipped. Neither answers the only question our reader actually has.
  *
- * OWN-WORLD: Meridian, pinned by the user from Meridian Home.dc.html — near
- * black #080706 ground, one gold #D9BD8B, Instrument Serif over Manrope over
- * IBM Plex Mono, square corners, hairline rules, grain, and small heavily
- * tracked capitals doing the labelling a light page would do with weight. This
- * replaces the site's light world ON THIS ROUTE ONLY: every rule is scoped to
- * .ft or .chrome-dark and :root is untouched, so Home, Pricing and About keep
- * their identity and the terminal keeps its own .meridian sheets.
+ * OWN-WORLD: Meridian v2, the screener's own lit-card surface — #080706 under
+ * a champagne wash, one gold #D9BD8B, Outfit in all three roles, 16px cards
+ * carrying a warm gradient, a one-pixel top highlight and a pooled shadow.
+ * Taken from screener/app/globals.css so the page and the instrument it sells
+ * are visibly one object. Scoped to .ft and .chrome-dark; :root is untouched,
+ * so Home, Pricing and About keep the site's light identity.
  *
  * STORY: A reader in India who has never bought a US stock arrives unsure it
  * is even allowed. They learn it is, in the first viewport. Then they walk the
@@ -21,9 +20,10 @@
  * what they will owe later. They open an account because nothing is left
  * unknown.
  *
- * FIRST VIEWPORT: Headline left, the permission fact answered immediately
- * beneath it as a stated rule, the primary action under that. Right of it, the
- * whole five-stop route, visible at once, so the process has a known length.
+ * FIRST VIEWPORT: A product hero. Headline, the permission fact and the two
+ * actions on the left; the terminal itself on the right, as a live panel
+ * rather than a picture of one — the thing being sold, quoting a real company
+ * at a real price, with what one share would actually cost to buy.
  *
  * FORM: The guided first trade — candidate 6 of the grounded list, assigned by
  * the roll. The route's see-it-all-at-once topology is taken from the dealt
@@ -34,7 +34,7 @@
  */
 
 import { useMemo, useState } from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { TRADING_PLATFORM_URL, screenerInstrument } from '../../src/constants'
 import { POPULAR_8, LARGE_CAP_SAMPLE } from '../data/marketUniverse'
@@ -42,7 +42,10 @@ import { RATES, FREE_ITEMS, pct } from '../data/pricingRates'
 import { calculateTradeCost, formatUsd } from '../lib/pricing'
 import { useQuoteLookup } from '../hooks/useQuoteLookup'
 import { useGainers } from '../hooks/useGainers'
-import TrendingBanner from '../components/TrendingBanner'
+import { useMarketData } from '../hooks/useMarketData'
+import BrandMark from '../components/BrandMark'
+import { VIDEOS } from '../../src/videos'
+import { YOUTUBE_CHANNEL_URL } from '../../src/constants'
 import MarketNote from '../components/MarketNote'
 import QuoteChange from '../components/QuoteChange'
 import '../styles/products.css'
@@ -151,6 +154,16 @@ const LATER = [
   },
 ] as const
 
+/*
+ * Three of the channel's videos, chosen for a reader who has not invested
+ * abroad before: the route, the instrument, and the case. Real ids and real
+ * URLs from src/videos.ts — nothing here is invented, and the section links
+ * out to the channel rather than claiming to be a library.
+ */
+const WATCH = ['wRQik3jjm-w', '6uTyQZgBWw0', 'CKtJHoKmNBI']
+  .map((id) => VIDEOS.find((v) => v.id === id))
+  .filter((v): v is (typeof VIDEOS)[number] => Boolean(v))
+
 /** Match on symbol first, then company name. Six is what the list can show without scrolling. */
 function search(query: string) {
   const q = query.trim().toUpperCase()
@@ -168,9 +181,15 @@ export default function Products() {
   const [symbol, setSymbol] = useState('NFLX')
   const [query, setQuery] = useState('')
   const [shares, setShares] = useState('1')
+  /* One open at a time. The first is open on arrival so the component explains
+     itself without a click. */
+  const [openFeature, setOpenFeature] = useState(0)
 
   const { quote, status, asOf, delayed } = useQuoteLookup(symbol)
-  const { gainers, basis, asOf: gainersAsOf, delayed: gainersDelayed } = useGainers()
+  const { gainers, basis } = useGainers()
+  /* The eight are quoted together in one call, so every card carries a live
+     price rather than only the one the reader has selected. */
+  const { popular, asOf: popularAsOf, delayed: popularDelayed } = useMarketData()
 
   /* Motion is an enhancement, never the thing that makes copy visible: with
      reduced motion the cells render in their final state and nothing animates. */
@@ -192,8 +211,6 @@ export default function Products() {
 
   return (
     <div className="ft" data-seed="a08a840d">
-      {/* Meridian's grain. Decorative, non-interactive, and it never covers a
-          control — the page sets every section above it. */}
       <svg className="ft-grain" aria-hidden="true" focusable="false">
         <filter id="ft-grain-f">
           <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves={3} stitchTiles="stitch" />
@@ -201,80 +218,129 @@ export default function Products() {
         <rect width="100%" height="100%" filter="url(#ft-grain-f)" />
       </svg>
 
-      {/* ---------------------------------------------------------- opening */}
-      <section className="ft-open">
-        <div className="container">
-          <p className="ft-mark">
-            <span className="ft-mark-dot" aria-hidden="true" />
-            <span className="ft-label">US equities &amp; ETFs · for residents of India</span>
-          </p>
+      {/* ------------------------------------------------------------- hero */}
+      <section className="ft-hero">
+        <div className="container ft-hero-inner">
+          <div className="ft-hero-copy">
+            <p className="ft-mark">
+              <span className="ft-mark-dot" aria-hidden="true" />
+              <span className="ft-label">US equities &amp; ETFs · for residents of India</span>
+            </p>
 
-          <div className="ft-open-inner">
-            <div className="ft-open-copy">
-              <h1 className="ft-h1">
-                Owning US stock from India,
-                <em> start to finish.</em>
-              </h1>
+            <h1 className="ft-h1">
+              Owning US stock from India,
+              <em> start to finish.</em>
+            </h1>
 
-              {/* The permission answer, before anything else. It is the question
-                  a first-time buyer actually arrives with. */}
-              <p className="ft-permit">
-                <strong>You are allowed to.</strong> The Reserve Bank&rsquo;s Liberalised
-                Remittance Scheme lets a resident individual send up to{' '}
-                <span className="ft-fig">$250,000</span> abroad each financial year,
-                investment included. It is an ordinary, declared route — not a loophole.
-              </p>
+            <p className="ft-permit">
+              <strong>You are allowed to.</strong> The Reserve Bank&rsquo;s Liberalised
+              Remittance Scheme lets a resident individual send up to{' '}
+              <span className="ft-fig">$250,000</span> abroad each financial year,
+              investment included — an ordinary, declared route, not a loophole.
+            </p>
 
-              <p className="ft-lede">
-                Below is the whole of it: what you pick, what you get to decide with,
-                what the trade costs, and what you owe afterwards. Five steps, and
-                nothing after them that you have not already seen.
-              </p>
+            <div className="ft-actions">
+              <a className="ft-cta" href={TRADING_PLATFORM_URL} target="_blank" rel="noopener noreferrer">
+                Open an account
+              </a>
+              <a className="ft-ghost" href={screenerInstrument(symbol)} target="_blank" rel="noopener noreferrer">
+                See the terminal
+              </a>
+            </div>
+          </div>
 
-              <div className="ft-actions">
-                <a
-                  className="ft-cta"
-                  href={TRADING_PLATFORM_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Open an account
-                </a>
-                <a
-                  className="ft-ghost"
-                  href={screenerInstrument(symbol)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  See the terminal
-                </a>
+          {/*
+            The hero's subject is the product, so the product is what stands
+            here — the terminal as a live panel rather than a picture of one.
+            It is one component with a fixed aspect, so a capture of the real
+            terminal can replace its contents without the hero relaying out.
+          */}
+          <figure className="ft-hero-shot">
+            <figcaption className="ft-shot-chrome">
+              <span className="ft-shot-dot" aria-hidden="true" />
+              <span className="ft-shot-dot" aria-hidden="true" />
+              <span className="ft-shot-dot" aria-hidden="true" />
+              <span className="ft-shot-path">platizio / terminal / {symbol}</span>
+              <span className="ft-shot-live">
+                <span aria-hidden="true" />
+                {status === 'ready' ? 'Live' : status === 'loading' ? 'Loading' : 'No feed'}
+              </span>
+            </figcaption>
+
+            <div className={`ft-shot-body${status === 'loading' ? ' is-loading' : ''}`}>
+              <div className="ft-shot-id">
+                <BrandMark symbol={symbol} className="ft-shot-mark" />
+                <span>
+                  <span className="ft-shot-co">{displayName}</span>
+                  <span className="ft-shot-sym">{symbol} · Nasdaq &amp; NYSE listed</span>
+                </span>
+              </div>
+
+              <div className="ft-shot-px">
+                <span className="ft-shot-cur">$</span>
+                <span className="ft-shot-fig">{quote ? formatUsd(quote.price) : '—'}</span>
+                {quote && <QuoteChange changePercent={quote.changePercent} variant="chip" />}
+              </div>
+
+              <dl className="ft-shot-cells">
+                <div>
+                  <dt>One share, all in</dt>
+                  <dd>
+                    {quote
+                      ? `$${formatUsd(quote.price + (calculateTradeCost(quote.price, 'buy')?.total ?? 0))}`
+                      : '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Cost to buy it</dt>
+                  <dd>
+                    {quote ? `$${formatUsd(calculateTradeCost(quote.price, 'buy')?.total ?? 0)}` : '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Companies quoted</dt>
+                  <dd>500</dd>
+                </div>
+                <div>
+                  <dt>Account opening</dt>
+                  <dd>$0</dd>
+                </div>
+              </dl>
+
+              <div className="ft-shot-foot" aria-live="off">
+                <MarketNote asOf={asOf} delayed={delayed} />
               </div>
             </div>
-
-            {/* The route, whole, so the process has a known length. */}
-            <nav className="ft-route" aria-label="The five steps on this page">
-              <ol>
-                {ROUTE.map((r) => (
-                  <li key={r.id}>
-                    <a href={`#${r.id}`}>
-                      <span className="ft-route-n">{`0${r.n}`}</span>
-                      <span className="ft-route-label">{r.label}</span>
-                    </a>
-                  </li>
-                ))}
-              </ol>
-            </nav>
-          </div>
+          </figure>
         </div>
       </section>
 
-      <TrendingBanner
-        quotes={gainers}
-        label="Rising today"
-        scope={basis ?? undefined}
-        asOf={gainersAsOf}
-        delayed={gainersDelayed}
-      />
+      {/* ----------------------------------------------------------- movers */}
+      <section className="ft-movers-band">
+        <div className="container">
+          <div className="ft-movers">
+            <p className="ft-movers-head">
+              <span className="ft-label">Rising today</span>
+              {basis && <span className="ft-movers-basis">{basis}</span>}
+            </p>
+            {gainers === null ? (
+              <p className="ft-movers-wait">Loading the day&rsquo;s movers.</p>
+            ) : gainers.length === 0 ? (
+              <p className="ft-movers-wait">Live prices are unavailable at the moment.</p>
+            ) : (
+              <ul className="ft-movers-row">
+                {gainers.slice(0, 6).map((g) => (
+                  <li key={g.symbol}>
+                    <span className="ft-movers-sym">{g.symbol}</span>
+                    <span className="ft-movers-px">${formatUsd(g.price)}</span>
+                    <QuoteChange changePercent={g.changePercent} variant="chip" />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </section>
 
       {/* ----------------------------------------------------------- step 1 */}
       <section className="ft-step" id="pick">
@@ -291,109 +357,68 @@ export default function Products() {
           </header>
 
           <div className="ft-pick">
-            <div className="ft-pick-controls">
-              <ul className="ft-chips">
-                {POPULAR_8.map((p) => (
+            <ul className="ft-names">
+              {POPULAR_8.map((p) => {
+                const live = popular?.find((q) => q.symbol === p.symbol) ?? null
+                const on = p.symbol === symbol
+                return (
                   <li key={p.symbol}>
                     <button
                       type="button"
-                      className={`ft-chip${p.symbol === symbol ? ' is-on' : ''}`}
-                      aria-pressed={p.symbol === symbol}
+                      className={`ft-name${on ? ' is-on' : ''}`}
+                      aria-pressed={on}
                       onClick={() => choose(p.symbol)}
                     >
-                      {p.name}
+                      <BrandMark symbol={p.symbol} className="ft-name-mark" />
+                      <span className="ft-name-text">
+                        <span className="ft-name-co">{p.name}</span>
+                        <span className="ft-name-sym">{p.symbol}</span>
+                      </span>
+                      <span className="ft-name-fig">
+                        <span className="ft-name-px">
+                          {live ? `$${formatUsd(live.price)}` : '—'}
+                        </span>
+                        {live && <QuoteChange changePercent={live.changePercent} variant="chip" />}
+                      </span>
                     </button>
                   </li>
-                ))}
-              </ul>
+                )
+              })}
+            </ul>
 
-              <div className="ft-search">
-                <label htmlFor="ft-q">Or any of the largest 500 US companies</label>
-                <input
-                  id="ft-q"
-                  type="text"
-                  className="ft-input"
-                  placeholder="Company or ticker"
-                  autoComplete="off"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                />
-                {matches.length > 0 && (
-                  <ul className="ft-matches">
-                    {matches.map((m) => (
-                      <li key={m.symbol}>
-                        <button type="button" onClick={() => choose(m.symbol)}>
-                          <span className="ft-match-sym">{m.symbol}</span>
-                          <span className="ft-match-name">{m.name}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {query.trim().length > 0 && matches.length === 0 && (
-                  <p className="ft-nomatch">
-                    Nothing by that name in the sample. Try the ticker itself.
-                  </p>
-                )}
-              </div>
+            <div className="ft-names-note">
+              <MarketNote asOf={popularAsOf} delayed={popularDelayed} />
             </div>
 
-            {/* The live answer, in Meridian's terminal-preview idiom. */}
-            <figure className="ft-quote" aria-live="polite">
-              <figcaption className="ft-quote-head">
-                <span className="ft-quote-dot" aria-hidden="true" />
-                <span className="ft-quote-dot" aria-hidden="true" />
-                <span className="ft-quote-dot" aria-hidden="true" />
-                <span className="ft-quote-path">platizio / equities / {symbol}</span>
-                <span className="ft-quote-live">
-                  <span aria-hidden="true" />
-                  {status === 'ready' ? 'Live' : status === 'loading' ? 'Loading' : 'No feed'}
-                </span>
-              </figcaption>
-
-              {status === 'failed' || status === 'missing' ? (
-                /* The recovery has to match the failure. Telling a reader to pick
-                   another name is useful when this one symbol will not quote, and
-                   useless when the whole feed is down. */
-                <div className="ft-quote-empty">
-                  <p>
-                    {status === 'missing'
-                      ? `We cannot quote ${symbol} right now.`
-                      : 'Live prices are unavailable at the moment.'}
-                  </p>
-                  <p className="ft-quote-empty-note">
-                    {status === 'missing'
-                      ? 'Pick another name above.'
-                      : 'Everything else on this page still applies — the schedule below does not depend on a price.'}
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className={`ft-quote-body${status === 'loading' ? ' is-loading' : ''}`}>
-                    <span className="ft-quote-mark" aria-hidden="true">{symbol.charAt(0)}</span>
-                    <span>
-                      <span className="ft-quote-name">{displayName}</span>
-                      <span className="ft-quote-sym">{symbol}</span>
-                    </span>
-                    <span className="ft-quote-figure">
-                      <span className="ft-quote-price">
-                        <span className="ft-cur">$</span>
-                        {quote ? formatUsd(quote.price) : '—'}
-                      </span>
-                      {/* `chip`, not `inline`: the inline variant is coloured for the
-                          site's navy band, and this plate restyles the chip anyway. */}
-                      {quote && <QuoteChange changePercent={quote.changePercent} variant="chip" />}
-                    </span>
-                  </div>
-                  {/* Outside the live region: the disclosure is boilerplate that does
-                      not change with the reader's choice, and announcing it after
-                      every pick buries the price it is attached to. */}
-                  <div className="ft-quote-foot" aria-live="off">
-                    <MarketNote asOf={asOf} delayed={delayed} />
-                  </div>
-                </>
+            <div className="ft-search">
+              <label htmlFor="ft-q">Or any of the largest 500 US companies</label>
+              <input
+                id="ft-q"
+                type="text"
+                className="ft-input"
+                placeholder="Company or ticker"
+                autoComplete="off"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              {matches.length > 0 && (
+                <ul className="ft-matches">
+                  {matches.map((m) => (
+                    <li key={m.symbol}>
+                      <button type="button" onClick={() => choose(m.symbol)}>
+                        <span className="ft-match-sym">{m.symbol}</span>
+                        <span className="ft-match-name">{m.name}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               )}
-            </figure>
+              {query.trim().length > 0 && matches.length === 0 && (
+                <p className="ft-nomatch">
+                  Nothing by that name in the sample. Try the ticker itself.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </section>
@@ -407,49 +432,63 @@ export default function Products() {
               <h2 className="ft-h2">See more than a price.</h2>
             </div>
             <p className="ft-body">
-              A price tells you what {picked} costs. It does not tell you whether
-              to buy it. Seven things stand between a name you recognise and a
-              decision you can defend.
+              A price tells you what {picked} costs. It does not tell you whether to
+              buy it. Seven things stand between a name you recognise and a decision
+              you can defend.
             </p>
           </header>
 
-          <div className="ft-bento">
-            {FEATURES.map((f) => (
-              /*
-               * `initial={false}` on purpose. A whileInView reveal writes
-               * opacity:0 into the prerendered HTML, and this page is one of 62
-               * static files whose whole job is to be readable before React
-               * runs — a crawler or a failed bundle would have found seven
-               * invisible cells.
-               *
-               * The site's .reveal class is not used here either: it animates
-               * opacity AND translateY, and Framer writes transform inline for
-               * the hover lift, so the two overwrite each other. The cells are
-               * simply visible, and Framer drives the one thing it is actually
-               * good for here — the lift under the cursor.
-               */
-              <motion.article
-                className={`ft-cell${f.wide ? ' is-wide' : ''}`}
-                key={f.n}
-                initial={false}
-                whileHover={reduce ? undefined : { y: -4 }}
-                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              >
-                <span className="ft-cell-n" aria-hidden="true">{f.n}</span>
-                <h3>{f.title}</h3>
-                <p>{f.body}</p>
-                <span className="ft-cell-note">{f.note}</span>
-              </motion.article>
-            ))}
-          </div>
+          {/*
+            An index that opens, not a grid of cards. Seven equal boxes make the
+            reader choose where to start and give the seventh the same weight as
+            the first; a list with one row open reads in order, keeps the whole
+            set in view, and lets the open row take the room it needs.
+          */}
+          <ul className="ft-index">
+            {FEATURES.map((f, i) => {
+              const open = openFeature === i
+              return (
+                <li key={f.n} className={`ft-index-row${open ? ' is-open' : ''}`}>
+                  <h3>
+                    <button
+                      type="button"
+                      className="ft-index-head"
+                      aria-expanded={open}
+                      aria-controls={`ft-feat-${f.n}`}
+                      onClick={() => setOpenFeature(open ? -1 : i)}
+                    >
+                      <span className="ft-index-n">{f.n}</span>
+                      <span className="ft-index-title">{f.title}</span>
+                      <span className="ft-index-sign" aria-hidden="true">
+                        <span />
+                        <span />
+                      </span>
+                    </button>
+                  </h3>
+                  <AnimatePresence initial={false}>
+                    {open && (
+                      <motion.div
+                        id={`ft-feat-${f.n}`}
+                        className="ft-index-panel"
+                        initial={reduce ? false : { height: 0, opacity: 0 }}
+                        animate={reduce ? undefined : { height: 'auto', opacity: 1 }}
+                        exit={reduce ? undefined : { height: 0, opacity: 0 }}
+                        transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+                      >
+                        <div className="ft-index-body">
+                          <p>{f.body}</p>
+                          <span className="ft-index-note">{f.note}</span>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </li>
+              )
+            })}
+          </ul>
 
           <p className="ft-see-go">
-            <a
-              className="ft-link"
-              href={screenerInstrument(symbol)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a className="ft-link" href={screenerInstrument(symbol)} target="_blank" rel="noopener noreferrer">
               Open {symbol} in the terminal <span className="ft-link-rule" aria-hidden="true" />
             </a>
           </p>
@@ -471,84 +510,87 @@ export default function Products() {
           </header>
 
           <div className="ft-cost">
-            <div className="ft-cost-input">
-              <label htmlFor="ft-qty">Shares of {symbol}</label>
-              <input
-                id="ft-qty"
-                className="ft-input ft-input--qty"
-                type="number"
-                min={1}
-                max={9999}
-                step={1}
-                inputMode="numeric"
-                value={shares}
-                onChange={(e) => setShares(e.target.value)}
-              />
-              <p className="ft-cost-value">
-                {value !== null ? (
-                  <>
-                    {qty} × ${formatUsd(quote!.price)} ={' '}
-                    <strong>${formatUsd(value)}</strong>
-                  </>
-                ) : (
-                  'Waiting on a live price.'
-                )}
-              </p>
+            {/* The control and the ledger are one object now: they were two
+                floating hairline blocks with 230px of nothing between them. */}
+            <div className="ft-cost-panel">
+              <div className="ft-cost-input">
+                <label htmlFor="ft-qty">Shares of {symbol}</label>
+                <div className="ft-cost-entry">
+                  <input
+                    id="ft-qty"
+                    className="ft-input ft-input--qty"
+                    type="number"
+                    min={1}
+                    max={9999}
+                    step={1}
+                    inputMode="numeric"
+                    value={shares}
+                    onChange={(e) => setShares(e.target.value)}
+                  />
+                  <p className="ft-cost-value">
+                    {value !== null ? (
+                      <>
+                        {qty} × ${formatUsd(quote!.price)} ={' '}
+                        <strong>${formatUsd(value)}</strong>
+                      </>
+                    ) : (
+                      'Waiting on a live price.'
+                    )}
+                  </p>
+                </div>
 
-              {/* Derived, never restated: the trade value at which the flat
-                  minimum stops being the binding cost. It is the one number that
-                  actually decides how small a first trade should be. */}
-              <p className="ft-cost-floor">
-                Below about{' '}
-                <strong>${formatUsd(RATES.brokerageMinUsd / RATES.brokeragePct, 0)}</strong> a
-                trade, the ${RATES.brokerageMinUsd} minimum is larger than{' '}
-                {pct(RATES.brokeragePct)} and becomes the cost that matters. Small
-                first trades are proportionally the expensive ones.
-              </p>
+                <p className="ft-cost-floor">
+                  Below about{' '}
+                  <strong>${formatUsd(RATES.brokerageMinUsd / RATES.brokeragePct, 0)}</strong> a
+                  trade, the ${RATES.brokerageMinUsd} minimum is larger than{' '}
+                  {pct(RATES.brokeragePct)} and becomes the cost that matters. Small
+                  first trades are proportionally the expensive ones.
+                </p>
+              </div>
+
+              {cost ? (
+                <dl className="ft-cost-lines">
+                  <div>
+                    <dt>Brokerage{cost.minimumApplied ? ' (minimum)' : ''}</dt>
+                    <dd>${formatUsd(cost.brokerage)}</dd>
+                    <dd className="ft-cost-note">
+                      {cost.minimumApplied
+                        ? `${pct(RATES.brokeragePct)} would be less than the $${RATES.brokerageMinUsd} floor`
+                        : `${pct(RATES.brokeragePct)} of trade value`}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>IGST</dt>
+                    <dd>${formatUsd(cost.igst)}</dd>
+                    <dd className="ft-cost-note">{pct(RATES.igstPct, 0)} on the brokerage</dd>
+                  </div>
+                  <div>
+                    <dt>IFSCA turnover fee</dt>
+                    <dd>${formatUsd(cost.ifsca, 4)}</dd>
+                    <dd className="ft-cost-note">Per dollar of trade value</dd>
+                  </div>
+                  <div className="ft-cost-total">
+                    <dt>Total to buy</dt>
+                    <dd>${formatUsd(cost.total)}</dd>
+                    <dd className="ft-cost-note">{cost.effectivePct.toFixed(2)}% of the trade</dd>
+                  </div>
+                </dl>
+              ) : (
+                <p className="ft-cost-wait">The breakdown appears once the price lands.</p>
+              )}
             </div>
 
-            {cost ? (
-              <dl className="ft-cost-lines">
-                <div>
-                  <dt>Brokerage{cost.minimumApplied ? ' (minimum)' : ''}</dt>
-                  <dd>${formatUsd(cost.brokerage)}</dd>
-                  <dd className="ft-cost-note">
-                    {cost.minimumApplied
-                      ? `${pct(RATES.brokeragePct)} would be less than the $${RATES.brokerageMinUsd} floor`
-                      : `${pct(RATES.brokeragePct)} of trade value`}
-                  </dd>
-                </div>
-                <div>
-                  <dt>IGST</dt>
-                  <dd>${formatUsd(cost.igst)}</dd>
-                  <dd className="ft-cost-note">{pct(RATES.igstPct, 0)} on the brokerage</dd>
-                </div>
-                <div>
-                  <dt>IFSCA turnover fee</dt>
-                  <dd>${formatUsd(cost.ifsca, 4)}</dd>
-                  <dd className="ft-cost-note">Per dollar of trade value</dd>
-                </div>
-                <div className="ft-cost-total">
-                  <dt>Total to buy</dt>
-                  <dd>${formatUsd(cost.total)}</dd>
-                  <dd className="ft-cost-note">{cost.effectivePct.toFixed(2)}% of the trade</dd>
-                </div>
-              </dl>
-            ) : (
-              <p className="ft-cost-wait">The breakdown appears once the price lands.</p>
-            )}
-          </div>
-
-          <div className="ft-free">
-            <h3>And the parts that cost nothing.</h3>
-            <ul>
-              {FREE_ITEMS.map((f) => (
-                <li key={f.label}>
-                  <span>{f.label}</span>
-                  <span className="ft-free-v">{f.value}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="ft-free">
+              <h3>And the parts that cost nothing.</h3>
+              <ul>
+                {FREE_ITEMS.map((f) => (
+                  <li key={f.label}>
+                    <span className="ft-free-v">{f.value}</span>
+                    <span>{f.label}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
 
           <p className="ft-cost-foot">
@@ -592,6 +634,46 @@ export default function Products() {
         </div>
       </section>
 
+      {/* ------------------------------------------------- before you invest */}
+      <section className="ft-step ft-watch-band" id="watch">
+        <div className="container">
+          <header className="ft-head">
+            <div className="ft-head-l">
+              <span className="ft-label">Before you invest</span>
+              <h2 className="ft-h2">Watch these three first.</h2>
+            </div>
+            <p className="ft-body">
+              The route, the instrument and the case for holding anything abroad at
+              all — from our own desk, in the order a first-time investor needs them.
+            </p>
+          </header>
+
+          <ul className="ft-watch">
+            {WATCH.map((v, i) => (
+              <li key={v.id}>
+                <a className="ft-watch-card" href={v.url} target="_blank" rel="noopener noreferrer">
+                  <span className="ft-watch-n">{`0${i + 1}`}</span>
+                  <span className="ft-watch-play" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5-11-6.5Z" /></svg>
+                  </span>
+                  <span className="ft-watch-title">{v.title}</span>
+                  <span className="ft-watch-blurb">{v.blurb}</span>
+                  <span className="ft-watch-go">
+                    Watch <span className="ft-link-rule" aria-hidden="true" />
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+
+          <div className="ft-watch-more">
+            <a className="ft-ghost" href={YOUTUBE_CHANNEL_URL} target="_blank" rel="noopener noreferrer">
+              Learn more
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* ----------------------------------------------------------- step 5 */}
       <section className="ft-close" id="open">
         <div className="container">
@@ -603,20 +685,10 @@ export default function Products() {
               open beside it and keep reading before you buy anything at all.
             </p>
             <div className="ft-actions">
-              <a
-                className="ft-cta"
-                href={TRADING_PLATFORM_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
+              <a className="ft-cta" href={TRADING_PLATFORM_URL} target="_blank" rel="noopener noreferrer">
                 Open an account
               </a>
-              <a
-                className="ft-ghost"
-                href={screenerInstrument(symbol)}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
+              <a className="ft-ghost" href={screenerInstrument(symbol)} target="_blank" rel="noopener noreferrer">
                 Keep looking at {symbol}
               </a>
             </div>

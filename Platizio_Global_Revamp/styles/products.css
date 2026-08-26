@@ -236,6 +236,25 @@
 
 /* ===================================================== page shell */
 
+/*
+ * Full width. The site's .container caps at 1200px, which is right for a
+ * reading page and wrong for this one: the eight names, the movers strip and
+ * the seven cards all want the whole display. The cap is lifted here only, and
+ * replaced by a gutter that grows with the viewport so the content never
+ * touches the edge.
+ */
+/*
+ * Medium. The site's own 1200px reading measure is too tight for a page whose
+ * subject is a wide instrument, and edge-to-edge left the eye with no frame to
+ * hold. 1360 with a growing gutter is the width award pages actually run at.
+ */
+.ft .container {
+  max-width: 1360px;
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: clamp(1.25rem, 4vw, 3rem);
+}
+
 /* The champagne wash the whole system is lit by. Peak 0.16 is the measured
    ceiling: lighting the ground raises its luminance 6.6x, and at 0.20 the
    dimmest text tone drops to 4.34:1 and the page stops meeting AA. */
@@ -389,143 +408,207 @@
 }
 .ft-ghost:hover { border-color: var(--m-gold); color: var(--m-ink); }
 
-/* ===================================================== 1. opening */
+/* ===================================================== hero */
 
-.ft-open {
-  padding: clamp(3.5rem, 6.5vw, 6.5rem) 0 clamp(2.5rem, 4vw, 4rem);
-  background: radial-gradient(940px 440px at 26% -8%, rgba(217, 189, 139, 0.13), transparent 62%);
-}
-.ft-mark {
-  display: flex;
+.ft-hero { padding: clamp(3rem, 5vw, 5.5rem) 0 clamp(2.5rem, 4vw, 4rem); }
+.ft-hero-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr);
+  gap: clamp(2.5rem, 5vw, 4.5rem);
   align-items: center;
-  gap: 12px;
-  animation: ft-rise 0.7s var(--m-ease) both;
 }
+
+.ft-mark { display: flex; align-items: center; gap: 12px; margin: 0 0 24px; }
 .ft-mark-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
+  width: 5px; height: 5px; border-radius: 50%;
   background: var(--m-gold);
   animation: ft-gold-pulse 2.4s ease-in-out infinite;
   flex: none;
 }
-.ft-open-inner {
-  display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
-  gap: clamp(2.5rem, 5vw, 4rem);
-  align-items: end;
-  margin-top: 24px;
-}
-.ft-open-copy { animation: ft-rise 0.8s var(--m-ease) both; }
 
-/* The permission answer, set as a stated rule under its own gold hairline. */
+.ft-hero .ft-h1 { max-width: 15ch; }
+
 .ft-permit {
-  margin: clamp(1.75rem, 3vw, 2.25rem) 0 0;
+  margin: clamp(1.5rem, 2.5vw, 2rem) 0 0;
   padding-top: 20px;
   border-top: 1px solid var(--m-gold-deep);
-  font-size: 15px;
-  line-height: 1.75;
+  font-size: 15.5px;
+  line-height: 1.72;
   color: var(--m-dim);
-  max-width: 52ch;
+  max-width: 48ch;
   text-wrap: pretty;
 }
-.ft-permit strong { color: var(--m-ink); font-weight: 700; }
+.ft-permit strong { color: var(--m-ink); font-weight: 600; }
 .ft-permit .ft-fig { color: var(--m-gold); font-weight: 500; }
 
-.ft-lede {
-  margin: 18px 0 0;
-  font-size: 13.5px;
-  line-height: 1.8;
-  /* 3.72:1 on the lit ground as --m-mute; one step up clears AA. */
-  color: var(--m-dim);
-  max-width: 54ch;
-  text-wrap: pretty;
+.ft-hero .ft-actions { margin-top: 30px; }
+
+/* ---- the terminal, standing in the hero as the product it is ------------ */
+
+.ft-hero-shot {
+  position: relative;
+  margin: 0;
+  border-radius: var(--m-radius-card);
+  background:
+    radial-gradient(74% 86% at 6% 0%, rgba(217, 189, 139, 0.1) 0%, rgba(217, 189, 139, 0.05) 34%, transparent 72%),
+    radial-gradient(52% 58% at 100% 100%, rgba(217, 189, 139, 0.05), transparent 66%),
+    linear-gradient(180deg, #16130f 0%, #131009 100%);
+  border: 1px solid rgba(217, 189, 139, 0.16);
+  box-shadow:
+    inset 0 1px 0 rgba(240, 220, 184, 0.08),
+    0 40px 90px -30px rgba(0, 0, 0, 0.95);
+  overflow: hidden;
+  animation: ft-rise 1s var(--m-ease) both;
+}
+.ft-hero-shot::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(240, 220, 184, 0.06) 14%, rgba(253, 243, 221, 0.42) 50%, rgba(240, 220, 184, 0.06) 86%, transparent 100%);
+  pointer-events: none;
 }
 
-/* The route: five stops, whole, so the process has a known length. */
-.ft-route { animation: ft-rise 1s var(--m-ease) both; }
-.ft-route ol { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--m-rule-2); }
-.ft-route a {
-  display: grid;
-  grid-template-columns: 30px minmax(0, 1fr);
+.ft-shot-chrome {
+  display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 17px 0;
-  border-bottom: 1px solid var(--m-rule-2);
-  color: var(--m-dim);
-  text-decoration: none;
-  /* Meridian indents its rows on hover with padding, which reflows the row on
-     every frame. The same motion, moved onto the compositor: the contents
-     translate, the rule the row sits on does not. */
-  transition: background 0.28s ease, color 0.28s ease;
-}
-.ft-route a > * { transition: transform 0.28s var(--m-ease); }
-.ft-route-n {
+  gap: 8px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--m-rule-3);
   font-family: var(--m-mono);
-  font-variant-numeric: tabular-nums;
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.06em;
+  color: var(--m-mute);
+}
+.ft-shot-dot { width: 7px; height: 7px; border-radius: 50%; background: #2a231c; flex: none; }
+.ft-shot-path { margin-left: 8px; }
+.ft-shot-live {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 7px;
+  font-size: 10px; letter-spacing: 0.16em; font-weight: 600;
+  text-transform: uppercase;
   color: var(--m-gold);
 }
-.ft-route-label { font-size: 12.5px; letter-spacing: 0.01em; }
-.ft-route a:hover,
-.ft-route a:focus-visible {
-  background: rgba(217, 189, 139, 0.04);
+.ft-shot-live span {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--m-gold);
+  animation: ft-gold-pulse 2.4s ease-in-out infinite;
+}
+
+.ft-shot-body { padding: clamp(1.5rem, 2.4vw, 2.25rem); transition: opacity 0.3s ease; }
+.ft-shot-body.is-loading { opacity: 0.45; }
+
+.ft-shot-id { display: flex; align-items: center; gap: 14px; }
+.ft-shot-mark {
+  width: 46px; height: 46px; padding: 10px;
+  border-radius: var(--m-radius-tile);
+  border: 1px solid var(--m-rule-4);
+  color: var(--m-ink);
+  flex: none;
+}
+span.ft-shot-mark {
+  display: grid; place-items: center; padding: 0;
+  font-family: var(--m-mono); font-size: 18px; color: var(--m-gold);
+}
+.ft-shot-co {
+  display: block;
+  font-size: 19px; font-weight: 500; letter-spacing: -0.018em;
   color: var(--m-ink);
 }
-.ft-route a:hover > *,
-.ft-route a:focus-visible > * { transform: translateX(8px); }
+.ft-shot-sym {
+  display: block;
+  font-family: var(--m-mono); font-size: 11px; letter-spacing: 0.08em;
+  color: var(--m-mute); margin-top: 3px;
+}
 
-/* ===================================================== the tape
-   TrendingBanner is the site's shared component. Inside .ft it wears
-   Meridian's tape instead of the light world's navy band; Home is untouched. */
-
-.ft .trending-band {
-  background: var(--m-bg);
-  border-block: 1px solid var(--m-rule);
-  padding: 0;
-}
-.ft .trending-inner {
-  min-height: 40px;
-  align-items: center;
-  gap: 18px;
-  padding-block: 0;
-}
-.ft .trending-label {
-  font-family: var(--m-sans);
-  font-size: 8.5px;
-  letter-spacing: 0.28em;
-  color: var(--m-gold-deep);
-  font-weight: 700;
-}
-.ft .trending-scope {
+.ft-shot-px { display: flex; align-items: baseline; gap: 12px; margin-top: 22px; }
+.ft-shot-cur { font-size: 22px; color: var(--m-gold-deep); }
+.ft-shot-fig {
   font-family: var(--m-mono);
-  font-size: 9px;
-  letter-spacing: 0.1em;
-  color: var(--m-mute);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(2.6rem, 4.4vw, 3.9rem);
+  font-weight: 500;
+  line-height: 0.94;
+  letter-spacing: -0.03em;
+  color: var(--m-ink);
+}
+.ft-hero-shot .quote-change--chip { background: none; padding: 0; font-size: 14px; }
+.ft-hero-shot .quote-change--chip.is-up { color: var(--m-up); }
+.ft-hero-shot .quote-change--chip.is-down { color: var(--m-down); }
+
+.ft-shot-cells {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin: 26px 0 0;
+  background: var(--m-rule-3);
   border: 1px solid var(--m-rule-3);
-  border-radius: 0;
-  padding: 4px 8px;
+  border-radius: var(--m-radius-tile);
+  overflow: hidden;
 }
-.ft .ticker-item {
+.ft-shot-cells > div { background: #131009; padding: 14px 12px; }
+.ft-shot-cells dt {
+  font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+  font-weight: 600; color: var(--m-mute);
+}
+.ft-shot-cells dd {
+  margin: 8px 0 0;
   font-family: var(--m-mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  border-right: 1px solid var(--m-rule);
-  padding-inline: 22px;
-  gap: 10px;
+  font-variant-numeric: tabular-nums;
+  font-size: 17px; color: var(--m-gold);
 }
-.ft .ticker-symbol { color: var(--m-mute); font-weight: 400; }
-.ft .ticker-price { color: var(--m-dim); }
-.ft .quote-change--inline.is-up { color: var(--m-up); }
-.ft .quote-change--inline.is-down { color: var(--m-down); }
-.ft .market-note { color: var(--m-mute); font-size: 10px; }
-.ft .market-note a { color: var(--m-gold); }
+.ft-shot-foot { margin-top: 18px; }
+
+/* MarketNote is the site's shared disclosure, coloured for the light pages.
+   On this ground its prose measured 3.19:1 and its link 2.14:1 — the link was
+   still navy. Both take this world's tones. */
+.ft .market-note {
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--m-dim);
+}
+.ft .market-note a {
+  color: var(--m-gold);
+  text-underline-offset: 3px;
+}
+.ft .market-note a:hover { color: var(--m-gold-hi); }
+
+/* ===================================================== the movers band */
+
+.ft-movers-band { padding: 0 0 clamp(2rem, 3.5vw, 3rem); }
+.ft-movers-head { display: flex; align-items: baseline; gap: 14px; margin: 0 0 14px; flex-wrap: wrap; }
+.ft-movers-basis {
+  font-family: var(--m-mono); font-variant-numeric: tabular-nums;
+  font-size: 12px; color: var(--m-mute);
+}
+.ft-movers-wait { margin: 0; font-size: 13px; color: var(--m-mute); }
+.ft-movers-row {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px;
+}
+.ft-movers-row li {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 13px 15px;
+  border-radius: var(--m-radius-tile);
+  background: linear-gradient(180deg, #16130f 0%, #131009 100%);
+  border: 1px solid rgba(217, 189, 139, 0.07);
+  box-shadow: inset 0 1px 0 rgba(240, 220, 184, 0.04);
+}
+.ft-movers-sym {
+  font-family: var(--m-mono); font-variant-numeric: tabular-nums;
+  font-size: 13px; font-weight: 600; color: var(--m-ink);
+}
+.ft-movers-px {
+  font-family: var(--m-mono); font-variant-numeric: tabular-nums;
+  font-size: 13px; color: var(--m-dim); margin-left: auto;
+}
+.ft-movers-row .quote-change--chip { background: none; padding: 0; font-size: 12px; }
+.ft-movers-row .quote-change--chip.is-up { color: var(--m-up); }
+.ft-movers-row .quote-change--chip.is-down { color: var(--m-down); }
 
 /* ===================================================== steps, shared */
 
-.ft-step { padding: clamp(3.5rem, 6.5vw, 6.5rem) 0 0; }
+.ft-step { padding: clamp(3rem, 5.5vw, 5.5rem) 0 0; }
 .ft-head {
   display: flex;
   align-items: flex-end;
@@ -535,234 +618,34 @@
   border-bottom: 1px solid var(--m-rule-2);
 }
 .ft-head-l { min-width: 0; }
-.ft-head .ft-h2 { margin-top: 18px; max-width: 18ch; }
+.ft-head .ft-h2 { margin-top: 16px; max-width: 18ch; }
 .ft-head .ft-body { margin: 0; max-width: 34ch; font-size: 13.5px; flex: none; }
 
-/* ===================================================== 2. pick */
+/* ===================================================== 1. the eight */
 
-.ft-pick {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 596px);
-  gap: clamp(2rem, 4vw, 3.5rem);
-  align-items: start;
-  padding-top: 40px;
-}
+.ft-pick { padding-top: 32px; }
 
-.ft-chips { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; }
-.ft-chip {
-  font: inherit;
-  font-size: 9px;
-  letter-spacing: 0.18em;
-  font-weight: 700;
-  text-transform: uppercase;
-  padding: 9px 14px;
-  border-radius: var(--m-radius-pill);
-  border: 1px solid var(--m-rule-3);
-  background: transparent;
-  color: var(--m-mute);
-  cursor: pointer;
-  transition: border-color 0.28s ease, background 0.28s ease, color 0.28s ease;
-}
-.ft-chip:hover { border-color: var(--m-rule-5); color: var(--m-ink); }
-.ft-chip.is-on {
-  border-color: #4A3B26;
-  background: rgba(217, 189, 139, 0.07);
-  color: var(--m-ink);
-}
-
-.ft-search { position: relative; margin-top: 26px; }
-.ft-search label,
-.ft-cost-input label {
-  display: block;
-  font-size: 8.5px;
-  letter-spacing: 0.26em;
-  color: var(--m-mute);
-  font-weight: 700;
-  text-transform: uppercase;
-  margin-bottom: 10px;
-}
-.ft-input {
-  font: inherit;
-  font-size: 13px;
-  width: 100%;
-  padding: 13px 15px;
-  border: 1px solid var(--m-rule-3);
-  border-radius: var(--m-radius-tile);
-  background: var(--m-raised);
-  color: var(--m-ink);
-  transition: border-color 0.25s ease;
-}
-.ft-input::placeholder { color: var(--m-mute); }
-.ft-input:hover { border-color: var(--m-rule-5); }
-.ft-input--qty { max-width: 8rem; font-family: var(--m-mono); }
-
-.ft-matches {
+.ft-names {
   list-style: none;
-  margin: 8px 0 0;
-  padding: 0;
-  border-radius: var(--m-radius-tile);
-  overflow: hidden;
-  border: 1px solid rgba(217, 189, 139, 0.13);
-  background: linear-gradient(180deg, #16130f 0%, #131009 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(240, 220, 184, 0.07),
-    0 20px 44px -22px rgba(0, 0, 0, 0.9);
-}
-.ft-matches button {
-  font: inherit;
   display: grid;
-  grid-template-columns: 4.5rem minmax(0, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
-  align-items: baseline;
-  width: 100%;
-  text-align: left;
-  padding: 12px 15px;
-  border: 0;
-  border-bottom: 1px solid var(--m-rule);
-  background: none;
-  cursor: pointer;
-  transition: background 0.24s ease;
-}
-.ft-matches li:last-child button { border-bottom: 0; }
-.ft-matches button:hover { background: rgba(217, 189, 139, 0.05); }
-.ft-match-sym { font-size: 11px; color: var(--m-gold); letter-spacing: 0.06em; }
-.ft-match-name {
-  font-size: 12px;
-  color: var(--m-mute);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.ft-nomatch { margin: 12px 0 0; font-size: 12px; color: var(--m-mute); }
-
-/* The readout, in Meridian's terminal-preview idiom: a raised near-black
-   plate inside a hairline, a mono chrome bar, and the price in serif. */
-.ft-quote {
-  position: relative;
   margin: 0;
-  padding: 20px;
-  border-radius: var(--m-radius-card);
-  background:
-    radial-gradient(74% 86% at 6% 0%, rgba(217, 189, 139, 0.1) 0%, rgba(217, 189, 139, 0.05) 34%, transparent 72%),
-    radial-gradient(52% 58% at 100% 100%, rgba(217, 189, 139, 0.05), transparent 66%),
-    linear-gradient(180deg, #16130f 0%, #131009 100%);
-  border: 1px solid rgba(217, 189, 139, 0.13);
-  box-shadow:
-    inset 0 1px 0 rgba(240, 220, 184, 0.07),
-    0 20px 44px -22px rgba(0, 0, 0, 0.9);
-  animation: ft-rise 1.1s var(--m-ease) both;
+  padding: 0;
 }
-/* The lit edge, brightest at the centre. */
-.ft-quote::after {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 1px;
-  border-radius: var(--m-radius-card) var(--m-radius-card) 0 0;
-  background: linear-gradient(90deg, transparent 0%, rgba(240, 220, 184, 0.06) 14%, rgba(253, 243, 221, 0.42) 50%, rgba(240, 220, 184, 0.06) 86%, transparent 100%);
-  pointer-events: none;
-}
-.ft-quote-head {
-  display: flex;
+
+/* The row reads left to right: mark, name, price. The figure is right-aligned
+   on its own edge so eight of them form a column the eye can run down. */
+.ft-name {
+  font: inherit;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 9px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--m-rule);
-  font-family: var(--m-mono);
-  font-size: 9px;
-  letter-spacing: 0.14em;
-  color: var(--m-mute);
-}
-.ft-quote-dot { width: 6px; height: 6px; border-radius: 50%; background: #2A231C; flex: none; }
-.ft-quote-path { margin-left: 6px; }
-.ft-quote-live {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-family: var(--m-sans);
-  font-size: 8px;
-  letter-spacing: 0.2em;
-  font-weight: 700;
-  color: var(--m-gold-deep);
-}
-.ft-quote-live span {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--m-gold);
-  animation: ft-gold-pulse 2.4s ease-in-out infinite;
-}
-.ft-quote-body {
-  display: flex;
-  align-items: flex-end;
   gap: 14px;
-  padding-top: 18px;
-  transition: opacity 0.3s ease;
-}
-.ft-quote-body.is-loading { opacity: 0.4; }
-.ft-quote-mark {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--m-radius-tile);
-  border: 1px solid var(--m-rule-5);
-  display: grid;
-  place-items: center;
-  font-family: var(--m-serif);
-  font-size: 19px;
-  color: var(--m-gold);
-  flex: none;
-}
-.ft-quote-name { font-family: var(--m-serif); font-size: 25px; line-height: 1; color: var(--m-ink); }
-.ft-quote-sym {
-  display: block;
-  font-family: var(--m-mono);
-  font-size: 9px;
-  letter-spacing: 0.14em;
-  color: var(--m-mute);
-  margin-top: 6px;
-}
-.ft-quote-figure { margin-left: auto; text-align: right; }
-.ft-quote-price {
-  font-family: var(--m-serif);
-  font-size: 34px;
-  line-height: 0.9;
-  color: var(--m-ink);
-  letter-spacing: 0;
-}
-.ft-quote-price .ft-cur { font-size: 15px; color: var(--m-gold-deep); margin-right: 4px; }
-.ft-quote .quote-change { font-family: var(--m-mono); font-size: 10px; margin-top: 6px; }
-.ft-quote .quote-change--chip { background: none; padding: 0; }
-.ft-quote .quote-change--chip.is-up { color: var(--m-up); }
-.ft-quote .quote-change--chip.is-down { color: var(--m-down); }
-.ft-quote .quote-change--chip.is-flat { color: var(--m-mute); }
-.ft-quote-foot { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--m-rule-2); }
-.ft-quote-empty { padding: 26px 0; }
-.ft-quote-empty p { margin: 0; color: var(--m-ink); font-size: 13px; }
-.ft-quote-empty-note { margin-top: 8px !important; color: var(--m-mute) !important; font-size: 12px; }
-
-/* ===================================================== 3. what it does
-
-   Seven cells, no pictures. The grid does the work a screenshot was doing
-   badly: an asymmetric field where the two load-bearing claims run wide and
-   the rest sit in a three-up, separated by hairlines rather than boxed into
-   cards. Meridian has no rounded corners, so a cell is a region of the grid,
-   not an object floating on it. */
-
-.ft-bento {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-  margin-top: 40px;
-}
-
-/* Each cell is a lit card, the same surface the terminal sets its panels on,
-   so the page and the instrument read as one object rather than a brochure
-   about a product. */
-.ft-cell {
-  display: flex;
-  flex-direction: column;
-  padding: clamp(1.5rem, 2.2vw, 2rem);
+  text-align: left;
+  padding: 16px 18px;
+  cursor: pointer;
   border-radius: var(--m-radius-card);
   background: linear-gradient(180deg, #16130f 0%, #131009 100%);
   border: 1px solid rgba(217, 189, 139, 0.07);
@@ -771,232 +654,451 @@
     0 16px 36px -22px rgba(0, 0, 0, 0.9);
   transition:
     border-color 0.32s var(--m-ease),
-    box-shadow 0.32s var(--m-ease);
+    box-shadow 0.32s var(--m-ease),
+    transform 0.32s var(--m-ease);
 }
-.ft-cell:hover {
+.ft-name:hover {
   border-color: rgba(217, 189, 139, 0.2);
   box-shadow:
     inset 0 1px 0 rgba(240, 220, 184, 0.08),
     0 26px 54px -20px rgba(0, 0, 0, 0.86);
+  transform: translateY(-2px);
+}
+.ft-name.is-on {
+  border-color: rgba(217, 189, 139, 0.34);
+  background:
+    radial-gradient(74% 86% at 6% 0%, rgba(217, 189, 139, 0.12) 0%, rgba(217, 189, 139, 0.05) 34%, transparent 72%),
+    linear-gradient(180deg, #16130f 0%, #131009 100%);
 }
 
-/* The two load-bearing claims run wide and take the tinted surface — the
-   screener gives its directional tint only to the cards that carry the page,
-   because a tint on every surface stops being light and becomes a wash. */
-.ft-cell.is-wide {
-  grid-column: span 2;
+.ft-name-mark {
+  width: 40px; height: 40px; padding: 9px;
+  border-radius: var(--m-radius-tile);
+  border: 1px solid var(--m-rule-4);
+  color: var(--m-ink);
+  display: block;
+}
+span.ft-name-mark {
+  display: grid; place-items: center; padding: 0;
+  font-family: var(--m-mono); font-size: 15px; font-weight: 500; color: var(--m-gold);
+}
+.ft-name.is-on .ft-name-mark { border-color: rgba(217, 189, 139, 0.34); }
+
+.ft-name-text { min-width: 0; display: block; }
+.ft-name-co {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: var(--m-ink);
+}
+.ft-name-sym {
+  display: block;
+  font-family: var(--m-mono); font-variant-numeric: tabular-nums;
+  font-size: 10.5px; letter-spacing: 0.1em;
+  color: var(--m-dim); margin-top: 2px;
+}
+
+/* Right edge, right-aligned, price over its change. */
+.ft-name-fig {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  text-align: right;
+}
+.ft-name-px {
+  font-family: var(--m-mono); font-variant-numeric: tabular-nums;
+  font-size: 15.5px; color: var(--m-ink); white-space: nowrap;
+}
+.ft-name .quote-change--chip { background: none; padding: 0; font-size: 11.5px; }
+.ft-name .quote-change--chip.is-up { color: var(--m-up); }
+.ft-name .quote-change--chip.is-down { color: var(--m-down); }
+.ft-name .quote-change--chip.is-flat { color: var(--m-mute); }
+
+.ft-names-note { margin-top: 14px; }
+
+.ft-search { position: relative; margin-top: clamp(1.5rem, 2.5vw, 2rem); max-width: 520px; }
+.ft-search label,
+.ft-cost-input label {
+  display: block;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.16em;
+  color: var(--m-mute); text-transform: uppercase; margin-bottom: 10px;
+}
+.ft-input {
+  font: inherit; font-size: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--m-rule-3);
+  border-radius: var(--m-radius-tile);
+  background: #131009;
+  color: var(--m-ink);
+  transition: border-color 0.25s ease;
+}
+.ft-input::placeholder { color: var(--m-mute); }
+.ft-input:hover { border-color: var(--m-rule-5); }
+.ft-input--qty { max-width: 7.5rem; font-family: var(--m-mono); font-variant-numeric: tabular-nums; }
+
+.ft-matches {
+  list-style: none; margin: 8px 0 0; padding: 0;
+  border-radius: var(--m-radius-tile);
+  overflow: hidden;
+  border: 1px solid rgba(217, 189, 139, 0.13);
+  background: linear-gradient(180deg, #16130f 0%, #131009 100%);
+  box-shadow: inset 0 1px 0 rgba(240, 220, 184, 0.07), 0 20px 44px -22px rgba(0, 0, 0, 0.9);
+}
+.ft-matches button {
+  font: inherit;
+  display: grid; grid-template-columns: 4.5rem minmax(0, 1fr);
+  gap: 12px; align-items: baseline;
+  width: 100%; text-align: left;
+  padding: 12px 15px;
+  border: 0; border-bottom: 1px solid var(--m-rule);
+  background: none; cursor: pointer;
+  transition: background 0.24s ease;
+}
+.ft-matches li:last-child button { border-bottom: 0; }
+.ft-matches button:hover { background: rgba(217, 189, 139, 0.05); }
+.ft-match-sym { font-family: var(--m-mono); font-size: 11.5px; color: var(--m-gold); letter-spacing: 0.06em; }
+.ft-match-name {
+  font-size: 12.5px; color: var(--m-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ft-nomatch { margin: 12px 0 0; font-size: 12.5px; color: var(--m-mute); }
+
+/* ===================================================== 2. the index
+
+   An index that opens, not a grid. Seven equal boxes make the reader choose
+   where to begin and give the last the same weight as the first; a list with
+   one row open reads in order and lets the open row take the room it needs. */
+
+.ft-index {
+  list-style: none;
+  margin: clamp(1.5rem, 2.5vw, 2.25rem) 0 0;
+  padding: 0;
+  border-radius: var(--m-radius-card);
+  overflow: hidden;
+  border: 1px solid rgba(217, 189, 139, 0.09);
+  background: linear-gradient(180deg, #16130f 0%, #131009 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(240, 220, 184, 0.05),
+    0 20px 44px -22px rgba(0, 0, 0, 0.9);
+}
+.ft-index-row { border-bottom: 1px solid var(--m-rule-3); }
+.ft-index-row:last-child { border-bottom: 0; }
+.ft-index-row h3 { margin: 0; font-size: inherit; font-weight: inherit; }
+.ft-index-row.is-open {
+  background:
+    radial-gradient(60% 140% at 0% 0%, rgba(217, 189, 139, 0.07), transparent 70%);
+}
+
+.ft-index-head {
+  font: inherit;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 4rem minmax(0, 1fr) 2rem;
+  align-items: center;
+  gap: 18px;
+  text-align: left;
+  padding: clamp(1.15rem, 1.7vw, 1.5rem) clamp(1.25rem, 2vw, 1.85rem);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--m-ink);
+  transition: background 0.3s var(--m-ease);
+}
+.ft-index-head:hover { background: rgba(217, 189, 139, 0.035); }
+.ft-index-n {
+  font-family: var(--m-mono); font-variant-numeric: tabular-nums;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.16em;
+  color: var(--m-gold);
+}
+.ft-index-title {
+  font-size: clamp(1.05rem, 1.5vw, 1.35rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.28;
+  color: var(--m-ink);
+}
+
+/* A plus that becomes a minus. Two bars, one rotated — no icon library, and it
+   animates on transform alone. */
+.ft-index-sign { position: relative; width: 14px; height: 14px; justify-self: end; }
+.ft-index-sign span {
+  position: absolute;
+  inset: 50% 0 auto 0;
+  height: 1.5px;
+  background: var(--m-gold);
+  transition: transform 0.42s var(--m-ease), opacity 0.42s var(--m-ease);
+}
+.ft-index-sign span:last-child { transform: rotate(90deg); }
+.is-open .ft-index-sign span:last-child { transform: rotate(0deg); opacity: 0; }
+
+.ft-index-panel { overflow: hidden; }
+.ft-index-body {
+  display: grid;
+  grid-template-columns: 4rem minmax(0, 1fr);
+  gap: 18px;
+  padding: 0 clamp(1.25rem, 2vw, 1.85rem) clamp(1.35rem, 2vw, 1.75rem);
+}
+.ft-index-body p {
+  grid-column: 2;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--m-dim);
+  max-width: 62ch;
+  text-wrap: pretty;
+}
+.ft-index-note {
+  grid-column: 2;
+  font-family: var(--m-mono); font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--m-gold-deep);
+  padding-top: 14px;
+  margin-top: 4px;
+  border-top: 1px solid var(--m-rule-3);
+}
+
+.ft-see-go { margin: clamp(1.5rem, 2.5vw, 2rem) 0 0; }
+
+/* ===================================================== 3. cost */
+
+.ft-cost { padding-top: clamp(1.5rem, 2.5vw, 2.25rem); }
+
+/* The control and the ledger are one panel. They used to be two floating
+   hairline blocks with 230px of nothing between them. */
+.ft-cost-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 0;
+  border-radius: var(--m-radius-card);
+  overflow: hidden;
+  border: 1px solid rgba(217, 189, 139, 0.13);
   background:
     radial-gradient(74% 86% at 6% 0%, rgba(217, 189, 139, 0.1) 0%, rgba(217, 189, 139, 0.05) 34%, transparent 72%),
-    radial-gradient(52% 58% at 100% 100%, rgba(217, 189, 139, 0.05), transparent 66%),
     linear-gradient(180deg, #16130f 0%, #131009 100%);
-  border-color: rgba(217, 189, 139, 0.13);
   box-shadow:
     inset 0 1px 0 rgba(240, 220, 184, 0.07),
     0 20px 44px -22px rgba(0, 0, 0, 0.9);
 }
-
-.ft-cell-n {
-  font-family: var(--m-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  color: var(--m-gold-deep);
-  margin-bottom: 20px;
+.ft-cost-input {
+  padding: clamp(1.5rem, 2.4vw, 2.25rem);
+  border-right: 1px solid var(--m-rule-3);
 }
-.ft-cell h3 {
-  font-family: var(--m-serif);
-  font-weight: 500;
-  font-size: clamp(1.25rem, 1.6vw, 1.55rem);
-  line-height: 1.22;
-  letter-spacing: -0.022em;
-  color: var(--m-ink);
+.ft-cost-entry { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.ft-cost-value {
   margin: 0;
-  text-wrap: balance;
+  font-family: var(--m-mono); font-variant-numeric: tabular-nums;
+  font-size: 13px; color: var(--m-mute);
 }
-.ft-cell.is-wide h3 { font-size: clamp(1.5rem, 2.1vw, 2rem); max-width: 22ch; }
-.ft-cell p {
-  font-size: 13.5px;
-  line-height: 1.72;
-  color: var(--m-mute);
-  margin: 12px 0 0;
-  max-width: 48ch;
-  text-wrap: pretty;
-}
-.ft-cell.is-wide p { max-width: 56ch; }
-
-/* The note is the card's footing: it sits on a rule at the bottom whatever the
-   copy length, so a row keeps one baseline across three cards. */
-.ft-cell-note {
-  margin-top: auto;
-  padding-top: 20px;
-  font-family: var(--m-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 12px;
-  color: var(--m-gold-deep);
-}
-
-.ft-see-go { margin: 36px 0 0; }
-
-/* ===================================================== 4. cost */
-
-.ft-cost {
-  display: grid;
-  grid-template-columns: minmax(0, 0.72fr) minmax(0, 1.28fr);
-  gap: clamp(2rem, 4vw, 3.5rem);
-  align-items: start;
-  padding-top: 40px;
-}
-.ft-cost-value { margin: 16px 0 0; font-size: 12.5px; color: var(--m-mute); font-family: var(--m-mono); }
 .ft-cost-value strong { color: var(--m-ink); font-weight: 500; }
 .ft-cost-floor {
   margin: 22px 0 0;
   padding-top: 18px;
-  border-top: 1px solid var(--m-rule-2);
-  font-size: 12px;
-  line-height: 1.75;
+  border-top: 1px solid var(--m-rule-3);
+  font-size: 12.5px; line-height: 1.75;
   color: var(--m-mute);
-  max-width: 34ch;
   text-wrap: pretty;
 }
 .ft-cost-floor strong { color: var(--m-gold); font-weight: 500; }
 
-.ft-cost-lines { margin: 0; border-top: 1px solid var(--m-rule-5); }
+.ft-cost-lines { margin: 0; padding: clamp(1.5rem, 2.4vw, 2.25rem); }
 .ft-cost-lines > div {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
-  gap: 6px 20px;
-  padding: 17px 0;
-  border-bottom: 1px solid var(--m-rule-2);
+  gap: 5px 20px;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--m-rule-3);
 }
-.ft-cost-lines dt { font-size: 13px; color: var(--m-dim); }
-.ft-cost-lines dd { margin: 0; font-size: 14px; color: var(--m-ink); text-align: right; }
+.ft-cost-lines > div:first-child { padding-top: 0; }
+.ft-cost-lines dt { font-size: 13.5px; color: var(--m-dim); }
+.ft-cost-lines dd {
+  margin: 0;
+  font-family: var(--m-mono); font-variant-numeric: tabular-nums;
+  font-size: 15px; color: var(--m-ink); text-align: right;
+}
 .ft-cost-note {
   grid-column: 1 / -1;
   font-family: var(--m-sans) !important;
-  font-size: 10px !important;
-  letter-spacing: 0.02em;
+  font-size: 11px !important;
   color: var(--m-mute) !important;
   text-align: left !important;
 }
-.ft-cost-total { border-bottom: 0 !important; border-top: 1px solid var(--m-rule-5); }
-.ft-cost-total dt { color: var(--m-ink); }
-.ft-cost-total dd {
-  font-family: var(--m-serif) !important;
-  font-size: 38px;
-  line-height: 1;
-  color: var(--m-gold);
-}
-.ft-cost-wait { font-size: 12.5px; color: var(--m-mute); }
+.ft-cost-total { border-bottom: 0 !important; padding-bottom: 0 !important; }
+.ft-cost-total dt { color: var(--m-ink); font-weight: 500; }
+.ft-cost-total dd { font-size: 34px; line-height: 1; color: var(--m-gold); }
+.ft-cost-wait { padding: clamp(1.5rem, 2.4vw, 2.25rem); font-size: 13px; color: var(--m-mute); }
 
-.ft-free { margin-top: clamp(2rem, 4vw, 3rem); }
+/* The zero items as their own tiles, so "free" reads as a set of facts rather
+   than a footnote under the ledger. */
+.ft-free { margin-top: 12px; }
 .ft-free h3 {
-  font-family: var(--m-serif);
-  font-weight: 400;
-  font-size: 29px;
-  color: var(--m-ink);
-  margin: 0 0 18px;
+  font-size: 15px; font-weight: 500; letter-spacing: -0.01em;
+  color: var(--m-dim); margin: 0 0 12px;
 }
 .ft-free ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border-top: 1px solid var(--m-rule-2);
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;
 }
 .ft-free li {
-  padding: 22px 22px 8px 0;
-  border-right: 1px solid var(--m-rule-2);
-  display: flex;
-  flex-direction: column-reverse;
-  gap: 10px;
+  padding: 18px;
+  border-radius: var(--m-radius-tile);
+  background: linear-gradient(180deg, #16130f 0%, #131009 100%);
+  border: 1px solid rgba(217, 189, 139, 0.07);
+  box-shadow: inset 0 1px 0 rgba(240, 220, 184, 0.04);
 }
-.ft-free li:last-child { border-right: 0; }
-.ft-free li > span:first-child {
-  font-size: 8.5px;
-  letter-spacing: 0.22em;
-  color: var(--m-mute);
-  font-weight: 700;
-  text-transform: uppercase;
+.ft-free li > span:last-child {
+  display: block;
+  font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+  font-weight: 600; color: var(--m-mute); margin-top: 10px;
 }
-.ft-free-v { font-family: var(--m-serif) !important; font-size: 26px; line-height: 1; color: var(--m-gold); }
+.ft-free-v {
+  font-family: var(--m-mono); font-variant-numeric: tabular-nums;
+  font-size: 26px; line-height: 1; color: var(--m-gold);
+}
 
 .ft-cost-foot {
-  margin: clamp(2rem, 4vw, 3rem) 0 0;
-  font-size: 11.5px;
-  line-height: 1.8;
+  margin: clamp(1.75rem, 3vw, 2.5rem) 0 0;
+  font-size: 12px; line-height: 1.8;
   color: var(--m-mute);
   max-width: 78ch;
   text-wrap: pretty;
 }
 
-/* ===================================================== 5. later */
+/* ===================================================== 4. later */
 
 .ft-later {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 clamp(2rem, 5vw, 3.75rem);
-  border-top: 1px solid var(--m-rule-2);
-  margin-top: 40px;
+  gap: 12px;
+  margin-top: clamp(1.5rem, 2.5vw, 2.25rem);
 }
-.ft-later-item { padding: clamp(1.5rem, 3vw, 2.25rem) 0; border-bottom: 1px solid var(--m-rule-2); }
+.ft-later-item {
+  padding: clamp(1.5rem, 2.2vw, 2rem);
+  border-radius: var(--m-radius-card);
+  background: linear-gradient(180deg, #16130f 0%, #131009 100%);
+  border: 1px solid rgba(217, 189, 139, 0.07);
+  box-shadow: inset 0 1px 0 rgba(240, 220, 184, 0.04), 0 16px 36px -22px rgba(0, 0, 0, 0.9);
+  transition: border-color 0.32s var(--m-ease);
+}
+.ft-later-item:hover { border-color: rgba(217, 189, 139, 0.2); }
 .ft-later-item h3 {
-  font-family: var(--m-serif);
-  font-weight: 400;
-  font-size: 24px;
-  line-height: 1.15;
-  color: var(--m-ink);
-  margin: 0;
+  font-size: 18px; font-weight: 500; letter-spacing: -0.018em;
+  line-height: 1.25; color: var(--m-ink); margin: 0;
 }
-.ft-later-item p { font-size: 12.5px; line-height: 1.75; color: var(--m-mute); margin: 12px 0 18px; max-width: 46ch; text-wrap: pretty; }
+.ft-later-item p {
+  font-size: 13px; line-height: 1.72; color: var(--m-mute);
+  margin: 12px 0 18px; max-width: 48ch; text-wrap: pretty;
+}
 
-/* ===================================================== 6. close */
+/* ===================================================== before you invest */
 
-.ft-close { padding: clamp(4rem, 7vw, 7rem) 0 clamp(3.5rem, 6vw, 6rem); }
+.ft-watch { list-style: none; margin: clamp(1.5rem, 2.5vw, 2.25rem) 0 0; padding: 0;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.ft-watch-card {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  height: 100%;
+  padding: clamp(1.5rem, 2.2vw, 2rem);
+  border-radius: var(--m-radius-card);
+  background: linear-gradient(180deg, #16130f 0%, #131009 100%);
+  border: 1px solid rgba(217, 189, 139, 0.07);
+  box-shadow: inset 0 1px 0 rgba(240, 220, 184, 0.04), 0 16px 36px -22px rgba(0, 0, 0, 0.9);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.32s var(--m-ease), box-shadow 0.32s var(--m-ease), transform 0.32s var(--m-ease);
+}
+.ft-watch-card:hover {
+  border-color: rgba(217, 189, 139, 0.2);
+  box-shadow: inset 0 1px 0 rgba(240, 220, 184, 0.08), 0 26px 54px -20px rgba(0, 0, 0, 0.86);
+  transform: translateY(-2px);
+}
+.ft-watch-n {
+  font-family: var(--m-mono); font-variant-numeric: tabular-nums;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.16em; color: var(--m-gold-deep);
+}
+.ft-watch-play {
+  width: 44px; height: 44px;
+  margin: 18px 0 16px;
+  display: grid; place-items: center;
+  border-radius: var(--m-radius-pill);
+  border: 1px solid rgba(217, 189, 139, 0.28);
+  color: var(--m-gold);
+  transition: background 0.32s var(--m-ease);
+}
+.ft-watch-play svg { width: 16px; height: 16px; margin-left: 2px; }
+.ft-watch-card:hover .ft-watch-play { background: rgba(217, 189, 139, 0.1); }
+.ft-watch-title {
+  display: block;
+  font-size: 17px; font-weight: 500; letter-spacing: -0.018em; line-height: 1.28;
+  color: var(--m-ink);
+  text-wrap: balance;
+}
+.ft-watch-blurb {
+  display: block;
+  font-size: 12.5px; line-height: 1.7; color: var(--m-mute);
+  margin: 10px 0 20px; text-wrap: pretty;
+}
+.ft-watch-go {
+  display: inline-flex; align-items: center; gap: 12px;
+  font-size: 11px; letter-spacing: 0.16em; font-weight: 700; text-transform: uppercase;
+  color: var(--m-gold);
+}
+.ft-watch-more { margin-top: clamp(1.5rem, 2.5vw, 2rem); }
+
+/* ===================================================== 5. close */
+
+.ft-close { padding: clamp(3.5rem, 6vw, 6.5rem) 0 clamp(3rem, 5vw, 5rem); }
 .ft-close-inner {
   border-top: 1px solid var(--m-rule-2);
-  padding-top: clamp(3rem, 5vw, 4.5rem);
+  padding-top: clamp(2.5rem, 4.5vw, 4rem);
   text-align: center;
   background: radial-gradient(700px 300px at 50% 30%, rgba(217, 189, 139, 0.11), transparent 65%);
 }
-.ft-close .ft-h2 { margin: 22px auto 0; max-width: 20ch; font-size: clamp(2.25rem, 5vw, 4.75rem); }
-/* The close is lit twice — the page wash plus its own pool — so its prose
-   takes the brightest muted tone the system has. */
-.ft-close .ft-body { margin: 22px auto 0; max-width: 46ch; font-size: 14.5px; color: var(--m-dim); }
-.ft-close .ft-actions { justify-content: center; margin-top: 36px; }
+.ft-close .ft-h2 { margin: 20px auto 0; max-width: 18ch; font-size: clamp(2rem, 4.2vw, 3.6rem); }
+.ft-close .ft-body { margin: 20px auto 0; max-width: 46ch; font-size: 14.5px; color: var(--m-dim); }
+.ft-close .ft-actions { justify-content: center; margin-top: 32px; }
 .ft-close-rule {
   height: 1px;
   background: linear-gradient(90deg, transparent, var(--m-gold), transparent);
-  max-width: 190px;
-  margin: 30px auto 0;
-  transform-origin: center;
+  max-width: 190px; margin: 28px auto 0;
   animation: ft-rule-grow 1s var(--m-ease) both;
 }
 
 /* ===================================================== responsive */
 
 @media (max-width: 1100px) {
-  .ft-open-inner { grid-template-columns: minmax(0, 1fr); align-items: start; }
-  .ft-route { max-width: 34rem; }
-  .ft-pick,
-  .ft-cost { grid-template-columns: minmax(0, 1fr); }
-  .ft-head { flex-direction: column; align-items: flex-start; gap: 18px; }
-  .ft-head .ft-body { max-width: 60ch; }
+  .ft-hero-inner { grid-template-columns: minmax(0, 1fr); gap: 2.5rem; }
+  .ft-hero .ft-h1 { max-width: 18ch; }
+  .ft-names { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ft-movers-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ft-watch { grid-template-columns: minmax(0, 1fr); }
+  .ft-head { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .ft-head .ft-body { max-width: 62ch; }
+  .ft-cost-panel { grid-template-columns: minmax(0, 1fr); }
+  .ft-cost-input { border-right: 0; border-bottom: 1px solid var(--m-rule-3); }
+  .ft-free ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+@media (max-width: 760px) {
+  .ft-shot-cells { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ft-names { grid-template-columns: minmax(0, 1fr); }
+  .ft-movers-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ft-later { grid-template-columns: minmax(0, 1fr); }
+  .ft-index-head { grid-template-columns: 2.5rem minmax(0, 1fr) 1.5rem; gap: 12px; }
+  .ft-index-body { grid-template-columns: minmax(0, 1fr); }
+  .ft-index-body p,
+  .ft-index-note { grid-column: 1; }
+}
 
-@media (max-width: 620px) {
+@media (max-width: 480px) {
+  .ft-movers-row { grid-template-columns: minmax(0, 1fr); }
   .ft-free ul { grid-template-columns: minmax(0, 1fr); }
-  .ft-free li { border-right: 0; }
-  .ft-bento { grid-template-columns: minmax(0, 1fr); gap: 12px; }
-  .ft-cell.is-wide { grid-column: span 1; }
-  .ft-cost-lines > div { gap: 4px 12px; }
-  .ft-quote { padding: 14px; }
-  .ft-quote-body { flex-wrap: wrap; gap: 12px; }
-  .ft-quote-figure { margin-left: 0; text-align: left; width: 100%; }
   .ft-cta, .ft-ghost { flex: 1 1 100%; text-align: center; }
+  .ft-cost-entry { align-items: flex-start; flex-direction: column; gap: 12px; }
 }
 
 /* ===================================================== reduced motion */
@@ -1004,20 +1106,23 @@
 @media (prefers-reduced-motion: reduce) {
   .ft-link-rule { transform: scaleX(1); }
   .ft-mark-dot,
-  .ft-quote-live span { animation: none; }
-  .ft-open-copy,
+  .ft-shot-live span { animation: none; }
+  .ft-hero-copy,
   .ft-mark,
-  .ft-route,
-  .ft-quote,
+  .ft-hero-shot,
   .ft-close-rule { animation: none; }
   .ft-cell::before { transform: scaleX(1); }
   .ft-cell,
   .ft-cell::before,
   .ft-link-rule,
-  .ft-route a,
-  .ft-chip,
+  .ft-name,
+  .ft-index-head,
+  .ft-index-sign span,
+  .ft-watch-card,
+  .ft-watch-play,
+  .ft-later-item,
   .ft-input,
-  .ft-quote-body,
+  .ft-shot-body,
   .ft-cta,
   .ft-ghost { transition: none; }
   .ft-route a:hover > *,
