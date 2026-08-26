@@ -331,10 +331,7 @@ export default function Products() {
                         onClick={() => choose(p.symbol)}
                       >
                         <BrandMark symbol={p.symbol} className="ft-name-mark" />
-                        <span className="ft-name-text">
-                          <span className="ft-name-co">{p.name}</span>
-                          <span className="ft-name-sym">{p.symbol}</span>
-                        </span>
+                        <span className="ft-name-co">{p.name}</span>
                       </button>
                     </li>
                   )
