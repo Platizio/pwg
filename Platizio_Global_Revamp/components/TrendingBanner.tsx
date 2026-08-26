@@ -21,9 +21,14 @@ interface TrendingBannerProps {
 /** Enough placeholders to fill the band edge to edge at desktop width. */
 const SKELETON_ITEMS = 10
 
-function TickerItem({ quote }: { quote: Quote }) {
+/**
+ * `clone` marks the duplicated pass, which exists only so the loop has no
+ * visible seam. Without it a screen reader announces all eight quotes twice —
+ * the same defect NewsRail already guards against on Media, missed here.
+ */
+function TickerItem({ quote, clone }: { quote: Quote; clone?: boolean }) {
   return (
-    <span className="ticker-item">
+    <span className="ticker-item" {...(clone ? { 'aria-hidden': true } : {})}>
       <span className="ticker-symbol">{quote.symbol}</span>
       <span className="ticker-price">{formatPrice(quote.price)}</span>
       <QuoteChange changePercent={quote.changePercent} variant="inline" />
@@ -76,7 +81,7 @@ export default function TrendingBanner({
               {/* First pass carries the semantics. */}
               {items.map((q) => <TickerItem quote={q} key={q.symbol} />)}
               {/* Second pass exists only so the loop has no visible seam. */}
-              {items.map((q) => <TickerItem quote={q} key={`dup-${q.symbol}`} />)}
+              {items.map((q) => <TickerItem quote={q} clone key={`dup-${q.symbol}`} />)}
             </div>
           )}
         </div>

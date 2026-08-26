@@ -548,3 +548,56 @@ a.stock-card:hover {
 
   .skeleton-bar { animation: none !important; background: var(--gray-100); }
 }
+
+/* =========================================================
+   10. Start-here links
+   =========================================================
+   Home's only route into the article library. Kept as a single quiet line
+   rather than a card block: the revamp removed the guides section
+   deliberately, and this restores the link equity without reinstating the
+   weight that was cut.
+   ========================================================= */
+
+.start-here {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--space-2) var(--space-5);
+  margin-top: var(--space-10);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--line);
+  font-size: var(--text-sm);
+}
+
+.start-here-label {
+  font-family: var(--font);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--gray-500);
+}
+
+.start-here a {
+  color: var(--gray-700);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--line-strong);
+  transition: color var(--t-fast), text-decoration-color var(--t-fast);
+}
+
+.start-here a:hover {
+  color: var(--accent-600);
+  text-decoration-color: currentColor;
+}
+
+.start-here-all {
+  font-weight: 600;
+  color: var(--accent-600) !important;
+  text-decoration: none !important;
+}
+
+@media (max-width: 560px) {
+  .start-here { justify-content: flex-start; gap: var(--space-2) var(--space-4); }
+}

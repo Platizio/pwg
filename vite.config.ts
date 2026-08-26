@@ -1,35 +1,58 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import type { IncomingMessage } from 'node:http'
 import { defineConfig, loadEnv, type Plugin, type ViteDevServer } from 'vite'
 import react from '@vitejs/plugin-react'
 
+/** Collects a request body, so POST endpoints behave in dev as on Vercel. */
+function readBody(req: IncomingMessage): Promise<string> {
+  return new Promise((resolve) => {
+    let data = ''
+    req.on('data', (chunk) => { data += chunk })
+    req.on('end', () => resolve(data))
+  })
+}
+
 /**
- * Serves api/quotes.ts during `npm run dev`.
+ * Serves the api/ folder during `npm run dev`.
  *
  * In production Vercel routes /api itself; Vite knows nothing about it, so
- * without this the homepage would have no data source locally and the market
- * sections would silently unmount — the one failure mode we'd never notice
- * because it looks deliberate.
+ * without this the local site has no data source — the market sections
+ * silently unmount and newsletter signup fails, which looks deliberate and is
+ * therefore easy to miss.
  *
- * ssrLoadModule keeps the handler hot-reloading like the rest of the app.
+ * Routing is generic: /api/<name> resolves to api/<name>.ts if that file
+ * exists. A new endpoint works locally the moment it is written, with no edit
+ * here — the previous version hardcoded /api/quotes and silently 404ed
+ * everything else.
+ *
+ * ssrLoadModule keeps handlers hot-reloading like the rest of the app.
  */
 function devApi(mode: string): Plugin {
   return {
     name: 'platizio-dev-api',
     apply: 'serve',
     configureServer(server: ViteDevServer) {
-      // The handler reads process.env, but Vite only exposes VITE_-prefixed
-      // vars to the client. Load .env.local into the process for parity with
-      // how Vercel populates the function's environment.
+      // Handlers read process.env, but Vite only exposes VITE_-prefixed vars to
+      // the client. Load .env.local into the process for parity with how Vercel
+      // populates a function's environment.
       const env = loadEnv(mode, process.cwd(), '')
-      for (const [k, v] of Object.entries(env)) {
-        if (k.startsWith('VIEWTRADE_') && !process.env[k]) process.env[k] = v
+      for (const [key, value] of Object.entries(env)) {
+        const isServerVar = key.startsWith('VIEWTRADE_') || key.startsWith('NEWSLETTER_')
+        if (isServerVar && !process.env[key]) process.env[key] = value
       }
 
-      const configured =
+      // Quotes are the one endpoint with a local fallback: without ViewTrade
+      // credentials the real handler 503s, which unmounts every market section,
+      // so the terminal, the Products band and Home render only their
+      // unavailable state and cannot be worked on at all. Every other handler
+      // is served as written.
+      const quotesConfigured =
         !!process.env.VIEWTRADE_BASE_URL &&
         !!process.env.VIEWTRADE_API_KEY &&
         !!process.env.VIEWTRADE_API_SECRET
 
-      if (!configured) {
+      if (!quotesConfigured) {
         server.config.logger.warn(
           '[dev-api] VIEWTRADE_* not set — serving SYNTHETIC quotes so the market ' +
             'sections are developable. These numbers are invented. Never screenshot ' +
@@ -37,15 +60,28 @@ function devApi(mode: string): Plugin {
         )
       }
 
-      server.middlewares.use('/api/quotes', async (req, res) => {
-        // Without credentials the real handler 503s, which unmounts every
-        // market section — so the terminal, the Products band and Home all
-        // render only their unavailable state and cannot be worked on at all.
+      server.middlewares.use('/api', async (req, res, next) => {
+        // req.url is relative to the mount point, so "/quotes?symbols=AAPL"
+        // here. Split the two apart: the name selects the handler, the query
+        // is forwarded verbatim — dropping it silently served every request
+        // the homepage payload, which made ?symbols= and ?index= unreachable.
+        const raw = req.url ?? ''
+        const [pathname, ...rest] = raw.split('?')
+        const query = rest.length ? `?${rest.join('?')}` : ''
+        const name = pathname.replace(/^\/+/, '').replace(/\/+$/, '')
+
+        // Anchored allowlist: no dots, no slashes, so the name cannot escape
+        // the api/ directory.
+        if (!/^[a-z0-9-]+$/.test(name)) return next()
+
+        const file = path.join(process.cwd(), 'api', `${name}.ts`)
+        if (!fs.existsSync(file)) return next()
+
         // This branch exists purely so the loaded layout is reachable on a
         // machine that has no access to the credential store. It is inside a
         // plugin with `apply: 'serve'`, so it cannot reach a build.
-        if (!configured) {
-          const url = new URL(req.url ?? '/', 'http://localhost')
+        if (name === 'quotes' && !quotesConfigured) {
+          const url = new URL(raw || '/', 'http://localhost')
           const mod = await server.ssrLoadModule(
             '/Platizio_Global_Revamp/data/marketUniverse.ts',
           )
@@ -57,25 +93,28 @@ function devApi(mode: string): Plugin {
         }
 
         try {
-          const mod = await server.ssrLoadModule('/api/quotes.ts')
-          // req.url is the path AFTER the mount point, so it is '/' or
-          // '/?symbols=AAPL'. Forwarding it verbatim is what makes the
-          // terminal's ?symbols= and ?index= modes reachable in dev; dropping
-          // it silently served every request the homepage payload.
-          const suffix = (req.url ?? '/').replace(/^\//, '')
+          const mod = await server.ssrLoadModule(`/api/${name}.ts`)
+          const method = req.method ?? 'GET'
+          const hasBody = method !== 'GET' && method !== 'HEAD'
+
           const response: Response = await mod.default(
-            new Request(`http://localhost/api/quotes${suffix}`, { method: req.method ?? 'GET' }),
+            new Request(`http://localhost/api/${name}${query}`, {
+              method,
+              headers: { 'Content-Type': String(req.headers['content-type'] ?? 'application/json') },
+              body: hasBody ? await readBody(req) : undefined,
+            }),
           )
+
           res.statusCode = response.status
           response.headers.forEach((value, key) => res.setHeader(key, value))
           res.end(await response.text())
         } catch (err) {
-          // Mirror the function's own failure contract so local behaviour
-          // matches production instead of throwing an HTML error page.
-          res.statusCode = 503
+          // Mirror the handlers' own failure contract, so local behaviour
+          // matches production rather than returning an HTML error page.
+          res.statusCode = 500
           res.setHeader('Content-Type', 'application/json')
-          res.end(JSON.stringify({ error: 'Market data unavailable' }))
-          server.config.logger.error(`[dev-api] ${(err as Error).message}`)
+          res.end(JSON.stringify({ error: 'Handler failed' }))
+          server.config.logger.error(`[dev-api] ${name}: ${(err as Error).message}`)
         }
       })
     },

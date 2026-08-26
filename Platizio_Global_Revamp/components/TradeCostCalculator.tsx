@@ -121,7 +121,9 @@ export default function TradeCostCalculator() {
               </li>
             </ul>
 
-            <div className="calc-total">
+            {/* The summary, not the whole breakdown: announcing every line on each
+                keystroke is unusable. Total and effective rate are the outcome. */}
+            <div className="calc-total" aria-live="polite">
               <div className="calc-total-row">
                 <span>Total cost</span>
                 <strong>{show(cost?.total)}</strong>
@@ -146,11 +148,18 @@ export default function TradeCostCalculator() {
           </div>
         </div>
 
+        {/* Two exclusions, both stated. The forex one matters more than the
+            FINRA one and was missing: converting rupees to dollars is usually
+            the largest single cost on a trade of this size, so a calculator
+            that silently omits it understates the real number by more than
+            every fee above it combined. */}
         <p className="calc-note">
-          FINRA also charges ${RATES.finraPerShare} per share sold, which is not included
-          above — it depends on share count rather than trade value, and is typically
-          under $0.05 on a retail order. Figures are an illustration, not tax or
-          investment advice. <Link to="/disclaimer">Risk disclosure</Link>
+          Your bank's currency conversion is not included above — the rate and margin
+          are set by your remitting bank, not by us, and on most trades it is the
+          largest single cost. FINRA also charges ${RATES.finraPerShare} per share sold,
+          excluded because it depends on share count rather than trade value and is
+          typically under $0.05 on a retail order. Figures are an illustration, not tax
+          or investment advice. <Link to="/disclaimer">Risk disclosure</Link>
         </p>
       </div>
     </section>

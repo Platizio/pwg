@@ -22,6 +22,14 @@ export default function Header() {
    */
   const listRef = useRef<HTMLUListElement>(null)
   const [marker, setMarker] = useState<{ x: number; w: number } | null>(null)
+  /*
+   * The glide is right between two pages and wrong on the way to the first
+   * one. Until the marker has been measured it sits untranslated at the left
+   * edge of the list, so animating that first placement swept it across every
+   * label — for the length of the transition the underline sat under the
+   * wrong item. The first placement snaps; every one after it travels.
+   */
+  const [settled, setSettled] = useState(false)
 
   const placeMarker = useCallback((target?: HTMLElement | null) => {
     const list = listRef.current
@@ -34,6 +42,12 @@ export default function Header() {
     const pad = parseFloat(getComputedStyle(el).paddingLeft) || 0
     setMarker({ x: er.left - lr.left + pad, w: Math.max(er.width - pad * 2, 0) })
   }, [])
+
+  useEffect(() => {
+    if (!marker || settled) return
+    const id = requestAnimationFrame(() => setSettled(true))
+    return () => cancelAnimationFrame(id)
+  }, [marker, settled])
 
   useEffect(() => {
     placeMarker()
@@ -72,7 +86,7 @@ export default function Header() {
 
         <ul
           ref={listRef}
-          className={`nav-links${menuOpen ? ' is-open' : ''}${marker ? ' has-marker' : ''}`}
+          className={`nav-links${menuOpen ? ' is-open' : ''}${marker ? ' has-marker' : ''}${settled ? ' is-settled' : ''}`}
           onPointerLeave={() => placeMarker()}
         >
           {/* Travels between the links. aria-hidden: the current page is already

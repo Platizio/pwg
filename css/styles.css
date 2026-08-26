@@ -552,7 +552,7 @@ p {
    ========================================================= */
 .hero {
   position: relative;
-  background: radial-gradient(ellipse at top right, #14365E 0%, var(--navy) 45%, var(--navy-deep) 100%);
+  background: radial-gradient(ellipse at top right, var(--navy-soft) 0%, var(--navy) 45%, var(--navy-deep) 100%);
   color: var(--white);
   overflow: hidden;
   padding: 5rem 0 7rem;

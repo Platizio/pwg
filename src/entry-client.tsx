@@ -13,8 +13,9 @@ import '../Platizio_Global_Revamp/styles/chrome.css'
 import '../Platizio_Global_Revamp/styles/home-market.css'
 import '../Platizio_Global_Revamp/styles/pricing.css'
 import '../Platizio_Global_Revamp/styles/about.css'
-// meridian.css declares every token on .meridian and nothing on :root, so it
-// can load beside the others without reaching the rest of the site.
+import '../Platizio_Global_Revamp/styles/media.css'
+// products.css declares every token on .ft and nothing on :root, so it can
+// load beside the others without reaching the rest of the site.
 import '../Platizio_Global_Revamp/styles/products.css'
 // Scoped to .meridian, which only /terminal/:symbol carries.
 import '../Platizio_Global_Revamp/styles/meridian.css'

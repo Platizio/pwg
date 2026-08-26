@@ -149,6 +149,9 @@
     opacity 0.2s var(--ease);
 }
 
+/* The first placement is a jump, not a glide: see the note in Header.tsx. */
+.nav-links:not(.is-settled) .nav-marker { transition: none; }
+
 /* Once the marker is measured and placed, the per-link underlines stand down.
    They remain the no-JS state: without them a reader with scripting off would
    have no indication of where they are. */
@@ -550,8 +553,17 @@
    Pulled up by the rail's full height and given it back as a transparent top
    border, so the section's own background paints to the top of the viewport
    while its content stays exactly where it was. Applied to whatever the page
-   puts first, so a page added later inherits it without knowing about it. */
-#main-content > :first-child {
+   puts first, so a page added later inherits it without knowing about it.
+
+   The opt-out exists because the rule assumes the opening element is a canvas
+   — a hero, a full-bleed surface — large enough that another 84px of it above
+   the pill reads as more of the same. A page can open with something that is
+   not: Media opens on a news marquee whose content is 85px tall, and running
+   that under the pill both doubled its box and painted its navy up behind the
+   white pill, which is the banded top this whole rule was written to remove.
+   Such a section sets data-under-bar="off" and starts below the pill instead,
+   on the page's own ground. */
+#main-content > :first-child:not([data-under-bar='off']) {
   margin-top: calc(-1 * (var(--bar-inset) + var(--bar-h)));
   border-top: calc(var(--bar-inset) + var(--bar-h)) solid transparent;
   /*

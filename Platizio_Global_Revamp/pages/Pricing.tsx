@@ -115,8 +115,9 @@ export default function Pricing() {
             <span className="eyebrow">Tax</span>
             <h2 id="tax-heading">What the tax office takes</h2>
             <p>
-              Three things apply to Indian residents investing abroad. Two are credits
-              you can claim back, not costs.
+              Four things apply to Indian residents investing abroad. Two are credits
+              you can claim back rather than costs; one only bites above a threshold
+              that a growing portfolio eventually crosses.
             </p>
           </div>
 
@@ -157,6 +158,27 @@ export default function Pricing() {
             <CapitalGainsCompare />
           </article>
 
+          {/* --- US estate tax ---
+                  Added after audit: the page previously said "three things
+                  apply" and omitted the only one that scales with account size.
+                  Every figure here is already published in the site's own
+                  article; nothing new is asserted. Omitting it understated the
+                  picture precisely for the largest accounts. --- */}
+          <article className="tax-block reveal">
+            <h3>US estate tax, above a threshold</h3>
+            <p>
+              US-situs assets — which includes US shares held by a non-resident — fall
+              under US estate tax above a{' '}
+              <strong>USD 60,000 exemption</strong>, at rates reaching{' '}
+              <strong>40%</strong>. The India–US treaty does not relieve it. It is the
+              one item here that a growing portfolio grows into rather than one you meet
+              on day one, and it is widely under-discussed.{' '}
+              <Link to="/articles/us-estate-tax-indian-investors">
+                What the threshold means for you <ArrowIcon />
+              </Link>
+            </p>
+          </article>
+
           {/* --- Dividends --- */}
           <article className="tax-block reveal">
             <h3>Dividends</h3>
@@ -173,10 +195,10 @@ export default function Pricing() {
       </section>
 
       {/* ===== 6. CTA ===== */}
-      <section className="section pricing-cta-section">
+      <section className="section pricing-cta-section" aria-labelledby="pricing-cta-heading">
         <div className="container">
           <div className="regs-cta reveal">
-            <h3>Open your account</h3>
+            <h3 id="pricing-cta-heading">Open your account</h3>
             <p>No account opening fee, no KYC charge, and no minimum balance to maintain.</p>
             <a className="btn btn-gold btn-lg" href={TRADING_PLATFORM_URL} target="_blank" rel="noopener noreferrer">
               Start investing <ArrowIcon />

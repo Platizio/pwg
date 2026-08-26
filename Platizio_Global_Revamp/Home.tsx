@@ -180,6 +180,22 @@ export default function Home() {
                 : [card]
             })}
           </div>
+
+          {/* Restores Home's only path into the article library. The revamp
+              dropped the guides block, taking all three direct article links
+              with it — the footer still reaches /media#articles, but nothing
+              on Home pointed at the writing itself. Placed here because a
+              reader who has just read the three steps is exactly the one who
+              wants the detail. */}
+          <p className="start-here reveal">
+            <span className="start-here-label">Read first</span>
+            <Link to="/articles/how-to-invest-in-us-stocks-from-india">
+              How to invest in US stocks from India
+            </Link>
+            <Link to="/articles/lrs-explained">LRS explained</Link>
+            <Link to="/articles/tax-on-us-stocks-in-india">Tax on US stocks</Link>
+            <Link className="start-here-all" to="/articles">All articles →</Link>
+          </p>
         </div>
       </section>
 

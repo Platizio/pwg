@@ -212,10 +212,10 @@ export default function About() {
       </section>
 
       {/* ===== 6. CTA ===== */}
-      <section className="section about-cta-section">
+      <section className="section about-cta-section" aria-labelledby="about-cta-heading">
         <div className="container">
           <div className="regs-cta reveal">
-            <h3>Open your account</h3>
+            <h3 id="about-cta-heading">Open your account</h3>
             <p>Complete KYC online, fund through your bank, and place your first US order.</p>
             <a className="btn btn-gold btn-lg" href={TRADING_PLATFORM_URL} target="_blank" rel="noopener noreferrer">
               Start investing <ArrowIcon />

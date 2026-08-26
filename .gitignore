@@ -36,7 +36,9 @@ Global_API/
 client-url-config.json
 *.pem
 *.key
-tsconfig.node.tsbuildinfo
+
+# TypeScript incremental build info
+*.tsbuildinfo
 
 # The market terminal is a separate Next.js app with its own .git, its own
 # lockfile and 2.4GB of node_modules and build output. Committing it from here

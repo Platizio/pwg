@@ -1,11 +1,17 @@
 # Deployment — Vercel environment variables
 
-The homepage's market sections are served by `/api/quotes`, a Vercel serverless
-function. It reads three environment variables. **Without them the endpoint
-returns 503 and both market sections silently remove themselves** — see
-[Failure mode](#failure-mode), which is the part worth reading twice.
+Three serverless functions back the revamped site. **Only the ViewTrade group is
+required**; the other two degrade gracefully and do not block launch.
 
-## The three variables
+| Function | Powers | Without its variables |
+|----------|--------|-----------------------|
+| `/api/quotes` | Home trending band + popular grid | Both sections silently remove themselves |
+| `/api/news` | Media news rail | Rail serves its curated fallback |
+| `/api/subscribe` | Media newsletter signup | Form returns 503 and says it is not live |
+
+---
+
+## 1. ViewTrade — required for live market data
 
 | Variable | Purpose | Example shape |
 |----------|---------|---------------|
@@ -13,23 +19,61 @@ returns 503 and both market sections silently remove themselves** — see
 | `VIEWTRADE_API_KEY` | `api_key` in the B2B login body | 19-character string |
 | `VIEWTRADE_API_SECRET` | `api_secret` in the B2B login body | 15-character string |
 
-Read by [`api/_lib/viewtrade.ts`](../../api/_lib/viewtrade.ts).
+Three, not two — the login body requires both key and secret. Read by
+[`api/_lib/viewtrade.ts`](../../api/_lib/viewtrade.ts).
 
 ### Where the values come from
 
-`C:\Users\pc\Desktop\Global_API\credentials\client-url-config.json` →
-`urls.uma.value`, `apiKey`, `apiSecret`.
+`Global_API/credentials/client-url-config.json` → `urls.uma.value`, `apiKey`,
+`apiSecret`.
 
 That folder is **outside the repository and must stay there.** `.gitignore`
 carries defensive patterns so an accidental copy cannot be committed.
 
-## ⚠️ Never prefix these with `VITE_`
+---
+
+## 2. News — optional
+
+| Variable | Purpose |
+|----------|---------|
+| `NEWSAPI_AI_KEY` | NewsAPI.ai (Event Registry) search key for the `/media` news rail |
+
+⚠️ **This key has a finite quota: 2000 searches in total, not per month.**
+
+`/api/news` caches for **12 hours** precisely to protect it — worst case two
+upstream calls a day, roughly 730 a year, so the pool lasts years.
+**Shortening that cache is the fastest way to burn the quota.** Do not change
+`s-maxage=43200` without recounting the budget.
+
+Unset, or once the quota is spent, the endpoint serves the curated list from
+[`data/mediaNews.ts`](../data/mediaNews.ts) and still answers 200. The rail is
+never empty.
+
+---
+
+## 3. Newsletter — optional
+
+| Variable | Purpose |
+|----------|---------|
+| `NEWSLETTER_WEBHOOK_URL` | Any endpoint accepting a JSON `{ email }` POST |
+
+Provider-agnostic on purpose: Buttondown, Mailchimp via Zapier, a Google Apps
+Script, an internal CRM. Nothing in the code is tied to one vendor.
+
+Unset, `/api/subscribe` returns 503 and the form tells the visitor signups are
+not live yet, offering an email address instead. That is deliberate — the
+alternative is accepting an address, discarding it, and telling someone they
+are subscribed. **A signup form that lies is worse than one honestly not live.**
+
+---
+
+## ⚠️ Never prefix any of these with `VITE_`
 
 Vite inlines any `VITE_`-prefixed variable into the **client bundle**, where it
 is readable by anyone who opens devtools. A `VITE_VIEWTRADE_API_SECRET` would
 publish the broker credential to every visitor.
 
-These three are read through `process.env` inside the serverless function only.
+All five are read through `process.env` inside serverless functions only.
 Verified: no `VITE_`-prefixed credential exists anywhere, and the built client
 JS contains none of these names.
 
@@ -38,23 +82,21 @@ JS contains none of these names.
 Vercel Dashboard → **Project → Settings → Environment Variables**. Add each as a
 **Secret / Sensitive** value, not Plain Text.
 
-Tick the environments deliberately:
-
 | Environment | Set? | Notes |
 |-------------|------|-------|
 | **Production** | Yes | Needs **production** ViewTrade credentials — see below |
 | **Preview** | Yes | UAT credentials are appropriate here |
-| **Development** | Optional | Only for `vercel dev`; `npm run dev` reads `.env.local` instead |
+| **Development** | Optional | Only for `vercel dev`; `npm run dev` reads `.env.local` |
 
-**Environment variables are read at build and at cold start, so changing one
-requires a redeploy.** Editing a value in the dashboard does not affect the
-running deployment until you redeploy.
+**Variables are read at build and at cold start, so changing one requires a
+redeploy.** Editing a value in the dashboard does not affect the running
+deployment until you redeploy.
 
-## 🚩 Production credentials do not exist yet
+## 🚩 Production ViewTrade credentials do not exist yet
 
 Everything in `Global_API` is **UAT/staging**. There are no production
-ViewTrade credentials, so the production deployment cannot serve live data
-until they are issued.
+credentials, so the production deployment cannot serve live market data until
+they are issued.
 
 UAT prices are also synthetic (MU at $1001 in testing) — fine for proving the
 plumbing, useless for judging whether numbers look right.
@@ -73,15 +115,17 @@ Option 1 is the safe default.
 
 This is the one that catches people, because **nothing looks wrong**.
 
-When the variables are missing, `/api/quotes` returns 503, `useMarketData`
-flags failure, and the trending band and popular grid unmount. The page renders
-hero → why → how → fees → regulations → footer and reads as a deliberate
-design. There is no error, no empty state, no console warning beyond a network
-503.
+With the ViewTrade variables missing, `/api/quotes` returns 503, `useMarketData`
+flags failure, and the trending band and popular grid unmount. Home renders
+hero → why → how → fees → regulations → footer and reads as a deliberate design.
+No error, no empty state, nothing beyond a network 503 in devtools.
 
 That behaviour is intentional — a market data outage must never produce a
 visibly broken homepage — but it means **a misconfigured deploy looks identical
 to a working one** unless you check for the sections.
+
+The same is true of the news rail: curated items look entirely normal, so a
+missing news key is invisible without checking `source` in the response.
 
 ## Verifying a deployment
 
@@ -91,34 +135,42 @@ curl -s https://<deployment-url>/api/quotes | head -c 400
 
 - **200** with `trending` and `popular` arrays of 8 → working.
 - **503** `{"error":"Market data unavailable"}` → variables missing, wrong, or
-  ViewTrade unreachable. Check the function logs in Vercel; the handler logs the
-  reason (`Missing environment variables: …` or `Auth failed with status …`)
+  ViewTrade unreachable. Check the function logs; the handler logs the reason
   without ever logging the credential itself.
 
-In the browser, confirm the trending band appears under the hero and the
-popular grid shows eight cards with prices.
+```bash
+curl -s https://<deployment-url>/api/news | head -c 200
+```
+
+- `"source":"live"` → the news key is working.
+- `"source":"curated"` → key missing, quota spent, or upstream down.
+
+In the browser: the trending band appears under the hero on Home, the popular
+grid shows eight priced cards, and `/media` opens with a scrollable news rail.
 
 ## Local development
 
-`npm run dev` serves the function through a Vite middleware
-([`vite.config.ts`](../../vite.config.ts)) and reads `.env.local`, which is
-gitignored. Format:
+`npm run dev` serves everything in `api/` through a Vite middleware
+([`vite.config.ts`](../../vite.config.ts)), which reads `.env.local` — gitignored.
+Routing is generic, so a new `api/<name>.ts` works locally with no config edit.
 
 ```
 VIEWTRADE_BASE_URL=<uma host>
 VIEWTRADE_API_KEY=<api key>
 VIEWTRADE_API_SECRET=<api secret>
+NEWSAPI_AI_KEY=<news key>
+NEWSLETTER_WEBHOOK_URL=<webhook, optional>
 ```
 
-`npm run preview` serves the prerendered `dist/` **without** the function, so
-`/api/quotes` 404s there by design. That makes it a convenient way to exercise
-the failure path.
+`npm run preview` serves the prerendered `dist/` **without** any functions, so
+`/api/*` 404s there by design — a convenient way to exercise the failure paths.
 
 ## Security checklist
 
 - [ ] Values entered as Sensitive, not Plain Text
-- [ ] No `VITE_` prefix on any of the three
+- [ ] No `VITE_` prefix on any of the five
 - [ ] `Global_API/` never copied into the repo
 - [ ] `.env.local` untracked (`git check-ignore .env.local`)
-- [ ] The three exposed UAT credentials rotated with ViewTrade
-- [ ] Production credentials requested
+- [ ] The three exposed UAT ViewTrade credentials rotated
+- [ ] **The NewsAPI.ai key was pasted into a chat transcript — rotate if that transcript is shared or synced**
+- [ ] Production ViewTrade credentials requested

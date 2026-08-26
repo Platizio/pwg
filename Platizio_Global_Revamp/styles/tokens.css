@@ -14,16 +14,18 @@
 
 :root {
   /* ---------------------------------------------------------------- ink
-     The old palette had one navy. Dark sections had no depth because there
-     was nothing to layer against. This is a scale: base for large fields,
-     raised for cards sitting on them, line for separation. */
-  --ink-950: #030D17;
+     The old palette had one navy, so dark sections had nothing to layer
+     against.
+
+     These three are the steps the design actually uses: 900 for large ink
+     fields, 800 as the brand anchor, 700 as the lighter stop in gradients.
+     Four more (950, 850, 600, 500) were declared here originally and never
+     referenced once — a scale on paper is not depth on screen, so they are
+     gone rather than left implying a range the CSS never draws on. Add a step
+     back when something needs it. */
   --ink-900: #05131F;
-  --ink-850: #071B2D;
   --ink-800: #0A2540;   /* the original brand navy — the anchor */
   --ink-700: #103154;
-  --ink-600: #1A4269;
-  --ink-500: #2B587F;
 
   /* Kept so existing rules keep working. */
   --navy: var(--ink-800);

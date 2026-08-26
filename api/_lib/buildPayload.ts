@@ -44,9 +44,18 @@ export function titleCase(input: string): string {
     .replace(/\b[a-z]/g, (c) => c.toUpperCase())
 }
 
+/**
+ * Half-up with an epsilon correction, matching lib/pricing.ts.
+ *
+ * Plain `Math.round(value * factor)` rounds 0.595 DOWN to 0.59, because 0.595
+ * is stored fractionally below its decimal value in binary floating point. That
+ * bug was found and fixed in the pricing calculator, but the fix never
+ * propagated here — so the quote pipeline was rounding a customer's displayed
+ * price and percentage down by a cent on exactly those boundary values.
+ */
 function round(value: number, decimals: number): number {
   const factor = 10 ** decimals
-  return Math.round(value * factor) / factor
+  return Math.round((value + Number.EPSILON) * factor) / factor
 }
 
 /**

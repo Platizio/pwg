@@ -53,7 +53,8 @@ export default function CapitalGainsCompare() {
         </div>
       </div>
 
-      <div className="gains-compare">
+      {/* Recalculates on input; without this the figures change silently. */}
+      <div className="gains-compare" aria-live="polite">
         <article className="gains-card">
           <h3>Sold within 24 months</h3>
           <p className="gains-rate">
