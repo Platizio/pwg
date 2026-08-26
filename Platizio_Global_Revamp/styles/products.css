@@ -1,50 +1,61 @@
 /*
- * /products — the first trade, walked end to end.
+ * /products — the first trade, walked end to end, in Meridian by daylight.
  *
- * The page order is the reader's: five stops from "am I allowed to" through to
- * the account, with the seven capabilities and the videos between them.
+ * This is the light form of the dark world the page carried, not the site's
+ * white one. The distinction matters: the site's light theme is cool — white
+ * paper, navy ink, a burnt orange — and dropping Meridian into it threw away
+ * everything that made it Meridian. What is here instead is the same world
+ * with the lamp turned up. Champagne paper rather than near-black, the same
+ * gold pushed dark enough to hold its own on it, and Meridian's own warm
+ * brown-black for ink instead of the site's navy.
  *
- * The world is the site's own light one. Every value comes from tokens.css —
- * white ground, navy ink, one burnt orange, the same hairlines and the same
- * shadows Home and Pricing use — so this page belongs to the site rather than
- * standing apart from it. The one thing it keeps from the terminal is Outfit,
- * set in all three roles the way the screener sets it.
+ * Every pair is measured, because inverting a palette does not invert its
+ * contrast. The tones that read on #080706 are the wrong ones for paper:
+ *   ink   #1A1207 — Meridian's on-gold, which is its dark
+ *   gold  #7E6238 — gold-deep, taken darker still to clear AA at 11px
+ *   up    #1B7A50, down #B0392C — warm, and legible on paper, where the
+ *         dark world's #7DD3A0 and #E0796B are neither
  *
- * A card here is not "lit": the inset top highlight and the pooled black
- * shadow that made a dark card read as lit are devices for a dark ground and
- * look like grime on a white one. The light equivalent is the site's own — a
- * white face, one hairline, and a soft two-stop shadow.
+ * A card is a sheet on the desk: warm white, one hairline, a soft warm shadow.
+ * The inset highlight and pooled black of the dark build were how a card
+ * caught light on near-black and have no job here.
  *
- * Scoped to .ft throughout; :root is untouched, and the terminal keeps its own
- * .meridian sheets.
+ * Scoped to .ft throughout. :root is untouched, the shared chrome is the
+ * site's own, and the terminal keeps its .meridian sheets.
  */
 
 /* ===================================================== the world */
 
 .ft {
-  /*
-   * The site's own light world. The role names are kept from the dark build so
-   * nothing downstream had to be renamed, but every value now comes from
-   * tokens.css — this page uses the same ink, the same burnt orange and the
-   * same rules as Home, Pricing and About.
-   */
-  --m-bg: var(--white);
-  --m-sunken: var(--surface-sunken);
-  --m-ink: var(--ink-800);
-  --m-dim: var(--gray-600);
-  --m-mute: var(--gray-500);
-  --m-gold: var(--accent-500);
-  --m-gold-hi: var(--accent-600);
-  --m-gold-deep: var(--accent-500);
-  --m-gold-face: linear-gradient(135deg, var(--accent-400), var(--accent-500));
-  --m-on-gold: var(--white);
-  --m-rule: var(--line);
-  --m-rule-2: var(--line);
-  --m-rule-3: var(--line-strong);
-  --m-rule-4: var(--line-strong);
-  --m-rule-5: var(--gray-300);
-  --m-up: var(--gain);
-  --m-down: var(--loss);
+  /* ---- ground and ink ---- */
+  --m-bg: #f7f3ec;
+  --m-sunken: #f1ebe0;
+  --m-ink: #1a1207;
+  --m-dim: #4a3f30;
+  --m-mute: #6b5f4e;
+
+  /* ---- the metal ----
+     #d9bd8b is the dark world's gold and measures 1.9:1 on paper. The same
+     hue, taken down until it clears AA at the 11px labels this page sets it
+     in, is #7e6238 — 5.20:1. The bright gold survives only where it is a
+     surface rather than a letterform: the button face, which carries the
+     dark ink instead. */
+  --m-gold: #7e6238;
+  --m-gold-hi: #5f4926;
+  --m-gold-deep: #7e6238;
+  --m-gold-face: linear-gradient(135deg, #e8cfa3, #c9a46f);
+  --m-on-gold: #1a1207;
+
+  /* ---- rules, warm rather than blue ---- */
+  --m-rule: rgba(26, 18, 7, 0.09);
+  --m-rule-2: rgba(26, 18, 7, 0.11);
+  --m-rule-3: rgba(26, 18, 7, 0.14);
+  --m-rule-4: rgba(26, 18, 7, 0.2);
+  --m-rule-5: rgba(26, 18, 7, 0.28);
+
+  /* ---- direction, warm and legible on paper ---- */
+  --m-up: #1b7a50;
+  --m-down: #b0392c;
 
   /* One family in three roles, as the screener sets it. */
   --m-serif: 'Outfit', ui-sans-serif, system-ui, sans-serif;
@@ -56,27 +67,25 @@
   --m-radius-tile: 12px;
   --m-radius-pill: 999px;
 
-  /*
-   * A card on white cannot be "lit" — the inset top highlight and the pooled
-   * black shadow are devices for a dark ground and read as grime on a light
-   * one. The light equivalent is what the rest of the site already uses: a
-   * white face, one hairline, and a soft two-stop shadow that lifts it.
-   */
-  --m-card-bg: var(--white);
-  --m-card-border: var(--line);
-  --m-card-border-strong: var(--line-strong);
-  --m-card-border-hover: rgba(185, 75, 18, 0.32);
-  --m-card-shadow: var(--shadow-sm);
-  --m-card-shadow-md: var(--shadow-md);
-  --m-card-shadow-lg: var(--shadow-lg);
-  --m-tint: rgba(185, 75, 18, 0.05);
-  --m-tint-soft: rgba(185, 75, 18, 0.035);
+  /* ---- the sheet ----
+     Warmer and lighter than the paper it sits on, so it lifts without a
+     border doing all the work. The shadow is brown, not black: a neutral
+     shadow on a warm ground reads as a smudge. */
+  --m-card-bg: #fffdf9;
+  --m-card-border: rgba(26, 18, 7, 0.09);
+  --m-card-border-strong: rgba(26, 18, 7, 0.14);
+  --m-card-border-hover: rgba(126, 98, 56, 0.42);
+  --m-card-shadow: 0 1px 2px rgba(26, 18, 7, 0.04), 0 2px 6px rgba(26, 18, 7, 0.05);
+  --m-card-shadow-md: 0 2px 4px rgba(26, 18, 7, 0.04), 0 10px 24px rgba(26, 18, 7, 0.07);
+  --m-card-shadow-lg: 0 4px 8px rgba(26, 18, 7, 0.05), 0 22px 48px rgba(26, 18, 7, 0.11);
+  --m-tint: rgba(201, 164, 111, 0.16);
+  --m-tint-soft: rgba(201, 164, 111, 0.09);
 }
 
 @keyframes ft-rise { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
 @keyframes ft-gold-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(185, 75, 18, 0.45); }
-  50% { box-shadow: 0 0 0 7px rgba(185, 75, 18, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(126, 98, 56, 0.45); }
+  50% { box-shadow: 0 0 0 7px rgba(126, 98, 56, 0); }
 }
 @keyframes ft-rule-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
@@ -128,6 +137,22 @@
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' 1;
 }
+
+/* ---- direction, once ----
+   QuoteChange ships coloured for the site's cool light theme: a green washed
+   in #0E7C58 and a red in #C81E43, both of which read as visitors from another
+   palette on champagne. The tones here are the warm pair, and the wash follows
+   them. Specificity is (0,3,0) deliberately — the component's own
+   `.quote-change--chip.is-up` is (0,2,0) and loads later, so a plain
+   descendant selector loses the tie. */
+.ft .quote-change--chip {
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums;
+  border-radius: var(--m-radius-pill);
+}
+.ft .quote-change--chip.is-up { color: var(--m-up); background: rgba(27, 122, 80, 0.1); }
+.ft .quote-change--chip.is-down { color: var(--m-down); background: rgba(176, 57, 44, 0.1); }
+.ft .quote-change--chip.is-flat { color: var(--m-mute); background: rgba(26, 18, 7, 0.07); }
 
 /* ===================================================== type */
 
@@ -362,9 +387,6 @@
   font-family: var(--m-mono); font-variant-numeric: tabular-nums;
   font-size: 13px; color: var(--m-dim); margin-left: auto;
 }
-.ft-tape-item .quote-change--chip { background: none; padding: 0; font-size: 12px; }
-.ft-tape-item .quote-change--chip.is-up { color: var(--m-up); }
-.ft-tape-item .quote-change--chip.is-down { color: var(--m-down); }
 
 @keyframes ft-tape {
   from { transform: translateX(0); }
@@ -535,7 +557,7 @@ span.ft-name-mark {
   font-family: var(--m-mono); font-size: 11px; letter-spacing: 0.06em;
   color: var(--m-mute);
 }
-.ft-ind-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gray-300); flex: none; }
+.ft-ind-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--m-rule-5); flex: none; }
 .ft-ind-path { margin-left: 8px; }
 .ft-ind-live {
   margin-left: auto;
@@ -549,7 +571,7 @@ span.ft-name-mark {
   animation: ft-gold-pulse 2.4s ease-in-out infinite;
 }
 .ft-ind-live.is-idle { color: var(--m-mute); }
-.ft-ind-live.is-idle span { background: var(--gray-300); animation: none; }
+.ft-ind-live.is-idle span { background: var(--m-rule-5); animation: none; }
 
 /* The waiting state is a state, not an empty box: it says what the click will
    produce, so the panel is legible before anything is chosen. */
@@ -593,9 +615,6 @@ span.ft-ind-mark {
   font-weight: 500; line-height: 0.94; letter-spacing: -0.03em;
   color: var(--m-ink);
 }
-.ft-ind .quote-change--chip { background: none; padding: 0; font-size: 13px; }
-.ft-ind .quote-change--chip.is-up { color: var(--m-up); }
-.ft-ind .quote-change--chip.is-down { color: var(--m-down); }
 .ft-ind-foot { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--m-rule-3); }
 .ft-ind-body .ft-link { margin-top: 18px; }
 
@@ -874,7 +893,7 @@ span.ft-ind-mark {
 .ft-close .ft-actions { justify-content: center; margin-top: 32px; }
 .ft-close-rule {
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--accent-500), transparent);
+  background: linear-gradient(90deg, transparent, var(--m-gold), transparent);
   max-width: 190px; margin: 28px auto 0;
   animation: ft-rule-grow 1s var(--m-ease) both;
 }
