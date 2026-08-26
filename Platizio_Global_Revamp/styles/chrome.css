@@ -85,37 +85,19 @@
   padding-block: 8px;
   padding-inline: var(--space-6);
   border-radius: var(--radius-full);
-  /* 0.82, not 0.72. Glass takes its luminance from whatever is behind it, and
-     the bar crosses both worlds: over the champagne pages 0.72 was fine, but
-     over Home's navy hero it settled to rgb(189,199,210) and dragged the nav
-     links to 4.19:1 — under AA on the site's busiest page. At 0.82 the same
-     pair measures 5.10:1 and the pill is still visibly glass. */
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.7);
+  /* Solid white, not glass. Translucency made the pill take its colour from
+     whatever happened to be behind it, so the same bar read grey over a navy
+     hero and white over a champagne one — and it was the grey that made it
+     look like a band rather than an object. Opaque, it is one colour on every
+     page, and the backdrop-filter goes with it: there is nothing to see
+     through, and it was costing a compositor layer on every scroll frame. */
+  background: #fff;
+  border: 1px solid rgba(5, 19, 31, 0.07);
   /* Two shadows: a tight one that seats the pill, and a wide soft one that
      lifts it off whatever is scrolling underneath. */
   box-shadow:
     0 1px 2px rgba(5, 19, 31, 0.04),
     0 8px 28px -12px rgba(5, 19, 31, 0.18);
-  transition:
-    transform var(--t) var(--ease-out),
-    background var(--t) var(--ease-out),
-    box-shadow var(--t) var(--ease-out),
-    border-color var(--t) var(--ease-out);
-}
-
-/* A hairline of light along the pill's top edge. On glass this is what stops
-   it reading as a flat translucent rectangle. */
-.nav::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 1px;
-  border-radius: var(--radius-full) var(--radius-full) 0 0;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9) 26%, rgba(255, 255, 255, 0.9) 74%, transparent);
-  pointer-events: none;
 }
 
 /* The bar tightens once the page has moved: less height, a smaller wordmark,
@@ -128,25 +110,6 @@
    a second. The padding snaps at the threshold; what carries the smoothness is
    the wordmark, which scales on the compositor, and the shadow and ground
    fading in with it. */
-/* Scrolling pulls the pill up toward the edge and firms it: more opaque, so
-   type passing beneath stays legible, and a deeper shadow because there is now
-   something moving under it to lift away from.
-
-   The rise is a transform on the pill, not padding on the rail. The rail is
-   position:sticky and its height is part of the document's flow, so animating
-   its padding would relayout the page on every frame of the condense. Moving
-   the pill instead leaves the rail's box untouched: the pill rises, nothing
-   below it moves. */
-.site-header.is-condensed { box-shadow: none; }
-.site-header.is-condensed .nav { transform: translateY(-6px); }
-.site-header.is-condensed .nav {
-  background: rgba(255, 255, 255, 0.93);
-  border-color: rgba(5, 19, 31, 0.06);
-  box-shadow:
-    0 1px 2px rgba(5, 19, 31, 0.05),
-    0 14px 40px -14px rgba(5, 19, 31, 0.26);
-}
-.site-header.is-condensed .logo-img { transform: scale(0.87); }
 
 /* A height and nothing else. No negative margins, and the link's box is the
    lettering rather than a square four times its size. */
@@ -158,8 +121,6 @@
   margin: 0;
   user-select: none;
   -webkit-user-drag: none;
-  transform-origin: left center;
-  transition: transform var(--t) var(--ease-out);
 }
 
 /* ── Nav links ───────────────────────────────────────────
@@ -308,8 +269,7 @@
 @media (max-width: 768px) {
   .logo-img { height: 26px; }
   /* The bar is already short here; condensing it further only jitters it. */
-  .site-header.is-condensed .logo-img { transform: none; }
-  .site-header.is-condensed .nav { transform: none; }
+
 }
 
 /* =========================================================
@@ -594,6 +554,19 @@
 #main-content > :first-child {
   margin-top: calc(-1 * (var(--bar-inset) + var(--bar-h)));
   border-top: calc(var(--bar-inset) + var(--bar-h)) solid transparent;
+  /*
+   * This line is the whole reason the top of the page stopped matching the
+   * hero. `background-clip` defaults to border-box, so the gradient PAINTS
+   * into the transparent border — but `background-origin` defaults to
+   * padding-box, so it is still POSITIONED from below the border and its first
+   * colour simply extends upward as a flat strip. On Home that strip was the
+   * gradient's darkest stop, which is why a hard-edged navy band sat across
+   * the top with the lighter hero beginning underneath it.
+   *
+   * Origin moved to the border box too: the gradient is now laid out over the
+   * full height it paints into and runs continuously to the top of the page.
+   */
+  background-origin: border-box;
 }
 
 @media (max-width: 768px) {

@@ -6,22 +6,8 @@ import { TRADING_PLATFORM_URL } from '../constants'
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [resourcesOpen, setResourcesOpen] = useState(false)
-  const [scrolled, setScrolled] = useState(false)
   const { openContact } = useAppContext()
   const location = useLocation()
-
-  /*
-   * The bar condenses once the page has moved. It starts at its full height so
-   * the prerendered markup and the client's first render agree, and the effect
-   * only ever tightens it — a header that begins condensed and expands would
-   * shift the page under the reader on load.
-   */
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8)
-    onScroll()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
 
   /*
    * One indicator that travels between the links rather than eight that each
@@ -69,7 +55,7 @@ export default function Header() {
   const isResourcesActive = location.pathname === '/faqs' || location.pathname === '/user-guide'
 
   return (
-    <header className={`site-header${scrolled ? ' is-condensed' : ''}`}>
+    <header className="site-header">
       <nav className="nav" aria-label="Primary">
         <Link to="/" className="logo" aria-label="Platizio Global home">
           <picture>
