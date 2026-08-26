@@ -592,19 +592,32 @@ span.ft-name-mark {
 
 .ft-ind-id { display: flex; align-items: center; gap: 14px; }
 .ft-ind-mark {
-  width: 44px; height: 44px; padding: 10px;
+  width: 52px; height: 52px; padding: 12px;
   border-radius: var(--m-radius-tile);
   border: 1px solid var(--m-rule-4);
   color: var(--m-ink); flex: none;
 }
 span.ft-ind-mark {
   display: grid; place-items: center; padding: 0;
-  font-family: var(--m-mono); font-size: 17px; color: var(--m-gold);
+  font-family: var(--m-mono); font-size: 20px; color: var(--m-gold);
 }
-.ft-ind-co { display: block; font-size: 18px; font-weight: 500; letter-spacing: -0.018em; color: var(--m-ink); }
+.ft-ind-co {
+  display: block;
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.022em;
+  line-height: 1.15;
+  color: var(--m-ink);
+}
 .ft-ind-sym {
-  display: block; font-family: var(--m-mono); font-size: 11px; letter-spacing: 0.1em;
-  color: var(--m-dim); margin-top: 3px;
+  display: block;
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--m-gold);
+  margin-top: 5px;
 }
 
 .ft-ind-px { display: flex; align-items: baseline; gap: 12px; margin-top: 22px; }
@@ -615,8 +628,33 @@ span.ft-ind-mark {
   font-weight: 500; line-height: 0.94; letter-spacing: -0.03em;
   color: var(--m-ink);
 }
-.ft-ind-foot { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--m-rule-3); }
-.ft-ind-body .ft-link { margin-top: 18px; }
+.ft-ind-foot { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--m-rule-2); }
+.ft-ind-go {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 20px;
+  padding: 14px 20px;
+  border-radius: var(--m-radius-pill);
+  border: 1px solid var(--m-card-border-hover);
+  background: var(--m-tint-soft);
+  color: var(--m-gold);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: background 0.28s var(--m-ease), border-color 0.28s var(--m-ease), color 0.28s var(--m-ease);
+}
+.ft-ind-go svg { width: 15px; height: 15px; transition: transform 0.28s var(--m-ease); }
+.ft-ind-go:hover {
+  background: var(--m-tint);
+  border-color: var(--m-gold);
+  color: var(--m-gold-hi);
+}
+.ft-ind-go:hover svg { transform: translateX(3px); }
 
 /* ===================================================== 2. the index
 

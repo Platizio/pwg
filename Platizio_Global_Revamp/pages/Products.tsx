@@ -428,17 +428,32 @@ export default function Products() {
                     {quote && <QuoteChange changePercent={quote.changePercent} variant="chip" />}
                   </div>
 
+                  {/* The disclosure belongs to the price, so it sits under it
+                      rather than after the action. */}
                   <div className="ft-ind-foot" aria-live="off">
                     <MarketNote asOf={asOf} delayed={delayed} />
                   </div>
 
+                  {/* A real button on its own rule at the foot of the panel. As
+                      a bare text link it read as a caption under the fine
+                      print, which is the one thing this panel is for. */}
                   <a
-                    className="ft-link"
+                    className="ft-ind-go"
                     href={screenerInstrument(linkSymbol)}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    Open in the terminal <span className="ft-link-rule" aria-hidden="true" />
+                    Open {symbol} in the terminal
+                    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                      <path
+                        d="M3 8h9M8.5 4.5 12 8l-3.5 3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
                   </a>
                 </div>
               )}
