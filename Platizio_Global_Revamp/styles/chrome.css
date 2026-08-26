@@ -25,25 +25,68 @@
    (/logo-wordmark), so it can simply be given a height.
    ========================================================= */
 
+/*
+ * The bar floats. The sticky element itself is now an empty transparent rail —
+ * it still occupies its height in the flow, so no page needed a top offset —
+ * and the pill is the nav inside it, inset from the top and from both edges.
+ *
+ * `pointer-events: none` on the rail with `auto` back on the pill matters more
+ * than it looks: the rail spans the full width at the top of every page, and
+ * left clickable it would swallow every click on the strip beside and above
+ * the pill.
+ */
 .site-header {
-  background: rgba(255, 255, 255, 0.86);
-  backdrop-filter: saturate(180%) blur(16px);
-  -webkit-backdrop-filter: saturate(180%) blur(16px);
-  border-bottom: 1px solid var(--line);
-  transition: background var(--t), border-color var(--t), box-shadow var(--t);
+  background: none;
+  border-bottom: 0;
+  box-shadow: none;
+  /* The rail carries the inset. Without a horizontal one the pill spans the
+     viewport and its round ends fall off both edges, which renders as an
+     ordinary full-width bar wearing a border-radius nothing can see. */
+  padding: 14px clamp(0.75rem, 2vw, 1.25rem) 0;
+  pointer-events: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
-/* Measure and gutter both match /products exactly — 1360 with the same
-   clamped gutter — so the wordmark sits on the same line as the first word of
-   that page. The site's other routes still run at --container (1200), so the
-   bar now overhangs them by 56px a side; that is the trade this alignment
-   makes, and it is deliberate. */
+/* The pill's box is /products' measure — 1360 — so its outer edge lands on
+   that page's container edge rather than on its text. That is the right thing
+   to align once the bar is an object rather than a band: a floating pill reads
+   by its boundary, and its inner padding belongs to the pill, not to the page
+   gutter underneath it. */
 .nav {
+  pointer-events: auto;
   gap: var(--space-8);
   max-width: 1360px;
   margin-inline: auto;
-  padding-block: var(--space-4);
-  padding-inline: clamp(1.25rem, 4vw, 3rem);
+  padding-block: var(--space-3);
+  padding-inline: var(--space-6);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  /* Two shadows: a tight one that seats the pill, and a wide soft one that
+     lifts it off whatever is scrolling underneath. */
+  box-shadow:
+    0 1px 2px rgba(5, 19, 31, 0.04),
+    0 8px 28px -12px rgba(5, 19, 31, 0.18);
+  transition:
+    transform var(--t) var(--ease-out),
+    background var(--t) var(--ease-out),
+    box-shadow var(--t) var(--ease-out),
+    border-color var(--t) var(--ease-out);
+}
+
+/* A hairline of light along the pill's top edge. On glass this is what stops
+   it reading as a flat translucent rectangle. */
+.nav::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  border-radius: var(--radius-full) var(--radius-full) 0 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9) 26%, rgba(255, 255, 255, 0.9) 74%, transparent);
+  pointer-events: none;
 }
 
 /* The bar tightens once the page has moved: less height, a smaller wordmark,
@@ -56,8 +99,24 @@
    a second. The padding snaps at the threshold; what carries the smoothness is
    the wordmark, which scales on the compositor, and the shadow and ground
    fading in with it. */
-.site-header.is-condensed { box-shadow: var(--shadow-sm); background: rgba(255, 255, 255, 0.94); }
-.site-header.is-condensed .nav { padding-block: var(--space-2); }
+/* Scrolling pulls the pill up toward the edge and firms it: more opaque, so
+   type passing beneath stays legible, and a deeper shadow because there is now
+   something moving under it to lift away from.
+
+   The rise is a transform on the pill, not padding on the rail. The rail is
+   position:sticky and its height is part of the document's flow, so animating
+   its padding would relayout the page on every frame of the condense. Moving
+   the pill instead leaves the rail's box untouched: the pill rises, nothing
+   below it moves. */
+.site-header.is-condensed { box-shadow: none; }
+.site-header.is-condensed .nav { transform: translateY(-6px); }
+.site-header.is-condensed .nav {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(5, 19, 31, 0.06);
+  box-shadow:
+    0 1px 2px rgba(5, 19, 31, 0.05),
+    0 14px 40px -14px rgba(5, 19, 31, 0.26);
+}
 .site-header.is-condensed .logo-img { transform: scale(0.87); }
 
 /* A height and nothing else. No negative margins, and the link's box is the
@@ -82,6 +141,7 @@
    costs no box. */
 
 .nav-links { gap: var(--space-1); position: relative; }
+.nav { position: relative; }
 
 /* One indicator for the whole list. Laid out at 100px and scaled to the width
    it needs, so the glide is transform-only and never relayouts the nav. */
@@ -220,7 +280,7 @@
   .logo-img { height: 26px; }
   /* The bar is already short here; condensing it further only jitters it. */
   .site-header.is-condensed .logo-img { transform: none; }
-  .site-header.is-condensed .nav { padding-block: var(--space-4); }
+  .site-header.is-condensed .nav { transform: none; }
 }
 
 /* =========================================================

@@ -3,6 +3,7 @@ import { createRoot, hydrateRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
 import App from './App'
+import 'lenis/dist/lenis.css'
 import '../css/styles.css'
 // Order matters: the revamp layer redefines tokens declared in styles.css, so
 // it must load after it. tokens -> base -> components.

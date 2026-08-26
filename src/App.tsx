@@ -1,6 +1,7 @@
 import { Routes, Route, useLocation, Outlet } from 'react-router-dom'
 import { useEffect } from 'react'
 import { AppProvider } from './context/AppContext'
+import { startSmoothScroll, getLenis, scrollToTarget } from './lib/smoothScroll'
 import Header from './components/Header'
 import Footer from './components/Footer'
 import ContactModal from './components/ContactModal'
@@ -24,18 +25,28 @@ import NotFound from './pages/NotFound'
 // Handles scroll-to-top / hash-scroll on route changes,
 // and re-wires the IntersectionObserver reveal animation
 // after each navigation (same logic as the original main.js).
+/* The floating bar overlays the page, so an anchored section has to stop below
+   it rather than under it. */
+const HEADER_OFFSET = 96
+
 function ScrollHandler() {
   const location = useLocation()
 
   useEffect(() => {
     if (location.hash) {
-      setTimeout(() => {
-        const el = document.querySelector(location.hash)
-        if (el) el.scrollIntoView({ behavior: 'smooth' })
+      const t = setTimeout(() => {
+        /* Through Lenis when it is running: scrollIntoView moves the native
+           scroll position out from under the smoothing, which then animates
+           back and fights it. */
+        const el = document.querySelector<HTMLElement>(location.hash)
+        if (el) scrollToTarget(el, -HEADER_OFFSET)
       }, 120)
-    } else {
-      window.scrollTo({ top: 0 })
+      return () => clearTimeout(t)
     }
+    /* A route change is a new page, not a journey across the old one: this
+       jumps rather than eases, which is why it does not go through Lenis. */
+    getLenis()?.scrollTo(0, { immediate: true })
+    window.scrollTo({ top: 0 })
   }, [location.pathname, location.hash])
 
   useEffect(() => {
@@ -80,9 +91,45 @@ function Layout() {
   )
 }
 
+function SmoothScroll() {
+  useEffect(() => startSmoothScroll(), [])
+
+  /*
+   * In-page anchors, once. Lenis leaves the browser's own jump in place, so a
+   * `#section` link would teleport while everything else eases. Delegated from
+   * the document rather than wired per link, so any anchor added later is
+   * covered without being remembered.
+   */
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+      const a = (e.target as HTMLElement | null)?.closest?.('a[href^="#"]')
+      if (!(a instanceof HTMLAnchorElement)) return
+      const hash = a.getAttribute('href')
+      if (!hash || hash === '#') return
+      const el = document.querySelector<HTMLElement>(hash)
+      if (!el) return
+      e.preventDefault()
+      scrollToTarget(el, -HEADER_OFFSET)
+      /* The hash still belongs in the URL: it is the address of the section,
+         and back should return to where the reader was. */
+      history.pushState(null, '', hash)
+      /* Keyboard focus has to follow the eye, or a skip link scrolls the page
+         and leaves the caret at the top of the document. */
+      el.setAttribute('tabindex', '-1')
+      el.focus({ preventScroll: true })
+    }
+    document.addEventListener('click', onClick)
+    return () => document.removeEventListener('click', onClick)
+  }, [])
+
+  return null
+}
+
 export default function App() {
   return (
     <AppProvider>
+      <SmoothScroll />
       <ScrollHandler />
       <Routes>
         <Route element={<Layout />}>
