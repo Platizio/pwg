@@ -25,10 +25,30 @@
    (/logo-wordmark), so it can simply be given a height.
    ========================================================= */
 
+/* The rail's own height: its top inset plus the pill it holds. Named once
+   because two rules depend on it agreeing — the rail's padding, and the
+   distance the first section is pulled up behind it. */
+:root {
+  --bar-inset: 14px;
+  --bar-h: 70px;
+}
+
 /*
- * The bar floats. The sticky element itself is now an empty transparent rail —
- * it still occupies its height in the flow, so no page needed a top offset —
- * and the pill is the nav inside it, inset from the top and from both edges.
+ * The bar floats. The sticky element is an empty transparent rail and the pill
+ * is the nav inside it, inset from the top and from both edges.
+ *
+ * The rail still occupies its height in the flow, which is what keeps every
+ * page's spacing intact — but that also meant `main` began *below* it, so the
+ * top 84px of every page was the body's white showing through and the page's
+ * own ground never reached the top. That white band under a floating pill is
+ * the giveaway that the bar is not actually floating over anything.
+ *
+ * The fix is on the first section rather than on the header, so no page needed
+ * its padding recalculated: it is pulled up by the rail's height with a
+ * negative margin and given exactly that height back as a transparent top
+ * border. `background-clip` defaults to `border-box`, so the section's own
+ * ground paints through the border area and runs to the top of the viewport,
+ * while its padding and content stay precisely where they were.
  *
  * `pointer-events: none` on the rail with `auto` back on the pill matters more
  * than it looks: the rail spans the full width at the top of every page, and
@@ -42,7 +62,7 @@
   /* The rail carries the inset. Without a horizontal one the pill spans the
      viewport and its round ends fall off both edges, which renders as an
      ordinary full-width bar wearing a border-radius nothing can see. */
-  padding: 14px clamp(0.75rem, 2vw, 1.25rem) 0;
+  padding: var(--bar-inset) clamp(0.75rem, 2vw, 1.25rem) 0;
   pointer-events: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -58,10 +78,19 @@
   gap: var(--space-8);
   max-width: 1360px;
   margin-inline: auto;
-  padding-block: var(--space-3);
+  /* 8px, not 12. The pill was 70px tall because it was sized around 44px
+     buttons with 12px of air above and below — a bar that thick stops reading
+     as a floating object and starts reading as a header that happens to have
+     corners. The buttons come down to 40 and the air to 8. */
+  padding-block: 8px;
   padding-inline: var(--space-6);
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.72);
+  /* 0.82, not 0.72. Glass takes its luminance from whatever is behind it, and
+     the bar crosses both worlds: over the champagne pages 0.72 was fine, but
+     over Home's navy hero it settled to rgb(189,199,210) and dragged the nav
+     links to 4.19:1 — under AA on the site's busiest page. At 0.82 the same
+     pair measures 5.10:1 and the pill is still visibly glass. */
+  background: rgba(255, 255, 255, 0.82);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.7);
@@ -111,7 +140,7 @@
 .site-header.is-condensed { box-shadow: none; }
 .site-header.is-condensed .nav { transform: translateY(-6px); }
 .site-header.is-condensed .nav {
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.93);
   border-color: rgba(5, 19, 31, 0.06);
   box-shadow:
     0 1px 2px rgba(5, 19, 31, 0.05),
@@ -259,7 +288,7 @@
   transform: none;
 }
 
-.nav-actions .btn { height: 44px; }
+.nav-actions .btn { height: 40px; padding-inline: var(--space-5); }
 
 /* styles.css draws this as a filled navy square with a white icon. This sheet
    was overriding the icon to navy and leaving the fill alone, which painted a
@@ -555,4 +584,18 @@
 /* styles.css sizes the header's Contact button by its old class at 480. */
 @media (max-width: 480px) {
   .nav-cta-mobile .btn { min-height: 46px; font-size: 0.9rem; }
+}
+
+/* ---- the page runs under the bar ---------------------------------------
+   Pulled up by the rail's full height and given it back as a transparent top
+   border, so the section's own background paints to the top of the viewport
+   while its content stays exactly where it was. Applied to whatever the page
+   puts first, so a page added later inherits it without knowing about it. */
+#main-content > :first-child {
+  margin-top: calc(-1 * (var(--bar-inset) + var(--bar-h)));
+  border-top: calc(var(--bar-inset) + var(--bar-h)) solid transparent;
+}
+
+@media (max-width: 768px) {
+  :root { --bar-h: 62px; }
 }
