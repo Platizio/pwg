@@ -34,6 +34,7 @@
  */
 
 import { useMemo, useState } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { TRADING_PLATFORM_URL, screenerInstrument } from '../../src/constants'
 import { POPULAR_8, LARGE_CAP_SAMPLE } from '../data/marketUniverse'
@@ -62,53 +63,63 @@ const ROUTE = [
  * step is that the instrument exists, so the step shows the instrument. Each
  * one is a region of the same capture.
  */
-const SEES = [
+/*
+ * The seven things the terminal does, in the user's own list order.
+ *
+ * No screenshots and no simulated instrument: a product page states what the
+ * product does and is judged on how well it states it. Each entry is a claim,
+ * a sentence that earns it, and a short mono note that gives it an edge — the
+ * design carries the weight, not a picture of a screen.
+ */
+const FEATURES = [
   {
-    src: '/shot-register.webp',
-    /* The wide capture's type is unreadable once it is scaled to a phone, so a
-       narrower crop of the same region is served below the stacking breakpoint. */
-    narrow: '/shot-register-narrow.webp',
-    w: 952,
-    h: 440,
-    title: 'Where it stands',
-    body: 'The price, the day, and the company beside every other name we quote — so a move means something instead of floating on its own.',
-    alt: 'The terminal’s index register: a level of 767.38, up 0.51% on the day, beside a breadth bar counting 288 companies up against 182 down.',
+    n: '01',
+    title: 'Every number on a company, current.',
+    body: 'Price, range, volume and the ratios that matter, kept up to date rather than filed once a quarter. The starting point is what the company is worth now, not what a factsheet said in March.',
+    note: 'Coverage · the largest 500 US companies',
+    wide: true,
   },
   {
-    src: '/shot-events-2.webp',
-    narrow: null,
-    w: 328,
-    h: 264,
-    title: 'What is coming',
-    body: 'The dates that are already known — dividends, splits, earnings — on one calendar, because most of what moves a price is scheduled well before it happens.',
-    alt: 'The terminal’s event calendar, listing ex-dividend dates for Union Pacific, Goldman Sachs, Lockheed Martin and McDonald’s over the coming week.',
+    n: '02',
+    title: 'The events that actually move it.',
+    body: 'Earnings dates, dividends, splits and guidance, on a calendar against the name you are holding. Most of what moves a price is scheduled long before it happens, and knowing the date is most of the advantage.',
+    note: 'Scheduled, not guessed',
+    wide: false,
   },
   {
-    src: '/shot-wire-2.webp',
-    narrow: null,
-    w: 328,
-    h: 176,
-    title: 'What was said',
-    body: 'The newswire filtered to this company alone, so you are reading about the thing you are considering rather than the market in general.',
-    alt: 'A newswire entry filed against NVDA seven hours ago, headlined on what CEOs calling a bottom have historically signalled.',
+    n: '03',
+    title: 'News filtered to the one company.',
+    body: 'The wire narrowed to the name you are considering, so you are reading about the thing you are about to buy instead of the market in general.',
+    note: 'One company at a time',
+    wide: false,
   },
   {
-    /*
-     * Stated, not illustrated.
-     *
-     * The terminal does carry analyst coverage — screener/lib/api/clients/
-     * analysts.ts — but no capture of that panel exists, and the crop that
-     * was standing here showed the gainers and losers boards instead. An
-     * image that disproves its own caption is worse than no image, so this
-     * one row makes its claim in words and sends the reader to the panel.
-     */
-    src: null,
-    narrow: null,
-    w: 0,
-    h: 0,
-    title: 'Who covers it',
-    body: 'Analyst coverage collected in one place — the ratings, the targets, and how many desks are actually publishing on the name — so a number has a source you can weigh.',
-    alt: '',
+    n: '04',
+    title: 'What the desks covering it actually say.',
+    body: 'Analyst ratings and targets collected in one place, with how many desks are publishing — so a number arrives with a source you can weigh rather than a headline you have to trust.',
+    note: 'Ratings · targets · coverage count',
+    wide: false,
+  },
+  {
+    n: '05',
+    title: 'A terminal that helps you decide, not wonder.',
+    body: 'The difference between a broker and an instrument is what happens before the order. Everything above sits on one page, against one company, so the decision is made with the evidence rather than after it.',
+    note: 'The whole case, on one page',
+    wide: true,
+  },
+  {
+    n: '06',
+    title: 'How to invest in the US, explained end to end.',
+    body: 'The route from a rupee in an Indian bank to a share on a US exchange — remittance, limits, filings and the paperwork at the far end — written out rather than assumed.',
+    note: 'Written guides, not a help desk',
+    wide: false,
+  },
+  {
+    n: '07',
+    title: 'Pricing that buys more than a place to trade.',
+    body: 'The schedule is published in full before you trade and there is no line after it. What it pays for is the instrument above, not a button that sends an order.',
+    note: `${pct(RATES.brokeragePct)} per trade · the whole schedule, in advance`,
+    wide: false,
   },
 ] as const
 
@@ -160,6 +171,10 @@ export default function Products() {
 
   const { quote, status, asOf, delayed } = useQuoteLookup(symbol)
   const { gainers, basis, asOf: gainersAsOf, delayed: gainersDelayed } = useGainers()
+
+  /* Motion is an enhancement, never the thing that makes copy visible: with
+     reduced motion the cells render in their final state and nothing animates. */
+  const reduce = useReducedMotion()
 
   const matches = useMemo(() => search(query), [query])
 
@@ -392,34 +407,39 @@ export default function Products() {
               <h2 className="ft-h2">See more than a price.</h2>
             </div>
             <p className="ft-body">
-              A price tells you what {picked} costs. It does not tell you whether to
-              buy it. Below is what the terminal holds on the name you just picked —
-              the same four things, for all five hundred.
+              A price tells you what {picked} costs. It does not tell you whether
+              to buy it. Seven things stand between a name you recognise and a
+              decision you can defend.
             </p>
           </header>
 
-          <div className="ft-sees">
-            {SEES.map((s) => (
-              <article className={`ft-see${s.src ? '' : ' is-stated'}`} key={s.title}>
-                <div className="ft-see-copy">
-                  <h3>{s.title}</h3>
-                  <p>{s.body}</p>
-                </div>
-                {s.src && (
-                  <picture className="ft-see-frame">
-                    {s.narrow && <source media="(max-width: 620px)" srcSet={s.narrow} />}
-                    <img
-                      className="ft-see-shot"
-                      src={s.src}
-                      width={s.w}
-                      height={s.h}
-                      loading="lazy"
-                      decoding="async"
-                      alt={s.alt}
-                    />
-                  </picture>
-                )}
-              </article>
+          <div className="ft-bento">
+            {FEATURES.map((f) => (
+              /*
+               * `initial={false}` on purpose. A whileInView reveal writes
+               * opacity:0 into the prerendered HTML, and this page is one of 62
+               * static files whose whole job is to be readable before React
+               * runs — a crawler or a failed bundle would have found seven
+               * invisible cells.
+               *
+               * The site's .reveal class is not used here either: it animates
+               * opacity AND translateY, and Framer writes transform inline for
+               * the hover lift, so the two overwrite each other. The cells are
+               * simply visible, and Framer drives the one thing it is actually
+               * good for here — the lift under the cursor.
+               */
+              <motion.article
+                className={`ft-cell${f.wide ? ' is-wide' : ''}`}
+                key={f.n}
+                initial={false}
+                whileHover={reduce ? undefined : { y: -4 }}
+                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <span className="ft-cell-n" aria-hidden="true">{f.n}</span>
+                <h3>{f.title}</h3>
+                <p>{f.body}</p>
+                <span className="ft-cell-note">{f.note}</span>
+              </motion.article>
             ))}
           </div>
 

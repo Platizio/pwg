@@ -603,33 +603,89 @@
 .ft-quote-empty p { margin: 0; color: var(--m-ink); font-size: 13px; }
 .ft-quote-empty-note { margin-top: 8px !important; color: var(--m-mute) !important; font-size: 12px; }
 
-/* ===================================================== 3. what it shows */
+/* ===================================================== 3. what it does
 
-.ft-sees { border-top: 1px solid var(--m-rule-2); margin-top: 40px; }
-.ft-see {
+   Seven cells, no pictures. The grid does the work a screenshot was doing
+   badly: an asymmetric field where the two load-bearing claims run wide and
+   the rest sit in a three-up, separated by hairlines rather than boxed into
+   cards. Meridian has no rounded corners, so a cell is a region of the grid,
+   not an object floating on it. */
+
+.ft-bento {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
-  gap: clamp(1.5rem, 4vw, 3.25rem);
-  align-items: center;
-  padding: clamp(1.75rem, 3vw, 2.5rem) 0;
-  border-bottom: 1px solid var(--m-rule-2);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--m-rule-2);
+  border-left: 1px solid var(--m-rule-2);
+  margin-top: 44px;
 }
-.ft-see:nth-child(even) .ft-see-copy { grid-column: 2; grid-row: 1; }
-.ft-see:nth-child(even) .ft-see-frame { grid-column: 1; grid-row: 1; }
-.ft-see.is-stated { grid-template-columns: minmax(0, 1fr); }
-.ft-see.is-stated .ft-see-copy { max-width: 62ch; }
-.ft-see h3 {
+.ft-cell {
+  display: flex;
+  flex-direction: column;
+  padding: clamp(1.75rem, 2.6vw, 2.5rem);
+  border-right: 1px solid var(--m-rule-2);
+  border-bottom: 1px solid var(--m-rule-2);
+  position: relative;
+  transition: background 0.4s ease;
+}
+.ft-cell.is-wide { grid-column: span 2; }
+
+/* The gold hairline that draws itself across the top of a cell on hover — the
+   one piece of decoration in the section, and it costs no layout. */
+.ft-cell::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--m-gold);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.5s var(--m-ease);
+}
+.ft-cell:hover { background: rgba(217, 189, 139, 0.028); }
+.ft-cell:hover::before { transform: scaleX(1); }
+
+.ft-cell-n {
+  font-family: var(--m-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: var(--m-gold-deep);
+  margin-bottom: 22px;
+}
+.ft-cell h3 {
   font-family: var(--m-serif);
   font-weight: 400;
-  font-size: 29px;
-  line-height: 1.1;
+  font-size: clamp(1.4rem, 1.9vw, 1.85rem);
+  line-height: 1.14;
+  letter-spacing: -0.006em;
   color: var(--m-ink);
   margin: 0;
+  text-wrap: balance;
 }
-.ft-see p { font-size: 12.5px; line-height: 1.75; color: var(--m-mute); margin: 12px 0 0; max-width: 46ch; text-wrap: pretty; }
-.ft-see-frame { display: block; border: 1px solid var(--m-rule-3); padding: 10px; background: var(--m-raised); }
-.ft-see-shot { display: block; width: 100%; height: auto; }
-.ft-see-go { margin: 30px 0 0; }
+.ft-cell.is-wide h3 { font-size: clamp(1.65rem, 2.4vw, 2.3rem); max-width: 22ch; }
+.ft-cell p {
+  font-size: 13px;
+  line-height: 1.78;
+  color: var(--m-mute);
+  margin: 14px 0 0;
+  max-width: 48ch;
+  text-wrap: pretty;
+}
+.ft-cell.is-wide p { max-width: 58ch; }
+
+/* The note is the cell's footing: it sits on a rule at the bottom of the cell
+   whatever the copy length, so the grid keeps a baseline across a row. */
+.ft-cell-note {
+  margin-top: auto;
+  padding-top: 22px;
+  font-family: var(--m-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  color: var(--m-gold-deep);
+}
+
+.ft-see-go { margin: 36px 0 0; }
 
 /* ===================================================== 4. cost */
 
@@ -777,20 +833,12 @@
   .ft-head .ft-body { max-width: 60ch; }
 }
 
-@media (max-width: 860px) {
-  .ft-see { grid-template-columns: minmax(0, 1fr); gap: 20px; }
-  .ft-see:nth-child(even) .ft-see-copy,
-  .ft-see:nth-child(even) .ft-see-frame { grid-column: 1; grid-row: auto; }
-  .ft-see-frame { max-width: 460px; }
-  .ft-free ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ft-free li:nth-child(2n) { border-right: 0; }
-  .ft-later { grid-template-columns: minmax(0, 1fr); }
-}
 
 @media (max-width: 620px) {
   .ft-free ul { grid-template-columns: minmax(0, 1fr); }
   .ft-free li { border-right: 0; }
-  .ft-see-frame { max-width: none; }
+  .ft-bento { grid-template-columns: minmax(0, 1fr); }
+  .ft-cell.is-wide { grid-column: span 1; }
   .ft-cost-lines > div { gap: 4px 12px; }
   .ft-quote { padding: 14px; }
   .ft-quote-body { flex-wrap: wrap; gap: 12px; }
@@ -809,6 +857,9 @@
   .ft-route,
   .ft-quote,
   .ft-close-rule { animation: none; }
+  .ft-cell::before { transform: scaleX(1); }
+  .ft-cell,
+  .ft-cell::before,
   .ft-link-rule,
   .ft-route a,
   .ft-chip,
