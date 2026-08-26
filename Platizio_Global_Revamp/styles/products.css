@@ -292,7 +292,6 @@
 /* Figures sit in columns, never dance. */
 .ft-fig,
 .ft-quote-price,
-.ft-cost-lines dd,
 .ft-free-v,
 .ft-match-sym,
 .ft-route-n,
@@ -448,16 +447,15 @@
 .ft-hero-shot {
   position: relative;
   margin: 0;
+  padding: 10px;
   border-radius: var(--m-radius-card);
   background:
     radial-gradient(74% 86% at 6% 0%, rgba(217, 189, 139, 0.1) 0%, rgba(217, 189, 139, 0.05) 34%, transparent 72%),
-    radial-gradient(52% 58% at 100% 100%, rgba(217, 189, 139, 0.05), transparent 66%),
     linear-gradient(180deg, #16130f 0%, #131009 100%);
   border: 1px solid rgba(217, 189, 139, 0.16);
   box-shadow:
     inset 0 1px 0 rgba(240, 220, 184, 0.08),
     0 40px 90px -30px rgba(0, 0, 0, 0.95);
-  overflow: hidden;
   animation: ft-rise 1s var(--m-ease) both;
 }
 .ft-hero-shot::after {
@@ -465,112 +463,27 @@
   position: absolute;
   inset: 0 0 auto 0;
   height: 1px;
+  border-radius: var(--m-radius-card) var(--m-radius-card) 0 0;
   background: linear-gradient(90deg, transparent 0%, rgba(240, 220, 184, 0.06) 14%, rgba(253, 243, 221, 0.42) 50%, rgba(240, 220, 184, 0.06) 86%, transparent 100%);
   pointer-events: none;
 }
-
-.ft-shot-chrome {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--m-rule-3);
-  font-family: var(--m-mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  color: var(--m-mute);
-}
-.ft-shot-dot { width: 7px; height: 7px; border-radius: 50%; background: #2a231c; flex: none; }
-.ft-shot-path { margin-left: 8px; }
-.ft-shot-live {
-  margin-left: auto;
-  display: flex; align-items: center; gap: 7px;
-  font-size: 10px; letter-spacing: 0.16em; font-weight: 600;
-  text-transform: uppercase;
-  color: var(--m-gold);
-}
-.ft-shot-live span {
-  width: 5px; height: 5px; border-radius: 50%;
-  background: var(--m-gold);
-  animation: ft-gold-pulse 2.4s ease-in-out infinite;
-}
-
-.ft-shot-body { padding: clamp(1.5rem, 2.4vw, 2.25rem); transition: opacity 0.3s ease; }
-.ft-shot-body.is-loading { opacity: 0.45; }
-
-.ft-shot-id { display: flex; align-items: center; gap: 14px; }
-.ft-shot-mark {
-  width: 46px; height: 46px; padding: 10px;
-  border-radius: var(--m-radius-tile);
-  border: 1px solid var(--m-rule-4);
-  color: var(--m-ink);
-  flex: none;
-}
-span.ft-shot-mark {
-  display: grid; place-items: center; padding: 0;
-  font-family: var(--m-mono); font-size: 18px; color: var(--m-gold);
-}
-.ft-shot-co {
+.ft-hero-shot img {
   display: block;
-  font-size: 19px; font-weight: 500; letter-spacing: -0.018em;
-  color: var(--m-ink);
-}
-.ft-shot-sym {
-  display: block;
-  font-family: var(--m-mono); font-size: 11px; letter-spacing: 0.08em;
-  color: var(--m-mute); margin-top: 3px;
-}
-
-.ft-shot-px { display: flex; align-items: baseline; gap: 12px; margin-top: 22px; }
-.ft-shot-cur { font-size: 22px; color: var(--m-gold-deep); }
-.ft-shot-fig {
-  font-family: var(--m-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: clamp(2.6rem, 4.4vw, 3.9rem);
-  font-weight: 500;
-  line-height: 0.94;
-  letter-spacing: -0.03em;
-  color: var(--m-ink);
-}
-.ft-hero-shot .quote-change--chip { background: none; padding: 0; font-size: 14px; }
-.ft-hero-shot .quote-change--chip.is-up { color: var(--m-up); }
-.ft-hero-shot .quote-change--chip.is-down { color: var(--m-down); }
-
-.ft-shot-cells {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1px;
-  margin: 26px 0 0;
-  background: var(--m-rule-3);
+  width: 100%;
+  height: auto;
+  border-radius: calc(var(--m-radius-card) - 6px);
   border: 1px solid var(--m-rule-3);
-  border-radius: var(--m-radius-tile);
-  overflow: hidden;
 }
-.ft-shot-cells > div { background: #131009; padding: 14px 12px; }
-.ft-shot-cells dt {
-  font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
-  font-weight: 600; color: var(--m-mute);
-}
-.ft-shot-cells dd {
-  margin: 8px 0 0;
-  font-family: var(--m-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 17px; color: var(--m-gold);
-}
-.ft-shot-foot { margin-top: 18px; }
 
-/* MarketNote is the site's shared disclosure, coloured for the light pages.
-   On this ground its prose measured 3.19:1 and its link 2.14:1 — the link was
+/* MarketNote is the site's shared disclosure, coloured for the light pages. On
+   this ground its prose measured 3.19:1 and its link 2.14:1 — the link was
    still navy. Both take this world's tones. */
 .ft .market-note {
   font-size: 11.5px;
   line-height: 1.6;
   color: var(--m-dim);
 }
-.ft .market-note a {
-  color: var(--m-gold);
-  text-underline-offset: 3px;
-}
+.ft .market-note a { color: var(--m-gold); text-underline-offset: 3px; }
 .ft .market-note a:hover { color: var(--m-gold-hi); }
 
 /* ===================================================== the movers band */
@@ -623,24 +536,32 @@ span.ft-shot-mark {
 
 /* ===================================================== 1. the eight */
 
-.ft-pick { padding-top: 32px; }
+/* The names and the indicator stand side by side: the reader picks on the left
+   and the answer arrives on the right, in view, without the page moving. */
+.ft-pick {
+  padding-top: 32px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.82fr);
+  gap: clamp(1.75rem, 3vw, 2.75rem);
+  align-items: start;
+}
 
 .ft-names {
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin: 0;
   padding: 0;
 }
 
-/* The row reads left to right: mark, name, price. The figure is right-aligned
-   on its own edge so eight of them form a column the eye can run down. */
+/* A name and its mark. No price: a card that already shows one answers the
+   question before it is asked and leaves the reader nothing to do. */
 .ft-name {
   font: inherit;
   width: 100%;
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto;
+  grid-template-columns: 40px minmax(0, 1fr);
   align-items: center;
   gap: 14px;
   text-align: left;
@@ -687,10 +608,7 @@ span.ft-name-mark {
 .ft-name-text { min-width: 0; display: block; }
 .ft-name-co {
   display: block;
-  font-size: 14.5px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  line-height: 1.25;
+  font-size: 14.5px; font-weight: 500; letter-spacing: -0.01em; line-height: 1.25;
   color: var(--m-ink);
 }
 .ft-name-sym {
@@ -700,28 +618,8 @@ span.ft-name-mark {
   color: var(--m-dim); margin-top: 2px;
 }
 
-/* Right edge, right-aligned, price over its change. */
-.ft-name-fig {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 3px;
-  text-align: right;
-}
-.ft-name-px {
-  font-family: var(--m-mono); font-variant-numeric: tabular-nums;
-  font-size: 15.5px; color: var(--m-ink); white-space: nowrap;
-}
-.ft-name .quote-change--chip { background: none; padding: 0; font-size: 11.5px; }
-.ft-name .quote-change--chip.is-up { color: var(--m-up); }
-.ft-name .quote-change--chip.is-down { color: var(--m-down); }
-.ft-name .quote-change--chip.is-flat { color: var(--m-mute); }
-
-.ft-names-note { margin-top: 14px; }
-
-.ft-search { position: relative; margin-top: clamp(1.5rem, 2.5vw, 2rem); max-width: 520px; }
-.ft-search label,
-.ft-cost-input label {
+.ft-search { position: relative; margin-top: 16px; }
+.ft-search label {
   display: block;
   font-size: 11px; font-weight: 600; letter-spacing: 0.16em;
   color: var(--m-mute); text-transform: uppercase; margin-bottom: 10px;
@@ -738,7 +636,6 @@ span.ft-name-mark {
 }
 .ft-input::placeholder { color: var(--m-mute); }
 .ft-input:hover { border-color: var(--m-rule-5); }
-.ft-input--qty { max-width: 7.5rem; font-family: var(--m-mono); font-variant-numeric: tabular-nums; }
 
 .ft-matches {
   list-style: none; margin: 8px 0 0; padding: 0;
@@ -766,6 +663,102 @@ span.ft-name-mark {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .ft-nomatch { margin: 12px 0 0; font-size: 12.5px; color: var(--m-mute); }
+
+/* ---- the indicator ------------------------------------------------------ */
+
+.ft-ind {
+  position: relative;
+  margin: 0;
+  position: sticky;
+  top: 96px;
+  border-radius: var(--m-radius-card);
+  background:
+    radial-gradient(74% 86% at 6% 0%, rgba(217, 189, 139, 0.1) 0%, rgba(217, 189, 139, 0.05) 34%, transparent 72%),
+    radial-gradient(52% 58% at 100% 100%, rgba(217, 189, 139, 0.05), transparent 66%),
+    linear-gradient(180deg, #16130f 0%, #131009 100%);
+  border: 1px solid rgba(217, 189, 139, 0.16);
+  box-shadow:
+    inset 0 1px 0 rgba(240, 220, 184, 0.08),
+    0 24px 54px -24px rgba(0, 0, 0, 0.92);
+  overflow: hidden;
+}
+.ft-ind::after {
+  content: '';
+  position: absolute; inset: 0 0 auto 0; height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(240, 220, 184, 0.06) 14%, rgba(253, 243, 221, 0.42) 50%, rgba(240, 220, 184, 0.06) 86%, transparent 100%);
+  pointer-events: none;
+}
+
+.ft-ind-chrome {
+  display: flex; align-items: center; gap: 8px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--m-rule-3);
+  font-family: var(--m-mono); font-size: 11px; letter-spacing: 0.06em;
+  color: var(--m-mute);
+}
+.ft-ind-dot { width: 7px; height: 7px; border-radius: 50%; background: #2a231c; flex: none; }
+.ft-ind-path { margin-left: 8px; }
+.ft-ind-live {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 7px;
+  font-size: 10px; letter-spacing: 0.16em; font-weight: 600; text-transform: uppercase;
+  color: var(--m-gold);
+}
+.ft-ind-live span {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--m-gold);
+  animation: ft-gold-pulse 2.4s ease-in-out infinite;
+}
+.ft-ind-live.is-idle { color: var(--m-mute); }
+.ft-ind-live.is-idle span { background: var(--m-rule-5); animation: none; }
+
+/* The waiting state is a state, not an empty box: it says what the click will
+   produce, so the panel is legible before anything is chosen. */
+.ft-ind-idle { padding: clamp(2rem, 3.5vw, 3rem) clamp(1.5rem, 2.4vw, 2rem); text-align: center; }
+.ft-ind-idle-mark {
+  display: grid; place-items: center;
+  width: 46px; height: 46px; margin: 0 auto 18px;
+  border-radius: var(--m-radius-pill);
+  border: 1px solid rgba(217, 189, 139, 0.24);
+  color: var(--m-gold);
+}
+.ft-ind-idle-mark svg { width: 20px; height: 20px; }
+.ft-ind-idle-t { margin: 0; font-size: 17px; font-weight: 500; letter-spacing: -0.018em; color: var(--m-ink); }
+.ft-ind-idle-b { margin: 10px auto 0; font-size: 13px; line-height: 1.7; color: var(--m-mute); max-width: 32ch; }
+
+.ft-ind-body { padding: clamp(1.5rem, 2.4vw, 2rem); transition: opacity 0.3s ease; }
+.ft-ind-body.is-loading { opacity: 0.45; }
+
+.ft-ind-id { display: flex; align-items: center; gap: 14px; }
+.ft-ind-mark {
+  width: 44px; height: 44px; padding: 10px;
+  border-radius: var(--m-radius-tile);
+  border: 1px solid var(--m-rule-4);
+  color: var(--m-ink); flex: none;
+}
+span.ft-ind-mark {
+  display: grid; place-items: center; padding: 0;
+  font-family: var(--m-mono); font-size: 17px; color: var(--m-gold);
+}
+.ft-ind-co { display: block; font-size: 18px; font-weight: 500; letter-spacing: -0.018em; color: var(--m-ink); }
+.ft-ind-sym {
+  display: block; font-family: var(--m-mono); font-size: 11px; letter-spacing: 0.1em;
+  color: var(--m-dim); margin-top: 3px;
+}
+
+.ft-ind-px { display: flex; align-items: baseline; gap: 12px; margin-top: 22px; }
+.ft-ind-cur { font-size: 20px; color: var(--m-gold-deep); }
+.ft-ind-fig {
+  font-family: var(--m-mono); font-variant-numeric: tabular-nums;
+  font-size: clamp(2.4rem, 3.6vw, 3.2rem);
+  font-weight: 500; line-height: 0.94; letter-spacing: -0.03em;
+  color: var(--m-ink);
+}
+.ft-ind .quote-change--chip { background: none; padding: 0; font-size: 13px; }
+.ft-ind .quote-change--chip.is-up { color: var(--m-up); }
+.ft-ind .quote-change--chip.is-down { color: var(--m-down); }
+.ft-ind-foot { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--m-rule-3); }
+.ft-ind-body .ft-link { margin-top: 18px; }
 
 /* ===================================================== 2. the index
 
@@ -867,74 +860,54 @@ span.ft-name-mark {
 
 .ft-cost { padding-top: clamp(1.5rem, 2.5vw, 2.25rem); }
 
-/* The control and the ledger are one panel. They used to be two floating
-   hairline blocks with 230px of nothing between them. */
-.ft-cost-panel {
+/* The schedule itself. Five published rates, each on its own tile — a working
+   example on one stock made the rate look like a result rather than a term. */
+.ft-charges {
+  list-style: none; margin: 0; padding: 0;
   display: grid;
-  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
-  gap: 0;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+.ft-charges li {
+  display: flex;
+  flex-direction: column;
+  padding: clamp(1.25rem, 1.9vw, 1.65rem);
   border-radius: var(--m-radius-card);
-  overflow: hidden;
-  border: 1px solid rgba(217, 189, 139, 0.13);
-  background:
-    radial-gradient(74% 86% at 6% 0%, rgba(217, 189, 139, 0.1) 0%, rgba(217, 189, 139, 0.05) 34%, transparent 72%),
-    linear-gradient(180deg, #16130f 0%, #131009 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(240, 220, 184, 0.07),
-    0 20px 44px -22px rgba(0, 0, 0, 0.9);
+  background: linear-gradient(180deg, #16130f 0%, #131009 100%);
+  border: 1px solid rgba(217, 189, 139, 0.07);
+  box-shadow: inset 0 1px 0 rgba(240, 220, 184, 0.04), 0 16px 36px -22px rgba(0, 0, 0, 0.9);
+  transition: border-color 0.32s var(--m-ease);
 }
-.ft-cost-input {
-  padding: clamp(1.5rem, 2.4vw, 2.25rem);
-  border-right: 1px solid var(--m-rule-3);
-}
-.ft-cost-entry { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-.ft-cost-value {
-  margin: 0;
-  font-family: var(--m-mono); font-variant-numeric: tabular-nums;
-  font-size: 13px; color: var(--m-mute);
-}
-.ft-cost-value strong { color: var(--m-ink); font-weight: 500; }
-.ft-cost-floor {
-  margin: 22px 0 0;
-  padding-top: 18px;
-  border-top: 1px solid var(--m-rule-3);
-  font-size: 12.5px; line-height: 1.75;
+.ft-charges li:hover { border-color: rgba(217, 189, 139, 0.2); }
+.ft-charge-head {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--m-mute);
+}
+.ft-charge-val {
+  font-family: var(--m-mono); font-variant-numeric: tabular-nums;
+  font-size: clamp(1.05rem, 1.4vw, 1.3rem);
+  line-height: 1.25;
+  color: var(--m-gold);
+  margin-top: 16px;
+}
+.ft-charge-note {
+  margin-top: auto;
+  padding-top: 14px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--m-mute);
+}
+
+.ft-cost-floor {
+  margin: clamp(1.5rem, 2.5vw, 2rem) 0 0;
+  font-size: 13px; line-height: 1.75;
+  color: var(--m-dim);
+  max-width: 62ch;
   text-wrap: pretty;
 }
 .ft-cost-floor strong { color: var(--m-gold); font-weight: 500; }
 
-.ft-cost-lines { margin: 0; padding: clamp(1.5rem, 2.4vw, 2.25rem); }
-.ft-cost-lines > div {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
-  gap: 5px 20px;
-  padding: 15px 0;
-  border-bottom: 1px solid var(--m-rule-3);
-}
-.ft-cost-lines > div:first-child { padding-top: 0; }
-.ft-cost-lines dt { font-size: 13.5px; color: var(--m-dim); }
-.ft-cost-lines dd {
-  margin: 0;
-  font-family: var(--m-mono); font-variant-numeric: tabular-nums;
-  font-size: 15px; color: var(--m-ink); text-align: right;
-}
-.ft-cost-note {
-  grid-column: 1 / -1;
-  font-family: var(--m-sans) !important;
-  font-size: 11px !important;
-  color: var(--m-mute) !important;
-  text-align: left !important;
-}
-.ft-cost-total { border-bottom: 0 !important; padding-bottom: 0 !important; }
-.ft-cost-total dt { color: var(--m-ink); font-weight: 500; }
-.ft-cost-total dd { font-size: 34px; line-height: 1; color: var(--m-gold); }
-.ft-cost-wait { padding: clamp(1.5rem, 2.4vw, 2.25rem); font-size: 13px; color: var(--m-mute); }
-
-/* The zero items as their own tiles, so "free" reads as a set of facts rather
-   than a footnote under the ledger. */
-.ft-free { margin-top: 12px; }
+.ft-free { margin-top: clamp(1.75rem, 3vw, 2.5rem); }
 .ft-free h3 {
   font-size: 15px; font-weight: 500; letter-spacing: -0.01em;
   color: var(--m-dim); margin: 0 0 12px;
@@ -1073,19 +1046,19 @@ span.ft-name-mark {
 @media (max-width: 1100px) {
   .ft-hero-inner { grid-template-columns: minmax(0, 1fr); gap: 2.5rem; }
   .ft-hero .ft-h1 { max-width: 18ch; }
-  .ft-names { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ft-pick { grid-template-columns: minmax(0, 1fr); }
+  .ft-ind { position: static; }
   .ft-movers-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ft-charges { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .ft-watch { grid-template-columns: minmax(0, 1fr); }
   .ft-head { flex-direction: column; align-items: flex-start; gap: 16px; }
   .ft-head .ft-body { max-width: 62ch; }
-  .ft-cost-panel { grid-template-columns: minmax(0, 1fr); }
-  .ft-cost-input { border-right: 0; border-bottom: 1px solid var(--m-rule-3); }
   .ft-free ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 760px) {
-  .ft-shot-cells { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ft-names { grid-template-columns: minmax(0, 1fr); }
+  .ft-charges { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ft-movers-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ft-later { grid-template-columns: minmax(0, 1fr); }
   .ft-index-head { grid-template-columns: 2.5rem minmax(0, 1fr) 1.5rem; gap: 12px; }
@@ -1098,7 +1071,7 @@ span.ft-name-mark {
   .ft-movers-row { grid-template-columns: minmax(0, 1fr); }
   .ft-free ul { grid-template-columns: minmax(0, 1fr); }
   .ft-cta, .ft-ghost { flex: 1 1 100%; text-align: center; }
-  .ft-cost-entry { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .ft-charges { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ===================================================== reduced motion */
@@ -1106,7 +1079,7 @@ span.ft-name-mark {
 @media (prefers-reduced-motion: reduce) {
   .ft-link-rule { transform: scaleX(1); }
   .ft-mark-dot,
-  .ft-shot-live span { animation: none; }
+  .ft-ind-live span { animation: none; }
   .ft-hero-copy,
   .ft-mark,
   .ft-hero-shot,
@@ -1122,7 +1095,7 @@ span.ft-name-mark {
   .ft-watch-play,
   .ft-later-item,
   .ft-input,
-  .ft-shot-body,
+  .ft-ind-body,
   .ft-cta,
   .ft-ghost { transition: none; }
   .ft-route a:hover > *,

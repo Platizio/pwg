@@ -38,11 +38,10 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { TRADING_PLATFORM_URL, screenerInstrument } from '../../src/constants'
 import { POPULAR_8, LARGE_CAP_SAMPLE } from '../data/marketUniverse'
-import { RATES, FREE_ITEMS, pct } from '../data/pricingRates'
-import { calculateTradeCost, formatUsd } from '../lib/pricing'
+import { RATES, FREE_ITEMS, TRADING_CHARGES, pct } from '../data/pricingRates'
+import { formatUsd } from '../lib/pricing'
 import { useQuoteLookup } from '../hooks/useQuoteLookup'
 import { useGainers } from '../hooks/useGainers'
-import { useMarketData } from '../hooks/useMarketData'
 import BrandMark from '../components/BrandMark'
 import { VIDEOS } from '../../src/videos'
 import { YOUTUBE_CHANNEL_URL } from '../../src/constants'
@@ -176,20 +175,16 @@ function search(query: string) {
 }
 
 export default function Products() {
-  /* Netflix opens the page: of the eight, it is the name an Indian reader is
-     likeliest to already pay for, which is the whole point of the step. */
-  const [symbol, setSymbol] = useState('NFLX')
+  /* Nothing is selected on arrival. The eight are names, not quotes, until the
+     reader asks for one — the panel beside them is what answers. */
+  const [symbol, setSymbol] = useState<string | null>(null)
   const [query, setQuery] = useState('')
-  const [shares, setShares] = useState('1')
   /* One open at a time. The first is open on arrival so the component explains
      itself without a click. */
   const [openFeature, setOpenFeature] = useState(0)
 
-  const { quote, status, asOf, delayed } = useQuoteLookup(symbol)
+  const { quote, status, asOf, delayed } = useQuoteLookup(symbol ?? '')
   const { gainers, basis } = useGainers()
-  /* The eight are quoted together in one call, so every card carries a live
-     price rather than only the one the reader has selected. */
-  const { popular, asOf: popularAsOf, delayed: popularDelayed } = useMarketData()
 
   /* Motion is an enhancement, never the thing that makes copy visible: with
      reduced motion the cells render in their final state and nothing animates. */
@@ -197,12 +192,10 @@ export default function Products() {
 
   const matches = useMemo(() => search(query), [query])
 
-  const qty = Math.max(1, Math.min(9999, Math.floor(Number(shares) || 0) || 1))
-  const value = quote ? quote.price * qty : null
-  const cost = value !== null ? calculateTradeCost(value, 'buy') : null
-
-  const displayName = quote?.name ?? symbol
+  const displayName = quote?.name ?? symbol ?? ''
   const picked = POPULAR_8.find((p) => p.symbol === symbol)?.name ?? displayName
+  /* Every link out needs a subject even before one is chosen. */
+  const linkSymbol = symbol ?? 'AAPL'
 
   const choose = (s: string) => {
     setSymbol(s)
@@ -243,74 +236,24 @@ export default function Products() {
               <a className="ft-cta" href={TRADING_PLATFORM_URL} target="_blank" rel="noopener noreferrer">
                 Open an account
               </a>
-              <a className="ft-ghost" href={screenerInstrument(symbol)} target="_blank" rel="noopener noreferrer">
+              <a className="ft-ghost" href={screenerInstrument(linkSymbol)} target="_blank" rel="noopener noreferrer">
                 See the terminal
               </a>
             </div>
           </div>
 
-          {/*
-            The hero's subject is the product, so the product is what stands
-            here — the terminal as a live panel rather than a picture of one.
-            It is one component with a fixed aspect, so a capture of the real
-            terminal can replace its contents without the hero relaying out.
-          */}
+          {/* The product itself, as the hero's subject. This is the capture of
+              the running terminal; replacing it is a one-line swap of src. */}
           <figure className="ft-hero-shot">
-            <figcaption className="ft-shot-chrome">
-              <span className="ft-shot-dot" aria-hidden="true" />
-              <span className="ft-shot-dot" aria-hidden="true" />
-              <span className="ft-shot-dot" aria-hidden="true" />
-              <span className="ft-shot-path">platizio / terminal / {symbol}</span>
-              <span className="ft-shot-live">
-                <span aria-hidden="true" />
-                {status === 'ready' ? 'Live' : status === 'loading' ? 'Loading' : 'No feed'}
-              </span>
-            </figcaption>
-
-            <div className={`ft-shot-body${status === 'loading' ? ' is-loading' : ''}`}>
-              <div className="ft-shot-id">
-                <BrandMark symbol={symbol} className="ft-shot-mark" />
-                <span>
-                  <span className="ft-shot-co">{displayName}</span>
-                  <span className="ft-shot-sym">{symbol} · Nasdaq &amp; NYSE listed</span>
-                </span>
-              </div>
-
-              <div className="ft-shot-px">
-                <span className="ft-shot-cur">$</span>
-                <span className="ft-shot-fig">{quote ? formatUsd(quote.price) : '—'}</span>
-                {quote && <QuoteChange changePercent={quote.changePercent} variant="chip" />}
-              </div>
-
-              <dl className="ft-shot-cells">
-                <div>
-                  <dt>One share, all in</dt>
-                  <dd>
-                    {quote
-                      ? `$${formatUsd(quote.price + (calculateTradeCost(quote.price, 'buy')?.total ?? 0))}`
-                      : '—'}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Cost to buy it</dt>
-                  <dd>
-                    {quote ? `$${formatUsd(calculateTradeCost(quote.price, 'buy')?.total ?? 0)}` : '—'}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Companies quoted</dt>
-                  <dd>500</dd>
-                </div>
-                <div>
-                  <dt>Account opening</dt>
-                  <dd>$0</dd>
-                </div>
-              </dl>
-
-              <div className="ft-shot-foot" aria-live="off">
-                <MarketNote asOf={asOf} delayed={delayed} />
-              </div>
-            </div>
+            <img
+              src="/terminal-hero.webp"
+              width={1600}
+              height={1000}
+              alt="The Platizio terminal: a company's price and day's move beside its events calendar, newswire and analyst coverage on one page."
+              /* Above the fold on every visit, so it is never deferred. */
+              loading="eager"
+              decoding="async"
+            />
           </figure>
         </div>
       </section>
@@ -352,73 +295,142 @@ export default function Products() {
             </div>
             <p className="ft-body">
               You do not have to begin at a screener full of tickers. Begin at a name
-              you already use, and let the instrument tell you the rest.
+              you already use, and the indicator beside them will quote it.
             </p>
           </header>
 
           <div className="ft-pick">
-            <ul className="ft-names">
-              {POPULAR_8.map((p) => {
-                const live = popular?.find((q) => q.symbol === p.symbol) ?? null
-                const on = p.symbol === symbol
-                return (
-                  <li key={p.symbol}>
-                    <button
-                      type="button"
-                      className={`ft-name${on ? ' is-on' : ''}`}
-                      aria-pressed={on}
-                      onClick={() => choose(p.symbol)}
-                    >
-                      <BrandMark symbol={p.symbol} className="ft-name-mark" />
-                      <span className="ft-name-text">
-                        <span className="ft-name-co">{p.name}</span>
-                        <span className="ft-name-sym">{p.symbol}</span>
-                      </span>
-                      <span className="ft-name-fig">
-                        <span className="ft-name-px">
-                          {live ? `$${formatUsd(live.price)}` : '—'}
+            {/* The eight are names, not quotes. A card that already shows its
+                price answers the question before it is asked and gives the
+                reader nothing to do; the price is what the click is for. */}
+            <div className="ft-pick-names">
+              <ul className="ft-names">
+                {POPULAR_8.map((p) => {
+                  const on = p.symbol === symbol
+                  return (
+                    <li key={p.symbol}>
+                      <button
+                        type="button"
+                        className={`ft-name${on ? ' is-on' : ''}`}
+                        aria-pressed={on}
+                        onClick={() => choose(p.symbol)}
+                      >
+                        <BrandMark symbol={p.symbol} className="ft-name-mark" />
+                        <span className="ft-name-text">
+                          <span className="ft-name-co">{p.name}</span>
+                          <span className="ft-name-sym">{p.symbol}</span>
                         </span>
-                        {live && <QuoteChange changePercent={live.changePercent} variant="chip" />}
-                      </span>
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-
-            <div className="ft-names-note">
-              <MarketNote asOf={popularAsOf} delayed={popularDelayed} />
-            </div>
-
-            <div className="ft-search">
-              <label htmlFor="ft-q">Or any of the largest 500 US companies</label>
-              <input
-                id="ft-q"
-                type="text"
-                className="ft-input"
-                placeholder="Company or ticker"
-                autoComplete="off"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-              {matches.length > 0 && (
-                <ul className="ft-matches">
-                  {matches.map((m) => (
-                    <li key={m.symbol}>
-                      <button type="button" onClick={() => choose(m.symbol)}>
-                        <span className="ft-match-sym">{m.symbol}</span>
-                        <span className="ft-match-name">{m.name}</span>
                       </button>
                     </li>
-                  ))}
-                </ul>
-              )}
-              {query.trim().length > 0 && matches.length === 0 && (
-                <p className="ft-nomatch">
-                  Nothing by that name in the sample. Try the ticker itself.
-                </p>
-              )}
+                  )
+                })}
+              </ul>
+
+              <div className="ft-search">
+                <label htmlFor="ft-q">Or any of the largest 500 US companies</label>
+                <input
+                  id="ft-q"
+                  type="text"
+                  className="ft-input"
+                  placeholder="Company or ticker"
+                  autoComplete="off"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+                {matches.length > 0 && (
+                  <ul className="ft-matches">
+                    {matches.map((m) => (
+                      <li key={m.symbol}>
+                        <button type="button" onClick={() => choose(m.symbol)}>
+                          <span className="ft-match-sym">{m.symbol}</span>
+                          <span className="ft-match-name">{m.name}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {query.trim().length > 0 && matches.length === 0 && (
+                  <p className="ft-nomatch">
+                    Nothing by that name in the sample. Try the ticker itself.
+                  </p>
+                )}
+              </div>
             </div>
+
+            {/* The indicator. It is the only thing on this page that quotes a
+                price, and it does it because the reader asked. */}
+            <figure className="ft-ind" aria-live="polite">
+              <figcaption className="ft-ind-chrome">
+                <span className="ft-ind-dot" aria-hidden="true" />
+                <span className="ft-ind-dot" aria-hidden="true" />
+                <span className="ft-ind-dot" aria-hidden="true" />
+                <span className="ft-ind-path">
+                  platizio / equities{symbol ? ` / ${symbol}` : ''}
+                </span>
+                <span className={`ft-ind-live${symbol ? '' : ' is-idle'}`}>
+                  <span aria-hidden="true" />
+                  {!symbol ? 'Idle' : status === 'ready' ? 'Live' : status === 'loading' ? 'Loading' : 'No feed'}
+                </span>
+              </figcaption>
+
+              {!symbol ? (
+                <div className="ft-ind-idle">
+                  <span className="ft-ind-idle-mark" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 17l5.5-6 4 4L21 6" />
+                      <path d="M15 6h6v6" />
+                    </svg>
+                  </span>
+                  <p className="ft-ind-idle-t">Pick a company.</p>
+                  <p className="ft-ind-idle-b">
+                    Its live price and the day&rsquo;s move will appear here, quoted
+                    from the same feed the terminal runs on.
+                  </p>
+                </div>
+              ) : status === 'failed' || status === 'missing' ? (
+                <div className="ft-ind-idle">
+                  <p className="ft-ind-idle-t">
+                    {status === 'missing'
+                      ? `We cannot quote ${symbol} right now.`
+                      : 'Live prices are unavailable at the moment.'}
+                  </p>
+                  <p className="ft-ind-idle-b">
+                    {status === 'missing'
+                      ? 'Pick another name.'
+                      : 'The published schedule below does not depend on a price.'}
+                  </p>
+                </div>
+              ) : (
+                <div className={`ft-ind-body${status === 'loading' ? ' is-loading' : ''}`}>
+                  <div className="ft-ind-id">
+                    <BrandMark symbol={symbol} className="ft-ind-mark" />
+                    <span>
+                      <span className="ft-ind-co">{displayName}</span>
+                      <span className="ft-ind-sym">{symbol}</span>
+                    </span>
+                  </div>
+
+                  <div className="ft-ind-px">
+                    <span className="ft-ind-cur">$</span>
+                    <span className="ft-ind-fig">{quote ? formatUsd(quote.price) : '—'}</span>
+                    {quote && <QuoteChange changePercent={quote.changePercent} variant="chip" />}
+                  </div>
+
+                  <div className="ft-ind-foot" aria-live="off">
+                    <MarketNote asOf={asOf} delayed={delayed} />
+                  </div>
+
+                  <a
+                    className="ft-link"
+                    href={screenerInstrument(linkSymbol)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Open in the terminal <span className="ft-link-rule" aria-hidden="true" />
+                  </a>
+                </div>
+              )}
+            </figure>
           </div>
         </div>
       </section>
@@ -488,7 +500,7 @@ export default function Products() {
           </ul>
 
           <p className="ft-see-go">
-            <a className="ft-link" href={screenerInstrument(symbol)} target="_blank" rel="noopener noreferrer">
+            <a className="ft-link" href={screenerInstrument(linkSymbol)} target="_blank" rel="noopener noreferrer">
               Open {symbol} in the terminal <span className="ft-link-rule" aria-hidden="true" />
             </a>
           </p>
@@ -504,81 +516,29 @@ export default function Products() {
               <h2 className="ft-h2">Know the whole cost, before you trade.</h2>
             </div>
             <p className="ft-body">
-              Not a representative example. The actual schedule, applied to the name
-              you picked, at a size you set.
+              The published schedule, in full. Not an example worked on one stock —
+              the rates themselves, which is what you are actually agreeing to.
             </p>
           </header>
 
           <div className="ft-cost">
-            {/* The control and the ledger are one object now: they were two
-                floating hairline blocks with 230px of nothing between them. */}
-            <div className="ft-cost-panel">
-              <div className="ft-cost-input">
-                <label htmlFor="ft-qty">Shares of {symbol}</label>
-                <div className="ft-cost-entry">
-                  <input
-                    id="ft-qty"
-                    className="ft-input ft-input--qty"
-                    type="number"
-                    min={1}
-                    max={9999}
-                    step={1}
-                    inputMode="numeric"
-                    value={shares}
-                    onChange={(e) => setShares(e.target.value)}
-                  />
-                  <p className="ft-cost-value">
-                    {value !== null ? (
-                      <>
-                        {qty} × ${formatUsd(quote!.price)} ={' '}
-                        <strong>${formatUsd(value)}</strong>
-                      </>
-                    ) : (
-                      'Waiting on a live price.'
-                    )}
-                  </p>
-                </div>
+            <ul className="ft-charges">
+              {TRADING_CHARGES.map((c) => (
+                <li key={c.head}>
+                  <span className="ft-charge-head">{c.head}</span>
+                  <span className="ft-charge-val">{c.value}</span>
+                  {c.note && <span className="ft-charge-note">{c.note}</span>}
+                </li>
+              ))}
+            </ul>
 
-                <p className="ft-cost-floor">
-                  Below about{' '}
-                  <strong>${formatUsd(RATES.brokerageMinUsd / RATES.brokeragePct, 0)}</strong> a
-                  trade, the ${RATES.brokerageMinUsd} minimum is larger than{' '}
-                  {pct(RATES.brokeragePct)} and becomes the cost that matters. Small
-                  first trades are proportionally the expensive ones.
-                </p>
-              </div>
-
-              {cost ? (
-                <dl className="ft-cost-lines">
-                  <div>
-                    <dt>Brokerage{cost.minimumApplied ? ' (minimum)' : ''}</dt>
-                    <dd>${formatUsd(cost.brokerage)}</dd>
-                    <dd className="ft-cost-note">
-                      {cost.minimumApplied
-                        ? `${pct(RATES.brokeragePct)} would be less than the $${RATES.brokerageMinUsd} floor`
-                        : `${pct(RATES.brokeragePct)} of trade value`}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>IGST</dt>
-                    <dd>${formatUsd(cost.igst)}</dd>
-                    <dd className="ft-cost-note">{pct(RATES.igstPct, 0)} on the brokerage</dd>
-                  </div>
-                  <div>
-                    <dt>IFSCA turnover fee</dt>
-                    <dd>${formatUsd(cost.ifsca, 4)}</dd>
-                    <dd className="ft-cost-note">Per dollar of trade value</dd>
-                  </div>
-                  <div className="ft-cost-total">
-                    <dt>Total to buy</dt>
-                    <dd>${formatUsd(cost.total)}</dd>
-                    <dd className="ft-cost-note">{cost.effectivePct.toFixed(2)}% of the trade</dd>
-                  </div>
-                </dl>
-              ) : (
-                <p className="ft-cost-wait">The breakdown appears once the price lands.</p>
-              )}
-            </div>
+            <p className="ft-cost-floor">
+              Below about{' '}
+              <strong>${formatUsd(RATES.brokerageMinUsd / RATES.brokeragePct, 0)}</strong> a
+              trade, the ${RATES.brokerageMinUsd} minimum is larger than{' '}
+              {pct(RATES.brokeragePct)} and becomes the cost that matters. Small
+              first trades are proportionally the expensive ones.
+            </p>
 
             <div className="ft-free">
               <h3>And the parts that cost nothing.</h3>
@@ -594,11 +554,9 @@ export default function Products() {
           </div>
 
           <p className="ft-cost-foot">
-            Selling adds an SEC fee of ${RATES.secFeePerUsd} per dollar and a FINRA fee
-            of ${RATES.finraPerShare} per share. FINRA sits outside the total above
-            because it is charged per share, so trade value alone cannot compute it —
-            excluded and disclosed beats included and wrong. Rates as published{' '}
-            {RATES.ratesAsOf}.{' '}
+            FINRA is charged per share rather than per dollar, so it is stated on its
+            own line rather than folded into a percentage — excluded and disclosed
+            beats included and wrong. Rates as published {RATES.ratesAsOf}.{' '}
             <Link className="ft-link ft-link--inline" to="/pricing">
               The full schedule <span className="ft-link-rule" aria-hidden="true" />
             </Link>
@@ -688,7 +646,7 @@ export default function Products() {
               <a className="ft-cta" href={TRADING_PLATFORM_URL} target="_blank" rel="noopener noreferrer">
                 Open an account
               </a>
-              <a className="ft-ghost" href={screenerInstrument(symbol)} target="_blank" rel="noopener noreferrer">
+              <a className="ft-ghost" href={screenerInstrument(linkSymbol)} target="_blank" rel="noopener noreferrer">
                 Keep looking at {symbol}
               </a>
             </div>
