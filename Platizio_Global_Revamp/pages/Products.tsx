@@ -6,12 +6,13 @@
  * equally refuses its opposite, the austere spec sheet, which the previous
  * build shipped. Neither answers the only question our reader actually has.
  *
- * OWN-WORLD: Meridian v2, the screener's own lit-card surface — #080706 under
- * a champagne wash, one gold #D9BD8B, Outfit in all three roles, 16px cards
- * carrying a warm gradient, a one-pixel top highlight and a pooled shadow.
- * Taken from screener/app/globals.css so the page and the instrument it sells
- * are visibly one object. Scoped to .ft and .chrome-dark; :root is untouched,
- * so Home, Pricing and About keep the site's light identity.
+ * OWN-WORLD: The site's own light world — white ground, navy ink, one burnt
+ * orange, the hairlines and shadows Home and Pricing already use, every value
+ * from tokens.css. The one thing kept from the terminal is Outfit, set in all
+ * three roles the way the screener sets it. Cards are white with a hairline
+ * and a soft shadow; the inset highlight and pooled black that made a dark
+ * card read as lit are dark-ground devices and are gone with the dark ground.
+ * Scoped to .ft; :root is untouched and the shared chrome is the site's own.
  *
  * STORY: A reader in India who has never bought a US stock arrives unsure it
  * is even allowed. They learn it is, in the first viewport. Then they walk the
@@ -204,12 +205,6 @@ export default function Products() {
 
   return (
     <div className="ft" data-seed="a08a840d">
-      <svg className="ft-grain" aria-hidden="true" focusable="false">
-        <filter id="ft-grain-f">
-          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves={3} stitchTiles="stitch" />
-        </filter>
-        <rect width="100%" height="100%" filter="url(#ft-grain-f)" />
-      </svg>
 
       {/* ------------------------------------------------------------- hero */}
       <section className="ft-hero">

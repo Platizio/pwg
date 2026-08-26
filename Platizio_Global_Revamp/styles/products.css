@@ -1,50 +1,52 @@
 /*
- * /products — the first trade, walked end to end, in the Meridian world.
+ * /products — the first trade, walked end to end.
  *
- * The page order is the reader's: five stops from "am I allowed to" to "open
- * the account". The visual world is Meridian Home's, pinned by the user:
- * near-black ground, one gold, Instrument Serif over Manrope over IBM Plex
- * Mono, hairline rules, square corners, grain, and small tracked capitals
- * doing the labelling a light page would do with weight.
+ * The page order is the reader's: five stops from "am I allowed to" through to
+ * the account, with the seven capabilities and the videos between them.
  *
- * Everything here is scoped under .ft or .chrome-dark. Nothing touches :root,
- * so Home, Pricing and About keep the site's light identity untouched, and the
- * terminal's own .meridian sheets are not involved either.
+ * The world is the site's own light one. Every value comes from tokens.css —
+ * white ground, navy ink, one burnt orange, the same hairlines and the same
+ * shadows Home and Pricing use — so this page belongs to the site rather than
+ * standing apart from it. The one thing it keeps from the terminal is Outfit,
+ * set in all three roles the way the screener sets it.
  *
- * Meridian's grammar, kept honestly:
- *   ground #080706, raised #0B0A09, gold #D9BD8B / #B8945C
- *   rules  #1C1815 · #201B17 · #241F1A · #302821 · #3A2F22
- *   up #7DD3A0, down #E0796B
- *   no border-radius anywhere; separation is a hairline, never a shadow alone
+ * A card here is not "lit": the inset top highlight and the pooled black
+ * shadow that made a dark card read as lit are devices for a dark ground and
+ * look like grime on a white one. The light equivalent is the site's own — a
+ * white face, one hairline, and a soft two-stop shadow.
+ *
+ * Scoped to .ft throughout; :root is untouched, and the terminal keeps its own
+ * .meridian sheets.
  */
 
 /* ===================================================== the world */
 
-.ft,
-.chrome-dark {
-  --m-bg: #080706;
-  --m-shell: #0b0a09;
-  --m-raised: #15120f;
-  --m-ink: #f2ede5;
-  --m-dim: #c7bfb4;
-  --m-mute: #9a9186;
-  --m-mute-2: #8a8076;
-  --m-gold: #d9bd8b;
-  --m-gold-hi: #f0dcb8;
-  --m-gold-deep: #b8945c;
-  --m-gold-face: linear-gradient(135deg, #e8cfa3, #c9a46f);
-  --m-on-gold: #1a1207;
-  --m-rule: #1c1815;
-  --m-rule-2: #201b17;
-  --m-rule-3: #241f1a;
-  --m-rule-4: #302821;
-  --m-rule-5: #3a2f22;
-  --m-up: #7dd3a0;
-  --m-down: #e0796b;
+.ft {
+  /*
+   * The site's own light world. The role names are kept from the dark build so
+   * nothing downstream had to be renamed, but every value now comes from
+   * tokens.css — this page uses the same ink, the same burnt orange and the
+   * same rules as Home, Pricing and About.
+   */
+  --m-bg: var(--white);
+  --m-sunken: var(--surface-sunken);
+  --m-ink: var(--ink-800);
+  --m-dim: var(--gray-600);
+  --m-mute: var(--gray-500);
+  --m-gold: var(--accent-500);
+  --m-gold-hi: var(--accent-600);
+  --m-gold-deep: var(--accent-500);
+  --m-gold-face: linear-gradient(135deg, var(--accent-400), var(--accent-500));
+  --m-on-gold: var(--white);
+  --m-rule: var(--line);
+  --m-rule-2: var(--line);
+  --m-rule-3: var(--line-strong);
+  --m-rule-4: var(--line-strong);
+  --m-rule-5: var(--gray-300);
+  --m-up: var(--gain);
+  --m-down: var(--loss);
 
-  /* One family in three roles, exactly as the screener sets it. The role names
-     survive because they are the jobs the interface reasons in — display,
-     prose, figure — not because two of them are still a serif and a mono. */
+  /* One family in three roles, as the screener sets it. */
   --m-serif: 'Outfit', ui-sans-serif, system-ui, sans-serif;
   --m-sans: 'Outfit', ui-sans-serif, system-ui, sans-serif;
   --m-mono: 'Outfit', ui-sans-serif, system-ui, sans-serif;
@@ -54,185 +56,29 @@
   --m-radius-tile: 12px;
   --m-radius-pill: 999px;
 
-  --m-tint: rgba(217, 189, 139, 0.1);
-  --m-tint-soft: rgba(217, 189, 139, 0.06);
-  --m-tint-faint: rgba(217, 189, 139, 0.04);
-}
-
-/*
- * Meridian v2 — the lit-card surface, lifted from the screener so the product
- * page and the instrument it sells are visibly the same object.
- *
- * A lit card is not a filled panel. Three things do it: the gradient runs
- * along the light's axis, a one-pixel inset highlight sits only on the top
- * edge where the light lands, and the shadow carries a negative spread so it
- * pools underneath the card rather than haloing it.
- */
-.ft-card {
-  border-radius: var(--m-radius-card);
-  background: linear-gradient(180deg, #16130f 0%, #131009 100%);
-  border: 1px solid rgba(217, 189, 139, 0.07);
-  box-shadow:
-    inset 0 1px 0 rgba(240, 220, 184, 0.04),
-    0 16px 36px -22px rgba(0, 0, 0, 0.9);
-}
-
-/* The feature surface: a directional tint so it reads as lit from a point
-   rather than filled with a colour. 0.10 is the measured ceiling — tinting the
-   ground raises its luminance, and the dimmest tone set on it holds 4.96:1
-   here and fails AA by 0.16. */
-.ft-card-lit {
-  border-radius: var(--m-radius-card);
-  background:
-    radial-gradient(74% 86% at 6% 0%, rgba(217, 189, 139, 0.1) 0%, rgba(217, 189, 139, 0.05) 34%, transparent 72%),
-    radial-gradient(52% 58% at 100% 100%, rgba(217, 189, 139, 0.05), transparent 66%),
-    linear-gradient(180deg, #16130f 0%, #131009 100%);
-  border: 1px solid rgba(217, 189, 139, 0.13);
-  box-shadow:
-    inset 0 1px 0 rgba(240, 220, 184, 0.07),
-    0 20px 44px -22px rgba(0, 0, 0, 0.9);
-}
-
-.ft-card-hover {
-  transition:
-    border-color 0.32s var(--m-ease),
-    box-shadow 0.32s var(--m-ease),
-    transform 0.32s var(--m-ease);
-}
-.ft-card-hover:hover {
-  border-color: rgba(217, 189, 139, 0.2);
-  box-shadow:
-    inset 0 1px 0 rgba(240, 220, 184, 0.08),
-    0 26px 54px -20px rgba(0, 0, 0, 0.86);
-}
-
-/* The hairline that catches light along a top edge — brightest at the centre,
-   gone at the corners, the way a real bevel picks up a lamp. This is the
-   single detail that separates a lit card from a filled one. */
-.ft-edge-lit { position: relative; }
-.ft-edge-lit::after {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 1px;
-  border-radius: var(--m-radius-card) var(--m-radius-card) 0 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(240, 220, 184, 0.06) 14%,
-    rgba(253, 243, 221, 0.42) 50%,
-    rgba(240, 220, 184, 0.06) 86%,
-    transparent 100%
-  );
-  pointer-events: none;
-  z-index: 1;
-}
-
-/* A ruled gilt hairline, for separating a hero from what follows it. */
-.ft-rule-gilt {
-  height: 1px;
-  border: 0;
-  margin: 0;
-  background: linear-gradient(90deg, transparent, rgba(217, 189, 139, 0.34) 22%, rgba(217, 189, 139, 0.34) 78%, transparent);
+  /*
+   * A card on white cannot be "lit" — the inset top highlight and the pooled
+   * black shadow are devices for a dark ground and read as grime on a light
+   * one. The light equivalent is what the rest of the site already uses: a
+   * white face, one hairline, and a soft two-stop shadow that lifts it.
+   */
+  --m-card-bg: var(--white);
+  --m-card-border: var(--line);
+  --m-card-border-strong: var(--line-strong);
+  --m-card-border-hover: rgba(185, 75, 18, 0.32);
+  --m-card-shadow: var(--shadow-sm);
+  --m-card-shadow-md: var(--shadow-md);
+  --m-card-shadow-lg: var(--shadow-lg);
+  --m-tint: rgba(185, 75, 18, 0.05);
+  --m-tint-soft: rgba(185, 75, 18, 0.035);
 }
 
 @keyframes ft-rise { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
 @keyframes ft-gold-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(217, 189, 139, 0.5); }
-  50% { box-shadow: 0 0 0 7px rgba(217, 189, 139, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(185, 75, 18, 0.45); }
+  50% { box-shadow: 0 0 0 7px rgba(185, 75, 18, 0); }
 }
 @keyframes ft-rule-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-
-/* ===================================================== the shared chrome
-   The site header and footer belong to the light world. On this one route they
-   follow the page down, because a light header sitting on #080706 reads as a
-   page that failed to load rather than a page with a point of view.
-
-   Scoped to .chrome-dark, which only /products sets. Every other route renders
-   the identical markup with none of these rules applying. */
-
-.chrome-dark { color-scheme: dark; }
-
-.chrome-dark .site-header {
-  background: rgba(8, 7, 6, 0.94);
-  backdrop-filter: saturate(140%) blur(10px);
-  border-bottom: 1px solid var(--m-rule);
-  box-shadow: none;
-}
-
-/* The wordmark is a raster with navy lettering, so on this ground half of it
-   disappears. Lifting it is an interim: the real fix is a light-ground variant
-   of the asset, which only the brand owner can supply. */
-.chrome-dark .logo-img { filter: brightness(1.75) contrast(0.94); }
-
-/* Specificity has to clear the light theme's own `.site-header .nav a`, which
-   is an exact tie and loads later. And the muted tone that reads correctly in
-   body copy is too dim for 14px navigation on this ground — measured at
-   2.52:1 — so the chrome takes the brighter of the two greys. */
-.chrome-dark .site-header .nav-links a,
-.chrome-dark .site-header .nav-trigger { color: var(--m-dim); }
-.chrome-dark .site-header .nav-links a:hover,
-.chrome-dark .site-header .nav-trigger:hover { color: var(--m-ink); }
-.chrome-dark .site-header .nav-links a.active {
-  background: rgba(217, 189, 139, 0.08);
-  color: var(--m-ink);
-  border-radius: 0;
-}
-.chrome-dark .dropdown-chevron { color: currentColor; }
-.chrome-dark .dropdown {
-  background: var(--m-raised);
-  border: 1px solid var(--m-rule-3);
-  border-radius: 0;
-  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.8);
-}
-.chrome-dark .dropdown a { color: var(--m-dim); }
-.chrome-dark .dropdown a:hover { background: rgba(217, 189, 139, 0.06); color: var(--m-ink); }
-
-/* The two header actions take Meridian's pair: one gold face, one hairline
-   ghost. Square, tracked, no navy. */
-.chrome-dark .site-header .btn-primary {
-  background: var(--m-gold-face);
-  color: var(--m-on-gold);
-  border-color: transparent;
-  border-radius: 0;
-  box-shadow: 0 8px 28px rgba(217, 189, 139, 0.18);
-}
-.chrome-dark .site-header .btn-primary:hover {
-  box-shadow: 0 14px 40px rgba(217, 189, 139, 0.34);
-  color: var(--m-on-gold);
-}
-.chrome-dark .site-header .btn-pulse {
-  background: transparent;
-  border: 1px solid var(--m-rule-4);
-  color: var(--m-dim);
-  border-radius: 0;
-  box-shadow: none;
-  animation: none;
-}
-.chrome-dark .site-header .btn-pulse:hover { border-color: var(--m-gold); color: var(--m-ink); }
-.chrome-dark .menu-toggle {
-  background: transparent;
-  border: 1px solid var(--m-rule-4);
-  color: var(--m-ink);
-  border-radius: 0;
-}
-
-.chrome-dark footer {
-  background: var(--m-bg);
-  border-top: 1px solid var(--m-rule);
-  color: var(--m-mute);
-}
-.chrome-dark footer a { color: var(--m-dim); }
-.chrome-dark footer a:hover { color: var(--m-gold); }
-.chrome-dark footer h2,
-.chrome-dark footer h3,
-.chrome-dark footer strong { color: var(--m-ink); }
-.chrome-dark .footer-contact-label { color: var(--m-mute); }
-.chrome-dark .copyright,
-.chrome-dark .disclaimer,
-.chrome-dark .footer-legal-link { color: var(--m-mute); }
-.chrome-dark .footer-bottom,
-.chrome-dark .footer-top { border-color: var(--m-rule); }
 
 /* ===================================================== page shell */
 
@@ -260,32 +106,14 @@
    dimmest text tone drops to 4.34:1 and the page stops meeting AA. */
 .ft {
   position: relative;
-  background:
-    radial-gradient(880px 440px at 50% 0%, rgba(217, 189, 139, 0.16), transparent 68%),
-    radial-gradient(520px 300px at 88% 14%, rgba(217, 189, 139, 0.05), transparent 64%),
-    radial-gradient(640px 420px at 4% 96%, rgba(217, 189, 139, 0.04), transparent 66%),
-    var(--m-bg);
+  background: var(--m-bg);
   color: var(--m-ink);
   font-family: var(--m-sans);
   overflow: hidden;
 }
 
-/* Meridian's grain. Decorative only, never over an interactive layer. */
-.ft-grain {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0.045;
-  pointer-events: none;
-  mix-blend-mode: overlay;
-  z-index: 6;
-}
 
-.ft > section,
-.ft > .ft-close { position: relative; z-index: 7; }
-
-.ft ::selection { background: rgba(217, 189, 139, 0.26); color: var(--m-ink); }
+.ft ::selection { background: var(--m-tint); color: var(--m-ink); }
 .ft :focus-visible { outline: 2px solid var(--m-gold); outline-offset: 3px; }
 .ft input { caret-color: var(--m-gold); }
 
@@ -389,10 +217,10 @@
   text-transform: uppercase;
   text-decoration: none;
   border-radius: var(--m-radius-pill);
-  box-shadow: 0 12px 36px rgba(217, 189, 139, 0.22);
+  box-shadow: 0 12px 36px var(--m-card-border-hover);
   transition: transform 0.2s ease, box-shadow 0.25s ease;
 }
-.ft-cta:hover { transform: translateY(-2px); box-shadow: 0 18px 50px rgba(217, 189, 139, 0.4); }
+.ft-cta:hover { transform: translateY(-2px); box-shadow: 0 18px 50px var(--m-tint); }
 .ft-ghost {
   padding: 17px 30px;
   border-radius: var(--m-radius-pill);
@@ -450,23 +278,14 @@
   padding: 10px;
   border-radius: var(--m-radius-card);
   background:
-    radial-gradient(74% 86% at 6% 0%, rgba(217, 189, 139, 0.1) 0%, rgba(217, 189, 139, 0.05) 34%, transparent 72%),
-    linear-gradient(180deg, #16130f 0%, #131009 100%);
-  border: 1px solid rgba(217, 189, 139, 0.16);
+    radial-gradient(74% 86% at 6% 0%, var(--m-tint) 0%, var(--m-tint-soft) 34%, transparent 72%),
+    var(--m-card-bg);
+  border: 1px solid var(--m-card-border-strong);
   box-shadow:
-    inset 0 1px 0 rgba(240, 220, 184, 0.08),
-    0 40px 90px -30px rgba(0, 0, 0, 0.95);
+    var(--m-card-shadow-lg);
   animation: ft-rise 1s var(--m-ease) both;
 }
-.ft-hero-shot::after {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 1px;
-  border-radius: var(--m-radius-card) var(--m-radius-card) 0 0;
-  background: linear-gradient(90deg, transparent 0%, rgba(240, 220, 184, 0.06) 14%, rgba(253, 243, 221, 0.42) 50%, rgba(240, 220, 184, 0.06) 86%, transparent 100%);
-  pointer-events: none;
-}
+
 .ft-hero-shot img {
   display: block;
   width: 100%;
@@ -531,9 +350,9 @@
   margin-right: 12px;
   padding: 13px 15px;
   border-radius: var(--m-radius-tile);
-  background: linear-gradient(180deg, #16130f 0%, #131009 100%);
-  border: 1px solid rgba(217, 189, 139, 0.07);
-  box-shadow: inset 0 1px 0 rgba(240, 220, 184, 0.04);
+  background: var(--m-card-bg);
+  border: 1px solid var(--m-card-border);
+  box-shadow: ;
 }
 .ft-movers-sym {
   font-family: var(--m-mono); font-variant-numeric: tabular-nums;
@@ -601,28 +420,24 @@
   padding: 16px 18px;
   cursor: pointer;
   border-radius: var(--m-radius-card);
-  background: linear-gradient(180deg, #16130f 0%, #131009 100%);
-  border: 1px solid rgba(217, 189, 139, 0.07);
+  background: var(--m-card-bg);
+  border: 1px solid var(--m-card-border);
   box-shadow:
-    inset 0 1px 0 rgba(240, 220, 184, 0.04),
-    0 16px 36px -22px rgba(0, 0, 0, 0.9);
+    var(--m-card-shadow);
   transition:
     border-color 0.32s var(--m-ease),
     box-shadow 0.32s var(--m-ease),
     transform 0.32s var(--m-ease);
 }
 .ft-name:hover {
-  border-color: rgba(217, 189, 139, 0.2);
+  border-color: var(--m-card-border-hover);
   box-shadow:
-    inset 0 1px 0 rgba(240, 220, 184, 0.08),
-    0 26px 54px -20px rgba(0, 0, 0, 0.86);
+    var(--m-card-shadow-lg);
   transform: translateY(-2px);
 }
 .ft-name.is-on {
-  border-color: rgba(217, 189, 139, 0.34);
-  background:
-    radial-gradient(74% 86% at 6% 0%, rgba(217, 189, 139, 0.12) 0%, rgba(217, 189, 139, 0.05) 34%, transparent 72%),
-    linear-gradient(180deg, #16130f 0%, #131009 100%);
+  border-color: var(--m-card-border-hover);
+  background: var(--m-card-bg);
 }
 
 .ft-name-mark {
@@ -636,7 +451,7 @@ span.ft-name-mark {
   display: grid; place-items: center; padding: 0;
   font-family: var(--m-mono); font-size: 15px; font-weight: 500; color: var(--m-gold);
 }
-.ft-name.is-on .ft-name-mark { border-color: rgba(217, 189, 139, 0.34); }
+.ft-name.is-on .ft-name-mark { border-color: var(--m-card-border-hover); }
 
 .ft-name-text { min-width: 0; display: block; }
 .ft-name-co {
@@ -663,7 +478,7 @@ span.ft-name-mark {
   padding: 14px 16px;
   border: 1px solid var(--m-rule-3);
   border-radius: var(--m-radius-tile);
-  background: #131009;
+  background: var(--m-card-bg);
   color: var(--m-ink);
   transition: border-color 0.25s ease;
 }
@@ -674,9 +489,9 @@ span.ft-name-mark {
   list-style: none; margin: 8px 0 0; padding: 0;
   border-radius: var(--m-radius-tile);
   overflow: hidden;
-  border: 1px solid rgba(217, 189, 139, 0.13);
-  background: linear-gradient(180deg, #16130f 0%, #131009 100%);
-  box-shadow: inset 0 1px 0 rgba(240, 220, 184, 0.07), 0 20px 44px -22px rgba(0, 0, 0, 0.9);
+  border: 1px solid var(--m-card-border-strong);
+  background: var(--m-card-bg);
+  box-shadow: var(--m-card-shadow-md);
 }
 .ft-matches button {
   font: inherit;
@@ -689,7 +504,7 @@ span.ft-name-mark {
   transition: background 0.24s ease;
 }
 .ft-matches li:last-child button { border-bottom: 0; }
-.ft-matches button:hover { background: rgba(217, 189, 139, 0.05); }
+.ft-matches button:hover { background: var(--m-tint-soft); }
 .ft-match-sym { font-family: var(--m-mono); font-size: 11.5px; color: var(--m-gold); letter-spacing: 0.06em; }
 .ft-match-name {
   font-size: 12.5px; color: var(--m-dim);
@@ -705,22 +520,13 @@ span.ft-name-mark {
   position: sticky;
   top: 96px;
   border-radius: var(--m-radius-card);
-  background:
-    radial-gradient(74% 86% at 6% 0%, rgba(217, 189, 139, 0.1) 0%, rgba(217, 189, 139, 0.05) 34%, transparent 72%),
-    radial-gradient(52% 58% at 100% 100%, rgba(217, 189, 139, 0.05), transparent 66%),
-    linear-gradient(180deg, #16130f 0%, #131009 100%);
-  border: 1px solid rgba(217, 189, 139, 0.16);
+  background: var(--m-card-bg);
+  border: 1px solid var(--m-card-border-strong);
   box-shadow:
-    inset 0 1px 0 rgba(240, 220, 184, 0.08),
-    0 24px 54px -24px rgba(0, 0, 0, 0.92);
+    var(--m-card-shadow-md);
   overflow: hidden;
 }
-.ft-ind::after {
-  content: '';
-  position: absolute; inset: 0 0 auto 0; height: 1px;
-  background: linear-gradient(90deg, transparent 0%, rgba(240, 220, 184, 0.06) 14%, rgba(253, 243, 221, 0.42) 50%, rgba(240, 220, 184, 0.06) 86%, transparent 100%);
-  pointer-events: none;
-}
+
 
 .ft-ind-chrome {
   display: flex; align-items: center; gap: 8px;
@@ -729,7 +535,7 @@ span.ft-name-mark {
   font-family: var(--m-mono); font-size: 11px; letter-spacing: 0.06em;
   color: var(--m-mute);
 }
-.ft-ind-dot { width: 7px; height: 7px; border-radius: 50%; background: #2a231c; flex: none; }
+.ft-ind-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gray-300); flex: none; }
 .ft-ind-path { margin-left: 8px; }
 .ft-ind-live {
   margin-left: auto;
@@ -743,7 +549,7 @@ span.ft-name-mark {
   animation: ft-gold-pulse 2.4s ease-in-out infinite;
 }
 .ft-ind-live.is-idle { color: var(--m-mute); }
-.ft-ind-live.is-idle span { background: var(--m-rule-5); animation: none; }
+.ft-ind-live.is-idle span { background: var(--gray-300); animation: none; }
 
 /* The waiting state is a state, not an empty box: it says what the click will
    produce, so the panel is legible before anything is chosen. */
@@ -752,7 +558,7 @@ span.ft-name-mark {
   display: grid; place-items: center;
   width: 46px; height: 46px; margin: 0 auto 18px;
   border-radius: var(--m-radius-pill);
-  border: 1px solid rgba(217, 189, 139, 0.24);
+  border: 1px solid var(--m-card-border-hover);
   color: var(--m-gold);
 }
 .ft-ind-idle-mark svg { width: 20px; height: 20px; }
@@ -805,18 +611,17 @@ span.ft-ind-mark {
   padding: 0;
   border-radius: var(--m-radius-card);
   overflow: hidden;
-  border: 1px solid rgba(217, 189, 139, 0.09);
-  background: linear-gradient(180deg, #16130f 0%, #131009 100%);
+  border: 1px solid var(--m-card-border);
+  background: var(--m-card-bg);
   box-shadow:
-    inset 0 1px 0 rgba(240, 220, 184, 0.05),
-    0 20px 44px -22px rgba(0, 0, 0, 0.9);
+    var(--m-card-shadow-md);
 }
 .ft-index-row { border-bottom: 1px solid var(--m-rule-3); }
 .ft-index-row:last-child { border-bottom: 0; }
 .ft-index-row h3 { margin: 0; font-size: inherit; font-weight: inherit; }
 .ft-index-row.is-open {
   background:
-    radial-gradient(60% 140% at 0% 0%, rgba(217, 189, 139, 0.07), transparent 70%);
+    radial-gradient(60% 140% at 0% 0%, var(--m-tint-soft), transparent 70%);
 }
 
 .ft-index-head {
@@ -834,7 +639,7 @@ span.ft-ind-mark {
   color: var(--m-ink);
   transition: background 0.3s var(--m-ease);
 }
-.ft-index-head:hover { background: rgba(217, 189, 139, 0.035); }
+.ft-index-head:hover { background: var(--m-tint-soft); }
 .ft-index-n {
   font-family: var(--m-mono); font-variant-numeric: tabular-nums;
   font-size: 12px; font-weight: 600; letter-spacing: 0.16em;
@@ -906,12 +711,12 @@ span.ft-ind-mark {
   flex-direction: column;
   padding: clamp(1.25rem, 1.9vw, 1.65rem);
   border-radius: var(--m-radius-card);
-  background: linear-gradient(180deg, #16130f 0%, #131009 100%);
-  border: 1px solid rgba(217, 189, 139, 0.07);
-  box-shadow: inset 0 1px 0 rgba(240, 220, 184, 0.04), 0 16px 36px -22px rgba(0, 0, 0, 0.9);
+  background: var(--m-card-bg);
+  border: 1px solid var(--m-card-border);
+  box-shadow: var(--m-card-shadow);
   transition: border-color 0.32s var(--m-ease);
 }
-.ft-charges li:hover { border-color: rgba(217, 189, 139, 0.2); }
+.ft-charges li:hover { border-color: var(--m-card-border-hover); }
 .ft-charge-head {
   font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--m-mute);
@@ -952,9 +757,9 @@ span.ft-ind-mark {
 .ft-free li {
   padding: 18px;
   border-radius: var(--m-radius-tile);
-  background: linear-gradient(180deg, #16130f 0%, #131009 100%);
-  border: 1px solid rgba(217, 189, 139, 0.07);
-  box-shadow: inset 0 1px 0 rgba(240, 220, 184, 0.04);
+  background: var(--m-card-bg);
+  border: 1px solid var(--m-card-border);
+  box-shadow: ;
 }
 .ft-free li > span:last-child {
   display: block;
@@ -985,12 +790,12 @@ span.ft-ind-mark {
 .ft-later-item {
   padding: clamp(1.5rem, 2.2vw, 2rem);
   border-radius: var(--m-radius-card);
-  background: linear-gradient(180deg, #16130f 0%, #131009 100%);
-  border: 1px solid rgba(217, 189, 139, 0.07);
-  box-shadow: inset 0 1px 0 rgba(240, 220, 184, 0.04), 0 16px 36px -22px rgba(0, 0, 0, 0.9);
+  background: var(--m-card-bg);
+  border: 1px solid var(--m-card-border);
+  box-shadow: var(--m-card-shadow);
   transition: border-color 0.32s var(--m-ease);
 }
-.ft-later-item:hover { border-color: rgba(217, 189, 139, 0.2); }
+.ft-later-item:hover { border-color: var(--m-card-border-hover); }
 .ft-later-item h3 {
   font-size: 18px; font-weight: 500; letter-spacing: -0.018em;
   line-height: 1.25; color: var(--m-ink); margin: 0;
@@ -1010,16 +815,16 @@ span.ft-ind-mark {
   height: 100%;
   padding: clamp(1.5rem, 2.2vw, 2rem);
   border-radius: var(--m-radius-card);
-  background: linear-gradient(180deg, #16130f 0%, #131009 100%);
-  border: 1px solid rgba(217, 189, 139, 0.07);
-  box-shadow: inset 0 1px 0 rgba(240, 220, 184, 0.04), 0 16px 36px -22px rgba(0, 0, 0, 0.9);
+  background: var(--m-card-bg);
+  border: 1px solid var(--m-card-border);
+  box-shadow: var(--m-card-shadow);
   color: inherit;
   text-decoration: none;
   transition: border-color 0.32s var(--m-ease), box-shadow 0.32s var(--m-ease), transform 0.32s var(--m-ease);
 }
 .ft-watch-card:hover {
-  border-color: rgba(217, 189, 139, 0.2);
-  box-shadow: inset 0 1px 0 rgba(240, 220, 184, 0.08), 0 26px 54px -20px rgba(0, 0, 0, 0.86);
+  border-color: var(--m-card-border-hover);
+  box-shadow: var(--m-card-shadow-lg);
   transform: translateY(-2px);
 }
 .ft-watch-n {
@@ -1031,12 +836,12 @@ span.ft-ind-mark {
   margin: 18px 0 16px;
   display: grid; place-items: center;
   border-radius: var(--m-radius-pill);
-  border: 1px solid rgba(217, 189, 139, 0.28);
+  border: 1px solid var(--m-card-border-hover);
   color: var(--m-gold);
   transition: background 0.32s var(--m-ease);
 }
 .ft-watch-play svg { width: 16px; height: 16px; margin-left: 2px; }
-.ft-watch-card:hover .ft-watch-play { background: rgba(217, 189, 139, 0.1); }
+.ft-watch-card:hover .ft-watch-play { background: var(--m-tint); }
 .ft-watch-title {
   display: block;
   font-size: 17px; font-weight: 500; letter-spacing: -0.018em; line-height: 1.28;
@@ -1062,14 +867,14 @@ span.ft-ind-mark {
   border-top: 1px solid var(--m-rule-2);
   padding-top: clamp(2.5rem, 4.5vw, 4rem);
   text-align: center;
-  background: radial-gradient(700px 300px at 50% 30%, rgba(217, 189, 139, 0.11), transparent 65%);
+  background: radial-gradient(700px 300px at 50% 30%, var(--m-tint), transparent 65%);
 }
 .ft-close .ft-h2 { margin: 20px auto 0; max-width: 18ch; font-size: clamp(2rem, 4.2vw, 3.6rem); }
 .ft-close .ft-body { margin: 20px auto 0; max-width: 46ch; font-size: 14.5px; color: var(--m-dim); }
 .ft-close .ft-actions { justify-content: center; margin-top: 32px; }
 .ft-close-rule {
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--m-gold), transparent);
+  background: linear-gradient(90deg, transparent, var(--accent-500), transparent);
   max-width: 190px; margin: 28px auto 0;
   animation: ft-rule-grow 1s var(--m-ease) both;
 }
