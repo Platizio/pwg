@@ -495,12 +495,40 @@
   font-size: 12px; color: var(--m-mute);
 }
 .ft-movers-wait { margin: 0; font-size: 13px; color: var(--m-mute); }
-.ft-movers-row {
-  list-style: none; margin: 0; padding: 0;
-  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px;
+/* ---- the tape ------------------------------------------------------------
+
+   The tiles the strip already used, travelling. Two rules make the loop
+   seamless: the list is rendered twice and the track moves exactly -50%, and
+   the spacing sits on the item rather than as `gap` on the track — N cells
+   carry N-1 gaps, so a gap leaves the -50% one gap short and the tape visibly
+   jumps once per cycle. */
+
+.ft-tape {
+  overflow: hidden;
+  /* The tape runs past both edges rather than stopping at them, so it reads as
+     a feed passing through the page instead of a row that ends. */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
 }
-.ft-movers-row li {
-  display: flex; align-items: baseline; gap: 10px;
+.ft-tape-track {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  width: max-content;
+  animation: ft-tape 64s linear infinite;
+}
+/* A reader who wants to read one row can stop it, by pointer or by keyboard. */
+.ft-tape:hover .ft-tape-track,
+.ft-tape:focus-within .ft-tape-track { animation-play-state: paused; }
+
+.ft-tape-item {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 208px;
+  margin-right: 12px;
   padding: 13px 15px;
   border-radius: var(--m-radius-tile);
   background: linear-gradient(180deg, #16130f 0%, #131009 100%);
@@ -515,9 +543,14 @@
   font-family: var(--m-mono); font-variant-numeric: tabular-nums;
   font-size: 13px; color: var(--m-dim); margin-left: auto;
 }
-.ft-movers-row .quote-change--chip { background: none; padding: 0; font-size: 12px; }
-.ft-movers-row .quote-change--chip.is-up { color: var(--m-up); }
-.ft-movers-row .quote-change--chip.is-down { color: var(--m-down); }
+.ft-tape-item .quote-change--chip { background: none; padding: 0; font-size: 12px; }
+.ft-tape-item .quote-change--chip.is-up { color: var(--m-up); }
+.ft-tape-item .quote-change--chip.is-down { color: var(--m-down); }
+
+@keyframes ft-tape {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
 
 /* ===================================================== steps, shared */
 
@@ -1048,7 +1081,6 @@ span.ft-ind-mark {
   .ft-hero .ft-h1 { max-width: 18ch; }
   .ft-pick { grid-template-columns: minmax(0, 1fr); }
   .ft-ind { position: static; }
-  .ft-movers-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .ft-charges { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .ft-watch { grid-template-columns: minmax(0, 1fr); }
   .ft-head { flex-direction: column; align-items: flex-start; gap: 16px; }
@@ -1059,7 +1091,6 @@ span.ft-ind-mark {
 @media (max-width: 760px) {
   .ft-names { grid-template-columns: minmax(0, 1fr); }
   .ft-charges { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ft-movers-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ft-later { grid-template-columns: minmax(0, 1fr); }
   .ft-index-head { grid-template-columns: 2.5rem minmax(0, 1fr) 1.5rem; gap: 12px; }
   .ft-index-body { grid-template-columns: minmax(0, 1fr); }
@@ -1068,7 +1099,6 @@ span.ft-ind-mark {
 }
 
 @media (max-width: 480px) {
-  .ft-movers-row { grid-template-columns: minmax(0, 1fr); }
   .ft-free ul { grid-template-columns: minmax(0, 1fr); }
   .ft-cta, .ft-ghost { flex: 1 1 100%; text-align: center; }
   .ft-charges { grid-template-columns: minmax(0, 1fr); }
@@ -1077,6 +1107,10 @@ span.ft-ind-mark {
 /* ===================================================== reduced motion */
 
 @media (prefers-reduced-motion: reduce) {
+  /* A stopped marquee hides half its contents, so the track stops travelling
+     and the tape becomes a row the reader scrolls. */
+  .ft-tape { overflow-x: auto; -webkit-mask-image: none; mask-image: none; }
+  .ft-tape-track { animation: none; }
   .ft-link-rule { transform: scaleX(1); }
   .ft-mark-dot,
   .ft-ind-live span { animation: none; }

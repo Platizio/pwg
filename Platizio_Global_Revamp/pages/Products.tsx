@@ -271,15 +271,35 @@ export default function Products() {
             ) : gainers.length === 0 ? (
               <p className="ft-movers-wait">Live prices are unavailable at the moment.</p>
             ) : (
-              <ul className="ft-movers-row">
-                {gainers.slice(0, 6).map((g) => (
-                  <li key={g.symbol}>
-                    <span className="ft-movers-sym">{g.symbol}</span>
-                    <span className="ft-movers-px">${formatUsd(g.price)}</span>
-                    <QuoteChange changePercent={g.changePercent} variant="chip" />
-                  </li>
-                ))}
-              </ul>
+              /*
+                The tape. The list is rendered twice and the track travels -50%,
+                so the seam lands exactly where the first copy began and the
+                loop is invisible. The duplicate is aria-hidden — it is the same
+                fourteen companies, and a screen reader should hear them once.
+
+                Spacing lives on the item, never as `gap` on the track: N cells
+                give N-1 gaps, so a gap makes the -50% land one gap short and
+                the tape jumps that far once per cycle.
+              */
+              <div
+                className="ft-tape"
+                role="region"
+                aria-label={`Top gainers today, ${gainers.length} companies`}
+              >
+                <ul className="ft-tape-track">
+                  {[...gainers, ...gainers].map((g, i) => (
+                    <li
+                      className="ft-tape-item"
+                      key={`${g.symbol}-${i}`}
+                      aria-hidden={i >= gainers.length ? true : undefined}
+                    >
+                      <span className="ft-movers-sym">{g.symbol}</span>
+                      <span className="ft-movers-px">${formatUsd(g.price)}</span>
+                      <QuoteChange changePercent={g.changePercent} variant="chip" />
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
         </div>
