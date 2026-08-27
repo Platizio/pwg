@@ -1,0 +1,573 @@
+/*
+ * /faqs and /user-guide — the two Help pages.
+ *
+ * THE INSTRUMENT WAS WRONG. /faqs holds 71 answers, including several facts
+ * that appear nowhere else on the site: the 24-hour response and 1-5 day
+ * resolution SLA, the instant-to-48-hour approval window, the LTCG/STCG rates,
+ * and the ViewTrade/GIFT City custody chain. All of it sat behind a two-level,
+ * single-open accordion whose landing state was eleven grey bars and zero words
+ * — while its own FAQPage JSON-LD advertised all 71 Q&As to Google, so a
+ * visitor arriving on a rich result found none of them on the page.
+ *
+ * Collapsing the section level is where collapse pays least: hiding a heading
+ * saves about 40px of scroll because the header row still renders, while hiding
+ * its questions saves about 600px. The old design charged a click for the cheap
+ * saving and a second click for the expensive one, then closed your open
+ * question when you switched sections.
+ *
+ * So: the section level is permanently open, and each question is a native
+ * <details>. That one change removes both `max-height` transitions — the last
+ * layout-animating property in the codebase, and the only warning the design
+ * detector still had — along with their guessed maxima (4000px against roughly
+ * 700px of real content, so the eased curve spent most of its duration
+ * travelling imaginary distance and the panel visibly snapped). It also
+ * restores find-in-page, works with JavaScript off, and takes 25 links out of
+ * the tab order that were focusable while invisible.
+ *
+ * THE STRUCTURE. Three nested bordered containers became hairline-separated
+ * rows — the `.pricing-row` idiom this design already uses for dense repeated
+ * content. The eleven section names are real <h2>s now; before, a 71-question
+ * document had exactly one heading, because each title was a <span> inside a
+ * <button>.
+ */
+
+/* =====================================================================
+   Neutralise the legacy block first.
+
+   css/styles.css:2142-2322 still describes the old instrument — three nested
+   bordered containers and two `max-height` collapses — and this sheet loads
+   after it, so anything not explicitly overridden survives. Two of those
+   survivors are not cosmetic: `.faq-item { overflow: hidden }` would clip an
+   open answer, and `.faq-a { max-height: 0 }` would keep every answer at zero
+   height no matter what <details> thinks. Reset, then build.
+   ===================================================================== */
+
+.faq-section,
+.faq-list,
+.faq-item,
+.faq-q,
+.faq-a,
+.faq-a > div {
+  max-height: none;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  transition: none;
+  margin: 0;
+  padding: 0;
+  gap: normal;
+}
+
+/* `.faq-list` and `.faq-q` were flex containers in the old design; `.faq-q` is
+   still one here, `.faq-list` is not. */
+.faq-list { display: block; }
+
+/* The legacy plus-icon circle, its rotation and its gradient fill: all of it
+   is re-declared below on `.faq-ico`, and the old `.ico` class no longer
+   appears in the markup. Left here as a reminder that css/styles.css:2288-2306
+   is now dead weight rather than a live rule. */
+
+/* ===================================================== layout */
+
+/*
+ * The measure is decided here, not in JSX — the page used to set it inline as
+ * `style={{ maxWidth: 880 }}`. The rail is 232px because the longest section
+ * name ('Portfolio & Reports') sets two lines below that and one above it.
+ * `minmax(0, 1fr)` rather than `1fr`, so a wide table inside an answer scrolls
+ * inside its own column instead of stretching the grid.
+ */
+.faq-layout {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  gap: var(--space-12);
+  max-width: 1120px;
+  margin-inline: auto;
+  align-items: start;
+}
+
+/* ===================================================== the index rail */
+
+.faq-index {
+  position: sticky;
+  /* Clear of the floating pill, which overlays the page. */
+  top: calc(var(--bar-inset) + var(--bar-h) + var(--space-5));
+  max-height: calc(100vh - var(--bar-inset) - var(--bar-h) - var(--space-10));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-left: var(--space-4);
+  border-left: 1px solid var(--line);
+}
+
+.faq-index .eyebrow { margin-bottom: var(--space-3); }
+
+.faq-index ul { list-style: none; margin: 0; padding: 0; }
+
+.faq-index a {
+  display: block;
+  padding: var(--space-2) 0 var(--space-2) var(--space-3);
+  /* Pulls the marker onto the rail's own hairline rather than beside it. */
+  margin-left: calc(-1 * var(--space-4) - 1px);
+  padding-left: var(--space-4);
+  border-left: 2px solid transparent;
+  font-size: var(--text-sm);
+  line-height: 1.35;
+  color: var(--gray-600);              /* 7.19:1 on white */
+  transition: color var(--t-fast), border-color var(--t-fast);
+}
+
+.faq-index a:hover { color: var(--ink-800); }
+
+/* Three signals at once — colour, weight and a 2px rule — so "you are here" is
+   never carried by hue alone (WCAG 1.4.1). */
+.faq-index a[aria-current='true'] {
+  color: var(--accent-600);            /* 6.55:1 on white */
+  font-weight: 600;
+  border-left-color: var(--accent-500);
+}
+
+/* The one legitimate mono on this page: an ordinal is a figure. */
+.faq-index-num {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--gray-500);              /* 4.83:1 on white */
+  margin-right: var(--space-2);
+}
+
+.faq-index a[aria-current='true'] .faq-index-num { color: var(--accent-600); }
+
+/* ===================================================== sections */
+
+.faq-section {
+  padding-bottom: var(--space-12);
+  /* The anchor has to stop below the floating pill, not under it. */
+  scroll-margin-top: calc(var(--bar-inset) + var(--bar-h) + var(--space-5));
+}
+
+.faq-section + .faq-section {
+  padding-top: var(--space-12);
+  border-top: 1px solid var(--line-strong);
+}
+
+.faq-section > .eyebrow { margin-bottom: var(--space-3); }
+
+/* A real <h2>, so base.css supplies Bricolage 700, tight tracking and
+   text-wrap: balance. Only the size is set here. */
+.faq-section-title {
+  font-size: var(--text-2xl);
+  color: var(--ink-800);               /* 15.53:1 on white */
+  margin: 0 0 var(--space-6);
+}
+
+/* The intra-section note — previously a nine-property inline style object that
+   asked for an Inter italic the site never loads, so it rendered as a
+   synthesised oblique. Set upright, on the accent rule the rest of the page
+   uses to mark an aside. */
+.faq-note {
+  margin: 0 0 var(--space-6);
+  padding: var(--space-3) var(--space-4);
+  border-left: 2px solid var(--accent-500);
+  background: var(--surface-sunken);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: var(--text-sm);
+  color: var(--gray-600);              /* 6.74:1 on --surface-sunken */
+}
+
+/* ===================================================== the questions */
+
+.faq-list { border-top: 1px solid var(--line); }
+
+/*
+ * A row, not a card. The old design gave each question a white fill, its own
+ * 1px border, a radius and a shadow, then stacked eleven of them inside a
+ * second bordered box inside a third — boxes inside boxes, at three levels, for
+ * a list of plain text.
+ */
+.faq-item {
+  border-bottom: 1px solid var(--line);
+  scroll-margin-top: calc(var(--bar-inset) + var(--bar-h) + var(--space-5));
+}
+
+.faq-q {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding: var(--space-4);
+  font-size: var(--text-base);
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--ink-800);               /* 15.53:1 on white */
+  cursor: pointer;
+  list-style: none;
+  transition: background var(--t-fast);
+}
+
+/* Both spellings — WebKit still needs its own. */
+.faq-q::-webkit-details-marker { display: none; }
+.faq-q::marker { content: ''; }
+
+.faq-q:hover { background: var(--surface-sunken); }
+.faq-q:hover .faq-ico { color: var(--ink-800); border-color: var(--line-strong); }
+
+.faq-ico {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-top: 1px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  color: var(--gray-500);
+  /* Transform only — the glyph turns, nothing reflows. */
+  transition: transform var(--t), color var(--t-fast), border-color var(--t-fast);
+}
+
+.faq-ico svg { width: 13px; height: 13px; }
+
+/*
+ * Open state. The accent is an inset rule on the row's own left edge, applied
+ * with box-shadow so it changes no layout — the row already reserves its
+ * padding, so nothing shifts when a question opens. Accent as a signal, not a
+ * fill.
+ */
+.faq-item[open] > .faq-q {
+  box-shadow: inset 2px 0 0 var(--accent-500);
+  background: var(--surface-sunken);
+}
+
+.faq-item[open] > .faq-q .faq-ico {
+  transform: rotate(45deg);
+  color: var(--accent-600);
+  border-color: var(--accent-500);
+}
+
+.faq-a {
+  padding: 0 var(--space-4) var(--space-6) var(--space-4);
+  max-width: 68ch;
+  color: var(--gray-600);              /* 7.19:1 on white */
+  line-height: 1.7;
+}
+
+.faq-a p { margin: 0 0 var(--space-3); }
+.faq-a p:last-child { margin-bottom: 0; }
+.faq-a ol,
+.faq-a ul { margin: var(--space-2) 0; padding-left: var(--space-5); }
+.faq-a li { margin-bottom: var(--space-2); }
+.faq-a strong { color: var(--ink-800); font-weight: 600; }
+
+.faq-a a {
+  color: var(--accent-700);            /* 8.05:1 on white */
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+.faq-a a:hover { color: var(--ink-800); }
+
+/* ===================================================== read more */
+
+.faq-read-more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--line);
+  font-size: var(--text-sm);
+}
+
+/* The old rule hand-rolled an eyebrow here — caps, tracking, accent — beside
+   the real one in base.css, disagreeing with it on every value. This is a
+   plain label; the section already has the eyebrow. */
+.faq-read-more > span { color: var(--gray-500); }
+
+.faq-read-more ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.faq-read-more a {
+  color: var(--accent-700);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-underline-offset: 0.22em;
+  transition: color var(--t-fast), text-decoration-color var(--t-fast);
+}
+
+.faq-read-more a:hover {
+  color: var(--ink-800);
+  text-decoration-color: currentColor;
+}
+
+/* ===================================================== disclaimer */
+
+/* Was a five-property inline style object asking for `fontStyle: italic` on a
+   face with no italic loaded. It is the site's investment-risk disclosure, so
+   it is set upright, at full body contrast, with the accent rule that marks
+   every other aside on the page. */
+.faq-disclaimer {
+  margin-top: var(--space-12);
+  padding: var(--space-5) var(--space-6);
+  border-left: 2px solid var(--accent-500);
+  background: var(--surface-sunken);
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+}
+
+.faq-disclaimer h2 {
+  font-size: var(--text-base);
+  color: var(--ink-800);
+  margin: 0 0 var(--space-2);
+}
+
+.faq-disclaimer p {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  color: var(--gray-600);              /* 6.74:1 on --surface-sunken */
+}
+
+/* ===================================================== closing */
+
+/* One closer, not two. The page ended on a grey "Still have questions?" panel
+   and then a second full-width `.cta-band` immediately below it — two closing
+   offers in a row, the second of which painted a decorative blue glow
+   (rgba(37, 99, 235, …)) belonging to no token in the palette. `.regs-cta` is
+   the revamped closer Pricing and About already use. */
+.faq-cta { margin-top: var(--space-16); }
+
+.faq-cta-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ===================================================== /user-guide */
+
+.guide-layout { max-width: 780px; margin-inline: auto; }
+
+.guide-track + .guide-track {
+  margin-top: var(--space-12);
+  padding-top: var(--space-12);
+  border-top: 1px solid var(--line-strong);
+}
+
+.guide-track > .eyebrow { margin-bottom: var(--space-3); }
+
+.guide-track h2 {
+  font-size: var(--text-2xl);
+  color: var(--ink-800);
+  margin: 0 0 var(--space-3);
+}
+
+.guide-track > p {
+  margin: 0 0 var(--space-8);
+  color: var(--gray-600);
+  max-width: 62ch;
+}
+
+/* The steps. A numbered list that looks like one — the ordinal is the
+   structure, so it is set in mono on the same baseline as the step, not in a
+   coloured circle. */
+.guide-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: guide-step;
+  border-top: 1px solid var(--line);
+}
+
+.guide-steps li {
+  counter-increment: guide-step;
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  gap: var(--space-4);
+  padding: var(--space-5) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.guide-steps li::before {
+  content: counter(guide-step, decimal-leading-zero);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--accent-500);            /* 5.15:1 on white */
+  padding-top: 0.35em;
+}
+
+.guide-steps h3 {
+  font-size: var(--text-base);
+  color: var(--ink-800);
+  margin: 0 0 var(--space-1);
+}
+
+.guide-steps p { margin: 0; font-size: var(--text-sm); color: var(--gray-600); }
+
+/* The facts a visitor arrives for — what it costs, how long it takes, what to
+   bring. Each is published elsewhere in this repo; none is invented here. */
+.guide-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin: 0 0 var(--space-10);
+  padding: 0;
+  list-style: none;
+}
+
+.guide-fact {
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.guide-fact dt {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--gray-500);              /* 4.53:1 on --surface-sunken */
+  margin-bottom: var(--space-2);
+}
+
+.guide-fact dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--ink-800);               /* 14.56:1 on --surface-sunken */
+  font-weight: 500;
+}
+
+/*
+ * The PDF row. The old cards centred a burnt-orange glyph in a 56px navy tile,
+ * said "View / Download", and disclosed neither that the destination is Google
+ * Drive, nor that it opens in a new tab, nor that a Drive /view URL opens a
+ * viewer rather than downloading anything.
+ */
+.guide-doc {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  transition: border-color var(--t), box-shadow var(--t), transform var(--t);
+}
+
+.guide-doc:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.guide-doc-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius);
+  /* The accent wash base.css already uses for .feature-icon — a tint, not an
+     ink fill with an accent glyph inside it. */
+  background: linear-gradient(135deg, rgba(226, 104, 42, 0.16), rgba(185, 75, 18, 0.06));
+  color: var(--accent-600);            /* 6.55:1 on the wash */
+}
+
+.guide-doc-icon svg { width: 19px; height: 19px; }
+
+.guide-doc-body { flex: 1 1 auto; min-width: 0; }
+
+.guide-doc-body strong {
+  display: block;
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--ink-800);
+}
+
+.guide-doc-body a { color: inherit; }
+.guide-doc-body a::after { content: ''; position: absolute; inset: 0; }
+.guide-doc { position: relative; }
+
+.guide-doc-meta {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--gray-500);              /* 4.83:1 on white */
+}
+
+.guide-doc-go {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  color: var(--gray-500);
+  transition: color var(--t-fast), border-color var(--t-fast);
+}
+
+.guide-doc:hover .guide-doc-go { color: var(--accent-600); border-color: var(--accent-500); }
+.guide-doc-go svg { width: 13px; height: 13px; }
+
+.guide-cta { margin-top: var(--space-16); }
+
+.guide-cta-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ===================================================== responsive */
+
+@media (max-width: 1024px) {
+  .faq-layout { grid-template-columns: minmax(0, 1fr); gap: var(--space-8); }
+
+  /* The rail stops being a rail. It becomes a horizontal run of section names
+     above the content — still the whole index, still one tap to any section,
+     without stealing a third of a narrow screen. */
+  .faq-index {
+    position: static;
+    max-height: none;
+    overflow-x: auto;
+    padding: 0 0 var(--space-3);
+    border-left: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .faq-index ul { display: flex; gap: var(--space-2); }
+  .faq-index li { flex: none; }
+
+  .faq-index a {
+    margin-left: 0;
+    padding: var(--space-2) var(--space-4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-full);
+    white-space: nowrap;
+  }
+
+  .faq-index a[aria-current='true'] {
+    border-color: var(--accent-500);
+    background: rgba(226, 104, 42, 0.08);
+  }
+}
+
+@media (max-width: 720px) {
+  .guide-facts { grid-template-columns: minmax(0, 1fr); }
+  .faq-q { padding: var(--space-4) var(--space-2); }
+  .faq-a { padding: 0 var(--space-2) var(--space-5); }
+}

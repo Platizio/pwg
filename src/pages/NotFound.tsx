@@ -7,6 +7,18 @@ const ArrowIcon = () => (
   </svg>
 )
 
+/**
+ * 404 — and the fallback for an unknown /articles/:slug, which ArticlePage
+ * renders directly. That second job is why /articles is the first recovery
+ * link: someone who mistyped an article URL wants the library, not the
+ * homepage.
+ *
+ * It opens on the shared `.page-hero` rather than a bare section. That is not
+ * decoration: this page previously declared no background at all, and
+ * chrome.css pulls the first child up behind the floating white pill expecting
+ * it to paint something. On white the pill's own edge measures 1.16:1, so the
+ * header vanished on this one route.
+ */
 export default function NotFound() {
   return (
     <>
@@ -17,26 +29,37 @@ export default function NotFound() {
         noindex
       />
 
-      <section className="notfound">
+      <section className="page-hero page-hero--compact notfound">
         <div className="container">
-          <span className="notfound-code">404</span>
+          <span className="notfound-code">404 — Not found</span>
           <h1>This page can&apos;t be found</h1>
           <p>
-            The page you&apos;re looking for doesn&apos;t exist, may have moved, or the link is
-            incorrect. Let&apos;s get you back on track.
+            The link may be mistyped, or the page may have moved. Everything below
+            still works.
+          </p>
+        </div>
+      </section>
+
+      <section className="notfound-body" aria-labelledby="notfound-next">
+        <div className="container">
+          <h2 id="notfound-next" className="visually-hidden">Where to go next</h2>
+          <p>
+            If you were reading something in particular, the article library is the
+            most likely place to find it again.
           </p>
           <div className="notfound-actions">
-            <Link className="btn btn-gold btn-lg" to="/">
-              Back to Home <ArrowIcon />
+            <Link className="btn btn-gold btn-lg" to="/articles">
+              Browse articles <ArrowIcon />
             </Link>
-            <Link className="btn btn-ghost btn-lg" to="/products">
-              Explore Products
+            <Link className="btn btn-ghost btn-lg" to="/">
+              Back to home
             </Link>
           </div>
 
           <div className="notfound-links">
-            <span>Popular pages:</span>
+            <span>Or go straight to:</span>
             <Link to="/products">Products</Link>
+            <Link to="/pricing">Pricing</Link>
             <Link to="/faqs">FAQs</Link>
             <Link to="/user-guide">User Guide</Link>
             <Link to="/about">About Us</Link>

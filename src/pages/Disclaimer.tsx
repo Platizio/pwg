@@ -57,11 +57,11 @@ export default function Disclaimer() {
       <section className="page-hero">
         <div className="container">
           <div className="breadcrumb">
-            <Link to="/">Home</Link><span>/</span><span>Risk Disclosure &amp; Disclaimer</span>
+            <Link to="/">Home</Link><span className="crumb-sep" aria-hidden="true">/</span><span>Risk Disclosure &amp; Disclaimer</span>
           </div>
           <h1>Risk Disclosure &amp; Disclaimer</h1>
           <p>Important information about the nature of this platform and the risks of international investing</p>
-          <div style={{ marginTop: '0.6rem', fontSize: '0.85rem', color: 'rgba(255,255,255,0.55)' }}>
+          <div className="page-hero-meta">
             Effective Date: 11 May 2026
           </div>
         </div>
@@ -69,17 +69,26 @@ export default function Disclaimer() {
 
       {/* ===== CONTENT ===== */}
       <section className="section">
-        <div className="container" style={{ maxWidth: '860px' }}>
+        <div className="container legal-doc">
 
           {/* Intro note */}
           <div className="legal-note reveal">
             Please read this Disclaimer carefully before using the Platizio Global platform. By accessing or using this platform, you acknowledge that you have read, understood, and agreed to this Disclaimer in full.
           </div>
 
+          <nav className="legal-toc reveal" aria-labelledby="disclaimer-toc">
+            <h2 id="disclaimer-toc">Contents</h2>
+            <ol>
+              {points.map(({ title }, i) => (
+                <li key={title}><a href={`#d-${i + 1}`}>{title}</a></li>
+              ))}
+            </ol>
+          </nav>
+
           {/* Points */}
           {points.map(({ title, body }, i) => (
             <div className="legal-section reveal" key={title} id={`d-${i + 1}`}>
-              <h2>{i + 1}. {title}</h2>
+              <h2><span className="legal-num">{i + 1}</span>{title}</h2>
               <p>{body}</p>
             </div>
           ))}
@@ -95,10 +104,10 @@ export default function Disclaimer() {
             </p>
           </div>
 
-          {/* Related links */}
-          <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            <Link to="/terms" className="btn btn-primary">Terms &amp; Conditions</Link>
-            <Link to="/privacy" className="btn btn-primary">Privacy Policy</Link>
+          <div className="legal-related">
+            <span>Also on this site:</span>
+            <Link to="/terms">Terms &amp; Conditions</Link>
+            <Link to="/privacy">Privacy Policy</Link>
           </div>
 
         </div>

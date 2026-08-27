@@ -109,8 +109,23 @@ p { color: var(--gray-600); font-weight: 450; text-wrap: pretty; }
   transition: transform var(--t), box-shadow var(--t), background var(--t), border-color var(--t);
 }
 
+/*
+ * The primary CTA, and the one measured failure on the site's most-clicked
+ * control. `--gold-gradient` starts at --accent-300 #F0894F, and white text on
+ * that measures 2.50:1 — against a 4.5:1 floor. The 32% stop only reaches
+ * 3.36:1. Only past the 68% stop did the label clear AA, so on every "Start
+ * Investing" button on the site the left half of the word was below the line.
+ *
+ * The token is unchanged, because it is also the 18px rule under every
+ * `.eyebrow`, the hairline that closes `.page-hero`, and the one that opens
+ * `.site-footer` — none of which carry text, and all of which want the bright
+ * end. This is a button-specific ramp in the same hue, starting at the lightest
+ * burnt orange that clears AA with white:
+ *
+ *   #C25514  4.56:1   #B94B12  5.15:1   #9A3D0D  6.89:1   #7E3008  9.08:1
+ */
 .btn-gold {
-  background: var(--gold-gradient);
+  background: linear-gradient(135deg, #C25514 0%, var(--accent-500) 34%, var(--accent-600) 70%, var(--accent-700) 100%);
   color: var(--white);
   box-shadow: var(--shadow-accent);
 }
@@ -124,6 +139,25 @@ p { color: var(--gray-600); font-weight: 450; text-wrap: pretty; }
 
 .btn-primary { background: var(--ink-800); }
 .btn-primary:hover { background: var(--ink-900); box-shadow: var(--shadow-lg); }
+
+/*
+ * The two outline buttons had no perceivable boundary, and a boundary is the
+ * only thing that says "control" on a button with no fill.
+ *
+ * `.btn-ghost` bordered `--gray-200` on white: 1.27:1, against the 3:1 WCAG
+ * 1.4.11 asks of a component boundary. The ink at 55% is the same hue as the
+ * label inside it and measures 3.68:1 on white, 3.60:1 on --surface-sunken —
+ * the two grounds it actually appears on.
+ *
+ * `.btn-light` bordered white at 20% on ink: 1.88:1, and its fill is also a
+ * 10% white, so nothing at all delimited it. 42% measures 3.86:1 on --ink-800
+ * and 3.21:1 on --ink-700, the lightest ink it ever sits on.
+ */
+.btn-ghost { border-color: rgba(10, 37, 64, 0.55); }
+.btn-ghost:hover { border-color: var(--ink-800); background: var(--surface-sunken); }
+
+.btn-light { border-color: rgba(255, 255, 255, 0.42); }
+.btn-light:hover { background: rgba(255, 255, 255, 0.18); border-color: rgba(255, 255, 255, 0.62); }
 
 /* ------------------------------------------------------------------ cards */
 

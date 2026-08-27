@@ -1,0 +1,340 @@
+/*
+ * Page furniture — the opener every inner page shares, and the 404.
+ *
+ * `.page-hero` is the highest-traffic surface in this stylesheet layer: it
+ * opens /pricing, /about, /faqs, /user-guide, /articles, all seven topic hubs
+ * and all three legal pages. Nineteen routes, two of which (/pricing, /about)
+ * were already signed off — which sets the brief. This is not a redesign of
+ * those pages. The composition is unchanged: breadcrumb, h1, deck, centred, in
+ * ink. What changes is the craft underneath it, and one measured accessibility
+ * failure that had been shipping on every one of them.
+ *
+ * THE FAILURE. `.breadcrumb a` was `var(--gold)` — #B94B12 — on the hero's
+ * gradient. Measured 3.02:1 at the navy end and 2.57:1 at the light end,
+ * against a 4.5:1 floor. tokens.css already names the fix in its own comment:
+ * `--accent-300` is the on-dark step. #F0894F measures 5.28:1 on --ink-700 and
+ * 7.50:1 on --ink-900. The underline is now permanent rather than hover-only,
+ * so the link is not identified by colour alone (WCAG 1.4.1).
+ *
+ * THE GROUND. The original was a flat 135° two-stop gradient under a dot
+ * screen — the same device `.about-art` uses, running diagonally for no reason
+ * anyone could point at. It is the ink well now: the identical radial
+ * `.regs-cta` already paints, copied stop for stop, so the page's opener and
+ * its closer are lit from one source. Because chrome.css pulls this section up
+ * behind the floating pill, a light source at `50% 0%` of the border box sits
+ * at the top of the viewport — the pill floats in a lit alcove rather than on
+ * a diagonal wash.
+ *
+ * THE EDGE. Ink surfaces on this site end on a 2px gold rule: the trending
+ * band has one, `.site-footer::before` has one. The opener had a raw edge. It
+ * has the same rule now, so the three read as one family rather than three
+ * coincidences.
+ *
+ * Scoped to the classes themselves. :root is untouched.
+ */
+
+/* ===================================================== the opener */
+
+.page-hero {
+  /*
+   * Longhands, not the `background` shorthand: the shorthand would reset
+   * `background-origin`, and chrome.css sets that to border-box on whatever a
+   * page puts first so the ground paints up behind the pill. Resetting it here
+   * would put the hard-edged first colour back across the top of every page.
+   *
+   * Two layers over an ink floor. The dots go first so they sit above the
+   * well; the well is the same radial as .regs-cta, stop for stop.
+   */
+  background-color: var(--ink-800);
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.045) 1px, transparent 0),
+    radial-gradient(120% 140% at 50% 0%, var(--ink-700) 0%, var(--ink-900) 62%);
+  background-size: 34px 34px, auto;
+  color: var(--white);
+  padding: clamp(3.25rem, 6vw, 4.75rem) 0 clamp(3rem, 5vw, 4.25rem);
+  position: relative;
+  overflow: hidden;
+}
+
+/* The band has to end, not merely stop — and it ends the way the footer and
+   the trending band do. */
+.page-hero::before {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  background: var(--gold-gradient-h);
+  opacity: 0.8;
+}
+
+.page-hero .container {
+  position: relative;
+  max-width: 820px;
+  text-align: center;
+}
+
+.page-hero h1 {
+  color: var(--white);              /* 13.21:1 on the well's lightest point */
+  margin-bottom: var(--space-4);
+}
+
+/*
+ * The deck gets a measure. The container is 820px, which at --text-lg runs to
+ * roughly 95 characters a line — past the point where the eye loses the return
+ * sweep. 62ch is generous enough that the two signed-off decks wrap exactly as
+ * they did, and tight enough that a long one on a legal page cannot run the
+ * full width.
+ */
+.page-hero p {
+  color: rgba(255, 255, 255, 0.78);  /* 8.63:1 at the lightest point */
+  font-size: var(--text-lg);
+  max-width: 62ch;
+  margin-inline: auto;
+}
+
+/*
+ * The effective-date line on the three legal pages, which each wrote it as a
+ * verbatim inline style — `rgba(255,255,255,0.55)`, three times, in three
+ * files. It measures 5.08:1 and was never the problem; having it live in JSX
+ * was. Mono because it is a date, and dates are figures.
+ */
+.page-hero-meta {
+  margin-top: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: rgba(255, 255, 255, 0.62);  /* 6.04:1 at the lightest point */
+}
+
+/* A compact variant for an opener that is a marker rather than a promise —
+   currently only the 404. */
+.page-hero--compact {
+  padding: clamp(2.75rem, 5vw, 4rem) 0 clamp(2.5rem, 4vw, 3.25rem);
+}
+
+/* ===================================================== breadcrumb
+
+   The hero has no `.eyebrow` — there is nothing to label, the h1 says it. But
+   the trail sits exactly where an eyebrow would, so it takes the eyebrow's own
+   18px gradient rule (base.css:62-68) and becomes the label device instead of
+   floating loose above the headline. */
+
+.page-hero .breadcrumb {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.62);   /* 6.04:1 */
+  margin-bottom: var(--space-5);
+}
+
+.page-hero .breadcrumb::before {
+  content: '';
+  flex: none;
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--gold-gradient-h);
+  margin-right: var(--space-1);
+}
+
+/*
+ * The separators are not content — they are punctuation between the crumbs, so
+ * they are dimmed and hidden from assistive tech, which was reading "slash"
+ * between every place name.
+ *
+ * They carry their own class rather than being selected as "any span that is
+ * not the last one": /user-guide has an intermediate crumb that is a plain
+ * <span> (Help — a section with no page of its own), and that rule dimmed it
+ * to 2.64:1 along with the slashes.
+ */
+.page-hero .breadcrumb .crumb-sep { color: rgba(255, 255, 255, 0.3); }
+
+/*
+ * The fix. --gold measured 3.02:1 here; this is 5.28:1 on the lightest part of
+ * the field and 7.50:1 on the darkest. The underline is permanent — a link
+ * distinguished only by hue fails WCAG 1.4.1, and this one sits in a row of
+ * non-links that would otherwise look identical.
+ */
+.page-hero .breadcrumb a {
+  color: var(--accent-300);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+  text-underline-offset: 0.22em;
+  transition: color var(--t-fast), text-decoration-color var(--t-fast);
+}
+
+.page-hero .breadcrumb a:hover,
+.page-hero .breadcrumb a:focus-visible {
+  color: var(--white);
+  text-decoration-color: currentColor;
+}
+
+/* The last crumb is where you are: the brightest and heaviest thing in the
+   trail. Weight carries "you are here" so it never competes with the accent,
+   which carries "this is the way back". An intermediate span — a section with
+   no page of its own — keeps the trail's own 6.04:1 tone. */
+.page-hero .breadcrumb > span:last-child {
+  color: var(--white);
+  font-weight: 600;
+}
+
+/*
+ * The article pages put the same trail on white instead of ink, and did it
+ * with four inline `style` props in ArticlePage.tsx — one of which set
+ * `--gold-deep` (#7E3008, 8.05:1, fine) while /articles set `--gold`. Same
+ * component, two colours, both hard-coded in JSX. One rule, on the ground it
+ * actually sits on.
+ */
+.article .breadcrumb {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--gray-500);              /* 4.83:1 on white */
+  margin-bottom: var(--space-4);
+}
+
+.article .breadcrumb .crumb-sep { color: var(--gray-300); }
+.article .breadcrumb > span:last-child { color: var(--ink-800); font-weight: 600; }
+
+.article .breadcrumb a {
+  color: var(--accent-700);            /* 8.05:1 on white */
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-underline-offset: 0.22em;
+  transition: color var(--t-fast), text-decoration-color var(--t-fast);
+}
+
+.article .breadcrumb a:hover,
+.article .breadcrumb a:focus-visible {
+  color: var(--ink-800);
+  text-decoration-color: currentColor;
+}
+
+/* ===================================================== 404
+
+   This was the one page with no ground at all: `.notfound` set a min-height
+   and a text-align and never a background, so chrome.css's run-under rule
+   pulled a transparent section up behind the floating pill and the body's
+   white showed through. A white pill with a rgba(5,19,31,0.07) edge on white
+   measures 1.16:1 — the header simply disappeared on this route. It opens on
+   the shared ink band now, like every other inner page.
+
+   The 144px numeral filled with --gold-gradient through background-clip went
+   with it: its first stop measures 2.50:1 on white against a 3:1 floor for
+   large text, so the top third of the character was below the line, and a
+   nine-rem accent fill is exactly the "accent as decoration" this language is
+   built to avoid. The code is a label now, which is what it is. */
+
+.notfound-code {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: var(--tracking-caps);
+  color: var(--accent-300);            /* 5.28:1 on the well's lightest point */
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  margin-bottom: var(--space-4);
+}
+
+/*
+ * `min-height: 62vh` with `place-items: center` never centred anything — the
+ * content is taller than the floor at every width — and `place-items` gave
+ * `.container` `justify-self: center`, which collapses it to fit-content and
+ * cancels the `max-width` + `margin: 0 auto` it exists for.
+ */
+.notfound {
+  min-height: 0;
+  display: block;
+  padding: 0;
+}
+
+.notfound-body { padding: var(--section-y) 0; text-align: center; }
+
+.notfound-body > p {
+  max-width: 52ch;
+  margin: 0 auto var(--space-8);
+  font-size: var(--text-lg);
+}
+
+.notfound-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* The recovery row was an undifferentiated flex line whose only affordance was
+   a colour change on hover. A hairline above it makes it a distinct offer
+   rather than more of the same paragraph. */
+.notfound-links {
+  display: flex;
+  gap: var(--space-2) var(--space-5);
+  justify-content: center;
+  flex-wrap: wrap;
+  align-items: baseline;
+  margin-top: var(--space-10);
+  padding-top: var(--space-8);
+  border-top: 1px solid var(--line);
+  font-size: var(--text-sm);
+}
+
+.notfound-links span { color: var(--gray-500); }
+
+.notfound-links a {
+  color: var(--ink-800);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 0.24em;
+  transition: color var(--t-fast), text-decoration-color var(--t-fast);
+}
+
+.notfound-links a:hover {
+  color: var(--accent-600);
+  text-decoration-color: currentColor;
+}
+
+/* ===================================================== no-JS reveal
+
+   `.reveal` sets opacity: 0 and waits for an IntersectionObserver in App.tsx to
+   add `.in-view`. There is a prefers-reduced-motion escape at css/styles.css:100
+   and there was no escape at all for a reader without JavaScript — so the
+   prerendered HTML, which exists precisely so the site works without it, was
+   shipping its own content hidden: 30 elements on /terms, 30 on /articles, 23
+   on /privacy, 19 on Home. Seventeen pages in total.
+
+   index.html marks the document `.js` from an inline script in <head>, before
+   the body paints, so there is no flash. Without that script the start state
+   never applies and the page is simply visible. Verified against the built
+   output with every <script> stripped: 30 of 30 reveals at opacity 1.
+
+   Specificity is (0,2,0) against `.reveal`'s (0,1,0), and this sheet loads
+   later, so it wins on both counts. */
+html:not(.js) .reveal {
+  opacity: 1;
+  transform: none;
+}
+
+@media (max-width: 640px) {
+  .page-hero .container { text-align: left; }
+  .page-hero .breadcrumb { justify-content: flex-start; }
+  .page-hero p { margin-inline: 0; }
+  .notfound-body,
+  .notfound-links,
+  .notfound-actions { text-align: left; justify-content: flex-start; }
+  .notfound-body > p { margin-inline: 0; }
+}

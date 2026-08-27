@@ -71,24 +71,35 @@ export default function ArticlePage() {
       />
 
       <article className="article">
-        <div className="breadcrumb" style={{ color: 'var(--gray-500)', marginBottom: '1rem' }}>
-          <Link to="/" style={{ color: 'var(--gold-deep)' }}>Home</Link><span>/</span>
-          <Link to="/media" style={{ color: 'var(--gold-deep)' }}>Media</Link><span>/</span>
-          <Link to="/articles" style={{ color: 'var(--gold-deep)' }}>Articles</Link><span>/</span>
+        <div className="breadcrumb">
+          <Link to="/">Home</Link><span className="crumb-sep" aria-hidden="true">/</span>
+          <Link to="/media">Media</Link><span className="crumb-sep" aria-hidden="true">/</span>
+          <Link to="/articles">Articles</Link><span className="crumb-sep" aria-hidden="true">/</span>
           <span>{article.category}</span>
         </div>
 
         <p className="article-meta">
-          {article.category} · {article.dateLabel} · {article.readTime}
+          <span className="article-cat">{article.category}</span>
+          <span>{article.dateLabel}</span>
+          <span>{article.readTime}</span>
           {article.updated && article.updated !== article.date && (
-            <> · Updated {article.updated}</>
+            <span>Updated {article.updated}</span>
           )}
         </p>
         <h1>{article.title}</h1>
 
-        <div className="article-hero-img">
-          <img src={article.logo} alt={article.title} width={1200} height={630} />
-        </div>
+        {/*
+          * No hero image. `article.logo` is a generated share card for 21 of the
+          * 30 entries: navy, with the category and this exact headline drawn
+          * into the pixels. Rendering it here printed the title a second time as
+          * an unscalable, unselectable picture of itself directly under the live
+          * <h1> — images of text, for no reader's benefit (WCAG 1.4.5) — and
+          * pushed the first paragraph of a reading page below the fold.
+          *
+          * It keeps the job it is good at: SEO above still passes it as
+          * `ogImage`, which is what a share card is for.
+          */}
+        <p className="article-lede">{article.description}</p>
 
         <div className="article-body" dangerouslySetInnerHTML={{ __html: article.bodyHtml }} />
 
@@ -104,9 +115,11 @@ export default function ArticlePage() {
           </section>
         ) : null}
 
-        <div className="article-body" style={{ marginTop: '2rem' }}>
+        <div className="regs-cta article-cta">
+          <h2>Put it into practice</h2>
+          <p>Open an account and place a first order in the market this article describes.</p>
           <a className="btn btn-gold btn-lg" href={TRADING_PLATFORM_URL} target="_blank" rel="noopener noreferrer">
-            Start Investing on Platizio Global
+            Start investing
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h14M13 5l7 7-7 7" />
             </svg>

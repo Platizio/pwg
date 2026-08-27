@@ -3,6 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Marks the document as script-capable before anything paints, so the
+         scroll-reveal animation can hide its own start state WITHOUT hiding the
+         page from a reader who has no JavaScript. `.reveal` sets opacity: 0 and
+         waits for an IntersectionObserver in App.tsx; the prerendered HTML —
+         which exists so the site works without JS — was therefore shipping 30
+         invisible elements on /terms and /articles, 23 on /privacy, and 19 on
+         Home. Seventeen pages. The escape lives in page.css as
+         `html:not(.js) .reveal`. Inline and first, so there is no flash. -->
+    <script>document.documentElement.classList.add('js')</script>
     <meta name="google-site-verification" content="AZiBNhj-C88S1whuGo83lQpDvnOLL9rPYp-f5DUf-xo" />
     <meta name="msvalidate.01" content="BDB1DFA89268951120DC8374DF152176" />
     <!-- Per-page title / description / canonical / OG / Twitter / JSON-LD.

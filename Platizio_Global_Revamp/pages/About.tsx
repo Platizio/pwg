@@ -83,7 +83,7 @@ export default function About() {
       <section className="page-hero">
         <div className="container">
           <div className="breadcrumb">
-            <Link to="/">Home</Link><span>/</span><span>About Us</span>
+            <Link to="/">Home</Link><span className="crumb-sep" aria-hidden="true">/</span><span>About Us</span>
           </div>
           <h1>The people behind your portfolio</h1>
           <p>

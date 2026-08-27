@@ -10,10 +10,19 @@ import '../css/styles.css'
 import '../Platizio_Global_Revamp/styles/tokens.css'
 import '../Platizio_Global_Revamp/styles/base.css'
 import '../Platizio_Global_Revamp/styles/chrome.css'
+// Page furniture shared by every inner page: the .page-hero opener, the
+// breadcrumb trail, and the 404.
+import '../Platizio_Global_Revamp/styles/page.css'
 import '../Platizio_Global_Revamp/styles/home-market.css'
 import '../Platizio_Global_Revamp/styles/pricing.css'
 import '../Platizio_Global_Revamp/styles/about.css'
 import '../Platizio_Global_Revamp/styles/media.css'
+// /faqs and /user-guide.
+import '../Platizio_Global_Revamp/styles/help.css'
+// /articles, the topic hubs, and the article pages.
+import '../Platizio_Global_Revamp/styles/library.css'
+// /disclaimer, /privacy, /terms.
+import '../Platizio_Global_Revamp/styles/legal.css'
 // products.css declares every token on .ft and nothing on :root, so it can
 // load beside the others without reaching the rest of the site.
 import '../Platizio_Global_Revamp/styles/products.css'

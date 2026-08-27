@@ -1,0 +1,442 @@
+/*
+ * The article library — /articles, the seven topic hubs, and the 30 article
+ * pages themselves. By page count this is most of the site.
+ *
+ * THE PICTURE PROBLEM. Twenty-one of the thirty article images are generated
+ * share cards: navy, with the category and the full headline drawn into the
+ * pixels, and PLATIZIO GLOBAL along the bottom. They are excellent `og:image`
+ * assets and they were being used as on-page headers, which meant every
+ * article page printed its own title twice — once as live text in the <h1>,
+ * once as an unscalable, untranslatable, unselectable picture of that same
+ * sentence directly beneath it (WCAG 1.4.5). On /articles the same cards ran
+ * as CSS background-images, so their text was not in the accessibility tree at
+ * all, none of them could be lazy-loaded — `loading="lazy"` is an image-tag
+ * attribute — and roughly 1.2MB was requested on load for thirty thumbnails
+ * that each restated the headline printed beside them.
+ *
+ * So the library stops treating an article as a picture card. The three pieces
+ * with real photography lead; the other twenty-seven become a text index
+ * grouped by primary subject. The share cards keep the job they are good at.
+ *
+ * THE LINK PROBLEM. Each old card carried two separate links to one
+ * destination — the thumbnail and a "Read Article" tail — so thirty articles
+ * cost sixty tab stops, the heading was not a link at all, and the accessible
+ * name of every other link on the page was the identical string "Read
+ * Article". One link per row now, named by the headline, with a stretched
+ * pseudo-element making the whole row clickable.
+ */
+
+/* =====================================================================
+   Neutralise the legacy card block.
+
+   css/styles.css:1022-1152 (.card-grid-3 / .media-card / .media-thumb /
+   .media-body / .media-tag / .media-link) is now consumed by nothing — the
+   revamped Media page forked to its own .video-row / .article-row and these
+   two pages are the last callers. The markup below drops the classes entirely
+   rather than restyling them, so nothing here needs a reset; this note is the
+   record that those 130 lines are dead once this ships.
+   ===================================================================== */
+
+/* A sunken band, as a class rather than the inline `style={{ background }}`
+   these pages used. */
+.section--sunken { background: var(--surface-sunken); }
+
+/* ===================================================== the lead */
+
+/*
+ * Deliberately the same grammar as the Media page's video showcase: one large
+ * item beside a stack of smaller ones. Two pages that both present a small
+ * curated set beside a longer list should not invent two layouts for it.
+ */
+.lib-lead {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.lib-side { display: flex; flex-direction: column; gap: var(--space-4); }
+
+.lib-card {
+  position: relative;
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  transition: transform var(--t), box-shadow var(--t), border-color var(--t);
+}
+
+.lib-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-md);
+}
+
+/* The wrapper reserves the box at a fixed ratio, so the image needs no width
+   and height attributes to stop the page shifting as it loads. */
+.lib-thumb {
+  display: block;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--ink-800);
+  aspect-ratio: 16 / 9;
+}
+
+.lib-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+.lib-body { display: grid; gap: var(--space-2); }
+
+/* base.css gives .eyebrow a --space-4 bottom margin, which double-spaces it
+   inside a grid that already has a gap. */
+.lib-body .eyebrow { margin-bottom: 0; }
+
+.lib-title {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  line-height: 1.18;
+  letter-spacing: var(--tracking-snug);
+  color: var(--ink-800);               /* 15.53:1 on white */
+  margin: 0;
+  text-wrap: balance;
+}
+
+/*
+ * One link per card. The anchor wraps only the headline — so its accessible
+ * name is the headline — and this stretches its hit area over the whole card.
+ */
+.lib-title a { color: inherit; }
+.lib-title a::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+.lib-card:focus-within { border-color: var(--accent-500); }
+
+.lib-excerpt {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--gray-600);              /* 7.19:1 on white */
+}
+
+.lib-meta {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--gray-500);              /* 4.83:1 on white */
+}
+
+/* The two smaller leads: image beside text rather than above it. */
+.lib-row-card { grid-template-columns: 132px minmax(0, 1fr); align-items: start; }
+.lib-row-card .lib-title { font-size: var(--text-lg); line-height: 1.3; }
+.lib-row-card .lib-excerpt { display: none; }
+
+/* ===================================================== the index */
+
+.lib-group + .lib-group { margin-top: var(--space-12); }
+
+.lib-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.lib-group-head h3 {
+  font-size: var(--text-xl);
+  color: var(--ink-800);
+  margin: 0;
+}
+
+.lib-group-head a {
+  flex: none;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--accent-700);            /* 8.05:1 on white */
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-underline-offset: 0.22em;
+  transition: color var(--t-fast), text-decoration-color var(--t-fast);
+}
+
+.lib-group-head a:hover { color: var(--ink-800); text-decoration-color: currentColor; }
+
+.lib-rows { list-style: none; margin: 0; padding: 0; }
+
+/*
+ * A row, not a card. Three columns: the headline and its excerpt take the
+ * measure, the date and reading time sit in a figures column on the right so
+ * they form a scannable stack down the page rather than trailing each excerpt.
+ */
+.lib-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2) var(--space-6);
+  align-items: baseline;
+  padding: var(--space-5) var(--space-4);
+  border-bottom: 1px solid var(--line);
+  transition: background var(--t-fast);
+}
+
+.lib-row:hover { background: var(--surface-sunken); }
+.lib-row:focus-within { background: var(--surface-sunken); }
+
+.lib-row-title {
+  grid-column: 1;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.32;
+  letter-spacing: var(--tracking-snug);
+  color: var(--ink-800);               /* 15.53:1 on white, 14.56:1 on hover */
+  margin: 0;
+  text-wrap: balance;
+}
+
+.lib-row-title a { color: inherit; }
+.lib-row-title a::after { content: ''; position: absolute; inset: 0; }
+
+.lib-row-meta {
+  grid-column: 2;
+  grid-row: 1;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--gray-500);              /* 4.83:1 white, 4.53:1 on hover */
+  white-space: nowrap;
+}
+
+.lib-row-excerpt {
+  grid-column: 1;
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--gray-600);              /* 7.19:1 on white, 6.74:1 on hover */
+  max-width: 72ch;
+}
+
+/* ===================================================== topic cards */
+
+.topic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-4);
+}
+
+.topic-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.topic-card h3 { font-size: var(--text-lg); color: var(--ink-800); margin: 0; }
+.topic-card p { margin: 0; font-size: var(--text-sm); line-height: 1.55; color: var(--gray-600); }
+
+.topic-count {
+  margin-top: auto;
+  padding-top: var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--accent-600);            /* 6.55:1 on white */
+}
+
+.topic-count svg { width: 13px; height: 13px; transition: transform var(--t-fast); }
+.topic-card:hover .topic-count svg { transform: translateX(3px); }
+
+/* ===================================================== topic hub */
+
+/*
+ * The hub intro ran through `.article-body` at the full 1200px container — a
+ * reading treatment at a width nothing should be read at. It gets the measure
+ * the rest of the site's prose uses.
+ */
+.topic-intro { max-width: 68ch; }
+.topic-intro p { margin: 0 0 var(--space-4); font-size: var(--text-lg); line-height: 1.72; }
+.topic-intro p:last-child { margin-bottom: 0; }
+.topic-intro strong { color: var(--ink-800); font-weight: 600; }
+
+/*
+ * The hub's FAQ was static h3/p pairs while /faqs used an accordion for the
+ * identical job — two treatments for one idea across one site. The hub wins
+ * the argument: a hub carries three or four questions, and collapsing four
+ * questions saves nothing worth a click. So /faqs collapses at the question
+ * level and the hubs stay open, and both now look like the same thing set at
+ * different densities: hairline rows, no boxes.
+ */
+.topic-faq { max-width: 68ch; border-top: 1px solid var(--line); }
+
+.topic-faq-item {
+  padding: var(--space-5) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.topic-faq-item h3 { font-size: var(--text-base); color: var(--ink-800); margin: 0 0 var(--space-2); }
+.topic-faq-item p { margin: 0; color: var(--gray-600); line-height: 1.7; }
+
+/* ===================================================== article page */
+
+/*
+ * The reading measure. `.article-body` was set at 1.05rem/1.8 with no
+ * max-width, inside a container padded to 1.5rem — so on a wide display a
+ * paragraph ran to about 150 characters a line. 68ch at this size is roughly
+ * 640px: the range long-form prose is actually set at.
+ */
+.article {
+  max-width: 760px;
+  margin-inline: auto;
+  padding: var(--space-12) var(--space-5) var(--space-16);
+}
+
+.article > h1 { margin: 0 0 var(--space-5); }
+
+.article-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--gray-500);              /* 4.83:1 on white */
+}
+
+.article-meta .article-cat {
+  font-family: var(--font);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--accent-500);            /* 5.15:1 on white */
+}
+
+/* The standfirst — the article's own description, which every entry already
+   carries for SEO and no page was showing. It is the one sentence that tells a
+   reader whether to keep going. */
+.article-lede {
+  margin: 0 0 var(--space-8);
+  padding-bottom: var(--space-8);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-xl);
+  line-height: 1.55;
+  color: var(--gray-600);              /* 7.19:1 on white */
+  text-wrap: pretty;
+}
+
+.article-body { font-size: var(--text-lg); line-height: 1.75; color: var(--gray-700); }
+
+.article-body h2 {
+  font-size: var(--text-2xl);
+  color: var(--ink-800);
+  margin: var(--space-12) 0 var(--space-4);
+  scroll-margin-top: calc(var(--bar-inset) + var(--bar-h) + var(--space-5));
+}
+
+.article-body h3 {
+  font-size: var(--text-lg);
+  color: var(--ink-800);
+  margin: var(--space-8) 0 var(--space-3);
+}
+
+.article-body p { margin: 0 0 var(--space-5); color: var(--gray-700); }
+.article-body ul,
+.article-body ol { margin: 0 0 var(--space-5); padding-left: var(--space-6); }
+.article-body li { margin-bottom: var(--space-2); }
+.article-body strong { color: var(--ink-800); font-weight: 600; }
+
+.article-body a {
+  color: var(--accent-700);            /* 8.05:1 on white */
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+.article-body a:hover { color: var(--ink-800); }
+
+/* A pull-quote is not an aside in a box. It is the accent rule the rest of the
+   site uses to mark a raised passage, at reading size, upright — the old rule
+   asked for an italic on a face that ships none. */
+.article-body blockquote {
+  margin: var(--space-8) 0;
+  padding: var(--space-1) 0 var(--space-1) var(--space-5);
+  border-left: 2px solid var(--accent-500);
+  font-style: normal;
+  color: var(--ink-800);
+  font-weight: 500;
+}
+
+.article-table-wrap { margin: var(--space-8) 0; overflow-x: auto; }
+
+.article-body table {
+  width: 100%;
+  min-width: 460px;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.article-body th,
+.article-body td {
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  vertical-align: top;
+}
+
+/* Caps and tracking rather than an ink fill: a header row on a reading page is
+   a label, and a solid navy band mid-article reads as a different document. */
+.article-body thead th {
+  background: none;
+  border-bottom: 1px solid var(--line-strong);
+  color: var(--gray-500);
+  font-family: var(--font);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.article-body tbody tr:nth-child(even) { background: none; }
+.article-body tbody tr:hover { background: var(--surface-sunken); }
+
+/* The article's own FAQ, matching the topic hubs exactly. */
+.article-faq { margin-top: var(--space-16); }
+
+.article-faq > h2 {
+  font-size: var(--text-2xl);
+  color: var(--ink-800);
+  margin: 0 0 var(--space-6);
+}
+
+.article-faq-item { padding: var(--space-5) 0; border-bottom: 1px solid var(--line); }
+.article-faq-item:first-of-type { border-top: 1px solid var(--line); }
+.article-faq-item h3 { font-size: var(--text-base); color: var(--ink-800); margin: 0 0 var(--space-2); }
+.article-faq-item p { margin: 0; color: var(--gray-600); line-height: 1.7; }
+
+.article-cta { margin-top: var(--space-16); }
+
+/* ===================================================== responsive */
+
+@media (max-width: 900px) {
+  .lib-lead { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .lib-row { grid-template-columns: minmax(0, 1fr); }
+  .lib-row-meta { grid-column: 1; grid-row: auto; }
+  .lib-row-card { grid-template-columns: 96px minmax(0, 1fr); }
+  .lib-group-head { flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+  .article { padding-inline: var(--space-4); }
+}

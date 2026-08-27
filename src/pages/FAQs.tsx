@@ -1,4 +1,4 @@
-import { isValidElement, useState } from 'react'
+import { isValidElement, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext'
 import SEO, { breadcrumbSchema, faqSchema } from '../components/SEO'
@@ -51,16 +51,16 @@ const sections: FaqSection[] = [
         id: 'gs-5',
         q: 'What are the steps to open an account and complete KYC?',
         a: (
-          <span>
-            <ol style={{ paddingLeft: '1.25rem', margin: '0.5rem 0' }}>
+          <>
+            <ol>
               <li>Sign up on the Platizio platform using your email or mobile number.</li>
               <li>Enter your personal details and tax residency information.</li>
               <li>Answer a short set of regulatory and risk-profile questions.</li>
               <li>Upload the required KYC documents (PAN, address proof, etc.).</li>
               <li>Submit your application with your digital signature (your full name).</li>
             </ol>
-            Your account is opened in your name with ViewTrade IFSC at GIFT City once KYC is approved.
-          </span>
+            <p>Your account is opened in your name with ViewTrade IFSC at GIFT City once KYC is approved.</p>
+          </>
         ),
       },
       {
@@ -391,7 +391,7 @@ const sections: FaqSection[] = [
     num: 9,
     title: 'Taxation (for Indian Residents)',
     note: (
-      <p style={{ fontSize: '0.875rem', color: 'var(--gray-500)', fontStyle: 'italic', margin: '0 0 1.5rem', padding: '0.75rem 1rem', background: 'var(--gray-50)', borderRadius: 'var(--radius)', border: '1px solid var(--gray-200)' }}>
+      <p className="faq-note">
         <strong>Note:</strong> This section explains how Indian tax rules generally apply to US investments. It is for information only and is not tax advice. Tax rules can change — please consult a qualified Chartered Accountant or tax advisor for your specific situation.
       </p>
     ),
@@ -470,19 +470,18 @@ const sections: FaqSection[] = [
         id: 'ma-5',
         q: 'How do I close my Platizio Global Trading Account?',
         a: (
-          <span>
-            You can close your Platizio Global trading account by sending us an email request from your registered email address to <a href="mailto:supportglobal@platizio.com">supportglobal@platizio.com</a>. The closure process takes 2 working days once you submit your request.
-            <br /><br />
-            Before closing your account, please ensure you have:
-            <ul style={{ paddingLeft: '1.25rem', margin: '0.5rem 0' }}>
+          <>
+            <p>You can close your Platizio Global trading account by sending us an email request from your registered email address to <a href="mailto:supportglobal@platizio.com">supportglobal@platizio.com</a>. The closure process takes 2 working days once you submit your request.</p>
+            <p>Before closing your account, please ensure you have:</p>
+            <ul>
               <li>Cleared any negative balance in your account</li>
               <li>Sold off any holdings in the account</li>
               <li>Withdrawn any cash balance from the account</li>
               <li>Downloaded all necessary reports (trade confirms, ledger, and P&amp;L statements), as these will not be accessible once your account is closed</li>
               <li>If you wish to move securities to another broker, transferred your shares and cash prior to requesting account closure</li>
             </ul>
-            <strong>Please note:</strong> Upon submission of an account closure request, the client irrevocably agrees that any residual amounts — including but not limited to dividends, corporate action proceeds, or any other entitlements arising from prior holdings and received post-closure — shall not be credited to the client's account. The client acknowledges and accepts that such amounts may be forfeited, and that no claims shall lie against the Company in respect of the same.
-          </span>
+            <p><strong>Please note:</strong> Upon submission of an account closure request, the client irrevocably agrees that any residual amounts — including but not limited to dividends, corporate action proceeds, or any other entitlements arising from prior holdings and received post-closure — shall not be credited to the client's account. The client acknowledges and accepts that such amounts may be forfeited, and that no claims shall lie against the Company in respect of the same.</p>
+          </>
         ),
       },
       {
@@ -522,12 +521,6 @@ const PlusIcon = () => (
   </svg>
 )
 
-const ChevronIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
-    <path d="M6 9l6 6 6-6" />
-  </svg>
-)
-
 // FAQPage JSON-LD schema.
 //
 // Derived from `sections` rather than hand-copied. The previous version listed
@@ -548,17 +541,47 @@ const allFaqs = sections.flatMap(({ items }) =>
   items.map(({ q, a }) => ({ q, a: nodeToText(a).replace(/\s+/g, ' ').trim() }))
 )
 
+/**
+ * The section the reader is currently inside, for the index rail.
+ *
+ * Initialised from static data — the first section's id — so the server render
+ * and the client's first render are byte-identical and hydration has nothing to
+ * reconcile. The observer only runs in an effect.
+ */
+function useActiveSection(ids: string[]): string {
+  const [active, setActive] = useState(ids[0])
+
+  useEffect(() => {
+    const els = ids
+      .map((id) => document.getElementById(id))
+      .filter((el): el is HTMLElement => el !== null)
+    if (!els.length || !('IntersectionObserver' in window)) return
+
+    /* The band is the top third of the viewport, below the floating pill: a
+       section counts as current once its heading reaches reading height, not
+       when its last paragraph leaves the screen. */
+    const io = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting)
+        if (!visible.length) return
+        const top = visible.sort(
+          (a, b) => a.boundingClientRect.top - b.boundingClientRect.top,
+        )[0]
+        setActive(top.target.id)
+      },
+      { rootMargin: '-96px 0px -66% 0px', threshold: 0 },
+    )
+    els.forEach((el) => io.observe(el))
+    return () => io.disconnect()
+  }, [ids])
+
+  return active
+}
+
 export default function FAQs() {
-  const [openSectionId, setOpenSectionId] = useState<string | null>(null)
-  const [openItemId, setOpenItemId] = useState<string | null>(null)
   const { openContact } = useAppContext()
-
-  const toggleSection = (id: string) => {
-    setOpenSectionId((prev) => (prev === id ? null : id))
-    setOpenItemId(null) // close any open question when switching sections
-  }
-
-  const toggleItem = (id: string) => setOpenItemId((prev) => (prev === id ? null : id))
+  const sectionIds = useMemo(() => sections.map((s) => s.id), [])
+  const activeId = useActiveSection(sectionIds)
 
   return (
     <>
@@ -571,56 +594,69 @@ export default function FAQs() {
           faqSchema(allFaqs),
         ]}
       />
-      {/* ===== PAGE HERO ===== */}
+
       <section className="page-hero">
         <div className="container">
           <div className="breadcrumb">
-            <Link to="/">Home</Link><span>/</span><span>FAQs</span>
+            <Link to="/">Home</Link><span className="crumb-sep" aria-hidden="true">/</span><span>FAQs</span>
           </div>
           <h1>Frequently Asked Questions</h1>
-          <p>Common questions about Platizio Global, getting started, US Stocks &amp; ETFs, compliance and support.</p>
+          <p>
+            {allFaqs.length} answers on opening an account, moving money, what you
+            pay, how it is taxed, and who holds your shares.
+          </p>
         </div>
       </section>
 
-      {/* ===== FAQs ===== */}
-      <section className="section">
-        <div className="container" style={{ maxWidth: 880 }}>
-          {sections.map(({ id, num, title, note, items, readMore }) => (
-            <div className={`faq-section${openSectionId === id ? ' section-open' : ''}`} id={id} key={id}>
+      <section className="section" aria-labelledby="faq-heading">
+        <div className="container">
+          <h2 id="faq-heading" className="visually-hidden">Questions and answers</h2>
 
-              {/* Section header — click to expand */}
-              <button className="faq-section-header" onClick={() => toggleSection(id)} aria-expanded={openSectionId === id}>
-                <span className="faq-section-label">
-                  <span className="num">{num}</span>
-                  <span className="faq-section-title">{title}</span>
-                </span>
-                <span className="faq-section-chevron" aria-hidden="true"><ChevronIcon /></span>
-              </button>
+          <div className="faq-layout">
+            {/* The index. Eleven sections is more than a reader will scroll
+                looking for one of them, and the page is otherwise a single
+                column of prose with no way to see its own shape. */}
+            <nav className="faq-index" aria-label="FAQ sections">
+              <p className="eyebrow">Contents</p>
+              <ul>
+                {sections.map(({ id, num, title }) => (
+                  <li key={id}>
+                    <a href={`#${id}`} aria-current={activeId === id ? 'true' : undefined}>
+                      <span className="faq-index-num">{String(num).padStart(2, '0')}</span>
+                      {title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
 
-              {/* Collapsible body */}
-              <div className="faq-section-body">
-                <div className="faq-section-inner">
-                  {note && note}
+            <div className="faq-sections">
+              {sections.map(({ id, num, title, note, items, readMore }) => (
+                <section className="faq-section" id={id} key={id} aria-labelledby={`${id}-title`}>
+                  <p className="eyebrow">
+                    {String(num).padStart(2, '0')} · {items.length} question{items.length === 1 ? '' : 's'}
+                  </p>
+                  <h2 className="faq-section-title" id={`${id}-title`}>{title}</h2>
+
+                  {note}
+
+                  {/* Native <details>: no state, no max-height, find-in-page
+                      works, and every answer is reachable with JavaScript off. */}
                   <div className="faq-list">
                     {items.map(({ id: itemId, q, a }) => (
-                      <div className={`faq-item${openItemId === itemId ? ' open' : ''}`} key={itemId}>
-                        <button
-                          className="faq-q"
-                          onClick={() => toggleItem(itemId)}
-                          aria-expanded={openItemId === itemId}
-                        >
+                      <details className="faq-item" id={itemId} key={itemId}>
+                        <summary className="faq-q">
                           {q}
-                          <span className="ico"><PlusIcon /></span>
-                        </button>
-                        <div className="faq-a">
-                          <div>{a}</div>
-                        </div>
-                      </div>
+                          <span className="faq-ico" aria-hidden="true"><PlusIcon /></span>
+                        </summary>
+                        <div className="faq-a">{a}</div>
+                      </details>
                     ))}
                   </div>
+
                   {readMore && readMore.length > 0 && (
                     <div className="faq-read-more">
-                      <span>Read more:</span>
+                      <span>Read more</span>
                       <ul>
                         {readMore.map(({ label, to }) => (
                           <li key={to}><Link to={to}>{label}</Link></li>
@@ -628,66 +664,48 @@ export default function FAQs() {
                       </ul>
                     </div>
                   )}
-                </div>
-              </div>
+                </section>
+              ))}
+
+              <aside className="faq-disclaimer" aria-labelledby="faq-disclaimer-title">
+                <h2 id="faq-disclaimer-title">Important disclaimer</h2>
+                <p>
+                  Investing in securities involves market risk, including the possible loss of
+                  capital. The value of investments can go up as well as down. The information in
+                  these FAQs is provided for general guidance only and does not constitute
+                  investment, legal, or tax advice. Tax treatment depends on your individual
+                  circumstances and may change. Please read all product terms and consult a
+                  qualified financial or tax advisor before investing. Platizio Services LLP
+                  facilitates access to US markets through its US brokerage partner; investments
+                  are executed and held with ViewTrade IFSC at GIFT City.
+                </p>
+              </aside>
             </div>
-          ))}
-
-          {/* Important Disclaimer */}
-          <div
-            style={{
-              marginTop: '2rem',
-              padding: '1.5rem 2rem',
-              borderRadius: 'var(--radius-lg)',
-              background: 'var(--gray-50)',
-              border: '1px solid var(--gray-200)',
-            }}
-          >
-            <p style={{ fontWeight: 600, marginBottom: '0.5rem', color: 'var(--navy)' }}>Important Disclaimer</p>
-            <p style={{ fontSize: '0.875rem', color: 'var(--gray-500)', fontStyle: 'italic', margin: 0 }}>
-              Investing in securities involves market risk, including the possible loss of capital. The value of investments can go up as well as down. The information in these FAQs is provided for general guidance only and does not constitute investment, legal, or tax advice. Tax treatment depends on your individual circumstances and may change. Please read all product terms and consult a qualified financial or tax advisor before investing. Platizio Services LLP facilitates access to US markets through its US brokerage partner; investments are executed and held with ViewTrade IFSC at GIFT City.
-            </p>
           </div>
 
-          {/* Still have questions? */}
-          <div
-            style={{
-              marginTop: '2rem',
-              padding: '2.25rem',
-              borderRadius: 'var(--radius-lg)',
-              background: 'var(--gray-50)',
-              border: '1px solid var(--gray-200)',
-              textAlign: 'center',
-            }}
-          >
-            <h3 style={{ marginBottom: '0.5rem' }}>Still have questions?</h3>
-            <p style={{ marginBottom: '1.25rem' }}>Reach out and our team will get back to you shortly.</p>
-            <button className="btn btn-gold" onClick={() => openContact()}>
-              Contact Platizio Global
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14M13 5l7 7-7 7" />
-              </svg>
-            </button>
+          {/* One closer. The page previously ended on a grey "Still have
+              questions?" panel and then a second full-width band immediately
+              below it, offering the reader two things at once. */}
+          <div className="regs-cta faq-cta">
+            <h3>Still have a question?</h3>
+            <p>Ask us directly, or open your account and start with a small first trade.</p>
+            <div className="faq-cta-actions">
+              <button className="btn btn-gold btn-lg" onClick={() => openContact()}>
+                Contact Platizio Global
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M13 5l7 7-7 7" />
+                </svg>
+              </button>
+              <a
+                className="btn btn-light btn-lg"
+                href={TRADING_PLATFORM_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Start investing
+              </a>
+            </div>
           </div>
-        </div>
-      </section>
-
-      {/* ===== START INVESTING CTA ===== */}
-      <section className="cta-band reveal">
-        <div className="container" style={{ textAlign: 'center' }}>
-          <h2>Ready to Start Investing?</h2>
-          <p>Open your Platizio Global account and explore US Stocks and ETFs today.</p>
-          <a
-            className="btn btn-gold btn-lg"
-            href={TRADING_PLATFORM_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Start Investing
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 12h14M13 5l7 7-7 7" />
-            </svg>
-          </a>
         </div>
       </section>
     </>

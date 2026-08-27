@@ -2,6 +2,8 @@ import { Link, Navigate, useParams } from 'react-router-dom'
 import SEO, { breadcrumbSchema, faqSchema, itemListSchema } from '../components/SEO'
 import { articlesByTopic } from '../articles/registry'
 import { getTopic } from '../articles/topics'
+import { byNewest } from '../../Platizio_Global_Revamp/lib/articleSelect'
+import { TRADING_PLATFORM_URL } from '../constants'
 
 const ArrowIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -9,13 +11,25 @@ const ArrowIcon = () => (
   </svg>
 )
 
+/**
+ * A topic hub — seven of them, one per subject.
+ *
+ * Two things changed beyond the styling. The intro ran through `.article-body`
+ * at the full 1200px container, which is a reading treatment set at a width
+ * nothing should be read at; it has the site's prose measure now. And the hub's
+ * own questions were static heading/paragraph pairs while /faqs used a
+ * collapsing accordion for the identical job — two instruments for one idea on
+ * one site. A hub carries three or four questions and collapsing four saves
+ * nothing worth a click, so the hub stays open and /faqs collapses only at the
+ * question level; both are hairline rows now, the same thing at two densities.
+ */
 export default function TopicHub() {
   const { topic: topicId } = useParams<{ topic: string }>()
   const topic = topicId ? getTopic(topicId) : undefined
 
   if (!topic) return <Navigate to="/articles" replace />
 
-  const articles = articlesByTopic(topic.id)
+  const articles = byNewest(articlesByTopic(topic.id))
   const path = `/articles/topic/${topic.id}`
 
   return (
@@ -37,12 +51,11 @@ export default function TopicHub() {
         ]}
       />
 
-      {/* ===== PAGE HERO ===== */}
       <section className="page-hero">
         <div className="container">
           <div className="breadcrumb">
-            <Link to="/">Home</Link><span>/</span>
-            <Link to="/articles">Articles</Link><span>/</span>
+            <Link to="/">Home</Link><span className="crumb-sep" aria-hidden="true">/</span>
+            <Link to="/articles">Articles</Link><span className="crumb-sep" aria-hidden="true">/</span>
             <span>{topic.title}</span>
           </div>
           <h1>{topic.title}</h1>
@@ -50,49 +63,41 @@ export default function TopicHub() {
         </div>
       </section>
 
-      {/* ===== INTRO ===== */}
-      <section className="section">
+      <section className="section" aria-labelledby="hub-intro">
         <div className="container">
-          <div
-            className="article-body topic-intro"
-            dangerouslySetInnerHTML={{ __html: topic.introHtml }}
-          />
+          <h2 id="hub-intro" className="visually-hidden">About this topic</h2>
+          <div className="topic-intro" dangerouslySetInnerHTML={{ __html: topic.introHtml }} />
         </div>
       </section>
 
-      {/* ===== ARTICLES IN THIS TOPIC ===== */}
-      <section className="section" style={{ background: 'var(--gray-50)' }}>
+      <section className="section section--sunken" aria-labelledby="hub-articles">
         <div className="container">
-          <h2 className="section-title">
-            {articles.length} {articles.length === 1 ? 'article' : 'articles'} in this topic
-          </h2>
-          <div className="card-grid-3">
-            {articles.map((article) => (
-              <article className="media-card reveal" key={article.slug}>
-                <Link
-                  className="media-thumb"
-                  to={`/articles/${article.slug}`}
-                  aria-label={article.title}
-                  style={{ backgroundImage: `url(${article.logo})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
-                />
-                <div className="media-body">
-                  <span className="media-tag">{article.category}</span>
-                  <h3>{article.title}</h3>
-                  <p>{article.excerpt}</p>
-                  <Link className="media-link" to={`/articles/${article.slug}`}>
-                    Read Article <ArrowIcon />
-                  </Link>
-                </div>
-              </article>
-            ))}
+          <div className="section-header">
+            <p className="eyebrow">Reading</p>
+            <h2 id="hub-articles">
+              {articles.length} {articles.length === 1 ? 'article' : 'articles'} in this topic
+            </h2>
           </div>
+          <ul className="lib-rows">
+            {articles.map((a) => (
+              <li className="lib-row" key={a.slug}>
+                <h3 className="lib-row-title">
+                  <Link to={`/articles/${a.slug}`}>{a.title}</Link>
+                </h3>
+                <span className="lib-row-meta">{a.dateLabel} · {a.readTime}</span>
+                <p className="lib-row-excerpt">{a.excerpt}</p>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
-      {/* ===== TOPIC FAQ ===== */}
-      <section className="section">
-        <div className="container container-narrow">
-          <h2 className="section-title">Common questions</h2>
+      <section className="section" aria-labelledby="hub-faq">
+        <div className="container">
+          <div className="section-header">
+            <p className="eyebrow">Common questions</p>
+            <h2 id="hub-faq">Asked most often about {topic.title.toLowerCase()}</h2>
+          </div>
           <div className="topic-faq">
             {topic.faqs.map((faq) => (
               <div className="topic-faq-item" key={faq.q}>
@@ -101,15 +106,22 @@ export default function TopicHub() {
               </div>
             ))}
           </div>
-        </div>
-      </section>
 
-      {/* ===== BACK TO ALL ARTICLES ===== */}
-      <section className="section" style={{ background: 'var(--gray-50)' }}>
-        <div className="container" style={{ textAlign: 'center' }}>
-          <Link className="btn btn-ghost" to="/articles">
-            Browse all articles
-          </Link>
+          {/* The hub used to end on a lone outline button in a section of its
+              own — the only thing on the page and no way from here to an
+              account. */}
+          <div className="regs-cta article-cta">
+            <h3>Read on, or start</h3>
+            <p>Every article here is free. So is opening the account they describe.</p>
+            <div className="notfound-actions">
+              <a className="btn btn-gold btn-lg" href={TRADING_PLATFORM_URL} target="_blank" rel="noopener noreferrer">
+                Start investing <ArrowIcon />
+              </a>
+              <Link className="btn btn-light btn-lg" to="/articles">
+                Browse all articles
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
     </>

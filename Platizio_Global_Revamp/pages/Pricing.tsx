@@ -31,7 +31,7 @@ export default function Pricing() {
       <section className="page-hero">
         <div className="container">
           <div className="breadcrumb">
-            <Link to="/">Home</Link><span>/</span><span>Pricing</span>
+            <Link to="/">Home</Link><span className="crumb-sep" aria-hidden="true">/</span><span>Pricing</span>
           </div>
           <h1>What investing costs</h1>
           <p>
