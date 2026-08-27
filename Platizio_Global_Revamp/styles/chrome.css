@@ -213,12 +213,25 @@
   padding: var(--space-2);
 }
 
-.dropdown a {
+/*
+ * The `gap: 2px` here was never doing anything, which is the tell: a gap needs
+ * a flex or grid container, and this rule never set one. `.nav-links
+ * a:not(.btn)` in the legacy sheet sets `display: inline-block` at (0,2,1),
+ * out-specifying `.dropdown a` at (0,1,1) — so the title and the description
+ * ran together on one line in every dropdown on the site. Matching the
+ * specificity is what fixes it; the block-level children are belt and braces.
+ */
+.nav-links .dropdown a {
+  display: flex;
+  flex-direction: column;
   padding: var(--space-3);
   border-radius: var(--radius-sm);
   gap: 2px;
   transition: background var(--t-fast);
 }
+
+.dropdown a strong,
+.dropdown a span { display: block; }
 
 .dropdown a:hover { background: var(--gray-100); }
 .dropdown a strong { color: var(--ink-800); font-size: var(--text-sm); font-weight: 600; }

@@ -363,6 +363,10 @@ p {
   opacity: 1;
 }
 
+/* Wrapper exists only so the mobile collapse can animate grid-template-rows,
+   which needs a single child. On desktop it is removed from the box tree. */
+.dropdown-wrap { display: contents; }
+
 .dropdown {
   position: absolute;
   top: calc(100% + 8px);
@@ -387,7 +391,9 @@ p {
   transform: translateY(0);
 }
 
-.dropdown a {
+/* Needs to out-specify `.nav-links a:not(.btn)`, which sets display:inline-block
+   and would otherwise keep the title and description on the same line. */
+.nav-links .dropdown a {
   display: flex;
   flex-direction: column;
   padding: 0.65rem 0.85rem;
@@ -399,11 +405,14 @@ p {
 }
 
 .dropdown a strong {
+  display: block;
   color: var(--navy);
   font-weight: 600;
 }
 
 .dropdown a span {
+  display: block;
+  margin-top: 0.15rem;
   font-size: 0.82rem;
   color: var(--gray-500);
 }
@@ -967,12 +976,14 @@ p {
   overflow: hidden;
 }
 
+/* Full-bleed 3px rule along the card's top edge, wiped in on hover. Written
+   with inset-inline rather than left/width because that is what it is: a rule
+   spanning the inline axis, not a box positioned from the left. */
 .feature-card::before {
   content: '';
   position: absolute;
   top: 0;
-  left: 0;
-  width: 100%;
+  inset-inline: 0;
   height: 3px;
   background: var(--gold-gradient-h);
   transform: scaleX(0);
@@ -1721,18 +1732,22 @@ p {
 }
 
 .team-carousel .tc-dot {
-  width: 8px;
+  /* Fixed box so the row never reflows; the visible pill is drawn by clip-path,
+     which animates on the compositor and stays a true pill at both widths
+     (scaleX would flatten it into an ellipse). */
+  width: 26px;
   height: 8px;
   border-radius: 999px;
   padding: 0;
   border: 0;
   background: rgba(185, 75, 18, 0.28);
   cursor: pointer;
-  transition: width 0.35s ease, background 0.35s ease;
+  clip-path: inset(0 34.6% 0 34.6% round 999px);
+  transition: clip-path 0.35s ease, background 0.35s ease;
 }
 
 .team-carousel .tc-dot.is-active {
-  width: 26px;
+  clip-path: inset(0 round 999px);
   background: var(--gold);
 }
 
@@ -1959,17 +1974,21 @@ p {
 }
 
 .articles-carousel .ac-dot {
-  width: 8px;
+  /* Fixed box so the row never reflows; the visible pill is drawn by clip-path,
+     which animates on the compositor and stays a true pill at both widths
+     (scaleX would flatten it into an ellipse). */
+  width: 26px;
   height: 8px;
   border-radius: 999px;
   padding: 0;
   border: 0;
   background: rgba(185, 75, 18, 0.28);
   cursor: pointer;
-  transition: width 0.35s ease, background 0.35s ease;
+  clip-path: inset(0 34.6% 0 34.6% round 999px);
+  transition: clip-path 0.35s ease, background 0.35s ease;
 }
 
-.articles-carousel .ac-dot.is-active { width: 26px; background: var(--gold); }
+.articles-carousel .ac-dot.is-active { clip-path: inset(0 round 999px); background: var(--gold); }
 
 .articles-carousel .ac-progress {
   margin: 20px auto 0;
@@ -2233,21 +2252,46 @@ p {
 
 /* ── Collapsible section body ── */
 .faq-section-body {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.45s ease;
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.45s ease;
   border-top: 0px solid var(--gray-200);
 }
 
+.faq-section-clip { overflow: hidden; min-height: 0; }
+
 .faq-section.section-open .faq-section-body {
-  max-height: 4000px;
-  transition: max-height 0.6s ease;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.6s ease;
   border-top: 1px solid var(--gray-200);
 }
 
 .faq-section-inner {
   padding: 1.5rem;
   background: var(--gray-50);
+}
+
+/* Featured questions — the shortlist above the numbered sections. */
+.faq-featured {
+  margin-bottom: 2.25rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.faq-featured-title {
+  margin-bottom: 1rem;
+  font-size: 1.35rem;
+  color: var(--navy);
+}
+
+.faq-featured-jump {
+  margin-top: 0.9rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.faq-featured-jump a::after {
+  content: ' \2192';
 }
 
 .faq-list {
@@ -2306,16 +2350,18 @@ p {
 }
 
 .faq-a {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height var(--t-slow);
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--t-slow);
 }
+
+.faq-a-clip { overflow: hidden; min-height: 0; }
 
 .faq-item.open .faq-a {
-  max-height: 1800px;
+  grid-template-rows: 1fr;
 }
 
-.faq-a div {
+.faq-a-clip > div {
   padding: 0 1.5rem 1.4rem;
   color: var(--gray-600);
   line-height: 1.65;
@@ -2794,7 +2840,7 @@ p {
 }
 
 .article-body blockquote {
-  border-left: 4px solid var(--gold);
+  border-left: 2px solid var(--gray-300);
   padding: 0.5rem 0 0.5rem 1.25rem;
   margin: 1.5rem 0;
   font-style: italic;
@@ -3033,6 +3079,16 @@ p {
   }
 
   /* Products dropdown: collapsed by default on mobile, toggled by .products-open class */
+  /* grid-template-rows animates without touching layout of anything outside
+     the wrapper, and needs no magic max-height that has to exceed the content. */
+  .dropdown-wrap {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.3s ease;
+  }
+
+  .has-dropdown.products-open .dropdown-wrap { grid-template-rows: 1fr; }
+
   .dropdown {
     position: static;
     opacity: 1;
@@ -3040,16 +3096,10 @@ p {
     transform: none;
     box-shadow: none;
     border: 0;
-    padding: 0;
-    max-width: none;
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease, padding 0.3s ease;
-  }
-
-  .has-dropdown.products-open .dropdown {
-    max-height: 300px;
     padding: 0 0 0 1rem;
+    max-width: none;
+    overflow: hidden;
+    min-height: 0;
   }
 
   /* On mobile the top bar shows only logo + hamburger.
@@ -3261,10 +3311,7 @@ p {
   font-size: clamp(4.5rem, 14vw, 9rem);
   font-weight: 800;
   line-height: 1;
-  background: var(--gold-gradient);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--gold);
 }
 
 .notfound h1 {
@@ -3508,8 +3555,11 @@ p {
 
 .legal-note {
   background: #fff7f0;
-  border-left: 3px solid var(--gold);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  border: 1px solid rgba(185, 75, 18, 0.22);
+  /* Was var(--radius-sm), which is not a token in this system — the declaration
+     was invalid, so this note had square corners rather than the rounded ones
+     it was written for. */
+  border-radius: var(--radius);
   padding: 1rem 1.25rem;
   margin-bottom: 2.25rem;
   font-size: 0.9rem;
@@ -3966,4 +4016,761 @@ p {
     transition: none;
     animation: none;
   }
+}
+
+/* =========================================================
+   Help centre — guided support assistant
+   ========================================================= */
+
+/* The assistant is the reason this page exists, so it takes the wider column.
+   The FAQ browser beside it is a real alternative route, not a link sidebar. */
+.help-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+  gap: 2.5rem;
+  align-items: start;
+}
+
+/* ---- Shell ---- */
+/* Carries more elevation than the FAQ browser beside it. Without that the two
+   read as interchangeable cards and nothing says which is the point of the page.
+   A column with a bounded height is what docks the composer at the bottom and
+   lets the conversation scroll behind it. */
+.assistant {
+  display: flex;
+  flex-direction: column;
+  height: clamp(28rem, 68vh, 40rem);
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  background: var(--white);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+/* Themed browser surfaces. Selection, caret and scrollbar ship with defaults
+   belonging to no design system; inside a branded panel they read as a seam. */
+.assistant ::selection {
+  background: rgba(185, 75, 18, 0.16);
+  color: var(--navy-deep);
+}
+
+/* ---- Title bar ---- */
+.assistant-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1.35rem;
+  background: var(--navy);
+  color: var(--white);
+}
+
+/* Steady, not pulsing. A blinking dot on a support panel reads as an alert. */
+.assistant-bar-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--emerald);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+.assistant-bar-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+.assistant-bar-reset {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  padding: 0.25rem 0;
+}
+
+.assistant-bar-reset:hover { color: var(--white); }
+
+/* ---- Body ----
+   Scrolls independently so the composer stays docked. Height is bounded rather
+   than fixed: short states do not leave a void, long answers do not push the
+   input off screen. */
+.assistant-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1.65rem 1.5rem 1.35rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--gray-300) transparent;
+}
+
+.assistant-body::-webkit-scrollbar { width: 10px; }
+.assistant-body::-webkit-scrollbar-track { background: transparent; }
+.assistant-body::-webkit-scrollbar-thumb {
+  background: var(--gray-300);
+  border-radius: var(--radius-full);
+  border: 3px solid var(--white);
+}
+.assistant-body::-webkit-scrollbar-thumb:hover { background: var(--gray-400); }
+
+/* What the customer typed, echoed so the answer has a visible referent. */
+.assistant-echo {
+  margin: 0 0 1.1rem;
+  font-size: 0.85rem;
+  color: var(--gray-500);
+}
+
+/* ---- Composer ---- */
+.assistant-composer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1rem;
+  border-top: 1.5px solid var(--gray-200);
+  background: var(--gray-50);
+}
+
+.assistant-composer:focus-within { background: var(--white); }
+
+.assistant-composer-input {
+  flex: 1;
+  min-width: 0;
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius-full);
+  background: var(--white);
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--gray-800);
+  caret-color: var(--gold);
+  padding: 0.65rem 1.05rem;
+  min-height: 44px;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+
+.assistant-composer-input::placeholder { color: var(--gray-400); }
+
+.assistant-composer-input:focus {
+  outline: none;
+  border-color: var(--navy);
+  box-shadow: 0 0 0 3px rgba(10, 37, 64, 0.1);
+}
+
+.assistant-composer-send {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--gold-gradient);
+  color: var(--white);
+  cursor: pointer;
+  transition: transform var(--t-fast), opacity var(--t-fast);
+}
+
+.assistant-composer-send svg { width: 19px; height: 19px; }
+.assistant-composer-send:hover:not(:disabled) { transform: translateY(-1px); }
+.assistant-composer-send:active:not(:disabled) { transform: scale(0.94); }
+
+.assistant-composer-send:disabled {
+  background: var(--gray-200);
+  color: var(--gray-400);
+  cursor: not-allowed;
+}
+
+/* ---- Results ---- */
+.assistant-results-count {
+  margin: 0 0 0.75rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--gray-400);
+  font-variant-numeric: tabular-nums;
+}
+
+.assistant-results-list { list-style: none; margin: 0; padding: 0; }
+
+.assistant-result {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-top: 1px solid var(--gray-200);
+  background: transparent;
+  font: inherit;
+  padding: 0.9rem 0.5rem;
+  cursor: pointer;
+  /* transform, not padding-left: nudging via padding relayouts the whole list on
+     every hover. translateX gets the same movement on the compositor. */
+  transition: background var(--t-fast), transform var(--t-fast);
+}
+
+.assistant-results-list li:first-child .assistant-result { border-top: 0; }
+
+.assistant-result:hover {
+  background: var(--gray-50);
+  transform: translateX(4px);
+}
+
+.assistant-result-headline {
+  display: block;
+  font-size: 0.98rem;
+  font-weight: 550;
+  color: var(--navy);
+  line-height: 1.45;
+}
+
+.assistant-result-trail {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--gray-500);
+}
+
+.assistant-empty { padding: 0.5rem 0 0.75rem; }
+.assistant-empty-title { margin: 0 0 0.4rem; font-weight: 600; color: var(--navy); }
+.assistant-empty p { margin: 0; color: var(--gray-600); font-size: 0.92rem; }
+
+/* The spine: where you have been, as a walkable path. Earlier steps are buttons
+   so a customer three levels deep can return in one click, not three. */
+.assistant-spine {
+  list-style: none;
+  margin: 0 0 1.35rem;
+  padding: 0;
+}
+
+.assistant-spine-step {
+  position: relative;
+  padding: 0 0 0.85rem 1.4rem;
+}
+
+/* Dot */
+.assistant-spine-step::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.38em;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--white);
+  box-shadow: inset 0 0 0 2px var(--gray-300);
+}
+
+/* Connector. gray-300 rather than gray-200 — at 1px the lighter tone simply does
+   not read, and without a visible line there is no spine, just loose dots. */
+.assistant-spine-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: calc(0.38em + 9px);
+  bottom: 0.1rem;
+  width: 1px;
+  background: var(--gray-300);
+}
+
+.assistant-spine-step:last-child { padding-bottom: 0; }
+
+/* The current step is where the customer is: filled, in the brand accent. */
+.assistant-spine-step:last-child::before {
+  background: var(--gold);
+  box-shadow: inset 0 0 0 2px var(--gold), 0 0 0 3px rgba(185, 75, 18, 0.14);
+}
+
+.assistant-spine-label {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.86rem;
+  color: var(--gray-500);
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.assistant-spine-label:hover { color: var(--navy); }
+
+.assistant-spine-label.is-current {
+  cursor: default;
+  color: var(--navy);
+  font-weight: 600;
+}
+
+/* The one authored moment: each step arrives as a single settling motion. Not an
+   entrance on every child — that reads as fidgeting rather than as progress. */
+.assistant-step { animation: assistant-advance 0.34s cubic-bezier(0.16, 1, 0.3, 1); }
+
+@keyframes assistant-advance {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.assistant-question {
+  font-size: 1.35rem;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--navy);
+  margin: 0 0 1.1rem;
+  text-wrap: balance;
+}
+
+.assistant-lede {
+  margin: -0.6rem 0 1.2rem;
+  color: var(--gray-600);
+  font-size: 0.95rem;
+}
+
+/* ---- Options ---- */
+.assistant-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.assistant-option {
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 500;
+  text-align: left;
+  padding: 0.6rem 1.05rem;
+  min-height: 44px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius-full);
+  background: var(--white);
+  color: var(--gray-800);
+  cursor: pointer;
+  transition: border-color var(--t-fast), color var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast);
+}
+
+.assistant-option:hover {
+  border-color: var(--navy);
+  color: var(--navy);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Tactile press. Reads as a physical control rather than a link. */
+.assistant-option:active { transform: scale(0.97); }
+
+.assistant-option.is-affirm {
+  border-color: rgba(16, 185, 129, 0.5);
+  color: #047857;
+}
+
+.assistant-option.is-affirm:hover { border-color: var(--emerald); color: #047857; }
+
+.assistant-option.is-primary {
+  border-color: transparent;
+  background: var(--gold-gradient);
+  color: var(--white);
+  font-weight: 600;
+}
+
+.assistant-option.is-primary:hover { color: var(--white); box-shadow: var(--shadow-md); }
+
+/* ---- Answer ---- */
+/* Set as a document, not a chat message: the question carries weight, the body
+   gets a comfortable measure, the citation is a real next step. */
+.assistant-answer + .assistant-answer {
+  margin-top: 1.75rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--gray-200);
+}
+
+.assistant-answer-q {
+  font-size: 1.3rem;
+  line-height: 1.32;
+  letter-spacing: -0.01em;
+  color: var(--navy);
+  margin: 0 0 0.85rem;
+  text-wrap: balance;
+}
+
+.assistant-answer-a {
+  color: var(--gray-700);
+  font-size: 1rem;
+  line-height: 1.68;
+  max-width: 68ch;
+}
+
+.assistant-answer-a p { margin: 0 0 0.85rem; }
+.assistant-answer-a p:last-child { margin-bottom: 0; }
+.assistant-answer-a ol,
+.assistant-answer-a ul { margin: 0.7rem 0; padding-left: 1.3rem; }
+.assistant-answer-a li { margin-bottom: 0.35rem; }
+.assistant-answer-a strong { color: var(--navy); font-weight: 650; }
+
+.assistant-answer-a a {
+  color: var(--gold);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+
+.assistant-answer-link {
+  display: inline-block;
+  margin-top: 1.1rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--gold);
+  text-decoration: none;
+  border-bottom: 1.5px solid currentColor;
+  padding-bottom: 1px;
+}
+
+.assistant-answer-link:hover { color: var(--gold-deep); }
+
+.assistant-verdict {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--gray-200);
+}
+
+.assistant-verdict-q {
+  margin: 0 0 0.85rem;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.assistant-resolved .assistant-option { margin-top: 0.5rem; }
+
+/* ---- Footer controls ---- */
+.assistant-foot {
+  display: flex;
+  gap: 1.25rem;
+  margin-top: 1.75rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--gray-200);
+}
+
+.assistant-textbtn {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--gray-500);
+  cursor: pointer;
+  padding: 0.2rem 0;
+}
+
+.assistant-textbtn:hover { color: var(--navy); }
+
+/* ---- Inline request form ----
+   Lives inside the panel rather than on its own page, so the customer keeps the
+   trail they walked and there is no route to find. Compact by necessity: it has
+   to sit in a scrolling body without dominating it. */
+.sform { padding-top: 0.25rem; }
+
+.sform-title {
+  font-size: 1.15rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--navy);
+  margin: 0 0 0.5rem;
+}
+
+.sform-trail {
+  font-size: 0.82rem;
+  margin: 0 0 1.1rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius);
+  background: var(--gray-50);
+  color: var(--gray-700);
+}
+
+.sform-trail span {
+  display: block;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gray-400);
+  margin-bottom: 0.15rem;
+}
+
+.sform-field { margin-bottom: 0.85rem; }
+
+.sform-field label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--gray-700);
+  margin-bottom: 0.3rem;
+}
+
+.sform-req { color: #DC2626; }
+
+.sform-field input,
+.sform-field textarea,
+.sform-field select {
+  width: 100%;
+  font: inherit;
+  font-size: 0.92rem;
+  color: var(--gray-800);
+  caret-color: var(--gold);
+  padding: 0.55rem 0.75rem;
+  border: 1.5px solid var(--gray-200);
+  border-radius: 10px;
+  background: var(--white);
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+
+.sform-field textarea { resize: vertical; min-height: 4.5rem; line-height: 1.55; }
+
+.sform-field input:focus,
+.sform-field textarea:focus,
+.sform-field select:focus {
+  outline: none;
+  border-color: var(--navy);
+  box-shadow: 0 0 0 3px rgba(10, 37, 64, 0.1);
+}
+
+.sform-field input[aria-invalid],
+.sform-field textarea[aria-invalid] { border-color: #DC2626; }
+
+.sform-error {
+  margin: 0.3rem 0 0;
+  font-size: 0.8rem;
+  color: #DC2626;
+}
+
+.sform-error.is-block {
+  margin: 0.75rem 0 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius);
+  background: #FEF2F2;
+}
+
+.sform-hint {
+  font-weight: 400;
+  font-size: 0.76rem;
+  color: var(--gray-400);
+}
+
+/* Visually hidden, but still the labelled control the picker opens from, so
+   keyboard and screen-reader users get the native file dialog. */
+.sform-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.sform-file-btn {
+  display: inline-block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--navy);
+  padding: 0.45rem 0.9rem;
+  border: 1.5px dashed var(--gray-300);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+
+.sform-file-btn:hover { border-color: var(--navy); background: var(--gray-50); }
+
+/* Focus lives on the hidden input, so lift the ring onto the visible label. */
+.sform-file-input:focus-visible + .sform-file-btn {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.sform-file-input:disabled + .sform-file-btn {
+  color: var(--gray-400);
+  border-style: solid;
+  cursor: not-allowed;
+}
+
+.sform-files {
+  list-style: none;
+  margin: 0.65rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sform-files li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.82rem;
+  padding: 0.4rem 0.5rem 0.4rem 0.7rem;
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  background: var(--gray-50);
+}
+
+.sform-file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--gray-800);
+}
+
+.sform-file-size {
+  flex: none;
+  color: var(--gray-500);
+  font-variant-numeric: tabular-nums;
+}
+
+.sform-file-remove {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--gray-500);
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sform-file-remove:hover { background: var(--gray-200); color: var(--navy); }
+
+.sform-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 0.35rem 0 0.25rem;
+}
+
+.sform-consent input {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  margin-top: 0.15rem;
+  accent-color: var(--gold);
+}
+
+.sform-consent label {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--gray-600);
+}
+
+.sform-consent a { color: var(--gold); }
+
+/* Turnstile mounts its own iframe here. Only present when the widget is
+   configured, so this rule costs nothing when it is not. */
+.sform-captcha {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.9rem;
+  min-height: 65px;
+}
+
+.sform-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-top: 1.1rem;
+}
+
+.sform-actions .assistant-option:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---- FAQ browser ---- */
+.help-browse {
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  background: var(--white);
+  padding: 1.65rem;
+}
+
+.help-browse h2 {
+  font-size: 1.1rem;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.4rem;
+  color: var(--navy);
+}
+
+.help-browse > p { font-size: 0.9rem; color: var(--gray-500); margin: 0 0 1.15rem; }
+
+.help-browse-list { list-style: none; margin: 0; padding: 0; }
+
+.help-browse-list a {
+  display: flex;
+  align-items: baseline;
+  gap: 0.65rem;
+  padding: 0.55rem 0.4rem;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  color: var(--gray-700);
+  text-decoration: none;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+
+.help-browse-list a:hover { background: var(--gray-50); color: var(--navy); }
+
+.help-browse-num {
+  flex: none;
+  width: 1.3em;
+  color: var(--gray-400);
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.help-browse-count {
+  margin-left: auto;
+  font-size: 0.78rem;
+  color: var(--gray-400);
+  font-variant-numeric: tabular-nums;
+}
+
+.help-browse-all {
+  display: inline-block;
+  margin-top: 1.15rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--gold);
+  text-decoration: none;
+}
+
+.help-browse-all:hover { color: var(--gold-deep); }
+
+/* ---- Responsive ---- */
+@media (max-width: 900px) {
+  .help-layout { grid-template-columns: 1fr; gap: 1.75rem; }
+  /* Assistant first: it is why the page exists. */
+  .help-browse { order: 2; }
+}
+
+@media (max-width: 560px) {
+  .assistant { height: clamp(26rem, 72vh, 34rem); }
+  .assistant-body { padding: 1.25rem 1.15rem 1.1rem; }
+  .assistant-bar { padding: 0.75rem 1.15rem; }
+  .assistant-composer { padding: 0.7rem 0.8rem; }
+  .assistant-question,
+  .assistant-answer-q { font-size: 1.18rem; }
+  .assistant-option { width: 100%; }
+  .sform-actions { flex-direction: column; align-items: stretch; gap: 0.6rem; }
+  .sform-actions .assistant-option { width: 100%; text-align: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-step { animation: none; }
+  .assistant-option,
+  .assistant-option:hover,
+  .assistant-option:active,
+  .assistant-composer-send:hover:not(:disabled),
+  .assistant-composer-send:active:not(:disabled),
+  .assistant-result:hover { transform: none; transition: none; }
 }

@@ -1,0 +1,80 @@
+# Continuous integration.
+#
+# Until now the only thing standing between a broken commit and production was
+# Vercel's own build, which runs after the fact and on the deploy path rather
+# than on the pull request. This runs the same gate on every push and PR.
+#
+# `npm run build` is not just a compile. It chains three checks, and all three
+# have caught real problems:
+#
+#   validate:support  — the 111-node support tree still resolves to a coherent
+#                       category/subcategory pair, every leaf has an answer, and
+#                       no FAQ id referenced by the tree has gone missing
+#   tsc               — typecheck, `strict`, no emit
+#   prerender         — renders all 49 routes and throws if any produces no
+#                       <title> or falls through to <NotFound/>
+#
+# There are no unit tests in this repo yet, so this is the whole safety net.
+# Treat a failure here as a real failure rather than something to re-run.
+
+name: CI
+
+# Push is limited to main on purpose. A branch with an open PR would otherwise
+# match both triggers and run the whole workflow twice for one commit, which is
+# what happened on the first run of this file.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A second push to the same branch makes the first run irrelevant.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # Node 22 or newer is required, not preferred: scripts/validate-support-content.mjs
+      # imports .ts content modules directly and relies on native type stripping
+      # to read them. On an older runtime it fails at import, not at assertion.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
+
+      # Cheap, and it means a PR that breaks prerendering says so with the
+      # actual page count rather than just a stack trace.
+      - name: Report what was built
+        run: |
+          echo "pages: $(find dist -name '*.html' | wc -l)"
+          echo "sitemap urls: $(grep -c '<loc>' dist/sitemap.xml || echo 0)"
+
+  database:
+    name: Database tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Rebuilds the schema from supabase/migrations alone. This is the check
+      # that the vendored migrations are a complete and replayable history
+      # rather than a partial snapshot of a database that was edited by hand —
+      # which matters here beyond correctness, because that history is how the
+      # firm evidences which behaviour was live on which date.
+      - name: Start Postgres and replay every migration
+        run: supabase db start
+
+      - name: Run pgTAP tests
+        run: supabase test db

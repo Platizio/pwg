@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && node scripts/prerender.mjs",
+    "build": "npm run validate:support && tsc && node scripts/prerender.mjs",
     "build:debug": "tsc && node scripts/prerender.mjs --dev",
     "build:spa": "tsc && vite build",
     "sitemap": "node scripts/generate-sitemap.mjs",
+    "validate:support": "node scripts/validate-support-content.mjs",
     "preview": "node scripts/serve-static.mjs",
     "preview:spa": "vite preview",
     "webp": "node scripts/convert-webp.mjs"

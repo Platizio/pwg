@@ -156,20 +156,28 @@ export default function Header() {
             >
               Help <span className="dropdown-chevron" aria-hidden="true" />
             </button>
-            <ul className="dropdown">
-              <li>
-                <Link to="/faqs" onClick={() => { setMenuOpen(false); setResourcesOpen(false) }}>
-                  <strong>FAQ</strong>
-                  <span>Common questions on investing, funding &amp; taxes</span>
-                </Link>
-              </li>
-              <li>
-                <Link to="/user-guide" onClick={() => { setMenuOpen(false); setResourcesOpen(false) }}>
-                  <strong>User Guide</strong>
-                  <span>Step-by-step guide to start investing</span>
-                </Link>
-              </li>
-            </ul>
+            <div className="dropdown-wrap">
+              <ul className="dropdown">
+                <li>
+                  <Link to="/help" onClick={() => { setMenuOpen(false); setResourcesOpen(false) }}>
+                    <strong>Help &amp; Support</strong>
+                    <span>Get an answer, or reach our team</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/faqs" onClick={() => { setMenuOpen(false); setResourcesOpen(false) }}>
+                    <strong>FAQ</strong>
+                    <span>Common questions on investing, funding &amp; taxes</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/user-guide" onClick={() => { setMenuOpen(false); setResourcesOpen(false) }}>
+                    <strong>User Guide</strong>
+                    <span>Step-by-step guide to start investing</span>
+                  </Link>
+                </li>
+              </ul>
+            </div>
           </li>
 
           {/* Mobile-only CTAs inside the slide-out menu */}

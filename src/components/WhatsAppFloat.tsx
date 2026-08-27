@@ -1,10 +1,20 @@
 import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { WHATSAPP_URL } from '../constants'
 
 const APPEAR_DELAY_MS = 5000
 
+/**
+ * Routes that own their own support entry point, where this button would be both
+ * redundant and in the way. On /help it lands directly on the assistant's send
+ * button at mobile widths, and the assistant already offers WhatsApp as the
+ * call-back route.
+ */
+const SUPPRESSED_ON = ['/help']
+
 export default function WhatsAppFloat() {
   const [visible, setVisible] = useState(false)
+  const { pathname } = useLocation()
 
   useEffect(() => {
     const timer = setTimeout(() => setVisible(true), APPEAR_DELAY_MS)
@@ -12,6 +22,9 @@ export default function WhatsAppFloat() {
   }, [])
 
   if (!visible) return null
+  if (SUPPRESSED_ON.some((route) => pathname === route || pathname.startsWith(`${route}/`))) {
+    return null
+  }
 
   return (
     <a

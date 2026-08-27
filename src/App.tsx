@@ -13,6 +13,7 @@ import Pricing from './pages/Pricing'
 import Media from './pages/Media'
 import About from './pages/About'
 import FAQs from './pages/FAQs'
+import Help from './pages/Help'
 import UserGuide from './pages/UserGuide'
 import Articles from './pages/Articles'
 import TopicHub from './pages/TopicHub'
@@ -142,6 +143,7 @@ export default function App() {
           <Route path="/media" element={<Media />} />
           <Route path="/about" element={<About />} />
           <Route path="/faqs" element={<FAQs />} />
+          <Route path="/help" element={<Help />} />
           <Route path="/user-guide" element={<UserGuide />} />
           <Route path="/articles" element={<Articles />} />
           {/* Three segments, so this never collides with /articles/:slug */}

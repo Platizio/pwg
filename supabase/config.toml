@@ -1,0 +1,84 @@
+# Supabase project configuration.
+#
+# The backend was built directly against the hosted project before this repo
+# existed; these migrations and functions were vendored in on 2026-08-13 so that
+# schema and edge-function history live under version control. For an
+# IFSCA-regulated entity that history is the point: it is how you establish which
+# behaviour was live on which date.
+
+project_id = "qtjnlkobvnhhgsnyufzv"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+# `private` is deliberately absent. Internal helpers (rate_limit_hits, the purge
+# and sweep routines) live there precisely so PostgREST cannot reach them.
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[db.pooler]
+enabled = false
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+file_size_limit = "5MiB"
+
+[auth]
+enabled = true
+site_url = "https://platizioglobal.com"
+additional_redirect_urls = ["http://localhost:5173"]
+jwt_expiry = 3600
+enable_signup = false
+
+# ── Edge functions ───────────────────────────────────────────────────────────
+# Every deployed function uses verify_jwt = true; these declarations match, so a
+# local `supabase functions serve` behaves like production.
+#
+# support-chat (coming in Phase 3) also stays verify_jwt = true. The widget sends
+# the anon key, which satisfies the gateway, so anonymous customers are still
+# served while unauthenticated noise is rejected before it reaches our code. Abuse
+# control is Turnstile plus rate_limit_consume, not the JWT.
+
+[functions.create-ticket]
+verify_jwt = true
+
+[functions.finalize-ticket]
+verify_jwt = true
+
+[functions.drain-outbox]
+verify_jwt = true
+
+[functions.sweep-storage]
+verify_jwt = true
+
+[functions.request-status-link]
+verify_jwt = true
+
+[functions.lookup-status]
+verify_jwt = true
+
+[functions.invite-staff]
+verify_jwt = true
+
+[functions.staff-attachment]
+verify_jwt = true
+
+# Reached with the anon key from the enquiry modal, exactly like create-ticket.
+# The JWT check is the gateway rejecting unsigned noise, not the authorisation
+# decision — that is Turnstile plus rate_limit_consume.
+[functions.create-enquiry]
+verify_jwt = true

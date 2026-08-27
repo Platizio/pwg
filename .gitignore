@@ -9,6 +9,15 @@ dist-ssr/
 .env
 .env.local
 .env.*.local
+# .env.production was not covered by the patterns above, so it would have been
+# committed. Vercel holds production values; nothing needs it in git.
+.env.production
+.env.development
+
+# Supabase CLI local state. .temp/pooler-url contains a database connection
+# string with the password in it — this must never be committed.
+supabase/.temp/
+supabase/.branches/
 
 # Logs
 npm-debug.log*

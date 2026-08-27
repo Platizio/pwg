@@ -39,6 +39,10 @@ export const STATIC_ROUTES: RouteEntry[] = [
   { path: '/media', lastmod: STATIC_LASTMOD, changefreq: 'weekly', priority: 0.8 },
   { path: '/about', lastmod: STATIC_LASTMOD, changefreq: 'monthly', priority: 0.8 },
   { path: '/faqs', lastmod: STATIC_LASTMOD, changefreq: 'monthly', priority: 0.9 },
+  // The guided support assistant. Indexed on purpose — it is the front door for
+  // "how do I..." searches, and it renders the FAQ browser server-side so there
+  // is real content here before any JavaScript runs.
+  { path: '/help', lastmod: '2026-08-13', changefreq: 'monthly', priority: 0.9 },
   { path: '/user-guide', lastmod: STATIC_LASTMOD, changefreq: 'monthly', priority: 0.8 },
   { path: '/articles', lastmod: STATIC_LASTMOD, changefreq: 'weekly', priority: 0.8 },
   { path: '/terms', lastmod: STATIC_LASTMOD, changefreq: 'yearly', priority: 0.3 },
