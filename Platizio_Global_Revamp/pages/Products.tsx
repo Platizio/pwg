@@ -37,7 +37,7 @@
 import { useMemo, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { TRADING_PLATFORM_URL, screenerInstrument } from '../../src/constants'
+import { TRADING_PLATFORM_URL, SCREENER_URL, screenerInstrument } from '../../src/constants'
 import { POPULAR_8, LARGE_CAP_SAMPLE } from '../data/marketUniverse'
 import { RATES, FREE_ITEMS, TRADING_CHARGES, pct } from '../data/pricingRates'
 import { formatUsd } from '../lib/pricing'
@@ -231,7 +231,11 @@ export default function Products() {
               <a className="ft-cta" href={TRADING_PLATFORM_URL} target="_blank" rel="noopener noreferrer">
                 Open an account
               </a>
-              <a className="ft-ghost" href={screenerInstrument(linkSymbol)} target="_blank" rel="noopener noreferrer">
+              {/* The one generic entry point into the terminal, so it opens the
+                  terminal itself — its Overview — rather than dropping the
+                  reader onto whichever single instrument this band happens to
+                  be showing. The symbol-specific links below still deep-link. */}
+              <a className="ft-ghost" href={SCREENER_URL} target="_blank" rel="noopener noreferrer">
                 See the terminal
               </a>
             </div>

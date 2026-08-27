@@ -7,9 +7,13 @@ export const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com
 /**
  * The market terminal in screener/ — a separate Next.js app.
  *
- * Localhost for now. Deployment is a later task (Render), and when it lands
- * this is the one line that changes.
+ * A path rather than an origin: in development vite.config.ts proxies
+ * /screener to the terminal's own dev server, so both apps answer on one port
+ * and this link never leaves the origin the reader is already on.
+ *
+ * Deployment is a later task (Render). If the terminal ends up on its own
+ * host rather than behind this path, this is still the one line that changes.
  */
-export const SCREENER_URL = 'http://localhost:3000'
+export const SCREENER_URL = '/screener'
 export const screenerInstrument = (ticker: string) =>
   `${SCREENER_URL}/instrument/${ticker.toLowerCase()}`

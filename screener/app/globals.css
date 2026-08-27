@@ -1,0 +1,984 @@
+@import "tailwindcss";
+
+/*
+  Tokens lifted from the Stock Terminal Lux design source.
+
+  Two measured corrections to the source, applied here:
+  1. The SELL confirm gradient (#E0796B → #B3564A under #FBF3F0 ink) measured
+     2.70:1 — a destructive control below AA. It now mirrors the BUY button's
+     own structure, dark ink on a warm gradient: 6.55:1 → 4.58:1.
+  2. The source's 8–8.5px eyebrows and 11.5px prose read on a 1560px mock but
+     not on a real display, and the first correction to 10px / 12px did not go
+     far enough — 72% of the dashboard's text was landing at or under 11.5px.
+     The reading floor is now 11px for labels and 13.5px for prose, with the
+     extreme tracking eased from 0.26em to 0.18em.
+  3. The champagne wash was painted on <body>, underneath an opaque shell that
+     covered the whole viewport. It is now on the shell itself.
+*/
+@theme inline {
+  --color-page: var(--c-page);
+  --color-shell: var(--c-shell);
+  --color-rail: var(--c-rail);
+  --color-raised: var(--c-raised);
+
+  --color-rule: var(--c-rule);
+  --color-rule-section: var(--c-rule-section);
+  --color-rule-list: var(--c-rule-list);
+  --color-rule-table: var(--c-rule-table);
+  --color-rule-raised: var(--c-rule-raised);
+  --color-rule-mono: var(--c-rule-mono);
+  --color-rule-control: var(--c-rule-control);
+  --color-rule-dot: var(--c-rule-dot);
+
+  --color-ink: var(--c-ink);
+  --color-ink-2: var(--c-ink-2);
+  --color-ink-3: var(--c-ink-3);
+  --color-ink-4: var(--c-ink-4);
+
+  --color-gold: var(--c-gold);
+  --color-gold-hi: var(--c-gold-hi);
+  --color-gold-dim: var(--c-gold-dim);
+  --color-gold-deep: var(--c-gold-deep);
+  --color-on-gold: var(--c-on-gold);
+
+  --color-up: var(--c-up);
+  --color-down: var(--c-down);
+  --color-on-down: var(--c-on-down);
+
+  /*
+    One family in three roles. The names are kept because they are the roles
+    the interface reasons in — display, body, figure — not because two of them
+    are still a serif and a monospace. They are not: the pinned reference sets
+    every one of those jobs in the same geometric sans, and so does this.
+  */
+  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+
+  --ease-lux: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /*
+    Meridian v2 — the lit-card surface.
+
+    The original system was square by law and structured by hairline. That
+    reads as a ledger, and it also reads as a spreadsheet: the exact complaint
+    the redesign answers. Cards return, but they are not the rounded filled
+    panels the first system was written to refuse — those were flat grey boxes
+    with a border. These are lit: a warm vertical gradient, a one-pixel inner
+    highlight along the top edge where the light lands, and a deep soft shadow
+    that seats them on the page.
+  */
+  --radius-card: 16px;
+  --radius-tile: 12px;
+  --radius-pill: 999px;
+}
+
+/* =====================================================================
+   The two lightings.
+
+   Meridian ships one world in two lightings, not two designs. The dark is
+   the original and stays the default, because PRODUCT.md fixes the use
+   scene: read in a dim room on a large display for long stretches. The
+   light exists for the other half of that sentence — glanced at on a phone
+   between those stretches, which happens in daylight.
+
+   So the light theme is the counterpart, not an inversion. An inversion
+   would flip #080706 to #f9f8f7 and take the champagne with it; what makes
+   this world Meridian is the warmth, and cold white throws it away. This is
+   the same room with the lamp turned up: champagne paper rather than warm
+   black, the same gold pushed dark enough to hold on it, and Meridian's own
+   `on-gold` — the ink it already prints on a gold button — promoted to the
+   page's ink.
+
+   Every pair is measured, because inverting a palette does not invert its
+   contrast. The dark theme documents its text floor at ink-4, 5.1:1. The
+   light floor is set to match at 5.05:1 rather than merely clearing AA:
+
+     ink    #1a1207  15.76:1     ink-3  #5c5040   6.67:1
+     ink-2  #4a3f30   8.73:1     ink-4  #6f6250   5.05:1   <- the floor
+     gold   #7e6238   4.84:1     up     #1b7a50   4.53:1
+                                 down   #b0392c   5.15:1
+
+   gold-deep stays decoration-only in both lightings — 4.1:1 dark, 3.29:1
+   light — and may never carry text, exactly as DESIGN.md records.
+   ===================================================================== */
+
+:root {
+  --c-page: #080706;
+  --c-shell: #0b0a09;
+  --c-rail: #0a0908;
+  --c-raised: #15120f;
+
+  --c-rule: #241f1a;
+  --c-rule-section: #201b17;
+  --c-rule-list: #1c1815;
+  --c-rule-table: #16130f;
+  --c-rule-raised: #34291f;
+  --c-rule-mono: #3a2f22;
+  --c-rule-control: #302821;
+  --c-rule-dot: #2a231c;
+
+  --c-ink: #f2ede5;
+  --c-ink-2: #c7bfb4;
+  --c-ink-3: #9a9186;
+  --c-ink-4: #8a8076;
+
+  --c-gold: #d9bd8b;
+  --c-gold-hi: #f0dcb8;
+  --c-gold-dim: #b8945c;
+  --c-gold-deep: #8a6e43;
+  --c-on-gold: #1a1207;
+
+  --c-up: #7dd3a0;
+  --c-down: #e0796b;
+  --c-on-down: #1a0907;
+
+  /* The lit-card surfaces, which were hardcoded into six gradients. */
+  --c-card-from: #16130f;
+  --c-card-to: #131009;
+  --c-card-lift-from: #1d1913;
+  --c-card-lift-mid: #16120e;
+  --c-card-lift-to: #1c1712;
+  --c-tile-from: #221c14;
+  --c-tile-to: #171310;
+  /* The ribbon cells: the tile gradient one step darker, so they read as inset
+     into the card rather than stacked on it. Tokenised because they were
+     hardcoded and therefore stayed dark under the light theme, putting dark ink
+     on a near-black tile. Dark values are the originals, unchanged. */
+  --c-inset-from: #191510;
+  --c-inset-to: #120f0b;
+  --c-inset-hover-from: #1e1913;
+  --c-inset-hover-to: #15110c;
+  --c-card-edge: rgba(240, 220, 184, 0.06);
+  --c-card-shadow: rgba(0, 0, 0, 0.44);
+  --c-scrollbar: #2a231c;
+  /* Canvas palette. The chart is a <canvas>, so it cannot read these itself —
+     price-chart resolves them at runtime. Dark values are the originals. */
+  --c-grid-h: #15120f;
+  --c-grid-v: #131110;
+  --c-crosshair: rgba(217, 189, 139, 0.4);
+  --c-up-fill: rgba(125, 211, 160, 0.42);
+  --c-down-fill: rgba(224, 121, 107, 0.42);
+
+  --c-wash: rgba(217, 189, 139, 0.16);
+  --c-wash-2: rgba(217, 189, 139, 0.05);
+  --c-wash-3: rgba(217, 189, 139, 0.04);
+  --c-tint: rgba(217, 189, 139, 0.1);
+  --c-tint-soft: rgba(217, 189, 139, 0.06);
+  --c-tint-faint: rgba(217, 189, 139, 0.04);
+  --c-tint-ghost: rgba(217, 189, 139, 0.03);
+  --c-tint-up: rgba(125, 211, 160, 0.14);
+  --c-tint-down: rgba(224, 121, 107, 0.14);
+
+  --c-scheme: dark;
+  --c-cta-from: #e8cfa3;
+  --c-cta-to: #c9a46f;
+  --c-gold-rgb: 217, 189, 139;
+  --c-gold-hi-rgb: 240, 220, 184;
+  --c-up-rgb: 125, 211, 160;
+  --c-down-rgb: 224, 121, 107;
+  --c-shadow-rgb: 0, 0, 0;
+  --c-cream-rgb: 252, 240, 214;
+}
+
+/*
+  One palette, declared once, applied by an explicit choice or by the system.
+  The explicit choice wins in both directions, which is why the media query is
+  guarded rather than left to fight the attribute on specificity.
+*/
+:root[data-theme='light'] {
+  --c-page: #f5f1e8;
+  --c-shell: #f7f3ec;
+  --c-rail: #f2eee5;
+  --c-raised: #fffdf9;
+
+  --c-rule: #ddd3c2;
+  --c-rule-section: #e3dacb;
+  --c-rule-list: #e8e0d3;
+  --c-rule-table: #eee7dc;
+  --c-rule-raised: #d6c9b3;
+  --c-rule-mono: #cbbca2;
+  --c-rule-control: #d9cdb9;
+  --c-rule-dot: #e0d7c8;
+
+  --c-ink: #1a1207;
+  --c-ink-2: #4a3f30;
+  --c-ink-3: #5c5040;
+  --c-ink-4: #6f6250;
+
+  --c-gold: #7e6238;
+  --c-gold-hi: #5f4926;
+  --c-gold-dim: #8a6e43;
+  --c-gold-deep: #9b7d4a;
+  --c-on-gold: #1a1207;
+
+  --c-up: #1b7a50;
+  --c-down: #b0392c;
+  --c-on-down: #fffdf9;
+
+  /* A card on paper lifts toward white and is seated by a warm shadow, not a
+     brown one — a neutral shadow on a warm ground reads as a smudge. */
+  --c-card-from: #fffdf9;
+  --c-card-to: #f9f4ea;
+  --c-card-lift-from: #fffefb;
+  --c-card-lift-mid: #fdf9f1;
+  --c-card-lift-to: #f7f1e6;
+  --c-tile-from: #f7f1e6;
+  --c-tile-to: #efe7d9;
+  /* Counterpart of the dark inset: one step under the light tile, so the cells
+     still read as recessed on paper. */
+  --c-inset-from: #f2ebdd;
+  --c-inset-to: #eae2d2;
+  --c-inset-hover-from: #ede5d4;
+  --c-inset-hover-to: #e6dcc9;
+  --c-card-edge: rgba(255, 255, 255, 0.9);
+  --c-card-shadow: rgba(26, 18, 7, 0.12);
+  --c-scrollbar: #d3c7b3;
+  /* Canvas palette, light. The grid is deliberately far weaker than the dark
+     one: on paper the near-black dark grid read as a heavy black cage that
+     dominated the series it was supposed to support. These sit just above the
+     tile so they register as structure, not as data. */
+  --c-grid-h: #e6ded0;
+  --c-grid-v: #ebe4d8;
+  --c-crosshair: rgba(126, 98, 56, 0.45);
+  --c-up-fill: rgba(27, 122, 80, 0.18);
+  --c-down-fill: rgba(176, 57, 44, 0.18);
+
+  --c-wash: rgba(201, 164, 111, 0.14);
+  --c-wash-2: rgba(201, 164, 111, 0.06);
+  --c-wash-3: rgba(201, 164, 111, 0.05);
+  --c-tint: rgba(126, 98, 56, 0.09);
+  --c-tint-soft: rgba(126, 98, 56, 0.06);
+  --c-tint-faint: rgba(126, 98, 56, 0.04);
+  --c-tint-ghost: rgba(126, 98, 56, 0.03);
+  --c-tint-up: rgba(27, 122, 80, 0.12);
+  --c-tint-down: rgba(176, 57, 44, 0.12);
+
+  --c-scheme: light;
+  --c-cta-from: #e8cfa3;
+  --c-cta-to: #c9a46f;
+  --c-gold-rgb: 126, 98, 56;
+  --c-gold-hi-rgb: 95, 73, 38;
+  --c-up-rgb: 27, 122, 80;
+  --c-down-rgb: 176, 57, 44;
+  --c-shadow-rgb: 26, 18, 7;
+  --c-cream-rgb: 95, 73, 38;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --c-page: #f5f1e8;
+    --c-shell: #f7f3ec;
+    --c-rail: #f2eee5;
+    --c-raised: #fffdf9;
+
+    --c-rule: #ddd3c2;
+    --c-rule-section: #e3dacb;
+    --c-rule-list: #e8e0d3;
+    --c-rule-table: #eee7dc;
+    --c-rule-raised: #d6c9b3;
+    --c-rule-mono: #cbbca2;
+    --c-rule-control: #d9cdb9;
+    --c-rule-dot: #e0d7c8;
+
+    --c-ink: #1a1207;
+    --c-ink-2: #4a3f30;
+    --c-ink-3: #5c5040;
+    --c-ink-4: #6f6250;
+
+    --c-gold: #7e6238;
+    --c-gold-hi: #5f4926;
+    --c-gold-dim: #8a6e43;
+    --c-gold-deep: #9b7d4a;
+    --c-on-gold: #1a1207;
+
+    --c-up: #1b7a50;
+    --c-down: #b0392c;
+    --c-on-down: #fffdf9;
+
+    /* A card on paper lifts toward white and is seated by a warm shadow, not a
+       brown one — a neutral shadow on a warm ground reads as a smudge. */
+    --c-card-from: #fffdf9;
+    --c-card-to: #f9f4ea;
+    --c-card-lift-from: #fffefb;
+    --c-card-lift-mid: #fdf9f1;
+    --c-card-lift-to: #f7f1e6;
+    --c-tile-from: #f7f1e6;
+    --c-tile-to: #efe7d9;
+  /* Counterpart of the dark inset: one step under the light tile, so the cells
+     still read as recessed on paper. */
+  --c-inset-from: #f2ebdd;
+  --c-inset-to: #eae2d2;
+  --c-inset-hover-from: #ede5d4;
+  --c-inset-hover-to: #e6dcc9;
+    --c-card-edge: rgba(255, 255, 255, 0.9);
+    --c-card-shadow: rgba(26, 18, 7, 0.12);
+    --c-scrollbar: #d3c7b3;
+  /* Canvas palette, light. The grid is deliberately far weaker than the dark
+     one: on paper the near-black dark grid read as a heavy black cage that
+     dominated the series it was supposed to support. These sit just above the
+     tile so they register as structure, not as data. */
+  --c-grid-h: #e6ded0;
+  --c-grid-v: #ebe4d8;
+  --c-crosshair: rgba(126, 98, 56, 0.45);
+  --c-up-fill: rgba(27, 122, 80, 0.18);
+  --c-down-fill: rgba(176, 57, 44, 0.18);
+
+    --c-wash: rgba(201, 164, 111, 0.14);
+    --c-wash-2: rgba(201, 164, 111, 0.06);
+    --c-wash-3: rgba(201, 164, 111, 0.05);
+    --c-tint: rgba(126, 98, 56, 0.09);
+    --c-tint-soft: rgba(126, 98, 56, 0.06);
+    --c-tint-faint: rgba(126, 98, 56, 0.04);
+    --c-tint-ghost: rgba(126, 98, 56, 0.03);
+    --c-tint-up: rgba(27, 122, 80, 0.12);
+    --c-tint-down: rgba(176, 57, 44, 0.12);
+
+    --c-scheme: light;
+    --c-cta-from: #e8cfa3;
+    --c-cta-to: #c9a46f;
+    --c-gold-rgb: 126, 98, 56;
+    --c-gold-hi-rgb: 95, 73, 38;
+    --c-up-rgb: 27, 122, 80;
+    --c-down-rgb: 176, 57, 44;
+    --c-shadow-rgb: 26, 18, 7;
+    --c-cream-rgb: 95, 73, 38;
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: var(--c-scheme);
+    /*
+      The champagne wash used to sit on <body>, where the opaque terminal shell
+      covered every pixel of it — the light the whole design is lit by was
+      being painted underneath an opaque sheet. It lives on the shell now, and
+      the rails stay opaque so the light reads as falling on the page itself.
+    */
+    /*
+      A wash spread over 2400px has no edge and reads as flat, however much
+      alpha it carries. This one is tighter and stronger, and its peak sits
+      just inside the top of the shell rather than 90px above it, so the light
+      has somewhere to fall off from.
+
+      0.16 is not a taste value — it is the ceiling. Lighting the ground raises
+      its luminance 6.6x, and every text tone loses contrast against it. At
+      0.16 the dimmest tone this system still sets text in (ink-3) holds
+      4.78:1; at 0.20 it drops to 4.34 and the page stops meeting AA. If the
+      wash is ever pushed further, the text tones have to come up with it.
+    */
+    --gold-wash:
+      radial-gradient(
+        880px 440px at 50% 0%,
+        var(--c-wash),
+        transparent 68%
+      ),
+      radial-gradient(
+        520px 300px at 88% 14%,
+        var(--c-wash-2),
+        transparent 64%
+      ),
+      radial-gradient(
+        640px 420px at 4% 96%,
+        var(--c-wash-3),
+        transparent 66%
+      );
+    --cta-buy: linear-gradient(135deg, var(--c-cta-from), var(--c-cta-to));
+    --cta-sell: linear-gradient(135deg, #e0796b, #c9584a);
+    --tint-gold: var(--c-tint);
+    --tint-gold-soft: var(--c-tint-soft);
+    --tint-gold-faint: var(--c-tint-faint);
+    --tint-gold-ghost: var(--c-tint-ghost);
+    --tint-up: var(--c-tint-up);
+    --tint-down: var(--c-tint-down);
+  }
+
+  html {
+    background: var(--color-page);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--color-page);
+    background-attachment: fixed;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* The source ships no focus styling at all. Gold, square, always visible. */
+  :focus-visible {
+    outline: 1px solid var(--color-gold);
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    background: var(--color-gold);
+    color: var(--color-on-gold);
+  }
+
+  ::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--c-scrollbar);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-rule-mono);
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  * {
+    scrollbar-color: var(--c-scrollbar) transparent;
+    scrollbar-width: thin;
+  }
+}
+
+@layer utilities {
+  /*
+    `.font-serif` is the DISPLAY role — names, headings, headline figures. It
+    is no longer a serif; it is the one family at the weight the reference sets
+    its large type, with the tracking tightened because a geometric face at
+    display size needs negative tracking where a serif did not.
+  */
+  .font-serif {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    letter-spacing: -0.018em;
+  }
+
+  /*
+    `.font-mono` is the FIGURE role — anything that sits in a column. The face
+    is proportional, so alignment comes from tabular figures rather than from a
+    monospaced design. Without this, a price column visibly jitters as digits
+    change, which is the single most obvious tell of a non-financial UI.
+  */
+  .font-mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    letter-spacing: 0;
+  }
+
+  /*
+    The design's signature move: tracked, all-caps micro-labels.
+
+    Retuned for reading rather than for a 1560px mock. 10px at 0.26em is where
+    tracking stops reading as refinement and starts reading as an eye chart —
+    and 102 nodes on the dashboard were sitting at exactly that. 11px at 0.18em
+    keeps the character and costs nothing but a little width, and the default
+    tone moves up a step (ink-4 5.1:1 -> ink-3 6.4:1) because these labels are
+    read, not merely present.
+  */
+  /*
+    The card label. Title case at 14px, not tracked caps — the reference sets
+    every label this way, and at this density it reads faster than the
+    ledger's own eyebrow. The eyebrow survives, but only where something is
+    genuinely being annotated rather than named.
+  */
+  .card-label {
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1.4;
+    color: var(--color-ink-3);
+  }
+
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    line-height: 1.45;
+    color: var(--color-ink-3);
+    text-transform: uppercase;
+  }
+  .eyebrow-gold {
+    color: var(--color-gold-dim);
+  }
+  .eyebrow-wide {
+    letter-spacing: 0.22em;
+  }
+
+
+  .rule-t {
+    border-top: 1px solid var(--color-rule-list);
+  }
+
+  /* Dotted leader between a ratio label and its value. */
+  .leader {
+    flex: 1;
+    border-bottom: 1px dotted var(--color-rule-dot);
+    transform: translateY(-3px);
+  }
+
+  /* ---- precious metal ---------------------------------------------------
+     Gilt was measured at 2.6% of the surface against a system that asks for
+     ten. These are where the rest of it goes — and it goes into one figure and
+     the edges of things, never into a fill, because gilt spread evenly over a
+     page stops reading as metal and starts reading as beige.
+  */
+
+  /*
+    Struck gilt: the hero figure. A gradient clipped to the glyphs, angled so
+    the light runs across the number rather than down it — a vertical sweep on
+    a wide figure looks like a fade, a raking one looks like a struck surface.
+
+    `color` is set first as a real fallback: if background-clip:text is not
+    honoured the number is still legible gold, never invisible.
+  */
+  .gilt {
+    color: #e8cfa3;
+    background: linear-gradient(
+      104deg,
+      #8a6e43 0%,
+      #d9bd8b 18%,
+      #fdf3dd 38%,
+      #f0dcb8 52%,
+      #c9a46f 72%,
+      #8a6e43 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    /* Oversized so the highlight has somewhere to travel from. Declared after
+       the `background` shorthand, which would otherwise reset it. */
+    background-size: 230% 100%;
+    /* The page's one authored moment: the light rakes across the figure once,
+       as if it had just been struck, then settles. Not a loop — a loop would
+       turn the hero into an advertisement. */
+    animation: gilt-strike 2.6s var(--ease-lux) both;
+  }
+
+  /*
+    A hairline that catches light along the top edge of a surface — brightest
+    at the centre, gone at the corners, the way a real bevel picks up a lamp.
+    This is the single detail that separates a lit card from a filled one.
+  */
+  .edge-lit {
+    position: relative;
+  }
+  .edge-lit::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(var(--c-gold-hi-rgb), 0.06) 14%,
+      rgba(var(--c-cream-rgb), 0.42) 50%,
+      rgba(var(--c-gold-hi-rgb), 0.06) 86%,
+      transparent 100%
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* A ruled gilt hairline, for separating a hero from what follows it. */
+  .rule-gilt {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(var(--c-gold-rgb), 0.34) 22%,
+      rgba(var(--c-gold-rgb), 0.34) 78%,
+      transparent
+    );
+  }
+
+  /* ---- surfaces ------------------------------------------------------- */
+
+  /*
+    The workhorse card. Three things make it read as lit rather than filled:
+    the gradient runs along the light's axis, the inset highlight sits only on
+    the top edge, and the shadow has a negative spread so it pools under the
+    card instead of haloing it.
+  */
+  .card {
+    border-radius: var(--radius-card);
+    background: linear-gradient(180deg, var(--c-card-from) 0%, var(--c-card-to) 100%);
+    border: 1px solid rgba(var(--c-gold-rgb), 0.07);
+    box-shadow:
+      inset 0 1px 0 rgba(var(--c-gold-hi-rgb), 0.04),
+      0 16px 36px -22px rgba(var(--c-shadow-rgb), 0.9);
+  }
+
+  .card-hover {
+    transition:
+      border-color 0.32s var(--ease-lux),
+      box-shadow 0.32s var(--ease-lux),
+      transform 0.32s var(--ease-lux);
+  }
+  .card-hover:hover {
+    border-color: rgba(var(--c-gold-rgb), 0.2);
+    box-shadow:
+      inset 0 1px 0 rgba(var(--c-gold-hi-rgb), 0.08),
+      0 26px 54px -20px rgba(var(--c-shadow-rgb), 0.86);
+    transform: translateY(-2px);
+  }
+
+  /*
+    The champagne card — the design's one extravagance.
+
+    The light pools low and to the right, so the top of the card stays dark
+    enough to carry text at full contrast while the lower half glows. Anything
+    set over the bright region has to be a silhouette, never type.
+  */
+  .card-glow {
+    border-radius: var(--radius-card);
+    background:
+      /*
+        Wide enough that the whole bar row sits on the light. A tighter pool
+        looked better in isolation and left the outer two month labels as dark
+        ink on a dark ground — the light has to cover everything that is set
+        in dark ink, or nothing should be.
+      */
+      radial-gradient(
+        92% 54% at 50% 110%,
+        rgba(var(--c-cream-rgb), 0.98) 0%,
+        rgba(243, 219, 176, 0.8) 26%,
+        rgba(214, 178, 122, 0.4) 48%,
+        rgba(var(--c-gold-rgb), 0.12) 68%,
+        transparent 82%
+      ),
+      radial-gradient(
+        46% 40% at 100% 0%,
+        rgba(var(--c-gold-rgb), 0.2),
+        transparent 70%
+      ),
+      linear-gradient(168deg, var(--c-card-lift-from) 0%, var(--c-card-lift-mid) 52%, var(--c-card-lift-to) 100%);
+    border: 1px solid rgba(var(--c-gold-rgb), 0.22);
+    box-shadow:
+      inset 0 1px 0 rgba(var(--c-cream-rgb), 0.18),
+      0 26px 60px -22px rgba(var(--c-shadow-rgb), 0.86);
+  }
+
+  /*
+    The lit card — the feature surface.
+
+    Sits between .card, which is flat, and .card-glow, which is the one
+    extravagance. The reference gives its large cards a directional tint so
+    they read as lit from a point rather than filled with a colour, and gives
+    it only to the cards that carry the page: a tint on every surface stops
+    being light falling on a few things and becomes a wash over everything.
+
+    0.10 is measured, not chosen. Tinting the ground raises its luminance and
+    ink-3 is the dimmest tone set on it — 4.96:1 at 0.10, 4.52:1 at 0.14 with
+    no headroom left, and failing AA by 0.16. The peak stays at 0.10 so the
+    tone has somewhere to go.
+
+    The two pools are placed so they never overlap at strength: the corner one
+    is already transparent where the far one begins, so the alphas cannot
+    stack into a bright patch in the middle.
+  */
+  .card-lit {
+    border-radius: var(--radius-card);
+    background:
+      radial-gradient(
+        74% 86% at 6% 0%,
+        rgba(var(--c-gold-rgb), 0.1) 0%,
+        rgba(var(--c-gold-rgb), 0.05) 34%,
+        transparent 72%
+      ),
+      radial-gradient(
+        52% 58% at 100% 100%,
+        var(--c-wash-2),
+        transparent 66%
+      ),
+      linear-gradient(180deg, var(--c-card-from) 0%, var(--c-card-to) 100%);
+    border: 1px solid rgba(var(--c-gold-rgb), 0.13);
+    box-shadow:
+      inset 0 1px 0 rgba(var(--c-gold-hi-rgb), 0.07),
+      0 20px 44px -22px rgba(var(--c-shadow-rgb), 0.9);
+  }
+
+  /*
+    The two directional boards.
+
+    Top gainers and Top losers are the only cards whose subject *is* a
+    direction, so they are the only ones where a coloured ground states
+    something instead of decorating. Everything else on the page keeps the
+    common .card, and the two feature cards keep champagne — a green tint on
+    a card that is not about rising would put the page's most loaded colour
+    somewhere it means nothing.
+
+    Same geometry as .card-lit, same measured 0.10 peak. Each board sets text
+    in its own signal colour, so both tones were checked twice: on green,
+    ink-3 holds 4.98:1 and the green figures 8.60:1; on terracotta, ink-3
+    holds 5.25:1 and the terracotta figures 5.52:1 — the tightest pair on the
+    page, and the reason neither goes past 0.10.
+  */
+  .card-up,
+  .card-down {
+    border-radius: var(--radius-card);
+    box-shadow:
+      inset 0 1px 0 var(--c-card-edge),
+      0 18px 40px -22px rgba(var(--c-shadow-rgb), 0.9);
+  }
+
+  .card-up {
+    background:
+      radial-gradient(
+        74% 86% at 6% 0%,
+        rgba(var(--c-up-rgb), 0.1) 0%,
+        rgba(var(--c-up-rgb), 0.05) 34%,
+        transparent 72%
+      ),
+      radial-gradient(
+        52% 58% at 100% 100%,
+        rgba(var(--c-up-rgb), 0.045),
+        transparent 66%
+      ),
+      linear-gradient(180deg, var(--c-card-from) 0%, var(--c-card-to) 100%);
+    border: 1px solid rgba(var(--c-up-rgb), 0.14);
+  }
+
+  .card-down {
+    background:
+      radial-gradient(
+        74% 86% at 6% 0%,
+        rgba(var(--c-down-rgb), 0.1) 0%,
+        rgba(var(--c-down-rgb), 0.05) 34%,
+        transparent 72%
+      ),
+      radial-gradient(
+        52% 58% at 100% 100%,
+        rgba(var(--c-down-rgb), 0.045),
+        transparent 66%
+      ),
+      linear-gradient(180deg, var(--c-card-from) 0%, var(--c-card-to) 100%);
+    border: 1px solid rgba(var(--c-down-rgb), 0.14);
+  }
+
+  /* A square-ish inner tile: icon wells, monogram plates, chart badges. */
+  .tile {
+    border-radius: var(--radius-tile);
+    background: linear-gradient(158deg, var(--c-tile-from), var(--c-tile-to));
+    border: 1px solid rgba(var(--c-gold-rgb), 0.1);
+    box-shadow: inset 0 1px 0 var(--c-card-edge);
+  }
+
+  /* ---- meters --------------------------------------------------------- */
+
+  /*
+    The tick meter. A solid bar states a proportion; a ruled one states that
+    the proportion was counted — which is the ledger idea surviving into the
+    new surface. Two layers of the same comb, the top one clipped to the value.
+  */
+  .tick-track {
+    --tick: repeating-linear-gradient(
+      90deg,
+      currentColor 0 2px,
+      transparent 2px 6px
+    );
+    background-image: var(--tick);
+    color: #2a2119;
+  }
+  .tick-fill {
+    background-image: var(--tick);
+    color: var(--color-gold);
+  }
+
+  /*
+    A two-tone tick meter — the reference's own barcode bar, split.
+
+    The comb is a mask rather than a background, so one continuous set of ticks
+    runs the full width and only the colour changes at the split. Two adjacent
+    combed elements would each start their pattern at their own origin and
+    leave a visible phase break exactly where the eye is trying to read the
+    proportion.
+  */
+  .tick-split {
+    -webkit-mask-image: repeating-linear-gradient(
+      90deg,
+      #000 0 2px,
+      transparent 2px 5px
+    );
+    mask-image: repeating-linear-gradient(
+      90deg,
+      #000 0 2px,
+      transparent 2px 5px
+    );
+  }
+
+  /* Diagonal hatch — the one bar in a set that is still being counted. */
+  .hatch {
+    background-image: repeating-linear-gradient(
+      132deg,
+      rgba(246, 228, 194, 0.5) 0 2px,
+      transparent 2px 7px
+    );
+  }
+
+  /* The terminal's own ground: warm black, lit from above the fold. */
+  .shell-lit {
+    background:
+      var(--gold-wash),
+      var(--color-shell);
+  }
+
+  /*
+    The rails are a shade under the shell, but translucent rather than opaque,
+    so the same light that falls on the working column carries across them at
+    reduced strength. Fully opaque rails cut the wash into a stripe and made
+    the terminal read as three unrelated panels.
+  */
+  /* Instrument monograms carry a per-instrument identity colour as an inline
+     style (lib/market/instruments.ts), so the theme cannot reach them through a
+     token. Those colours are pastels chosen against near-black; on paper they
+     dropped to about 1.0-1.6:1. Darkening by filter keeps each mark its own hue
+     while lifting it clear of the page. They are aria-hidden decoration, so this
+     is polish rather than a text-contrast fix. */
+  :root[data-theme='light'] [aria-hidden='true'].grid[style*='color'],
+  :root:not([data-theme='dark']) [aria-hidden='true'].grid[style*='color'] {
+    filter: brightness(0.58) saturate(1.45);
+  }
+
+  .rail-lit {
+    /*
+      Was `rgba(10, 9, 8, 0.66)` — the dark rail colour written out literally
+      rather than taken from `--c-rail`. It is the one colour in this file that
+      bypassed the token system, so it stayed dark when the rest of the page
+      turned light: both rails kept a near-black scrim while the text on them
+      correctly flipped to dark brown, leaving the sidebar wordmark, the
+      watchlist and the whole right column dark-on-dark.
+
+      `color-mix` keeps the 0.66 translucency the comment above describes while
+      taking the colour from the themed token, so the rails now follow the
+      theme in both directions.
+    */
+    background: color-mix(in srgb, var(--color-rail) 66%, transparent);
+  }
+
+  /* A hairline of warm light along the very top edge of the shell. */
+  .shell-lit::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(var(--c-gold-rgb), 0.34) 34%,
+      rgba(var(--c-gold-rgb), 0.34) 66%,
+      transparent
+    );
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .cta-buy {
+    background: var(--cta-buy);
+    color: var(--color-on-gold);
+  }
+  .cta-sell {
+    background: var(--cta-sell);
+    color: var(--color-on-down);
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Drop cap via ::first-letter, so the paragraph keeps one unbroken text node
+     and screen readers never hear the opening letter split off. */
+  .about-drop::first-letter {
+    font-family: var(--font-serif);
+    font-size: 40px;
+    line-height: 0.86;
+    color: var(--color-gold);
+    float: left;
+    padding: 2px 9px 0 0;
+  }
+}
+
+@keyframes gold-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(var(--c-gold-rgb), 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(var(--c-gold-rgb), 0);
+  }
+}
+
+@keyframes sheen {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+/* The plot reveals under a curtain retracting left to right — the design's
+   one authored moment on a chart, replayed on every index or range change. */
+@keyframes curtain {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.animate-gold-pulse {
+  animation: gold-pulse 2.4s ease-in-out infinite;
+}
+
+.animate-sheen {
+  animation: sheen 5s ease-in-out infinite;
+}
+
+.animate-curtain {
+  animation: curtain 1.25s var(--ease-lux) both;
+}
+
+/* Meters draw off their axis. Scaled rather than sized so the growth is a
+   compositor-only transform, and staggered by a per-element custom property
+   rather than by a timeline in JS. */
+@keyframes gilt-strike {
+  from {
+    background-position: 175% 0;
+  }
+  to {
+    background-position: 0% 0;
+  }
+}
+
+@keyframes bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.animate-bar {
+  animation: bar-grow 1s var(--ease-lux) both;
+  animation-delay: var(--bar-delay, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-gold-pulse,
+  .animate-sheen,
+  .animate-curtain,
+  .animate-bar,
+  .gilt {
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

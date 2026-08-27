@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:lan": "vite --host",
     "build": "npm run validate:support && tsc && node scripts/prerender.mjs",
     "build:debug": "tsc && node scripts/prerender.mjs --dev",
     "build:spa": "tsc && vite build",
@@ -12,7 +13,8 @@
     "validate:support": "node scripts/validate-support-content.mjs",
     "preview": "node scripts/serve-static.mjs",
     "preview:spa": "vite preview",
-    "webp": "node scripts/convert-webp.mjs"
+    "webp": "node scripts/convert-webp.mjs",
+    "dev:lean": "NODE_OPTIONS=--max-old-space-size=1536 vite"
   },
   "dependencies": {
     "cobe": "^0.6.3",

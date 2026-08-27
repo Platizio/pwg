@@ -13,7 +13,7 @@ import { Helmet } from 'react-helmet-async'
  * prerendered page and the hydrated one agree. The preconnects already sit in
  * index.html, so this is one request.
  */
-export default function MeridianFonts() {
+export default function TerminalFonts() {
   return (
     <Helmet>
       <link

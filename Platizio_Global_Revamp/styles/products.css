@@ -1,17 +1,17 @@
 /*
- * /products — the first trade, walked end to end, in Meridian by daylight.
+ * /products — the first trade, walked end to end, in Platizio Global by daylight.
  *
  * This is the light form of the dark world the page carried, not the site's
  * white one. The distinction matters: the site's light theme is cool — white
- * paper, navy ink, a burnt orange — and dropping Meridian into it threw away
- * everything that made it Meridian. What is here instead is the same world
+ * paper, navy ink, a burnt orange — and dropping Platizio Global into it threw away
+ * everything that made it Platizio Global. What is here instead is the same world
  * with the lamp turned up. Champagne paper rather than near-black, the same
- * gold pushed dark enough to hold its own on it, and Meridian's own warm
+ * gold pushed dark enough to hold its own on it, and Platizio Global's own warm
  * brown-black for ink instead of the site's navy.
  *
  * Every pair is measured, because inverting a palette does not invert its
  * contrast. The tones that read on #080706 are the wrong ones for paper:
- *   ink   #1A1207 — Meridian's on-gold, which is its dark
+ *   ink   #1A1207 — Platizio Global's on-gold, which is its dark
  *   gold  #7E6238 — gold-deep, taken darker still to clear AA at 11px
  *   up    #1B7A50, down #B0392C — warm, and legible on paper, where the
  *         dark world's #7DD3A0 and #E0796B are neither
@@ -21,7 +21,7 @@
  * caught light on near-black and have no job here.
  *
  * Scoped to .ft throughout. :root is untouched, the shared chrome is the
- * site's own, and the terminal keeps its .meridian sheets.
+ * site's own, and the terminal keeps its .pg-terminal sheets.
  */
 
 /* ===================================================== the world */
@@ -156,7 +156,7 @@
 
 /* ===================================================== type */
 
-/* Meridian's labelling device: small, heavily tracked capitals in gold. In a
+/* Platizio Global's labelling device: small, heavily tracked capitals in gold. In a
    world with no weight contrast to spare, this is what marks a section. */
 /* 11px at 0.16em, not 9px at 0.30em: the screener measured 10px/0.26em as the
    point where tracking stops reading as refinement and starts reading as an
@@ -230,7 +230,7 @@
 .ft-link:focus-visible .ft-link-rule { transform: scaleX(1); }
 .ft-link--inline { font-size: 9.5px; }
 
-/* Meridian's two actions: a gold face and an outlined ghost. Square, tracked. */
+/* Platizio Global's two actions: a gold face and an outlined ghost. Square, tracked. */
 .ft-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 34px; }
 .ft-cta {
   padding: 17px 32px;

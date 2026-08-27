@@ -1,13 +1,13 @@
 /* =========================================================
-   Meridian — the terminal's visual world, in Platizio's light
+   Platizio Global — the terminal's visual world, in Platizio's light
    =========================================================
 
-   The structure and rigour of the Meridian design system, rendered in the
+   The structure and rigour of the Platizio Global design system, rendered in the
    brand rather than against it: white paper, burnt orange where the source
    had champagne gilt, and Platizio navy carrying the structure.
 
    THE SCOPE RULE, which is load-bearing: every token below is declared on
-   `.meridian` and NOTHING here touches `:root`. tokens.css is a global
+   `.pg-terminal` and NOTHING here touches `:root`. tokens.css is a global
    override layer — anything leaking out of this scope repaints the site.
 
    The world is "The Private Ledger", read in daylight instead of a dim room:
@@ -34,7 +34,7 @@
    --m-rule tones are DECORATION ONLY and may never carry text.
    ========================================================= */
 
-.meridian {
+.pg-terminal {
   /* ------------------------------------------------------------- grounds
      Paper, not grey. The rail is a half-degree warmer than the page so a
      flat system still separates its regions without a single border. */
@@ -146,6 +146,62 @@
   --m-rail-r: 396px;
   --m-max: none;
 
+  /* ================================================== theme-switched ink
+     Everything below is redeclared by the dark theme in terminal-v2.css.
+     A value that appears in a RULE rather than here cannot be themed, so
+     the rules below this block hold no colour literals at all — the two
+     grounds differ only by what these names resolve to.
+
+     Light is the default because a first-time reader arrives here from a
+     white marketing site in daylight; the dark ground is opt-in for the
+     live US session, which falls after dark in IST. */
+
+  /* The ground's own light. Warm, off-centre, and wide enough to have no
+     visible edge. */
+  --m-page-wash: radial-gradient(1100px 480px at 50% -16%, rgba(226, 104, 42, 0.055), transparent 64%);
+
+  /* Film grain. On paper it multiplies into the ground; on the dark
+     ground it has to overlay instead or it disappears. */
+  --m-noise-op: 0.035;
+  --m-noise-blend: multiply;
+
+  /* Browser surfaces. */
+  --m-select-bg: rgba(226, 104, 42, 0.20);
+  --m-select-ink: #7e3008;
+  --m-rule-dot: rgba(10, 37, 64, 0.24);
+
+  /* The filled-control ground. Separate from --m-accent-hi, which is the
+     HOVER tone and moves the opposite way per theme: on paper the hover
+     darkens, on the dark ground it brightens. Filling a control with the
+     hover tone put white 11px caps on #e2682a at 3.4:1 — below AA. */
+  --m-accent-fill: #b94b12;
+
+  /* Accent washes, four depths. */
+  --m-tint: rgba(226, 104, 42, 0.10);
+  --m-tint-soft: rgba(226, 104, 42, 0.07);
+  --m-tint-faint: rgba(226, 104, 42, 0.045);
+  --m-tint-ghost: rgba(226, 104, 42, 0.03);
+  /* The label tone for a control filled with --m-tint: the accent on its own
+     wash measures 4.41:1, under AA. */
+  --m-on-tint: #9a3d0d;
+
+  /* Direction, as ground rather than as ink. */
+  --m-tint-up: rgba(14, 124, 88, 0.12);
+  --m-tint-down: rgba(200, 30, 67, 0.10);
+  --m-on-down: #ffffff;
+  --m-ring-up: rgba(14, 124, 88, 0.16);
+  --m-ring-down: rgba(200, 30, 67, 0.16);
+  --m-bar-up: rgba(14, 124, 88, 0.30);
+  --m-bar-down: rgba(200, 30, 67, 0.30);
+  --m-chip-up: rgba(14, 124, 88, 0.40);
+  --m-chip-down: rgba(200, 30, 67, 0.40);
+
+  /* Elevation. Tinted with the ink so shadow belongs to the palette
+     instead of greying the page. */
+  --m-cta-shadow: 0 10px 34px rgba(185, 75, 18, 0.24);
+  --m-cta-shadow-hover: 0 16px 44px rgba(185, 75, 18, 0.36);
+  --m-pop-shadow: 0 8px 24px rgba(5, 19, 31, 0.14);
+
   position: relative;
   isolation: isolate;
   background: var(--m-page);
@@ -158,15 +214,15 @@
 
 /* Square by law. The two exemptions are re-granted explicitly below, which is
    the only way a reader of this file can tell they were decisions. */
-.meridian *,
-.meridian *::before,
-.meridian *::after {
+.pg-terminal *,
+.pg-terminal *::before,
+.pg-terminal *::after {
   border-radius: 0;
   box-sizing: border-box;
 }
 
-.meridian .m-dot,
-.meridian .m-avatar { border-radius: 9999px; }
+.pg-terminal .m-dot,
+.pg-terminal .m-avatar { border-radius: 9999px; }
 
 /* ----------------------------------------------------------- the material
 
@@ -174,46 +230,46 @@
    is a data-URI image, so the browser rasterises the noise once and reuses
    the tile; a live <filter> on a full-bleed rect re-runs the turbulence on
    every paint and is the single most expensive way to ship this texture. */
-.meridian::before,
-.meridian::after {
+.pg-terminal::before,
+.pg-terminal::after {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
 }
-.meridian::before {
-  background: radial-gradient(1100px 480px at 50% -16%, rgba(226, 104, 42, 0.055), transparent 64%);
+.pg-terminal::before {
+  background: var(--m-page-wash);
   z-index: 0;
 }
-.meridian::after {
+.pg-terminal::after {
   z-index: 3;
-  opacity: 0.035;
-  mix-blend-mode: multiply;
+  opacity: var(--m-noise-op);
+  mix-blend-mode: var(--m-noise-blend);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
   background-repeat: repeat;
 }
-.meridian > * { position: relative; z-index: 1; }
+.pg-terminal > * { position: relative; z-index: 1; }
 
 /* -------------------------------------------------------- browser surfaces
 
    The parts nobody draws still belong to the design. A default blue selection
    or a grey scrollbar on a warm-black ledger is the tell that a page was
    assembled rather than built. */
-.meridian ::selection {
-  background: rgba(226, 104, 42, 0.20);
-  color: var(--m-accent-deep);
+.pg-terminal ::selection {
+  background: var(--m-select-bg);
+  color: var(--m-select-ink);
 }
-.meridian { scrollbar-color: rgba(10, 37, 64, 0.28) transparent; scrollbar-width: thin; }
-.meridian ::-webkit-scrollbar { width: 7px; height: 7px; }
-.meridian ::-webkit-scrollbar-thumb { background: rgba(10, 37, 64, 0.28); }
-.meridian ::-webkit-scrollbar-track { background: transparent; }
-.meridian :focus-visible {
+.pg-terminal { scrollbar-color: var(--m-rule-dot) transparent; scrollbar-width: thin; }
+.pg-terminal ::-webkit-scrollbar { width: 7px; height: 7px; }
+.pg-terminal ::-webkit-scrollbar-thumb { background: var(--m-rule-dot); }
+.pg-terminal ::-webkit-scrollbar-track { background: transparent; }
+.pg-terminal :focus-visible {
   outline: 1px solid var(--m-accent);
   outline-offset: 3px;
 }
-.meridian a { color: var(--m-accent); text-decoration: none; text-underline-offset: 0.25em; }
-.meridian a:hover { color: var(--m-accent-hi); }
-.meridian a.m-underline { text-decoration: underline; text-decoration-thickness: 1px; }
+.pg-terminal a { color: var(--m-accent); text-decoration: none; text-underline-offset: 0.25em; }
+.pg-terminal a:hover { color: var(--m-accent-hi); }
+.pg-terminal a.m-underline { text-decoration: underline; text-decoration-thickness: 1px; }
 
 /* ------------------------------------------------------------------- type
 
@@ -221,12 +277,12 @@
    with tight tracking. This world sets its names in Instrument Serif at 400,
    so every heading inside it would otherwise arrive in the wrong voice. The
    reset is scoped, explicit and first, so nothing inherits across. */
-.meridian h1,
-.meridian h2,
-.meridian h3,
-.meridian h4,
-.meridian h5,
-.meridian h6 {
+.pg-terminal h1,
+.pg-terminal h2,
+.pg-terminal h3,
+.pg-terminal h4,
+.pg-terminal h5,
+.pg-terminal h6 {
   font-family: var(--m-sans);
   font-weight: 600;
   color: var(--m-ink);
@@ -238,7 +294,7 @@
 
 /* ------------------------------------------------------------------- type */
 
-.meridian .m-label {
+.pg-terminal .m-label {
   font-family: var(--m-sans);
   font-size: var(--m-label);
   font-weight: 800;
@@ -247,42 +303,42 @@
   color: var(--m-ink-2);
   line-height: 1.45;
 }
-.meridian .m-label--accent { color: var(--m-accent-dim); }
+.pg-terminal .m-label--accent { color: var(--m-accent-dim); }
 
-.meridian .m-serif {
+.pg-terminal .m-serif {
   font-family: var(--m-display);
   font-weight: var(--m-display-w);
   line-height: 1;
   letter-spacing: var(--m-display-track);
 }
-.meridian h1.m-serif { font-size: clamp(2.25rem, 4vw, 3.625rem); line-height: 0.95; margin: 0; }
-.meridian h2.m-serif { font-size: clamp(1.75rem, 3vw, 2.5rem); margin: 0; }
-.meridian h3.m-serif { font-size: 1.3125rem; line-height: 1.2; margin: 0; }
+.pg-terminal h1.m-serif { font-size: clamp(2.25rem, 4vw, 3.625rem); line-height: 0.95; margin: 0; }
+.pg-terminal h2.m-serif { font-size: clamp(1.75rem, 3vw, 2.5rem); margin: 0; }
+.pg-terminal h3.m-serif { font-size: 1.3125rem; line-height: 1.2; margin: 0; }
 
 /* Every comparable figure. tabular-nums is not cosmetic here: without it a
    column of prices shimmers sideways each time a value updates. */
-.meridian .m-fig {
+.pg-terminal .m-fig {
   font-family: var(--m-mono);
   font-weight: 500;
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: 'tnum' 1, 'lnum' 1;
   letter-spacing: 0.02em;
 }
-.meridian .m-fig--serif {
+.pg-terminal .m-fig--serif {
   font-family: var(--m-display);
   font-weight: var(--m-display-w);
   font-variant-numeric: tabular-nums lining-nums;
   letter-spacing: var(--m-display-track);
 }
 
-.meridian p { color: var(--m-ink-3); font-weight: 500; margin: 0; text-wrap: pretty; }
-.meridian .m-prose { font-size: var(--m-prose); font-weight: 500; line-height: 1.75; color: var(--m-ink-3); max-width: 68ch; }
-.meridian .m-prose strong { color: var(--m-ink-2); font-weight: 600; }
+.pg-terminal p { color: var(--m-ink-3); font-weight: 500; margin: 0; text-wrap: pretty; }
+.pg-terminal .m-prose { font-size: var(--m-prose); font-weight: 500; line-height: 1.75; color: var(--m-ink-3); max-width: 68ch; }
+.pg-terminal .m-prose strong { color: var(--m-ink-2); font-weight: 600; }
 
 /* ------------------------------------------------------------------ rules */
 
-.meridian .m-rule { height: 1px; background: var(--m-rule-section); border: 0; margin: 0; }
-.meridian .m-rule--gilt {
+.pg-terminal .m-rule { height: 1px; background: var(--m-rule-section); border: 0; margin: 0; }
+.pg-terminal .m-rule--gilt {
   height: 1px;
   border: 0;
   margin: 0;
@@ -295,7 +351,7 @@
    The glyph is not decoration. WCAG 1.4.1 forbids colour as the sole carrier
    of meaning, and this is the same contract QuoteChange holds on the light
    side of the site. Never remove the arrow to tidy the design. */
-.meridian .m-chg {
+.pg-terminal .m-chg {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -307,19 +363,19 @@
   letter-spacing: 0.02em;
   white-space: nowrap;
 }
-.meridian .m-chg svg { width: 9px; height: 9px; flex: none; }
-.meridian .m-chg.is-up { color: var(--m-up); }
-.meridian .m-chg.is-down { color: var(--m-down); }
-.meridian .m-chg.is-flat { color: var(--m-flat); }
-.meridian .m-chg--lg { font-size: var(--m-data-lg); }
-.meridian .m-chg--lg svg { width: 9px; height: 9px; }
+.pg-terminal .m-chg svg { width: 9px; height: 9px; flex: none; }
+.pg-terminal .m-chg.is-up { color: var(--m-up); }
+.pg-terminal .m-chg.is-down { color: var(--m-down); }
+.pg-terminal .m-chg.is-flat { color: var(--m-flat); }
+.pg-terminal .m-chg--lg { font-size: var(--m-data-lg); }
+.pg-terminal .m-chg--lg svg { width: 9px; height: 9px; }
 
 /* ------------------------------------------------------------------ shell */
 
 /* Edge to edge. A terminal that floats in a margin is a screenshot of a
    terminal; the rails should run into the viewport the way an application's
    do. The only borders left are the ones BETWEEN columns. */
-.meridian .m-shell {
+.pg-terminal .m-shell {
   max-width: var(--m-max);
   margin: 0;
   background: var(--m-shell);
@@ -332,19 +388,19 @@
 
 
 /* The tape runs the full width of the shell, above all three columns. */
-.meridian .m-shell > .m-tape { grid-column: 1 / -1; }
+.pg-terminal .m-shell > .m-tape { grid-column: 1 / -1; }
 
-.meridian .m-rail-left {
+.pg-terminal .m-rail-left {
   border-right: 1px solid var(--m-rule);
   background: var(--m-rail);
   padding: 22px 0 34px;
   min-width: 0;
 }
-.meridian .m-col {
+.pg-terminal .m-col {
   min-width: 0;
   padding: 0 var(--m-gutter) 34px;
 }
-.meridian .m-rail-right {
+.pg-terminal .m-rail-right {
   border-left: 1px solid var(--m-rule);
   background: var(--m-rail);
   padding: 26px var(--m-gutter) 40px;
@@ -357,12 +413,12 @@
 /* Block rhythm: 26px between blocks, 34px between panel groups. Spacing is
    almost entirely gaps and rules — a ruled system breathes through its rules,
    not its padding. */
-.meridian .m-block + .m-block { margin-top: 26px; }
-.meridian .m-group + .m-group { margin-top: 34px; }
+.pg-terminal .m-block + .m-block { margin-top: 26px; }
+.pg-terminal .m-group + .m-group { margin-top: 34px; }
 
 /* -------------------------------------------------------------- the tape */
 
-.meridian .m-tape {
+.pg-terminal .m-tape {
   height: 46px;
   border-bottom: 1px solid var(--m-rule-list);
   display: flex;
@@ -372,18 +428,18 @@
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
   mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
 }
-.meridian .m-tape-track {
+.pg-terminal .m-tape-track {
   display: flex;
   white-space: nowrap;
   animation: m-tape 64s linear infinite;
   will-change: transform;
 }
-.meridian .m-tape:hover .m-tape-track,
-.meridian .m-tape:focus-within .m-tape-track { animation-play-state: paused; }
+.pg-terminal .m-tape:hover .m-tape-track,
+.pg-terminal .m-tape:focus-within .m-tape-track { animation-play-state: paused; }
 /* No `gap` on the track, deliberately. Flex gap gives N-1 gaps for N items,
    so a -50% loop over a doubled list jumps by one gap every cycle. Spacing
    lives on the item instead. */
-.meridian .m-tape-item {
+.pg-terminal .m-tape-item {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -396,20 +452,20 @@
   letter-spacing: 0.08em;
   color: var(--m-ink-3);
 }
-.meridian .m-tape-item b { color: var(--m-ink-2); font-weight: 400; }
+.pg-terminal .m-tape-item b { color: var(--m-ink-2); font-weight: 400; }
 
 /* ------------------------------------------------------------ symbol rail
 
    The row indent is the signature interaction of the whole system: hover or
    focus pulls a row 8px right and warms it, and the current row grows a gold
    bar at its left edge. Nothing lights up, nothing fills. */
-.meridian .m-rail-head {
+.pg-terminal .m-rail-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   padding: 0 var(--m-gutter) 12px;
 }
-.meridian .m-srow {
+.pg-terminal .m-srow {
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
@@ -426,10 +482,10 @@
    layout on every hover, a transform composites. The figure on the right
    stays put, which is also what the design wants — the columns must not
    drift sideways as the pointer moves down the rail. */
-.meridian .m-srow > :first-child {
+.pg-terminal .m-srow > :first-child {
   transition: transform var(--m-t-row);
 }
-.meridian .m-srow::before {
+.pg-terminal .m-srow::before {
   content: '';
   position: absolute;
   left: 0;
@@ -439,16 +495,16 @@
   background: transparent;
   transition: background var(--m-t);
 }
-.meridian .m-srow:hover,
-.meridian .m-srow:focus-visible {
+.pg-terminal .m-srow:hover,
+.pg-terminal .m-srow:focus-visible {
   background: var(--m-wash-row);
   color: inherit;
 }
-.meridian .m-srow:hover > :first-child,
-.meridian .m-srow:focus-visible > :first-child { transform: translateX(8px); }
-.meridian .m-srow[aria-current='page'] { background: var(--m-wash-row); }
-.meridian .m-srow[aria-current='page']::before { background: var(--m-accent); }
-.meridian .m-srow-id {
+.pg-terminal .m-srow:hover > :first-child,
+.pg-terminal .m-srow:focus-visible > :first-child { transform: translateX(8px); }
+.pg-terminal .m-srow[aria-current='page'] { background: var(--m-wash-row); }
+.pg-terminal .m-srow[aria-current='page']::before { background: var(--m-accent); }
+.pg-terminal .m-srow-id {
   display: block;
   font-family: var(--m-mono);
   font-weight: 500;
@@ -456,8 +512,8 @@
   letter-spacing: 0.06em;
   color: var(--m-ink-2);
 }
-.meridian .m-srow[aria-current='page'] .m-srow-id { color: var(--m-ink); }
-.meridian .m-srow-name {
+.pg-terminal .m-srow[aria-current='page'] .m-srow-id { color: var(--m-ink); }
+.pg-terminal .m-srow-name {
   display: block;
   font-size: var(--m-data);
   font-weight: 500;
@@ -473,7 +529,7 @@
    The recurring silhouette: a 1px outlined square holding a serif monogram.
    Never filled — the instrument's colour lives in the letter, which is what
    keeps thirteen tinted symbols from turning the rail into confetti. */
-.meridian .m-mark {
+.pg-terminal .m-mark {
   display: grid;
   place-items: center;
   border: 1px solid var(--m-rule-mono);
@@ -482,16 +538,16 @@
   line-height: 1;
   flex: none;
 }
-.meridian .m-mark--lg { width: 56px; height: 56px; font-size: 26px; }
-.meridian .m-mark--md { width: 40px; height: 40px; font-size: 19px; }
-.meridian .m-mark--sm { width: 26px; height: 26px; font-size: 13px; }
-.meridian .m-mark.t-bone { color: var(--m-mark-bone); }
-.meridian .m-mark.t-gold { color: var(--m-mark-gold); }
-.meridian .m-mark.t-sage { color: var(--m-mark-sage); }
-.meridian .m-mark.t-slate { color: var(--m-mark-slate); }
-.meridian .m-mark.t-clay { color: var(--m-mark-clay); }
+.pg-terminal .m-mark--lg { width: 56px; height: 56px; font-size: 26px; }
+.pg-terminal .m-mark--md { width: 40px; height: 40px; font-size: 19px; }
+.pg-terminal .m-mark--sm { width: 26px; height: 26px; font-size: 13px; }
+.pg-terminal .m-mark.t-bone { color: var(--m-mark-bone); }
+.pg-terminal .m-mark.t-gold { color: var(--m-mark-gold); }
+.pg-terminal .m-mark.t-sage { color: var(--m-mark-sage); }
+.pg-terminal .m-mark.t-slate { color: var(--m-mark-slate); }
+.pg-terminal .m-mark.t-clay { color: var(--m-mark-clay); }
 
-.meridian .m-crumb {
+.pg-terminal .m-crumb {
   display: flex;
   align-items: center;
   gap: 9px;
@@ -503,11 +559,11 @@
   text-transform: uppercase;
   color: var(--m-ink-4);
 }
-.meridian .m-crumb a { color: var(--m-ink-4); }
-.meridian .m-crumb a:hover { color: var(--m-accent); }
-.meridian .m-crumb .sep { color: var(--m-rule-mono); }
+.pg-terminal .m-crumb a { color: var(--m-ink-4); }
+.pg-terminal .m-crumb a:hover { color: var(--m-accent); }
+.pg-terminal .m-crumb .sep { color: var(--m-rule-mono); }
 
-.meridian .m-head {
+.pg-terminal .m-head {
   display: flex;
   align-items: flex-end;
   gap: 18px;
@@ -515,7 +571,7 @@
   border-bottom: 1px solid var(--m-rule-section);
   flex-wrap: wrap;
 }
-.meridian .m-head-name {
+.pg-terminal .m-head-name {
   font-family: var(--m-display);
   font-weight: var(--m-display-w);
   font-size: clamp(1.75rem, 2.6vw, 2.25rem);
@@ -523,7 +579,7 @@
   letter-spacing: var(--m-display-track);
   color: var(--m-ink);
 }
-.meridian .m-head-ex {
+.pg-terminal .m-head-ex {
   font-family: var(--m-mono);
   font-weight: 500;
   font-size: var(--m-fig-sm);
@@ -534,7 +590,7 @@
   align-items: center;
   gap: 10px;
 }
-.meridian .m-head-price {
+.pg-terminal .m-head-price {
   display: flex;
   align-items: baseline;
   gap: 5px;
@@ -542,14 +598,14 @@
   font-variant-numeric: tabular-nums lining-nums;
   justify-content: flex-end;
 }
-.meridian .m-head-price .cur { font-size: 1.125rem; color: var(--m-accent-dim); }
-.meridian .m-head-price .val { font-size: clamp(2.25rem, 3.4vw, 3rem); line-height: 0.9; }
+.pg-terminal .m-head-price .cur { font-size: 1.125rem; color: var(--m-accent-dim); }
+.pg-terminal .m-head-price .val { font-size: clamp(2.25rem, 3.4vw, 3rem); line-height: 0.9; }
 
 /* A static gilt dot, used as a separator. Deliberately NOT a pulsing "live"
    indicator: these quotes are delayed, and a pulse is the standard visual
    shorthand for claiming they are not. Home's ticker band omits it for the
    same reason. */
-.meridian .m-dot {
+.pg-terminal .m-dot {
   width: 4px;
   height: 4px;
   background: var(--m-accent-dim);
@@ -564,13 +620,13 @@
 /* Eight tabs will not fit one line at every width, and a tab row that
    scrolls hides the tabs nobody thought to drag for. It wraps instead: two
    short lines beat one line with three tabs off the edge. */
-.meridian .m-tabs {
+.pg-terminal .m-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 0 4px;
   border-bottom: 1px solid var(--m-rule-section);
 }
-.meridian .m-tab {
+.pg-terminal .m-tab {
   appearance: none;
   background: none;
   border: 0;
@@ -587,9 +643,9 @@
   white-space: nowrap;
   transition: color var(--m-t);
 }
-.meridian .m-tab:hover { color: var(--m-ink-2); }
-.meridian .m-tab[aria-selected='true'] { color: var(--m-ink); }
-.meridian .m-tab::after {
+.pg-terminal .m-tab:hover { color: var(--m-ink-2); }
+.pg-terminal .m-tab[aria-selected='true'] { color: var(--m-ink); }
+.pg-terminal .m-tab::after {
   content: '';
   position: absolute;
   left: 18px;
@@ -601,41 +657,41 @@
   transform-origin: left;
   transition: transform 0.32s var(--m-ease);
 }
-.meridian .m-tab[aria-selected='true']::after { transform: scaleX(1); }
+.pg-terminal .m-tab[aria-selected='true']::after { transform: scaleX(1); }
 
 /* ------------------------------------------------------- ruled stat strip */
 
-.meridian .m-stats {
+.pg-terminal .m-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   border-top: 1px solid var(--m-rule-section);
 }
-.meridian .m-stat {
+.pg-terminal .m-stat {
   padding: 18px 20px 16px 0;
   border-right: 1px solid var(--m-rule-section);
   border-bottom: 1px solid var(--m-rule-section);
 }
-.meridian .m-stat:last-child { border-right: 0; }
-.meridian .m-stat-v {
+.pg-terminal .m-stat:last-child { border-right: 0; }
+.pg-terminal .m-stat-v {
   font-family: var(--m-mono);
   font-weight: 500;
   font-variant-numeric: tabular-nums lining-nums;
   font-size: 0.875rem;
   color: var(--m-ink);
 }
-.meridian .m-stat-v--serif { font-family: var(--m-display); font-weight: var(--m-display-w); font-size: 1.625rem; color: var(--m-accent); line-height: 1; }
-.meridian .m-stat-l { margin-top: 9px; }
+.pg-terminal .m-stat-v--serif { font-family: var(--m-display); font-weight: var(--m-display-w); font-size: 1.625rem; color: var(--m-accent); line-height: 1; }
+.pg-terminal .m-stat-l { margin-top: 9px; }
 
 /* ------------------------------------------------------- distribution plot
 
    Every Nasdaq-100 constituent's move today as a 1px tick on one axis, with
    the instrument in view drawn in gilt. It is the honest answer to "is this
    move big?" on a data plan with no history and no fundamentals. */
-.meridian .m-dist { position: relative; padding: 8px 0 0; }
-.meridian .m-dist-plot { position: relative; height: 108px; }
-.meridian .m-dist-axis { position: absolute; left: 0; right: 0; height: 1px; background: var(--m-rule); }
-.meridian .m-dist-svg { display: block; width: 100%; height: 108px; overflow: visible; }
-.meridian .m-dist-scale {
+.pg-terminal .m-dist { position: relative; padding: 8px 0 0; }
+.pg-terminal .m-dist-plot { position: relative; height: 108px; }
+.pg-terminal .m-dist-axis { position: absolute; left: 0; right: 0; height: 1px; background: var(--m-rule); }
+.pg-terminal .m-dist-svg { display: block; width: 100%; height: 108px; overflow: visible; }
+.pg-terminal .m-dist-scale {
   display: flex;
   justify-content: space-between;
   padding-top: 10px;
@@ -648,7 +704,7 @@
 /* Labels are HTML positioned by percentage, not SVG <text>: the plot's
    viewBox stretches horizontally so the axis can fill any width, and text
    inside it would stretch with it. */
-.meridian .m-dist-flag {
+.pg-terminal .m-dist-flag {
   position: absolute;
   top: 0;
   transform: translateX(-50%);
@@ -659,22 +715,22 @@
   white-space: nowrap;
   pointer-events: none;
 }
-.meridian .m-dist-flag-id {
+.pg-terminal .m-dist-flag-id {
   font-family: var(--m-mono);
   font-size: var(--m-fig-sm);
   letter-spacing: 0.14em;
   color: var(--m-accent);
 }
-.meridian .m-dist-flag-v {
+.pg-terminal .m-dist-flag-v {
   font-family: var(--m-mono);
   font-variant-numeric: tabular-nums lining-nums;
   font-size: var(--m-fig);
 }
-.meridian .m-dist-flag-v.is-up { color: var(--m-up); }
-.meridian .m-dist-flag-v.is-down { color: var(--m-down); }
-.meridian .m-dist-flag-v.is-flat { color: var(--m-flat); }
-.meridian .m-dist-zero,
-.meridian .m-dist-med {
+.pg-terminal .m-dist-flag-v.is-up { color: var(--m-up); }
+.pg-terminal .m-dist-flag-v.is-down { color: var(--m-down); }
+.pg-terminal .m-dist-flag-v.is-flat { color: var(--m-flat); }
+.pg-terminal .m-dist-zero,
+.pg-terminal .m-dist-med {
   position: absolute;
   bottom: 6px;
   transform: translateX(-50%);
@@ -685,8 +741,8 @@
   white-space: nowrap;
   pointer-events: none;
 }
-.meridian .m-dist-zero { bottom: 14px; color: var(--m-accent-dim); }
-.meridian .m-dist-read {
+.pg-terminal .m-dist-zero { bottom: 14px; color: var(--m-accent-dim); }
+.pg-terminal .m-dist-read {
   font-size: var(--m-data-lg);
   line-height: 1.7;
   color: var(--m-ink-3);
@@ -696,7 +752,7 @@
   border-top: 1px solid var(--m-rule-table);
 }
 
-.meridian .m-dist-legend {
+.pg-terminal .m-dist-legend {
   display: flex;
   flex-wrap: wrap;
   gap: 18px;
@@ -704,31 +760,31 @@
   border-top: 1px solid var(--m-rule-table);
   margin-top: 14px;
 }
-.meridian .m-legend-item { display: flex; align-items: center; gap: 8px; }
+.pg-terminal .m-legend-item { display: flex; align-items: center; gap: 8px; }
 /* Legend swatches are a 1px line, not a filled chip — bars are hairlines too. */
-.meridian .m-legend-key { width: 14px; height: 1px; flex: none; }
+.pg-terminal .m-legend-key { width: 14px; height: 1px; flex: none; }
 
 /* ------------------------------------------------------------ data tables
 
    Hairline-separated rows with tracked-caps headers. Names in serif, every
    figure in mono and right-aligned. The row for the instrument in view is
    tinted so a visitor can find it among its peers. */
-.meridian .m-table { width: 100%; }
-.meridian .m-thead,
-.meridian .m-trow {
+.pg-terminal .m-table { width: 100%; }
+.pg-terminal .m-thead,
+.pg-terminal .m-trow {
   display: grid;
   align-items: center;
   gap: 12px;
   padding: 13px 0;
 }
-.meridian .m-thead {
+.pg-terminal .m-thead {
   border-bottom: 1px solid var(--m-rule-section);
   padding-bottom: 11px;
 }
-.meridian .m-trow { border-bottom: 1px solid var(--m-rule-table); min-height: 44px; }
-.meridian .m-trow.is-self { background: var(--m-wash-row); }
-.meridian .m-tname { font-family: var(--m-display); font-weight: var(--m-display-w); font-size: 1rem; color: var(--m-ink); }
-.meridian .m-tnum {
+.pg-terminal .m-trow { border-bottom: 1px solid var(--m-rule-table); min-height: 44px; }
+.pg-terminal .m-trow.is-self { background: var(--m-wash-row); }
+.pg-terminal .m-tname { font-family: var(--m-display); font-weight: var(--m-display-w); font-size: 1rem; color: var(--m-ink); }
+.pg-terminal .m-tnum {
   font-family: var(--m-mono);
   font-weight: 500;
   font-variant-numeric: tabular-nums lining-nums;
@@ -739,8 +795,8 @@
 
 /* -------------------------------------------------------- ruled key/value */
 
-.meridian .m-kv { border-top: 1px solid var(--m-rule-section); }
-.meridian .m-kv-row {
+.pg-terminal .m-kv { border-top: 1px solid var(--m-rule-section); }
+.pg-terminal .m-kv-row {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -749,8 +805,8 @@
   border-bottom: 1px solid var(--m-rule-table);
   min-height: 44px;
 }
-.meridian .m-kv-k { font-size: var(--m-data-lg); color: var(--m-ink-3); }
-.meridian .m-kv-v {
+.pg-terminal .m-kv-k { font-size: var(--m-data-lg); color: var(--m-ink-3); }
+.pg-terminal .m-kv-v {
   font-family: var(--m-mono);
   font-weight: 500;
   font-variant-numeric: tabular-nums lining-nums;
@@ -758,23 +814,23 @@
   color: var(--m-ink);
   white-space: nowrap;
 }
-.meridian .m-kv-row.is-total { border-bottom: 0; border-top: 1px solid var(--m-rule-mono); padding-top: 18px; }
-.meridian .m-kv-row.is-total .m-kv-k { color: var(--m-ink-2); font-weight: 600; }
-.meridian .m-kv-row.is-total .m-kv-v { font-family: var(--m-display); font-weight: var(--m-display-w); font-size: 1.75rem; color: var(--m-accent); }
-.meridian .m-kv-note { font-size: var(--m-fig); color: var(--m-ink-4); padding-top: 10px; }
+.pg-terminal .m-kv-row.is-total { border-bottom: 0; border-top: 1px solid var(--m-rule-mono); padding-top: 18px; }
+.pg-terminal .m-kv-row.is-total .m-kv-k { color: var(--m-ink-2); font-weight: 600; }
+.pg-terminal .m-kv-row.is-total .m-kv-v { font-family: var(--m-display); font-weight: var(--m-display-w); font-size: 1.75rem; color: var(--m-accent); }
+.pg-terminal .m-kv-note { font-size: var(--m-fig); color: var(--m-ink-4); padding-top: 10px; }
 
 /* --------------------------------------------------------- quantity stepper
 
    The one place a serif figure sits inside a form. A 50px bordered row with
    square minus/plus ends and the count set large. */
-.meridian .m-qty {
+.pg-terminal .m-qty {
   display: flex;
   align-items: stretch;
   border: 1px solid var(--m-rule);
   height: 50px;
   max-width: 220px;
 }
-.meridian .m-qty button {
+.pg-terminal .m-qty button {
   width: 46px;
   appearance: none;
   background: none;
@@ -784,9 +840,9 @@
   cursor: pointer;
   transition: color var(--m-t), background var(--m-t);
 }
-.meridian .m-qty button:hover:not(:disabled) { color: var(--m-accent); background: var(--m-wash-row); }
-.meridian .m-qty button:disabled { color: var(--m-rule-mono); cursor: not-allowed; }
-.meridian .m-qty-val {
+.pg-terminal .m-qty button:hover:not(:disabled) { color: var(--m-accent); background: var(--m-wash-row); }
+.pg-terminal .m-qty button:disabled { color: var(--m-rule-mono); cursor: not-allowed; }
+.pg-terminal .m-qty-val {
   flex: 1;
   display: grid;
   place-items: center;
@@ -797,8 +853,8 @@
 }
 
 /* Segmented control: one border round the group, 1px dividers between. */
-.meridian .m-seg { display: flex; border: 1px solid var(--m-rule); width: max-content; max-width: 100%; flex-wrap: wrap; }
-.meridian .m-seg button {
+.pg-terminal .m-seg { display: flex; border: 1px solid var(--m-rule); width: max-content; max-width: 100%; flex-wrap: wrap; }
+.pg-terminal .m-seg button {
   appearance: none;
   background: none;
   border: 0;
@@ -813,15 +869,15 @@
   cursor: pointer;
   transition: color var(--m-t), background var(--m-t);
 }
-.meridian .m-seg button:last-child { border-right: 0; }
-.meridian .m-seg button:hover { color: var(--m-ink-2); }
-.meridian .m-seg button[aria-pressed='true'] { background: rgba(226, 104, 42, 0.1); color: var(--m-accent); }
+.pg-terminal .m-seg button:last-child { border-right: 0; }
+.pg-terminal .m-seg button:hover { color: var(--m-ink-2); }
+.pg-terminal .m-seg button[aria-pressed='true'] { background: var(--m-tint); color: var(--m-on-tint); }
 
 /* ------------------------------------------------------------ the one fill
 
    Exactly one filled gilt element per view, carrying the only coloured
    shadow in the system. If two gold surfaces are on screen, one is wrong. */
-.meridian .m-cta {
+.pg-terminal .m-cta {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -835,19 +891,19 @@
   font-weight: 800;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  box-shadow: 0 10px 34px rgba(226, 104, 42, 0.22);
+  box-shadow: var(--m-cta-shadow);
   transition: transform 0.2s var(--m-ease), box-shadow var(--m-t);
 }
-.meridian .m-cta:hover {
+.pg-terminal .m-cta:hover {
   color: var(--m-on-accent);
   transform: translateY(-2px);
-  box-shadow: 0 16px 44px rgba(226, 104, 42, 0.36);
+  box-shadow: var(--m-cta-shadow-hover);
 }
-.meridian .m-cta:active { transform: scale(0.985) translateY(0); }
-.meridian .m-cta svg { width: 14px; height: 14px; }
+.pg-terminal .m-cta:active { transform: scale(0.985) translateY(0); }
+.pg-terminal .m-cta svg { width: 14px; height: 14px; }
 
 /* Outline: transparent, hairline, warms to gold. Every secondary action. */
-.meridian .m-btn {
+.pg-terminal .m-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -865,11 +921,11 @@
   cursor: pointer;
   transition: border-color var(--m-t), color var(--m-t);
 }
-.meridian .m-btn:hover { border-color: var(--m-accent); color: var(--m-ink); }
-.meridian .m-btn svg { width: 14px; height: 14px; }
+.pg-terminal .m-btn:hover { border-color: var(--m-accent); color: var(--m-ink); }
+.pg-terminal .m-btn svg { width: 14px; height: 14px; }
 
 /* The only panel in the system that carries a wash rather than a rule. */
-.meridian .m-panel-wash {
+.pg-terminal .m-panel-wash {
   border: 1px solid var(--m-rule-raised);
   background: linear-gradient(165deg, var(--m-wash), transparent 70%);
   padding: 24px;
@@ -877,27 +933,27 @@
 
 /* ------------------------------------------------- steps in the right rail */
 
-.meridian .m-steps { counter-reset: m-step; border-top: 1px solid var(--m-rule-section); }
-.meridian .m-step {
+.pg-terminal .m-steps { counter-reset: m-step; border-top: 1px solid var(--m-rule-section); }
+.pg-terminal .m-step {
   display: grid;
   grid-template-columns: 26px 1fr;
   gap: 14px;
   padding: 16px 0;
   border-bottom: 1px solid var(--m-rule-table);
 }
-.meridian .m-step-n {
+.pg-terminal .m-step-n {
   font-family: var(--m-display);
   font-weight: var(--m-display-w);
   font-size: 1.0625rem;
   color: var(--m-accent-dim);
   line-height: 1.2;
 }
-.meridian .m-step-t { font-size: var(--m-data-lg); color: var(--m-ink-2); font-weight: 600; }
-.meridian .m-step-b { font-size: var(--m-data); color: var(--m-ink-4); line-height: 1.6; margin-top: 5px; }
+.pg-terminal .m-step-t { font-size: var(--m-data-lg); color: var(--m-ink-2); font-weight: 600; }
+.pg-terminal .m-step-b { font-size: var(--m-data); color: var(--m-ink-4); line-height: 1.6; margin-top: 5px; }
 
 /* --------------------------------------------------------- links to guides */
 
-.meridian .m-guide {
+.pg-terminal .m-guide {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -909,19 +965,19 @@
   font-size: var(--m-data-lg);
   transition: color var(--m-t-row);
 }
-.meridian .m-guide-label { transition: transform var(--m-t-row); }
-.meridian .m-guide:hover,
-.meridian .m-guide:focus-visible { color: var(--m-accent); }
-.meridian .m-guide:hover .m-guide-label,
-.meridian .m-guide:focus-visible .m-guide-label { transform: translateX(8px); }
-.meridian .m-guide span { font-family: var(--m-mono); font-size: var(--m-fig-sm); letter-spacing: 0.16em; color: var(--m-ink-4); flex: none; }
+.pg-terminal .m-guide-label { transition: transform var(--m-t-row); }
+.pg-terminal .m-guide:hover,
+.pg-terminal .m-guide:focus-visible { color: var(--m-accent); }
+.pg-terminal .m-guide:hover .m-guide-label,
+.pg-terminal .m-guide:focus-visible .m-guide-label { transform: translateX(8px); }
+.pg-terminal .m-guide span { font-family: var(--m-mono); font-size: var(--m-fig-sm); letter-spacing: 0.16em; color: var(--m-ink-4); flex: none; }
 
 /* -------------------------------------------------------------- disclosure
 
    MarketNote is one shared component across the whole site precisely so a
    regulated intermediary showing delayed quotes cannot forget it. It is
    restyled into this world rather than duplicated. */
-.meridian .market-note {
+.pg-terminal .market-note {
   border-top: 1px solid var(--m-rule-section);
   background: none;
   color: var(--m-ink-4);
@@ -931,16 +987,16 @@
   border-radius: 0;
   max-width: 76ch;
 }
-.meridian .market-note strong { color: var(--m-ink-3); font-weight: 600; }
+.pg-terminal .market-note strong { color: var(--m-ink-3); font-weight: 600; }
 
 /* ------------------------------------------------------- loading skeleton
 
    The same element wearing a shimmer, never a separate bar sized to guess at
    the real thing — widths in em so they track the type scale and the layout
    does not jump when data lands. */
-.meridian .is-loading-text { position: relative; color: transparent !important; user-select: none; }
-.meridian .is-loading-text::before { content: none !important; }
-.meridian .is-loading-text::after {
+.pg-terminal .is-loading-text { position: relative; color: transparent !important; user-select: none; }
+.pg-terminal .is-loading-text::before { content: none !important; }
+.pg-terminal .is-loading-text::after {
   content: '';
   position: absolute;
   top: 0.18em;
@@ -951,16 +1007,16 @@
   background-size: 400% 100%;
   animation: m-sweep 1.4s ease-in-out infinite;
 }
-.meridian .is-load-sym::after { width: 3.4em; }
-.meridian .is-load-price::after { width: 5em; }
-.meridian .is-load-chg::after { width: 3.8em; }
+.pg-terminal .is-load-sym::after { width: 3.4em; }
+.pg-terminal .is-load-price::after { width: 5em; }
+.pg-terminal .is-load-chg::after { width: 3.8em; }
 
 /* Anything that cannot be shown honestly says so rather than showing a zero. */
-.meridian .m-absent { color: var(--m-ink-4); font-family: var(--m-mono); font-size: var(--m-data); }
+.pg-terminal .m-absent { color: var(--m-ink-4); font-family: var(--m-mono); font-size: var(--m-data); }
 
 /* ------------------------------------------------------------------ a11y */
 
-.meridian .m-sr {
+.pg-terminal .m-sr {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -980,8 +1036,8 @@
 @keyframes m-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 @keyframes m-rule-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
-.meridian .m-rise { animation: m-rise 0.55s var(--m-ease) both; }
-.meridian .m-rule--gilt { animation: m-rule-grow 0.9s var(--m-ease) both; }
+.pg-terminal .m-rise { animation: m-rise 0.55s var(--m-ease) both; }
+.pg-terminal .m-rule--gilt { animation: m-rule-grow 0.9s var(--m-ease) both; }
 
 /* The one authored motion moment: the field of constituent ticks wipes in
    from the left, so a hundred lines assemble into a distribution rather than
@@ -995,17 +1051,17 @@
   from { clip-path: inset(0 100% 0 0); }
   to { clip-path: inset(0 0 0 0); }
 }
-.meridian .m-dist-reveal { animation: m-wipe 1.15s var(--m-ease); }
+.pg-terminal .m-dist-reveal { animation: m-wipe 1.15s var(--m-ease); }
 
 @media (prefers-reduced-motion: reduce) {
-  .meridian .m-tape-track { animation: none; }
-  .meridian .m-rise,
-  .meridian .m-rule--gilt { animation: none; }
-  .meridian .is-loading-text::after { animation: none; }
-  .meridian .m-dist-reveal { animation: none; }
-  .meridian .m-tab::after { transition: none; }
-  .meridian .m-srow,
-  .meridian .m-guide { transition: none; }
+  .pg-terminal .m-tape-track { animation: none; }
+  .pg-terminal .m-rise,
+  .pg-terminal .m-rule--gilt { animation: none; }
+  .pg-terminal .is-loading-text::after { animation: none; }
+  .pg-terminal .m-dist-reveal { animation: none; }
+  .pg-terminal .m-tab::after { transition: none; }
+  .pg-terminal .m-srow,
+  .pg-terminal .m-guide { transition: none; }
 }
 
 /* ----------------------------------------------------------- responsive
@@ -1014,8 +1070,8 @@
    than no rail, so the rail leaves the grid and re-flows full width beneath
    the working column instead. */
 @media (max-width: 1280px) {
-  .meridian .m-shell { grid-template-columns: var(--m-rail-l) minmax(0, 1fr); }
-  .meridian .m-rail-right {
+  .pg-terminal .m-shell { grid-template-columns: var(--m-rail-l) minmax(0, 1fr); }
+  .pg-terminal .m-rail-right {
     grid-column: 1 / -1;
     border-left: 0;
     border-top: 1px solid var(--m-rule);
@@ -1028,38 +1084,38 @@
 }
 
 @media (max-width: 900px) {
-  .meridian { --m-gutter: 16px; }
-  .meridian .m-shell { grid-template-columns: minmax(0, 1fr); }
+  .pg-terminal { --m-gutter: 16px; }
+  .pg-terminal .m-shell { grid-template-columns: minmax(0, 1fr); }
   /* Below the shell's two-column point the symbol rail becomes a horizontal
      ruled strip: still every instrument, still one tap, no drawer to learn. */
-  .meridian .m-rail-left {
+  .pg-terminal .m-rail-left {
     border-right: 0;
     border-top: 1px solid var(--m-rule);
     padding: 18px 0;
     overflow-x: auto;
   }
-  .meridian .m-rail-list { display: flex; }
-  .meridian .m-srow {
+  .pg-terminal .m-rail-list { display: flex; }
+  .pg-terminal .m-srow {
     grid-template-columns: 1fr;
     border-top: 0;
     border-left: 1px solid var(--m-rule-list);
     padding: 10px 16px;
     min-width: 132px;
   }
-  .meridian .m-srow::before { width: 100%; height: 2px; bottom: auto; }
+  .pg-terminal .m-srow::before { width: 100%; height: 2px; bottom: auto; }
   /* The horizontal strip has no room to indent sideways, so the row lifts
      its identity block instead. */
-  .meridian .m-srow:hover > :first-child,
-  .meridian .m-srow:focus-visible > :first-child { transform: translateY(-2px); }
+  .pg-terminal .m-srow:hover > :first-child,
+  .pg-terminal .m-srow:focus-visible > :first-child { transform: translateY(-2px); }
 }
 
 @media (max-width: 620px) {
-  .meridian .m-head { gap: 14px; }
-  .meridian .m-stats { grid-template-columns: repeat(2, 1fr); }
+  .pg-terminal .m-head { gap: 14px; }
+  .pg-terminal .m-stats { grid-template-columns: repeat(2, 1fr); }
   /* A data table never scrolls sideways here; it collapses into ruled
      blocks, one instrument per block. */
-  .meridian .m-thead { display: none; }
-  .meridian .m-trow {
+  .pg-terminal .m-thead { display: none; }
+  .pg-terminal .m-trow {
     grid-template-columns: 1fr auto !important;
     row-gap: 6px;
     padding: 14px 0;
@@ -1072,13 +1128,13 @@
 
 /* Cost to buy: the denser side always on the left, on the system's 1.25–1.4:1
    asymmetric split. */
-.meridian .m-cost {
+.pg-terminal .m-cost {
   display: grid;
   grid-template-columns: 1fr 1.35fr;
   gap: 40px;
   padding-top: 26px;
 }
-.meridian .m-kv-tag {
+.pg-terminal .m-kv-tag {
   font-family: var(--m-mono);
   font-size: var(--m-fig-sm);
   letter-spacing: 0.14em;
@@ -1088,21 +1144,21 @@
 }
 
 /* Rules: two ruled columns of question and answer, not six cards. */
-.meridian .m-rules {
+.pg-terminal .m-rules {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 0 40px;
   padding-top: 12px;
   border-top: 1px solid var(--m-rule-section);
 }
-.meridian .m-rule-item { padding: 22px 0; border-bottom: 1px solid var(--m-rule-table); }
-.meridian .m-rule-head {
+.pg-terminal .m-rule-item { padding: 22px 0; border-bottom: 1px solid var(--m-rule-table); }
+.pg-terminal .m-rule-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 16px;
 }
-.meridian .m-rule-v {
+.pg-terminal .m-rule-v {
   font-family: var(--m-mono);
   font-weight: 500;
   font-variant-numeric: tabular-nums lining-nums;
@@ -1110,7 +1166,7 @@
   color: var(--m-accent);
   white-space: nowrap;
 }
-.meridian .m-rule-b {
+.pg-terminal .m-rule-b {
   font-size: var(--m-data-lg);
   line-height: 1.75;
   color: var(--m-ink-3);
@@ -1118,17 +1174,17 @@
 }
 
 /* Peers table: symbol, name, last, change. */
-.meridian .m-table--peers .m-thead,
-.meridian .m-table--peers .m-trow {
+.pg-terminal .m-table--peers .m-thead,
+.pg-terminal .m-table--peers .m-trow {
   grid-template-columns: 72px minmax(0, 1fr) 110px 96px;
 }
-.meridian .m-trow.is-link { color: inherit; transition: background var(--m-t-row); }
-.meridian .m-trow.is-link > * { transition: transform var(--m-t-row); }
-.meridian .m-trow.is-link:hover,
-.meridian .m-trow.is-link:focus-visible { background: var(--m-wash-row); color: inherit; }
-.meridian .m-trow.is-link:hover > :first-child,
-.meridian .m-trow.is-link:focus-visible > :first-child { transform: translateX(8px); }
-.meridian .m-tname {
+.pg-terminal .m-trow.is-link { color: inherit; transition: background var(--m-t-row); }
+.pg-terminal .m-trow.is-link > * { transition: transform var(--m-t-row); }
+.pg-terminal .m-trow.is-link:hover,
+.pg-terminal .m-trow.is-link:focus-visible { background: var(--m-wash-row); color: inherit; }
+.pg-terminal .m-trow.is-link:hover > :first-child,
+.pg-terminal .m-trow.is-link:focus-visible > :first-child { transform: translateX(8px); }
+.pg-terminal .m-tname {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1138,45 +1194,45 @@
 
    Named for what they hold rather than what they do, so the markup still
    reads as a document rather than as a stylesheet. */
-.meridian .m-head-figure { text-align: right; margin-left: auto; }
-.meridian .m-head-id { min-width: 0; }
-.meridian .m-head-move { margin-top: 9px; display: flex; justify-content: flex-end; }
-.meridian .m-panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 18px; padding-bottom: 14px; }
-.meridian .m-after-label { margin-top: 14px; }
-.meridian .m-after-block { margin-top: 20px; }
-.meridian .m-rail-group { padding-top: 26px; }
-.meridian .m-cta--block { width: 100%; margin-top: 20px; }
-.meridian .m-guide--tail { margin-top: 18px; }
-.meridian .m-note--span { grid-column: 1 / -1; padding-top: 18px; }
-.meridian .m-cost-summary { margin-top: 20px; font-size: var(--m-data); }
+.pg-terminal .m-head-figure { text-align: right; margin-left: auto; }
+.pg-terminal .m-head-id { min-width: 0; }
+.pg-terminal .m-head-move { margin-top: 9px; display: flex; justify-content: flex-end; }
+.pg-terminal .m-panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 18px; padding-bottom: 14px; }
+.pg-terminal .m-after-label { margin-top: 14px; }
+.pg-terminal .m-after-block { margin-top: 20px; }
+.pg-terminal .m-rail-group { padding-top: 26px; }
+.pg-terminal .m-cta--block { width: 100%; margin-top: 20px; }
+.pg-terminal .m-guide--tail { margin-top: 18px; }
+.pg-terminal .m-note--span { grid-column: 1 / -1; padding-top: 18px; }
+.pg-terminal .m-cost-summary { margin-top: 20px; font-size: var(--m-data); }
 
 @media (max-width: 1024px) {
-  .meridian .m-cost { grid-template-columns: 1fr; gap: 34px; }
-  .meridian .m-rules { grid-template-columns: 1fr; gap: 0; }
+  .pg-terminal .m-cost { grid-template-columns: 1fr; gap: 34px; }
+  .pg-terminal .m-rules { grid-template-columns: 1fr; gap: 0; }
 }
 
 @media (max-width: 620px) {
-  .meridian .m-table--peers .m-thead,
-  .meridian .m-table--peers .m-trow { grid-template-columns: 1fr auto; }
+  .pg-terminal .m-table--peers .m-thead,
+  .pg-terminal .m-table--peers .m-trow { grid-template-columns: 1fr auto; }
   /* The name and the last price fold under the symbol rather than the table
      scrolling sideways. */
-  .meridian .m-table--peers .m-trow .m-tname { grid-column: 1; font-size: 0.875rem; }
-  .meridian .m-table--peers .m-trow .m-tnum { grid-column: 1; text-align: left; }
-  .meridian .m-dist-plot { height: 92px; }
-  .meridian .m-dist-svg { height: 92px; }
+  .pg-terminal .m-table--peers .m-trow .m-tname { grid-column: 1; font-size: 0.875rem; }
+  .pg-terminal .m-table--peers .m-trow .m-tnum { grid-column: 1; text-align: left; }
+  .pg-terminal .m-dist-plot { height: 92px; }
+  .pg-terminal .m-dist-svg { height: 92px; }
 }
-.meridian .m-tape-chg.is-up { color: var(--m-up); }
-.meridian .m-tape-chg.is-down { color: var(--m-down); }
-.meridian .m-tape-chg.is-flat { color: var(--m-flat); }
-.meridian .m-th-num { text-align: right; }
-.meridian .m-td-end { display: flex; justify-content: flex-end; }
+.pg-terminal .m-tape-chg.is-up { color: var(--m-up); }
+.pg-terminal .m-tape-chg.is-down { color: var(--m-down); }
+.pg-terminal .m-tape-chg.is-flat { color: var(--m-flat); }
+.pg-terminal .m-th-num { text-align: right; }
+.pg-terminal .m-td-end { display: flex; justify-content: flex-end; }
 
 /* The panel below the tabs. tabIndex=-1 makes it focusable so the tab pattern
    can move focus into it; the outline is suppressed because focus arrives
    programmatically, never from a keypress the user would want acknowledged. */
-.meridian .m-panel { padding-top: 26px; }
-.meridian .m-panel:focus { outline: none; }
-.meridian.terminal { padding: 0 0 48px; }
+.pg-terminal .m-panel { padding-top: 26px; }
+.pg-terminal .m-panel:focus { outline: none; }
+.pg-terminal.terminal { padding: 0 0 48px; }
 
 /* =========================================================
    Corrections found by looking at the render
@@ -1184,29 +1240,29 @@
 
 /* The step title and body are spans inside a span so the grid keeps its two
    columns; without an explicit block they ran together as one sentence. */
-.meridian .m-step-t,
-.meridian .m-step-b { display: block; }
+.pg-terminal .m-step-t,
+.pg-terminal .m-step-b { display: block; }
 
 /* css/styles.css centres .market-note. Under a left-ruled ledger that reads
    as a caption floating loose of the column it belongs to. */
-.meridian .market-note { text-align: left; }
+.pg-terminal .market-note { text-align: left; }
 
 /* The arrow in a guide link had no box, so it collapsed to the parent's 9px
    label sizing and rendered as a smear. */
-.meridian .m-guide svg { width: 13px; height: 13px; flex: none; }
-.meridian .m-guide > span { display: inline-flex; align-items: center; }
+.pg-terminal .m-guide svg { width: 13px; height: 13px; flex: none; }
+.pg-terminal .m-guide > span { display: inline-flex; align-items: center; }
 
 /* The exchange line's separator needed real air on both sides. */
-.meridian .m-head-ex { gap: 12px; flex-wrap: wrap; }
+.pg-terminal .m-head-ex { gap: 12px; flex-wrap: wrap; }
 
 /* The plot's own gutter, so the leftmost and rightmost ticks are not flush
    against the column edge and the min/max labels sit under real ticks. */
-.meridian .m-dist { padding-inline: 2px; }
+.pg-terminal .m-dist { padding-inline: 2px; }
 
 /* Guide links are prose, not data — they were inheriting the mono stack from
    the ruled context around them. */
-.meridian .m-guide { font-family: var(--m-sans); }
-.meridian .m-guide-label { font-family: var(--m-sans); }
+.pg-terminal .m-guide { font-family: var(--m-sans); }
+.pg-terminal .m-guide-label { font-family: var(--m-sans); }
 
 /* =========================================================
    The chart
@@ -1216,9 +1272,9 @@
    is a hairline; nothing is filled but the area, and that is a 20% wash.
    ========================================================= */
 
-.meridian .m-chart { display: flex; gap: 11px; }
+.pg-terminal .m-chart { display: flex; gap: 11px; }
 
-.meridian .m-chart-ladder {
+.pg-terminal .m-chart-ladder {
   flex: none;
   width: 62px;
   display: flex;
@@ -1234,16 +1290,16 @@
   color: var(--m-ink-4);
 }
 
-.meridian .m-chart-plot-wrap { flex: 1; min-width: 0; }
-.meridian .m-chart-plot { position: relative; }
-.meridian .m-chart-svg { position: absolute; inset: 0; overflow: visible; }
+.pg-terminal .m-chart-plot-wrap { flex: 1; min-width: 0; }
+.pg-terminal .m-chart-plot { position: relative; }
+.pg-terminal .m-chart-svg { position: absolute; inset: 0; overflow: visible; }
 
-.meridian .m-grid-h { position: absolute; left: 0; right: 0; height: 1px; background: var(--m-grid); }
-.meridian .m-grid-v { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--m-grid-v); }
+.pg-terminal .m-grid-h { position: absolute; left: 0; right: 0; height: 1px; background: var(--m-grid); }
+.pg-terminal .m-grid-v { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--m-grid-v); }
 
 /* The reference the whole session is read against. Dashed, in the accent's
    deepest tone, because it is a rule rather than a data series. */
-.meridian .m-prev {
+.pg-terminal .m-prev {
   position: absolute;
   left: 0;
   right: 0;
@@ -1252,7 +1308,7 @@
   opacity: 0.85;
 }
 
-.meridian .m-chart-dot {
+.pg-terminal .m-chart-dot {
   position: absolute;
   width: 8px;
   height: 8px;
@@ -1260,10 +1316,10 @@
   border: 1.5px solid var(--m-shell);
   transform: translate(-50%, -50%);
 }
-.meridian .m-chart-dot.is-up { background: var(--m-up); box-shadow: 0 0 0 3px rgba(14, 124, 88, 0.16); }
-.meridian .m-chart-dot.is-down { background: var(--m-down); box-shadow: 0 0 0 3px rgba(200, 30, 67, 0.16); }
+.pg-terminal .m-chart-dot.is-up { background: var(--m-up); box-shadow: 0 0 0 3px var(--m-ring-up); }
+.pg-terminal .m-chart-dot.is-down { background: var(--m-down); box-shadow: 0 0 0 3px var(--m-ring-down); }
 
-.meridian .m-vol {
+.pg-terminal .m-vol {
   display: flex;
   align-items: flex-end;
   gap: 1px;
@@ -1271,11 +1327,11 @@
   margin-top: 7px;
   border-bottom: 1px solid var(--m-rule-list);
 }
-.meridian .m-vol-bar { flex: 1; min-width: 0; }
-.meridian .m-vol-bar.is-up { background: rgba(14, 124, 88, 0.30); }
-.meridian .m-vol-bar.is-down { background: rgba(200, 30, 67, 0.30); }
+.pg-terminal .m-vol-bar { flex: 1; min-width: 0; }
+.pg-terminal .m-vol-bar.is-up { background: var(--m-bar-up); }
+.pg-terminal .m-vol-bar.is-down { background: var(--m-bar-down); }
 
-.meridian .m-chart-x {
+.pg-terminal .m-chart-x {
   display: flex;
   justify-content: space-between;
   padding-top: 9px;
@@ -1293,12 +1349,12 @@
   from { clip-path: inset(0 100% 0 0); }
   to { clip-path: inset(0 0 0 0); }
 }
-.meridian .m-chart-reveal { animation: m-draw 1.25s var(--m-ease); }
+.pg-terminal .m-chart-reveal { animation: m-draw 1.25s var(--m-ease); }
 
 /* ------------------------------------------------------------- ranges */
 
-.meridian .m-ranges { display: flex; border: 1px solid var(--m-rule-section); width: max-content; }
-.meridian .m-range {
+.pg-terminal .m-ranges { display: flex; border: 1px solid var(--m-rule-section); width: max-content; }
+.pg-terminal .m-range {
   appearance: none;
   background: none;
   border: 0;
@@ -1312,15 +1368,15 @@
   cursor: pointer;
   transition: color var(--m-t), background var(--m-t);
 }
-.meridian .m-range:last-child { border-right: 0; }
-.meridian .m-range:hover:not(:disabled) { color: var(--m-ink-2); }
-.meridian .m-range[aria-pressed='true'] { background: var(--m-wash); color: var(--m-accent); }
-.meridian .m-range:disabled { color: var(--m-rule-mono); cursor: not-allowed; }
+.pg-terminal .m-range:last-child { border-right: 0; }
+.pg-terminal .m-range:hover:not(:disabled) { color: var(--m-ink-2); }
+.pg-terminal .m-range[aria-pressed='true'] { background: var(--m-wash); color: var(--m-accent); }
+.pg-terminal .m-range:disabled { color: var(--m-rule-mono); cursor: not-allowed; }
 
-.meridian .m-spark { flex: none; }
+.pg-terminal .m-spark { flex: none; }
 
 /* An illustrative-shape note, said once per block that draws one. */
-.meridian .m-illus {
+.pg-terminal .m-illus {
   font-size: var(--m-fig);
   line-height: 1.6;
   color: var(--m-ink-4);
@@ -1328,17 +1384,17 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .meridian .m-chart-reveal { animation: none; }
+  .pg-terminal .m-chart-reveal { animation: none; }
 }
 
 @media (max-width: 620px) {
-  .meridian .m-chart-ladder { width: 42px; font-size: var(--m-fig-sm); }
-  .meridian .m-chart { gap: 8px; }
+  .pg-terminal .m-chart-ladder { width: 42px; font-size: var(--m-fig-sm); }
+  .pg-terminal .m-chart { gap: 8px; }
 }
 
 /* The chart's own header: the block label on the left, the horizon strip on
    the right, on one ruled line. */
-.meridian .m-chart-bar {
+.pg-terminal .m-chart-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1346,13 +1402,13 @@
   flex-wrap: wrap;
   padding-bottom: 18px;
 }
-.meridian .m-block > .m-chart { margin-bottom: 4px; }
-.meridian .m-stats { margin-top: 18px; }
+.pg-terminal .m-block > .m-chart { margin-bottom: 4px; }
+.pg-terminal .m-stats { margin-top: 18px; }
 
 /* The illustrative note closes the chart block, so the next block needs its
    own air rather than butting straight onto it. */
-.meridian .m-block > .m-illus { padding-bottom: 4px; }
-.meridian .m-group > .m-panel-head { padding-top: 8px; border-top: 1px solid var(--m-rule-section); }
+.pg-terminal .m-block > .m-illus { padding-bottom: 4px; }
+.pg-terminal .m-group > .m-panel-head { padding-top: 8px; border-top: 1px solid var(--m-rule-section); }
 
 /* =========================================================
    Profile panels
@@ -1362,7 +1418,7 @@
    rather than by two boxes.
    ========================================================= */
 
-.meridian .m-split {
+.pg-terminal .m-split {
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
   gap: clamp(2rem, 3.5vw, 3.5rem);
@@ -1370,7 +1426,7 @@
 }
 
 /* Meters are hairlines too: 2px, never a rounded pill. */
-.meridian .m-meter {
+.pg-terminal .m-meter {
   flex: 1;
   min-width: 40px;
   height: 2px;
@@ -1378,21 +1434,21 @@
   position: relative;
   overflow: hidden;
 }
-.meridian .m-meter-fill {
+.pg-terminal .m-meter-fill {
   display: block;
   height: 100%;
   background: var(--m-accent);
   transform-origin: left;
 }
-.meridian .m-meter-fill.is-up { background: var(--m-up); }
-.meridian .m-meter-fill.is-down { background: var(--m-down); }
-.meridian .m-meter-fill.is-neutral { background: var(--m-accent); }
+.pg-terminal .m-meter-fill.is-up { background: var(--m-up); }
+.pg-terminal .m-meter-fill.is-down { background: var(--m-down); }
+.pg-terminal .m-meter-fill.is-neutral { background: var(--m-accent); }
 
 /* A key/value row that also carries a meter needs three tracks, not two. */
-.meridian .m-kv-row { flex-wrap: nowrap; }
-.meridian .m-kv-row .m-meter { margin-inline: 14px; }
+.pg-terminal .m-kv-row { flex-wrap: nowrap; }
+.pg-terminal .m-kv-row .m-meter { margin-inline: 14px; }
 
-.meridian .m-tech {
+.pg-terminal .m-tech {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 88px 74px 76px;
   align-items: center;
@@ -1401,20 +1457,20 @@
   min-height: 48px;
   border-bottom: 1px solid var(--m-rule-table);
 }
-.meridian .m-signal {
+.pg-terminal .m-signal {
   font-family: var(--m-mono);
   font-size: var(--m-fig-sm);
   font-weight: 600;
   letter-spacing: 0.12em;
   text-align: right;
 }
-.meridian .m-signal.is-up { color: var(--m-up); }
-.meridian .m-signal.is-down { color: var(--m-down); }
-.meridian .m-signal.is-neutral { color: var(--m-accent); }
+.pg-terminal .m-signal.is-up { color: var(--m-up); }
+.pg-terminal .m-signal.is-down { color: var(--m-down); }
+.pg-terminal .m-signal.is-neutral { color: var(--m-accent); }
 
 /* ------------------------------------------------------- revenue bars */
 
-.meridian .m-bars {
+.pg-terminal .m-bars {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
@@ -1425,8 +1481,8 @@
   border-top: 1px solid var(--m-rule-section);
   margin-top: 12px;
 }
-.meridian .m-bar { display: grid; grid-template-rows: auto 1fr auto; align-items: end; height: 100%; gap: 10px; }
-.meridian .m-bar-v {
+.pg-terminal .m-bar { display: grid; grid-template-rows: auto 1fr auto; align-items: end; height: 100%; gap: 10px; }
+.pg-terminal .m-bar-v {
   font-family: var(--m-mono);
   font-variant-numeric: tabular-nums lining-nums;
   font-size: var(--m-fig);
@@ -1434,10 +1490,10 @@
   color: var(--m-ink-3);
   text-align: center;
 }
-.meridian .m-bar-fill { align-self: end; width: 100%; background: var(--m-rule); }
+.pg-terminal .m-bar-fill { align-self: end; width: 100%; background: var(--m-rule); }
 /* The current fiscal year is the only bar that earns the accent. */
-.meridian .m-bar-fill.is-latest { background: linear-gradient(180deg, var(--m-accent-hi), var(--m-accent-deep)); }
-.meridian .m-bar-y {
+.pg-terminal .m-bar-fill.is-latest { background: linear-gradient(180deg, var(--m-accent-hi), var(--m-accent-deep)); }
+.pg-terminal .m-bar-y {
   font-family: var(--m-mono);
   font-size: var(--m-fig-sm);
   font-weight: 500;
@@ -1449,8 +1505,8 @@
 
 /* -------------------------------------------------------- consensus */
 
-.meridian .m-consensus { padding-top: 14px; border-top: 1px solid var(--m-rule-section); margin-top: 12px; }
-.meridian .m-consensus-target {
+.pg-terminal .m-consensus { padding-top: 14px; border-top: 1px solid var(--m-rule-section); margin-top: 12px; }
+.pg-terminal .m-consensus-target {
   display: block;
   font-family: var(--m-display);
   font-weight: var(--m-display-w);
@@ -1459,7 +1515,7 @@
   line-height: 1;
   color: var(--m-accent);
 }
-.meridian .m-consensus-upside {
+.pg-terminal .m-consensus-upside {
   display: block;
   font-size: var(--m-data-lg);
   font-weight: 500;
@@ -1467,27 +1523,27 @@
   margin-top: 10px;
 }
 /* The split is a 3px bar, not a donut. */
-.meridian .m-consensus-split { display: flex; height: 3px; margin: 22px 0 18px; gap: 2px; }
-.meridian .m-consensus-bar { flex: none; min-width: 2px; }
-.meridian .m-consensus-bar.is-up { background: var(--m-up); }
-.meridian .m-consensus-bar.is-down { background: var(--m-down); }
-.meridian .m-consensus-bar.is-neutral { background: var(--m-ink-4); }
+.pg-terminal .m-consensus-split { display: flex; height: 3px; margin: 22px 0 18px; gap: 2px; }
+.pg-terminal .m-consensus-bar { flex: none; min-width: 2px; }
+.pg-terminal .m-consensus-bar.is-up { background: var(--m-up); }
+.pg-terminal .m-consensus-bar.is-down { background: var(--m-down); }
+.pg-terminal .m-consensus-bar.is-neutral { background: var(--m-ink-4); }
 /* Legend swatches are a 1px line, never a filled chip. */
-.meridian .m-swatch { display: inline-block; width: 14px; height: 2px; margin-right: 10px; vertical-align: middle; }
-.meridian .m-swatch.is-up { background: var(--m-up); }
-.meridian .m-swatch.is-down { background: var(--m-down); }
-.meridian .m-swatch.is-neutral { background: var(--m-ink-4); }
+.pg-terminal .m-swatch { display: inline-block; width: 14px; height: 2px; margin-right: 10px; vertical-align: middle; }
+.pg-terminal .m-swatch.is-up { background: var(--m-up); }
+.pg-terminal .m-swatch.is-down { background: var(--m-down); }
+.pg-terminal .m-swatch.is-neutral { background: var(--m-ink-4); }
 
 /* ------------------------------------------------------------ share */
 
-.meridian .m-share { display: flex; height: 4px; gap: 2px; margin: 16px 0; }
-.meridian .m-share-seg { font-size: 0; flex: none; min-width: 2px; }
-.meridian .m-share-seg.t0, .meridian .m-legend-key.t0 { background: var(--m-accent); }
-.meridian .m-share-seg.t1, .meridian .m-legend-key.t1 { background: var(--m-blue-2); }
-.meridian .m-share-seg.t2, .meridian .m-legend-key.t2 { background: var(--m-accent-dim); }
-.meridian .m-share-seg.t3, .meridian .m-legend-key.t3 { background: var(--m-rule-mono); }
-.meridian .m-share-key { display: flex; flex-wrap: wrap; gap: 10px 26px; }
-.meridian .m-share-key .m-legend-item {
+.pg-terminal .m-share { display: flex; height: 4px; gap: 2px; margin: 16px 0; }
+.pg-terminal .m-share-seg { font-size: 0; flex: none; min-width: 2px; }
+.pg-terminal .m-share-seg.t0, .pg-terminal .m-legend-key.t0 { background: var(--m-accent); }
+.pg-terminal .m-share-seg.t1, .pg-terminal .m-legend-key.t1 { background: var(--m-blue-2); }
+.pg-terminal .m-share-seg.t2, .pg-terminal .m-legend-key.t2 { background: var(--m-accent-dim); }
+.pg-terminal .m-share-seg.t3, .pg-terminal .m-legend-key.t3 { background: var(--m-rule-mono); }
+.pg-terminal .m-share-key { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.pg-terminal .m-share-key .m-legend-item {
   font-size: var(--m-data);
   font-weight: 500;
   color: var(--m-ink-3);
@@ -1495,46 +1551,46 @@
 
 /* ----------------------------------------------------------- holders */
 
-.meridian .m-holder { padding: 14px 0; border-bottom: 1px solid var(--m-rule-table); }
-.meridian .m-holder-top { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
+.pg-terminal .m-holder { padding: 14px 0; border-bottom: 1px solid var(--m-rule-table); }
+.pg-terminal .m-holder-top { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
 
 /* ------------------------------------------------------- peer table */
 
-.meridian .m-table--peers .m-thead,
-.meridian .m-table--peers .m-trow {
+.pg-terminal .m-table--peers .m-thead,
+.pg-terminal .m-table--peers .m-trow {
   grid-template-columns: minmax(0, 1.4fr) 104px 104px 84px 96px;
 }
-.meridian .m-tpeer { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.meridian .m-tnum.is-up { color: var(--m-up); }
-.meridian .m-tnum.is-down { color: var(--m-down); }
+.pg-terminal .m-tpeer { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.pg-terminal .m-tnum.is-up { color: var(--m-up); }
+.pg-terminal .m-tnum.is-down { color: var(--m-down); }
 
 @media (max-width: 1024px) {
-  .meridian .m-split { grid-template-columns: minmax(0, 1fr); gap: 34px; }
-  .meridian .m-tech { grid-template-columns: minmax(0, 1fr) 64px 70px 72px; gap: 10px; }
+  .pg-terminal .m-split { grid-template-columns: minmax(0, 1fr); gap: 34px; }
+  .pg-terminal .m-tech { grid-template-columns: minmax(0, 1fr) 64px 70px 72px; gap: 10px; }
 }
 @media (max-width: 620px) {
-  .meridian .m-tech { grid-template-columns: minmax(0, 1fr) auto; row-gap: 8px; }
-  .meridian .m-tech .m-meter { grid-column: 1 / -1; }
-  .meridian .m-bars { height: 180px; gap: 8px; }
-  .meridian .m-table--peers .m-thead,
-  .meridian .m-table--peers .m-trow { grid-template-columns: minmax(0, 1fr) auto; }
+  .pg-terminal .m-tech { grid-template-columns: minmax(0, 1fr) auto; row-gap: 8px; }
+  .pg-terminal .m-tech .m-meter { grid-column: 1 / -1; }
+  .pg-terminal .m-bars { height: 180px; gap: 8px; }
+  .pg-terminal .m-table--peers .m-thead,
+  .pg-terminal .m-table--peers .m-trow { grid-template-columns: minmax(0, 1fr) auto; }
 }
 
 /* =========================================================
    Price header
    ========================================================= */
 
-.meridian .m-price-head {
+.pg-terminal .m-price-head {
   display: flex;
   flex-direction: column;
   gap: 24px;
   margin-bottom: 24px;
 }
 @media (min-width: 1100px) {
-  .meridian .m-price-head { flex-direction: row; align-items: flex-end; justify-content: space-between; }
+  .pg-terminal .m-price-head { flex-direction: row; align-items: flex-end; justify-content: space-between; }
 }
-.meridian .m-price-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 18px; margin-top: 12px; }
-.meridian .m-price {
+.pg-terminal .m-price-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 18px; margin-top: 12px; }
+.pg-terminal .m-price {
   display: flex;
   align-items: baseline;
   gap: 6px;
@@ -1543,11 +1599,11 @@
   font-variant-numeric: tabular-nums lining-nums;
   margin: 0;
 }
-.meridian .m-price .cur { font-size: 1.375rem; color: var(--m-accent-dim); }
-.meridian .m-price .val { font-size: clamp(2.625rem, 4.4vw, 3.625rem); line-height: 0.9; letter-spacing: var(--m-display-track); }
+.pg-terminal .m-price .cur { font-size: 1.375rem; color: var(--m-accent-dim); }
+.pg-terminal .m-price .val { font-size: clamp(2.625rem, 4.4vw, 3.625rem); line-height: 0.9; letter-spacing: var(--m-display-track); }
 /* The move sits in a hairline box tinted to its own direction — the only
    bordered chip in the system, and it is read-only. */
-.meridian .m-price-chip {
+.pg-terminal .m-price-chip {
   font-family: var(--m-mono);
   font-variant-numeric: tabular-nums lining-nums;
   font-size: var(--m-data);
@@ -1556,10 +1612,10 @@
   padding: 6px 12px;
   border: 1px solid;
 }
-.meridian .m-price-chip.is-up { color: var(--m-up); border-color: rgba(14, 124, 88, 0.4); }
-.meridian .m-price-chip.is-down { color: var(--m-down); border-color: rgba(200, 30, 67, 0.4); }
-.meridian .m-price-chip.is-flat { color: var(--m-ink-4); border-color: var(--m-rule); }
-.meridian .m-price-state {
+.pg-terminal .m-price-chip.is-up { color: var(--m-up); border-color: var(--m-chip-up); }
+.pg-terminal .m-price-chip.is-down { color: var(--m-down); border-color: var(--m-chip-down); }
+.pg-terminal .m-price-chip.is-flat { color: var(--m-ink-4); border-color: var(--m-rule); }
+.pg-terminal .m-price-state {
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -1569,8 +1625,8 @@
   text-transform: uppercase;
   color: var(--m-ink-3);
 }
-.meridian .m-price-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-.meridian .m-vol-toggle {
+.pg-terminal .m-price-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.pg-terminal .m-vol-toggle {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -1586,18 +1642,18 @@
   cursor: pointer;
   transition: color var(--m-t), background var(--m-t), border-color var(--m-t);
 }
-.meridian .m-vol-toggle svg { width: 14px; height: 14px; }
-.meridian .m-vol-toggle[aria-pressed='true'] {
+.pg-terminal .m-vol-toggle svg { width: 14px; height: 14px; }
+.pg-terminal .m-vol-toggle[aria-pressed='true'] {
   border-color: var(--m-rule-raised);
   background: var(--m-wash);
   color: var(--m-accent);
 }
-.meridian .m-range { min-height: 44px; padding: 0 15px; }
+.pg-terminal .m-range { min-height: 44px; padding: 0 15px; }
 
 /* ---------------------------------------------- chart crosshair + tag */
 
-.meridian .m-prev { display: block; }
-.meridian .m-prev-tag {
+.pg-terminal .m-prev { display: block; }
+.pg-terminal .m-prev-tag {
   position: absolute;
   right: 0;
   top: -8px;
@@ -1612,19 +1668,19 @@
   padding: 2px 6px;
   white-space: nowrap;
 }
-.meridian .m-cross { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--m-accent); opacity: 0.4; }
-.meridian .m-cross-dot {
+.pg-terminal .m-cross { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--m-accent); opacity: 0.4; }
+.pg-terminal .m-cross-dot {
   position: absolute;
   width: 7px; height: 7px;
   border-radius: 9999px;
   transform: translate(-50%, -50%);
   border: 1.5px solid var(--m-shell);
 }
-.meridian .m-cross-dot.is-up { background: var(--m-up); }
-.meridian .m-cross-dot.is-down { background: var(--m-down); }
+.pg-terminal .m-cross-dot.is-up { background: var(--m-up); }
+.pg-terminal .m-cross-dot.is-down { background: var(--m-down); }
 /* The readout is displaced above the plot, which is the one case besides the
    CTA where this system allows a shadow. */
-.meridian .m-readout {
+.pg-terminal .m-readout {
   position: absolute;
   top: 6px;
   transform: translateX(-50%);
@@ -1633,22 +1689,22 @@
   padding: 9px 12px;
   background: var(--m-shell);
   border: 1px solid var(--m-rule);
-  box-shadow: 0 8px 24px rgba(5, 19, 31, 0.14);
+  box-shadow: var(--m-pop-shadow);
   pointer-events: none;
   white-space: nowrap;
   z-index: 2;
 }
-.meridian .m-readout-px {
+.pg-terminal .m-readout-px {
   font-family: var(--m-mono);
   font-variant-numeric: tabular-nums lining-nums;
   font-size: var(--m-data-lg);
   font-weight: 600;
   color: var(--m-ink);
 }
-.meridian .m-readout-chg { font-family: var(--m-mono); font-size: var(--m-fig); font-weight: 500; }
-.meridian .m-readout-chg.is-up { color: var(--m-up); }
-.meridian .m-readout-chg.is-down { color: var(--m-down); }
-.meridian .m-readout-meta {
+.pg-terminal .m-readout-chg { font-family: var(--m-mono); font-size: var(--m-fig); font-weight: 500; }
+.pg-terminal .m-readout-chg.is-up { color: var(--m-up); }
+.pg-terminal .m-readout-chg.is-down { color: var(--m-down); }
+.pg-terminal .m-readout-meta {
   font-family: var(--m-mono);
   font-size: var(--m-fig-sm);
   letter-spacing: 0.1em;
@@ -1657,21 +1713,21 @@
 
 /* ------------------------------------------------------- the day strip */
 
-.meridian .m-day {
+.pg-terminal .m-day {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   border-top: 1px solid var(--m-rule-section);
   border-bottom: 1px solid var(--m-rule-section);
   margin: 28px 0 0;
 }
-.meridian .m-day-cell {
+.pg-terminal .m-day-cell {
   padding: 20px 20px 20px 0;
   border-right: 1px solid var(--m-rule-section);
   transition: background var(--m-t);
 }
-.meridian .m-day-cell:last-child { border-right: 0; }
-.meridian .m-day-cell:hover { background: var(--m-wash-row); }
-.meridian .m-day-v {
+.pg-terminal .m-day-cell:last-child { border-right: 0; }
+.pg-terminal .m-day-cell:hover { background: var(--m-wash-row); }
+.pg-terminal .m-day-v {
   margin: 12px 0 0;
   font-family: var(--m-display);
   font-weight: var(--m-display-w);
@@ -1683,7 +1739,7 @@
 
 /* ----------------------------------------------------------- insights */
 
-.meridian .m-h3 {
+.pg-terminal .m-h3 {
   font-family: var(--m-display);
   font-weight: var(--m-display-w);
   font-size: 1.3125rem;
@@ -1691,10 +1747,10 @@
   color: var(--m-ink);
   margin: 0;
 }
-.meridian .m-insights { list-style: none; margin: 0; padding: 0; }
-.meridian .m-insight { display: flex; gap: 18px; padding: 16px 0; border-top: 1px solid var(--m-rule-list); }
+.pg-terminal .m-insights { list-style: none; margin: 0; padding: 0; }
+.pg-terminal .m-insight { display: flex; gap: 18px; padding: 16px 0; border-top: 1px solid var(--m-rule-list); }
 /* Graded by colour on the numeral, not by a badge. */
-.meridian .m-insight-n {
+.pg-terminal .m-insight-n {
   font-family: var(--m-display);
   font-weight: var(--m-display-w);
   font-size: 1.25rem;
@@ -1702,38 +1758,38 @@
   width: 30px;
   flex: none;
 }
-.meridian .m-insight-n.is-up { color: var(--m-up); }
-.meridian .m-insight-n.is-note { color: var(--m-accent); }
-.meridian .m-insight-n.is-warn { color: var(--m-down); }
-.meridian .m-insight-t { font-size: var(--m-data-lg); font-weight: 700; color: var(--m-ink); margin: 0 0 6px; }
-.meridian .m-insight-b { font-size: var(--m-data); font-weight: 500; line-height: 1.7; color: var(--m-ink-3); }
+.pg-terminal .m-insight-n.is-up { color: var(--m-up); }
+.pg-terminal .m-insight-n.is-note { color: var(--m-accent); }
+.pg-terminal .m-insight-n.is-warn { color: var(--m-down); }
+.pg-terminal .m-insight-t { font-size: var(--m-data-lg); font-weight: 700; color: var(--m-ink); margin: 0 0 6px; }
+.pg-terminal .m-insight-b { font-size: var(--m-data); font-weight: 500; line-height: 1.7; color: var(--m-ink-3); }
 
 /* ------------------------------------------------------------ returns */
 
-.meridian .m-returns { display: flex; flex-direction: column; gap: 20px; padding-top: 4px; }
-.meridian .m-return-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
-.meridian .m-return-v {
+.pg-terminal .m-returns { display: flex; flex-direction: column; gap: 20px; padding-top: 4px; }
+.pg-terminal .m-return-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.pg-terminal .m-return-v {
   font-family: var(--m-mono);
   font-variant-numeric: tabular-nums lining-nums;
   font-size: var(--m-data-lg);
   font-weight: 600;
 }
-.meridian .m-return-v.is-up { color: var(--m-up); }
-.meridian .m-return-v.is-down { color: var(--m-down); }
-.meridian .m-return .m-meter { display: block; width: 100%; }
+.pg-terminal .m-return-v.is-up { color: var(--m-up); }
+.pg-terminal .m-return-v.is-down { color: var(--m-down); }
+.pg-terminal .m-return .m-meter { display: block; width: 100%; }
 
 /* --------------------------------------------------------- reference rail */
 
-.meridian .m-rail-h { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
-.meridian .m-caps {
+.pg-terminal .m-rail-h { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
+.pg-terminal .m-caps {
   font-size: var(--m-label);
   font-weight: 800;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--m-accent);
 }
-.meridian .m-about { font-size: var(--m-data-lg); font-weight: 500; line-height: 1.75; color: var(--m-ink-3); }
-.meridian .m-about::first-letter {
+.pg-terminal .m-about { font-size: var(--m-data-lg); font-weight: 500; line-height: 1.75; color: var(--m-ink-3); }
+.pg-terminal .m-about::first-letter {
   float: left;
   font-family: var(--m-display);
   font-weight: var(--m-display-w);
@@ -1742,33 +1798,33 @@
   padding: 4px 10px 0 0;
   color: var(--m-accent);
 }
-.meridian .m-about-links { display: flex; border-top: 1px solid var(--m-rule-section); margin-top: 18px; }
-.meridian .m-about-links .m-caps { flex: 1; padding: 14px 0; }
-.meridian .m-about-links .m-caps:first-child { border-right: 1px solid var(--m-rule-section); }
-.meridian .m-about-links .m-caps:last-child { padding-left: 16px; }
+.pg-terminal .m-about-links { display: flex; border-top: 1px solid var(--m-rule-section); margin-top: 18px; }
+.pg-terminal .m-about-links .m-caps { flex: 1; padding: 14px 0; }
+.pg-terminal .m-about-links .m-caps:first-child { border-right: 1px solid var(--m-rule-section); }
+.pg-terminal .m-about-links .m-caps:last-child { padding-left: 16px; }
 
-.meridian .m-moves { list-style: none; margin: 0; padding: 0; }
-.meridian .m-move {
+.pg-terminal .m-moves { list-style: none; margin: 0; padding: 0; }
+.pg-terminal .m-move {
   display: flex;
   align-items: center;
   gap: 14px;
   padding: 15px 0;
   border-top: 1px solid var(--m-rule-list);
 }
-.meridian .m-move-when { flex: 1; min-width: 0; display: grid; gap: 5px; }
-.meridian .m-move-date { font-size: var(--m-data); font-weight: 600; color: var(--m-ink-2); }
-.meridian .m-move-chg {
+.pg-terminal .m-move-when { flex: 1; min-width: 0; display: grid; gap: 5px; }
+.pg-terminal .m-move-date { font-size: var(--m-data); font-weight: 600; color: var(--m-ink-2); }
+.pg-terminal .m-move-chg {
   font-family: var(--m-mono);
   font-variant-numeric: tabular-nums lining-nums;
   font-size: var(--m-data);
   font-weight: 600;
 }
-.meridian .m-move-chg.is-up { color: var(--m-up); }
-.meridian .m-move-chg.is-down { color: var(--m-down); }
+.pg-terminal .m-move-chg.is-up { color: var(--m-up); }
+.pg-terminal .m-move-chg.is-down { color: var(--m-down); }
 
-.meridian .m-wire { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 24px; }
-.meridian .m-wire-item { display: block; color: inherit; }
-.meridian .m-wire-plate {
+.pg-terminal .m-wire { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 24px; }
+.pg-terminal .m-wire-item { display: block; color: inherit; }
+.pg-terminal .m-wire-plate {
   position: relative;
   display: block;
   height: 116px;
@@ -1777,8 +1833,8 @@
   overflow: hidden;
   transition: border-color var(--m-t);
 }
-.meridian .m-wire-item:hover .m-wire-plate { border-color: var(--m-rule-raised); }
-.meridian .m-wire-tag {
+.pg-terminal .m-wire-item:hover .m-wire-plate { border-color: var(--m-rule-raised); }
+.pg-terminal .m-wire-tag {
   position: absolute;
   left: 12px;
   bottom: 11px;
@@ -1788,7 +1844,7 @@
   text-transform: uppercase;
   color: var(--m-accent-dim);
 }
-.meridian .m-wire-src {
+.pg-terminal .m-wire-src {
   display: block;
   margin: 14px 0 8px;
   font-size: var(--m-label);
@@ -1797,7 +1853,7 @@
   text-transform: uppercase;
   color: var(--m-accent);
 }
-.meridian .m-wire-title {
+.pg-terminal .m-wire-title {
   display: block;
   font-family: var(--m-display);
   font-weight: var(--m-display-w);
@@ -1807,18 +1863,18 @@
   text-wrap: pretty;
   transition: color var(--m-t);
 }
-.meridian .m-wire-item:hover .m-wire-title { color: var(--m-accent); }
-.meridian .m-wire-age { display: block; margin-top: 8px; font-family: var(--m-mono); font-size: var(--m-fig-sm); color: var(--m-ink-4); }
+.pg-terminal .m-wire-item:hover .m-wire-title { color: var(--m-accent); }
+.pg-terminal .m-wire-age { display: block; margin-top: 8px; font-family: var(--m-mono); font-size: var(--m-fig-sm); color: var(--m-ink-4); }
 
 @media (max-width: 1024px) {
-  .meridian .m-day { grid-template-columns: repeat(3, 1fr); }
-  .meridian .m-day-cell:nth-child(3) { border-right: 0; }
-  .meridian .m-day-cell:nth-child(-n+3) { border-bottom: 1px solid var(--m-rule-section); }
+  .pg-terminal .m-day { grid-template-columns: repeat(3, 1fr); }
+  .pg-terminal .m-day-cell:nth-child(3) { border-right: 0; }
+  .pg-terminal .m-day-cell:nth-child(-n+3) { border-bottom: 1px solid var(--m-rule-section); }
 }
 @media (max-width: 620px) {
-  .meridian .m-day { grid-template-columns: repeat(2, 1fr); }
-  .meridian .m-day-cell:nth-child(3) { border-right: 1px solid var(--m-rule-section); }
-  .meridian .m-day-cell:nth-child(2n) { border-right: 0; }
-  .meridian .m-day-v { font-size: 1.25rem; }
-  .meridian .m-readout { display: none; }
+  .pg-terminal .m-day { grid-template-columns: repeat(2, 1fr); }
+  .pg-terminal .m-day-cell:nth-child(3) { border-right: 1px solid var(--m-rule-section); }
+  .pg-terminal .m-day-cell:nth-child(2n) { border-right: 0; }
+  .pg-terminal .m-day-v { font-size: 1.25rem; }
+  .pg-terminal .m-readout { display: none; }
 }

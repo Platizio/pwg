@@ -47,7 +47,7 @@ export default function TerminalBand() {
   const quote = quotes.get(featured.symbol)
 
   return (
-    <div className="meridian band">
+    <div className="pg-terminal band">
       <div className="container">
         <div className="band-head">
           <h2 id="terminal-heading" className="band-title">

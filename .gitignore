@@ -49,12 +49,15 @@ client-url-config.json
 # TypeScript incremental build info
 *.tsbuildinfo
 
-# The market terminal is a separate Next.js app with its own .git, its own
-# lockfile and 2.4GB of node_modules and build output. Committing it from here
-# would create a gitlink to a repo that has no remote — Vercel or Render would
-# clone an empty directory. It ships as its own service; see the deployment
-# task in the plan.
-screener/
+# The market terminal (screener/) used to be excluded here: it carried its own
+# .git, so committing it would have created a gitlink to a repo with no remote,
+# and a deploy would have cloned an empty directory. It is now flattened into
+# this repository, so it is tracked like any other directory.
+#
+# Its own screener/.gitignore still applies — git honours nested ignore files —
+# which is what keeps screener/node_modules, screener/.next and, critically,
+# screener/Global_API (live UAT credentials) out of every commit. The
+# Global_API/ and node_modules/ rules above cover it a second time, at any depth.
 
 # Scratch output from MCP browser tooling during review runs.
 .playwright-mcp/

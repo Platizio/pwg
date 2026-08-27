@@ -4,14 +4,20 @@
     {
       "name": "platizio-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev:lan"
+      ],
       "port": 5173
     },
     {
       "name": "screener",
       "cwd": "screener",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3000
     }
   ]

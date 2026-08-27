@@ -4,8 +4,9 @@ import SEO, { breadcrumbSchema } from '../../src/components/SEO'
 import NotFound from '../../src/pages/NotFound'
 import { findInstrument, terminalPath } from '../data/terminalUniverse'
 import { useTerminalData } from '../hooks/useTerminalData'
+import { useTerminalTheme } from '../hooks/useTerminalTheme'
 import MarketNote from '../components/MarketNote'
-import MeridianFonts from '../components/terminal/MeridianFonts'
+import TerminalFonts from '../components/terminal/TerminalFonts'
 import TickerTape from '../components/terminal/TickerTape'
 import SymbolRail from '../components/terminal/SymbolRail'
 import InstrumentHeader from '../components/terminal/InstrumentHeader'
@@ -16,6 +17,7 @@ import TechnicalsPanel from '../components/terminal/TechnicalsPanel'
 import CompetitorsPanel from '../components/terminal/CompetitorsPanel'
 import HoldingsPanel from '../components/terminal/HoldingsPanel'
 import ContextRail from '../components/terminal/ContextRail'
+import ThemeToggle from '../components/terminal/ThemeToggle'
 
 /* The source design's five, and only those. */
 const TABS: readonly TabDef[] = [
@@ -47,6 +49,7 @@ export default function Terminal() {
   // Hooks run unconditionally — the early returns below come after them.
   const { quotes, indexMoves, indexLeaders, asOf, delayed, ready } = useTerminalData()
   const [tab, setTab] = useState('overview')
+  const [ground, setGround] = useTerminalTheme()
 
   if (!instrument) return <NotFound />
 
@@ -72,23 +75,30 @@ export default function Terminal() {
           [instrument.symbol, path],
         ])}
       />
-      {/* Instrument Serif and Manrope belong to this route only. */}
-      <MeridianFonts />
+      {/* Outfit's 800 weight, which only this route's one filled CTA uses. */}
+      <TerminalFonts />
 
-      <div className="meridian terminal">
+      <div className="pg-terminal terminal">
         <div className="m-shell">
           <TickerTape quotes={quotes} />
 
           <SymbolRail quotes={quotes} current={instrument.symbol} ready={ready} />
 
           <div className="m-col">
-            <nav className="m-crumb" aria-label="Breadcrumb">
-              <Link to="/">Home</Link>
-              <span className="sep" aria-hidden="true">/</span>
-              <Link to="/products">Products</Link>
-              <span className="sep" aria-hidden="true">/</span>
-              <span aria-current="page">{instrument.symbol}</span>
-            </nav>
+            {/* The ground switch rides beside the trail rather than inside
+                it: a breadcrumb landmark should hold the trail and nothing
+                else, or a screen-reader user finds a theme control filed
+                under "Breadcrumb". */}
+            <div className="m-crumb-row">
+              <nav className="m-crumb" aria-label="Breadcrumb">
+                <Link to="/">Home</Link>
+                <span className="sep" aria-hidden="true">/</span>
+                <Link to="/products">Products</Link>
+                <span className="sep" aria-hidden="true">/</span>
+                <span aria-current="page">{instrument.symbol}</span>
+              </nav>
+              <ThemeToggle ground={ground} onChange={setGround} />
+            </div>
 
             <InstrumentHeader instrument={instrument} quote={quote} ready={ready} />
 

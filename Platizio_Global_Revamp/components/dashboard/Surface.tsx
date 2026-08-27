@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { direction, formatPercent } from '../../lib/format'
 
 /*
-  Meridian v2 — the lit-card vocabulary.
+  Platizio Global v2 — the lit-card vocabulary.
 
   The first system refused cards on principle, and the principle was sound
   about the thing it was refusing: a flat grey box with a border and a radius,

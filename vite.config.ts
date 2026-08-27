@@ -196,6 +196,56 @@ function synthesise(url: URL, universe: Record<string, any>) {
 export default defineConfig(({ mode }) => ({
   plugins: [react(), devApi(mode)],
   publicDir: 'public',
+  server: {
+    proxy: {
+      /*
+       * The market terminal (screener/) runs its own Next dev server on 3000.
+       * Proxying it here puts both apps on one origin, so a link from the site
+       * into the terminal is a same-origin path rather than a jump to another
+       * port.
+       *
+       * Next is configured with basePath "/screener" in development, so it
+       * already emits its routes, /_next assets and HMR endpoint under this
+       * prefix — no path rewriting is needed, and nothing at the site's own
+       * root is shadowed.
+       *
+       * ws: true forwards the upgrade request, without which the terminal's
+       * fast refresh socket fails and it stops hot-reloading.
+       */
+      '/screener': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        ws: true,
+      },
+    },
+    watch: {
+      /**
+       * screener/ is a separate Next.js app that happens to live inside this
+       * repo root. Vite ignores only .git, node_modules, test-results and its
+       * own cacheDir by default (see resolveChokidarOptions) — so without this
+       * it also watches screener/.next, which Turbopack rewrites continuously
+       * while the screener's dev server runs: 4k+ files under .next/dev and
+       * 10k+ under .next/cache.
+       *
+       * That produced a change-event storm which invalidated the module graph
+       * and pushed repeated full-reloads to the browser. Running both dev
+       * servers at once then exhausted RAM on a 16GB machine, because each
+       * forced reload re-created the page's WebGL globe and its animation
+       * loops faster than they were torn down.
+       *
+       * Nothing here imports from screener/ — the two apps are linked only by
+       * URL (src/constants.ts, screenerInstrument) — so ignoring it wholesale
+       * costs nothing.
+       */
+      ignored: [
+        '**/screener/**',
+        '**/.ssr/**',
+        '**/.claude-flow/**',
+        '**/.playwright-mcp/**',
+        '**/supabase/.temp/**',
+      ],
+    },
+  },
   define: {
     // Baked in at build time so the prerendered HTML and the hydrating client
     // agree on the copyright year. Reading `new Date()` during render would

@@ -26,12 +26,12 @@ import '../Platizio_Global_Revamp/styles/legal.css'
 // products.css declares every token on .ft and nothing on :root, so it can
 // load beside the others without reaching the rest of the site.
 import '../Platizio_Global_Revamp/styles/products.css'
-// Scoped to .meridian, which only /terminal/:symbol carries.
-import '../Platizio_Global_Revamp/styles/meridian.css'
-// Meridian v2 — the lit-card surface. Scoped to .meridian, so it moves both
+// Scoped to .pg-terminal, which only /terminal/:symbol carries.
+import '../Platizio_Global_Revamp/styles/terminal.css'
+// Platizio Global v2 — the lit-card surface. Scoped to .pg-terminal, so it moves both
 // product surfaces into the source design's world and leaves the rest of the
 // site in the light brand.
-import '../Platizio_Global_Revamp/styles/meridian-v2.css'
+import '../Platizio_Global_Revamp/styles/terminal-v2.css'
 
 const container = document.getElementById('root')!
 

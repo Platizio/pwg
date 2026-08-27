@@ -12,6 +12,14 @@
          Home. Seventeen pages. The escape lives in page.css as
          `html:not(.js) .reveal`. Inline and first, so there is no flash. -->
     <script>document.documentElement.classList.add('js')</script>
+    <!-- The terminal at /terminal/:symbol is the one surface with two grounds.
+         Light is the default, so only a stored 'dark' has to be restored — and
+         it has to be restored HERE, blocking, before anything paints, or a
+         reader who chose dark gets a white flash on every prerendered load.
+         The attribute sits on <html> because the terminal's own shell does not
+         exist until React runs. Inert on the other 61 pages: nothing outside
+         .pg-terminal reads it. Key is shared with useTerminalTheme.ts. -->
+    <script>try{if(localStorage.getItem('pg-terminal-ground')==='dark'){document.documentElement.dataset.pgTheme='dark'}}catch(e){}</script>
     <meta name="google-site-verification" content="AZiBNhj-C88S1whuGo83lQpDvnOLL9rPYp-f5DUf-xo" />
     <meta name="msvalidate.01" content="BDB1DFA89268951120DC8374DF152176" />
     <!-- Per-page title / description / canonical / OG / Twitter / JSON-LD.

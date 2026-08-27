@@ -38,7 +38,7 @@ visual world, prerendered and indexed, linked from every instrument row on
 
 ### The thesis
 
-> **Meridian for the tape. Platizio for the truth.**
+> **The pinned design for the tape. Platizio for the truth.**
 
 The obvious build is a copy of a stock-terminal demo: price, P/E, market cap,
 institutional holders, analyst targets, newswire. ViewTrade exposes **none** of
@@ -60,11 +60,11 @@ Every figure on the page traces to `/api/quotes`, `pricingRates.ts`, or
 
 ## Visual world
 
-One world across both routes, not two. The Meridian design system the user
+One world across both routes, not two. The design system the user
 pinned — its structure, its rigour, its type — rendered in Platizio's own
 light rather than against it.
 
-| | Meridian source | As shipped here |
+| | Source design | As shipped here |
 |---|---|---|
 | Ground | warm near-black `#080706` | white `#ffffff`, rail `#fbfaf8` |
 | Accent | champagne gilt `#d9bd8b` | burnt orange `#b94b12` — the brand accent, unchanged in hue |
@@ -80,9 +80,9 @@ light rather than against it.
 
 `styles/tokens.css` is a global override layer — it redefines `--navy`,
 `--gold`, `--radius` on `:root` so all seven un-revamped pages inherit the
-revamp for free. `styles/meridian.css` therefore declares **every** token on
-`.meridian` and touches `:root` **never**. The universal `border-radius: 0`
-reset stays behind the `.meridian` selector. A leak here repaints the live
+revamp for free. `styles/terminal.css` therefore declares **every** token on
+`.pg-terminal` and touches `:root` **never**. The universal `border-radius: 0`
+reset stays behind the `.pg-terminal` selector. A leak here repaints the live
 site.
 
 ### Laws carried over from `screener/DESIGN.md`
@@ -108,7 +108,7 @@ site.
 |---|---|---|---|
 The old page is **deleted, not refactored**. Its section order, its mirrored
 halves, its `.subsection` rhythm and its two five-across grids are gone. The
-replacement follows `Meridian Home.dc.html` section for section, with
+replacement follows the source design's home page section for section, with
 Platizio's own facts in every slot.
 
 | # | Section | Source-design counterpart | Content |
@@ -159,7 +159,7 @@ no newswire, until an endpoint exists for them.
   computed by pure functions, exactly as the source `.dc.html` designs draw
   them.
 - **`motion` / framer-motion** — this repo has no animation library. Every
-  Meridian animation becomes a CSS keyframe guarded by
+  source-design animation becomes a CSS keyframe guarded by
   `prefers-reduced-motion`.
 
 ## The price-history question
@@ -196,7 +196,7 @@ anything.
 | 5 | Every figure traces to `/api/quotes`, `pricingRates.ts` or `calculateTradeCost` — zero invented financial figures in the diff |
 | 6 | `<MarketNote/>` renders on every view that shows a price; every change carries a glyph and a sign, never colour alone |
 | 7 | Legacy `.subsection` markup gone from Products; the `zportfolio` typo gone; the duplicated `ArrowIcon` extracted once |
-| 8 | No rate restated — `pricingRates.ts` stays the single source; `meridian.css` adds or changes nothing on `:root` |
+| 8 | No rate restated — `pricingRates.ts` stays the single source; `terminal.css` adds or changes nothing on `:root` |
 | 9 | No horizontal scroll at 360 / 768 / 1280 / 1560; the context rail drops rather than narrows |
 | 10 | WCAG AA on every text/background pair in both worlds, measured — including `--m-ink-4` `#8a8076`, `--m-up` `#7dd3a0` and `--m-down` `#e0796b` on `#080706` |
 

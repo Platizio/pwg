@@ -34,7 +34,7 @@ export interface Instrument {
 }
 
 /**
- * Monogram tint, cycled from Meridian's five instrument marks.
+ * Monogram tint, cycled from Platizio Global's five instrument marks.
  *
  * The letter carries the colour, never a filled tile behind it — that is what
  * keeps thirteen differently-coloured symbols from turning the rail into

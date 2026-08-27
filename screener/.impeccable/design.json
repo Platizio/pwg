@@ -1,0 +1,295 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-05T05:24:36Z",
+  "title": "Design System: Meridian",
+  "extensions": {
+    "colorMeta": {
+      "gold": {
+        "role": "primary",
+        "displayName": "Champagne Gilt",
+        "canonical": "oklch(81.0% 0.0731 81.8)",
+        "tonalRamp": ["oklch(15.0% 0.0731 81.8)", "oklch(26.4% 0.0731 81.8)", "oklch(37.9% 0.0731 81.8)", "oklch(49.3% 0.0731 81.8)", "oklch(60.7% 0.0731 81.8)", "oklch(72.1% 0.0731 81.8)", "oklch(83.6% 0.0731 81.8)", "oklch(95.0% 0.0731 81.8)"]
+      },
+      "gold-hi": {
+        "role": "primary",
+        "displayName": "Gilt Highlight",
+        "canonical": "oklch(90.2% 0.0522 82.3)",
+        "tonalRamp": ["oklch(15.0% 0.0522 82.3)", "oklch(26.4% 0.0522 82.3)", "oklch(37.9% 0.0522 82.3)", "oklch(49.3% 0.0522 82.3)", "oklch(60.7% 0.0522 82.3)", "oklch(72.1% 0.0522 82.3)", "oklch(83.6% 0.0522 82.3)", "oklch(95.0% 0.0522 82.3)"]
+      },
+      "gold-dim": {
+        "role": "primary",
+        "displayName": "Gilt Dim",
+        "canonical": "oklch(68.7% 0.0854 77.6)",
+        "tonalRamp": ["oklch(15.0% 0.0854 77.6)", "oklch(26.4% 0.0854 77.6)", "oklch(37.9% 0.0854 77.6)", "oklch(49.3% 0.0854 77.6)", "oklch(60.7% 0.0854 77.6)", "oklch(72.1% 0.0854 77.6)", "oklch(83.6% 0.0854 77.6)", "oklch(95.0% 0.0854 77.6)"]
+      },
+      "gold-deep": {
+        "role": "primary",
+        "displayName": "Gilt Deep",
+        "canonical": "oklch(55.6% 0.0693 77.3)",
+        "tonalRamp": ["oklch(15.0% 0.0693 77.3)", "oklch(26.4% 0.0693 77.3)", "oklch(37.9% 0.0693 77.3)", "oklch(49.3% 0.0693 77.3)", "oklch(60.7% 0.0693 77.3)", "oklch(72.1% 0.0693 77.3)", "oklch(83.6% 0.0693 77.3)", "oklch(95.0% 0.0693 77.3)"],
+        "note": "4.14:1 on the shell — below the AA text floor. Rules and ticks only, never text."
+      },
+      "up": {
+        "role": "secondary",
+        "displayName": "Sage",
+        "canonical": "oklch(79.9% 0.1115 156.7)",
+        "tonalRamp": ["oklch(15.0% 0.1115 156.7)", "oklch(26.4% 0.1115 156.7)", "oklch(37.9% 0.1115 156.7)", "oklch(49.3% 0.1115 156.7)", "oklch(60.7% 0.1115 156.7)", "oklch(72.1% 0.1115 156.7)", "oklch(83.6% 0.1115 156.7)", "oklch(95.0% 0.1115 156.7)"]
+      },
+      "down": {
+        "role": "secondary",
+        "displayName": "Terracotta",
+        "canonical": "oklch(68.8% 0.1306 29.0)",
+        "tonalRamp": ["oklch(15.0% 0.1306 29.0)", "oklch(26.4% 0.1306 29.0)", "oklch(37.9% 0.1306 29.0)", "oklch(49.3% 0.1306 29.0)", "oklch(60.7% 0.1306 29.0)", "oklch(72.1% 0.1306 29.0)", "oklch(83.6% 0.1306 29.0)", "oklch(95.0% 0.1306 29.0)"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Parchment",
+        "canonical": "oklch(94.8% 0.0120 79.8)",
+        "tonalRamp": ["oklch(15.0% 0.0120 79.8)", "oklch(26.4% 0.0120 79.8)", "oklch(37.9% 0.0120 79.8)", "oklch(49.3% 0.0120 79.8)", "oklch(60.7% 0.0120 79.8)", "oklch(72.1% 0.0120 79.8)", "oklch(83.6% 0.0120 79.8)", "oklch(95.0% 0.0120 79.8)"]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Parchment Dim",
+        "canonical": "oklch(80.8% 0.0177 76.1)",
+        "tonalRamp": ["oklch(15.0% 0.0177 76.1)", "oklch(26.4% 0.0177 76.1)", "oklch(37.9% 0.0177 76.1)", "oklch(49.3% 0.0177 76.1)", "oklch(60.7% 0.0177 76.1)", "oklch(72.1% 0.0177 76.1)", "oklch(83.6% 0.0177 76.1)", "oklch(95.0% 0.0177 76.1)"]
+      },
+      "ink-3": {
+        "role": "neutral",
+        "displayName": "Slate Grey",
+        "canonical": "oklch(66.1% 0.0192 73.0)",
+        "tonalRamp": ["oklch(15.0% 0.0192 73.0)", "oklch(26.4% 0.0192 73.0)", "oklch(37.9% 0.0192 73.0)", "oklch(49.3% 0.0192 73.0)", "oklch(60.7% 0.0192 73.0)", "oklch(72.1% 0.0192 73.0)", "oklch(83.6% 0.0192 73.0)", "oklch(95.0% 0.0192 73.0)"]
+      },
+      "ink-4": {
+        "role": "neutral",
+        "displayName": "Ash",
+        "canonical": "oklch(60.6% 0.0192 67.5)",
+        "tonalRamp": ["oklch(15.0% 0.0192 67.5)", "oklch(26.4% 0.0192 67.5)", "oklch(37.9% 0.0192 67.5)", "oklch(49.3% 0.0192 67.5)", "oklch(60.7% 0.0192 67.5)", "oklch(72.1% 0.0192 67.5)", "oklch(83.6% 0.0192 67.5)", "oklch(95.0% 0.0192 67.5)"],
+        "note": "5.11:1 on the shell — the text floor for this system."
+      },
+      "page": {
+        "role": "neutral",
+        "displayName": "Ground",
+        "canonical": "oklch(13.0% 0.0035 69.8)",
+        "tonalRamp": ["oklch(15.0% 0.0035 69.8)", "oklch(26.4% 0.0035 69.8)", "oklch(37.9% 0.0035 69.8)", "oklch(49.3% 0.0035 69.8)", "oklch(60.7% 0.0035 69.8)", "oklch(72.1% 0.0035 69.8)", "oklch(83.6% 0.0035 69.8)", "oklch(95.0% 0.0035 69.8)"]
+      },
+      "shell": {
+        "role": "neutral",
+        "displayName": "Shell",
+        "canonical": "oklch(14.6% 0.0028 68.6)",
+        "tonalRamp": ["oklch(15.0% 0.0028 68.6)", "oklch(26.4% 0.0028 68.6)", "oklch(37.9% 0.0028 68.6)", "oklch(49.3% 0.0028 68.6)", "oklch(60.7% 0.0028 68.6)", "oklch(72.1% 0.0028 68.6)", "oklch(83.6% 0.0028 68.6)", "oklch(95.0% 0.0028 68.6)"]
+      },
+      "rail": {
+        "role": "neutral",
+        "displayName": "Rail",
+        "canonical": "oklch(14.1% 0.0030 69.4)",
+        "tonalRamp": ["oklch(15.0% 0.0030 69.4)", "oklch(26.4% 0.0030 69.4)", "oklch(37.9% 0.0030 69.4)", "oklch(49.3% 0.0030 69.4)", "oklch(60.7% 0.0030 69.4)", "oklch(72.1% 0.0030 69.4)", "oklch(83.6% 0.0030 69.4)", "oklch(95.0% 0.0030 69.4)"]
+      },
+      "raised": {
+        "role": "neutral",
+        "displayName": "Raised",
+        "canonical": "oklch(18.5% 0.0077 67.3)",
+        "tonalRamp": ["oklch(15.0% 0.0077 67.3)", "oklch(26.4% 0.0077 67.3)", "oklch(37.9% 0.0077 67.3)", "oklch(49.3% 0.0077 67.3)", "oklch(60.7% 0.0077 67.3)", "oklch(72.1% 0.0077 67.3)", "oklch(83.6% 0.0077 67.3)", "oklch(95.0% 0.0077 67.3)"]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "oklch(24.3% 0.0120 67.2)",
+        "tonalRamp": ["oklch(15.0% 0.0120 67.2)", "oklch(26.4% 0.0120 67.2)", "oklch(37.9% 0.0120 67.2)", "oklch(49.3% 0.0120 67.2)", "oklch(60.7% 0.0120 67.2)", "oklch(72.1% 0.0120 67.2)", "oklch(83.6% 0.0120 67.2)", "oklch(95.0% 0.0120 67.2)"]
+      },
+      "rule-raised": {
+        "role": "neutral",
+        "displayName": "Hairline Raised",
+        "canonical": "oklch(29.0% 0.0239 63.9)",
+        "tonalRamp": ["oklch(15.0% 0.0239 63.9)", "oklch(26.4% 0.0239 63.9)", "oklch(37.9% 0.0239 63.9)", "oklch(49.3% 0.0239 63.9)", "oklch(60.7% 0.0239 63.9)", "oklch(72.1% 0.0239 63.9)", "oklch(83.6% 0.0239 63.9)", "oklch(95.0% 0.0239 63.9)"]
+      },
+      "on-gold": {
+        "role": "neutral",
+        "displayName": "Ink on Gilt",
+        "canonical": "oklch(18.9% 0.0244 75.0)",
+        "tonalRamp": ["oklch(15.0% 0.0244 75.0)", "oklch(26.4% 0.0244 75.0)", "oklch(37.9% 0.0244 75.0)", "oklch(49.3% 0.0244 75.0)", "oklch(60.7% 0.0244 75.0)", "oklch(72.1% 0.0244 75.0)", "oklch(83.6% 0.0244 75.0)", "oklch(95.0% 0.0244 75.0)"],
+        "note": "8.0–12.3:1 across the gold CTA gradient."
+      },
+      "on-down": {
+        "role": "neutral",
+        "displayName": "Ink on Terracotta",
+        "canonical": "oklch(16.6% 0.0308 28.8)",
+        "tonalRamp": ["oklch(15.0% 0.0308 28.8)", "oklch(26.4% 0.0308 28.8)", "oklch(37.9% 0.0308 28.8)", "oklch(49.3% 0.0308 28.8)", "oklch(60.7% 0.0308 28.8)", "oklch(72.1% 0.0308 28.8)", "oklch(83.6% 0.0308 28.8)", "oklch(95.0% 0.0308 28.8)"],
+        "note": "4.58–6.55:1 across the destructive gradient. Replaces the source design's #FBF3F0, which measured 2.70:1."
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "The last-traded price. The largest thing on screen.", "voice": "serif" },
+      "figure": { "displayName": "Figure", "purpose": "The analyst consensus target, set in gilt.", "voice": "serif" },
+      "headline-xl": { "displayName": "Headline XL", "purpose": "The company name in the instrument header.", "voice": "serif" },
+      "headline-lg": { "displayName": "Headline LG", "purpose": "The portfolio value — the sidebar's one hero figure.", "voice": "serif" },
+      "headline": { "displayName": "Headline", "purpose": "The wordmark, the order-ticket title, and the quantity stepper.", "voice": "serif" },
+      "stat": { "displayName": "Stat", "purpose": "The five intraday figures in the day-stats strip.", "voice": "serif" },
+      "section": { "displayName": "Section", "purpose": "Section headings in the working column.", "voice": "serif" },
+      "section-sm": { "displayName": "Section SM", "purpose": "Right-rail headings and Your position values.", "voice": "serif" },
+      "title": { "displayName": "Title", "purpose": "Order-ticket instrument name and the compact mobile price.", "voice": "serif" },
+      "title-sm": { "displayName": "Title SM", "purpose": "Peer names, institutional holders, newswire headlines, account monogram.", "voice": "serif" },
+      "body-lg": { "displayName": "Body LG", "purpose": "Navigation items.", "voice": "sans" },
+      "body": { "displayName": "Body", "purpose": "Insight bodies and the About paragraph. Ash, text-wrap: pretty.", "voice": "sans" },
+      "label-lg": { "displayName": "Label LG", "purpose": "Meter labels, legend entries, signal names.", "voice": "sans" },
+      "label": { "displayName": "Label", "purpose": "Tracked micro-caps above every value. The system's signature move, floored at 10px.", "voice": "sans" },
+      "numeric-lg": { "displayName": "Numeric LG", "purpose": "Ratio values, technical readings, order summary figures.", "voice": "mono" },
+      "numeric": { "displayName": "Numeric", "purpose": "Watchlist tickers and peer-table figures.", "voice": "mono" },
+      "numeric-sm": { "displayName": "Numeric SM", "purpose": "Range labels, holder share counts, the portfolio position line.", "voice": "mono" },
+      "numeric-xs": { "displayName": "Numeric XS", "purpose": "The market tape, timestamps, and chart axis ticks.", "voice": "mono" }
+    },
+    "shadows": [
+      { "name": "gilt-bloom", "value": "0 10px 34px rgba(217, 189, 139, 0.22)", "purpose": "The primary CTA at rest. The system's only coloured shadow." },
+      { "name": "gilt-bloom-hover", "value": "0 16px 44px rgba(217, 189, 139, 0.36)", "purpose": "The primary CTA on hover, paired with a 2px lift." },
+      { "name": "drawer-cast", "value": "-40px 0 100px rgba(0, 0, 0, 0.7)", "purpose": "The order ticket sliding in from the right." },
+      { "name": "tooltip-lift", "value": "0 16px 34px rgba(0, 0, 0, 0.7)", "purpose": "The crosshair readout, which must stay legible over any part of the plot." },
+      { "name": "shell-seat", "value": "0 50px 140px rgba(0, 0, 0, 0.75)", "purpose": "Seats the whole terminal on the page. Desktop only." }
+    ],
+    "motion": [
+      { "name": "ease-lux", "value": "cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "The system ease. Every reveal, meter, wipe and drawer shares it." },
+      { "name": "row-indent", "value": "280ms ease-out", "purpose": "Watchlist and notable-move rows sliding 8px right on hover or selection." },
+      { "name": "chart-curtain", "value": "1250ms cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "The reveal curtain retracting left-to-right over the plot on instrument or range change." },
+      { "name": "meter-grow", "value": "1100ms cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "2px meters growing from zero on mount." },
+      { "name": "drawer", "value": "380ms cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "Order ticket enter and exit. Presence is owned by lib/use-presence.ts, not AnimatePresence." },
+      { "name": "tab-underline", "value": "spring(stiffness 460, damping 42)", "purpose": "The 1px gold underline sliding between tabs." },
+      { "name": "tape", "value": "52s linear infinite", "purpose": "The market tape marquee, translating xPercent -50 over a doubled row. Slows to a halt on hover or focus." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" },
+      { "name": "shell-max", "value": "1560px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single filled gold element on any view. Lifts and blooms on hover.",
+      "html": "<button class=\"ds-btn-primary\">Trade</button>",
+      "css": ".ds-btn-primary { background: linear-gradient(135deg, #e8cfa3, #c9a46f); color: #1a1207; font-family: Manrope, ui-sans-serif, system-ui, sans-serif; font-size: 10px; font-weight: 800; letter-spacing: 0.22em; text-transform: uppercase; min-height: 44px; padding: 0 24px; border: none; border-radius: 0; cursor: pointer; box-shadow: 0 10px 34px rgba(217,189,139,0.22); transition: transform 200ms cubic-bezier(0.22,1,0.36,1), box-shadow 250ms cubic-bezier(0.22,1,0.36,1); } .ds-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 44px rgba(217,189,139,0.36); } .ds-btn-primary:active { transform: scale(0.985); } .ds-btn-primary:focus-visible { outline: 1px solid #d9bd8b; outline-offset: 3px; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Every secondary action. Transparent with a hairline that warms to gold.",
+      "html": "<button class=\"ds-btn-outline\">Follow</button>",
+      "css": ".ds-btn-outline { background: transparent; color: #c7bfb4; font-family: Manrope, ui-sans-serif, system-ui, sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; min-height: 44px; padding: 0 20px; border: 1px solid #302821; border-radius: 0; cursor: pointer; transition: border-color 250ms ease, color 250ms ease; } .ds-btn-outline:hover { border-color: #d9bd8b; color: #f2ede5; } .ds-btn-outline:focus-visible { outline: 1px solid #d9bd8b; outline-offset: 3px; }"
+    },
+    {
+      "name": "Destructive Button",
+      "kind": "button",
+      "refersTo": "button-destructive",
+      "description": "The SELL confirm. Dark ink on a warm gradient, mirroring the primary rather than inverting it.",
+      "html": "<button class=\"ds-btn-destructive\">Sell 5 TSLA · $1,192.25</button>",
+      "css": ".ds-btn-destructive { background: linear-gradient(135deg, #e0796b, #c9584a); color: #1a0907; font-family: Manrope, ui-sans-serif, system-ui, sans-serif; font-size: 10px; font-weight: 800; letter-spacing: 0.22em; text-transform: uppercase; padding: 16px; width: 100%; border: none; border-radius: 0; cursor: pointer; box-shadow: 0 10px 34px rgba(0,0,0,0.4); transition: transform 200ms cubic-bezier(0.22,1,0.36,1); } .ds-btn-destructive:hover { transform: translateY(-2px); } .ds-btn-destructive:focus-visible { outline: 1px solid #d9bd8b; outline-offset: 3px; }"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "chip",
+      "refersTo": "segment",
+      "description": "Time range, chart type, order type. One border around the group, hairline dividers between items.",
+      "html": "<div class=\"ds-segmented\" role=\"group\" aria-label=\"Time range\"><button class=\"ds-segment\">1H</button><button class=\"ds-segment is-active\" aria-pressed=\"true\">1D</button><button class=\"ds-segment\">1W</button><button class=\"ds-segment\">ALL</button></div>",
+      "css": ".ds-segmented { display: inline-flex; border: 1px solid #241f1a; } .ds-segment { background: transparent; color: #9a9186; font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace; font-size: 11px; letter-spacing: 0.1em; min-height: 44px; padding: 0 16px; border: none; border-right: 1px solid #241f1a; border-radius: 0; cursor: pointer; transition: background 250ms ease, color 250ms ease; } .ds-segment:last-child { border-right: none; } .ds-segment:hover { background: rgba(217,189,139,0.03); color: #f2ede5; } .ds-segment.is-active { background: rgba(217,189,139,0.1); color: #d9bd8b; } .ds-segment:focus-visible { outline: 1px solid #d9bd8b; outline-offset: 3px; }"
+    },
+    {
+      "name": "Watchlist Row",
+      "kind": "nav",
+      "refersTo": "list-row",
+      "description": "The signature interaction: rows indent 8px and warm on hover, with a gold bar marking the active one.",
+      "html": "<button class=\"ds-row is-active\" aria-current=\"true\"><span class=\"ds-row-bar\"></span><span class=\"ds-row-main\"><span class=\"ds-row-id\">AAPL</span><span class=\"ds-row-sub\">Apple</span></span><span class=\"ds-row-chg\">+1.47%</span></button>",
+      "css": ".ds-row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 10px 8px 10px 0; background: transparent; border: none; border-top: 1px solid #1c1815; border-radius: 0; text-align: left; cursor: pointer; transition: padding-left 280ms ease, background 280ms ease; } .ds-row:hover { padding-left: 8px; background: rgba(217,189,139,0.04); } .ds-row.is-active { padding-left: 8px; background: rgba(217,189,139,0.06); } .ds-row-bar { width: 1px; height: 22px; background: transparent; flex: none; } .ds-row.is-active .ds-row-bar { background: #d9bd8b; } .ds-row-main { flex: 1; min-width: 0; } .ds-row-id { display: block; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11.5px; font-weight: 500; letter-spacing: 0.06em; color: #c7bfb4; } .ds-row.is-active .ds-row-id { color: #f2ede5; } .ds-row-sub { display: block; margin-top: 2px; font-family: Manrope, ui-sans-serif, system-ui, sans-serif; font-size: 11px; color: #9a9186; } .ds-row-chg { width: 44px; text-align: right; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 10px; color: #7dd3a0; } .ds-row:focus-visible { outline: 1px solid #d9bd8b; outline-offset: 3px; }"
+    },
+    {
+      "name": "Tab Bar",
+      "kind": "nav",
+      "refersTo": "segment",
+      "description": "Tracked caps with a 1px gold underline. Roving tabindex; arrows move and selection follows focus.",
+      "html": "<div class=\"ds-tabs\" role=\"tablist\" aria-label=\"Instrument detail\"><button class=\"ds-tab is-active\" role=\"tab\" aria-selected=\"true\" tabindex=\"0\">OVERVIEW<span class=\"ds-tab-underline\"></span></button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\">FUNDAMENTALS</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\">TECHNICALS</button></div>",
+      "css": ".ds-tabs { display: flex; gap: 32px; border-bottom: 1px solid #201b17; } .ds-tab { position: relative; background: transparent; border: none; border-radius: 0; padding: 16px 0; font-family: Manrope, ui-sans-serif, system-ui, sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 0.24em; color: #8a8076; cursor: pointer; white-space: nowrap; transition: color 250ms ease; } .ds-tab:hover { color: #f2ede5; } .ds-tab.is-active { color: #f2ede5; } .ds-tab-underline { position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: #d9bd8b; } .ds-tab:focus-visible { outline: 1px solid #d9bd8b; outline-offset: 3px; }"
+    },
+    {
+      "name": "Ratio Row",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "The ledger's defining row: label, dotted leader, mono value. Used across every ratio table.",
+      "html": "<dl class=\"ds-leader-list\"><div class=\"ds-leader-row\"><dt class=\"ds-leader-label\">Market cap</dt><span class=\"ds-leader-dots\"></span><dd class=\"ds-leader-value\">$2.41T</dd></div><div class=\"ds-leader-row\"><dt class=\"ds-leader-label\">P/E ratio</dt><span class=\"ds-leader-dots\"></span><dd class=\"ds-leader-value\">28.4</dd></div></dl>",
+      "css": ".ds-leader-list { margin: 0; } .ds-leader-row { display: flex; align-items: baseline; gap: 12px; padding: 12px 0; border-top: 1px solid #1c1815; } .ds-leader-label { font-family: Manrope, ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.1em; color: #8a8076; } .ds-leader-dots { flex: 1; border-bottom: 1px dotted #2a231c; transform: translateY(-3px); } .ds-leader-value { margin: 0; font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace; font-size: 12px; font-variant-numeric: tabular-nums; color: #f2ede5; }"
+    },
+    {
+      "name": "Instrument Monogram",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "The recurring silhouette. A hairline square holding a serif letter — the instrument's colour lives in the letter, never behind it.",
+      "html": "<span class=\"ds-monogram\" aria-hidden=\"true\">A</span>",
+      "css": ".ds-monogram { display: grid; place-items: center; width: 56px; height: 56px; border: 1px solid #3a2f22; border-radius: 0; background: transparent; font-family: 'Instrument Serif', ui-serif, Georgia, serif; font-size: 26px; color: #e5ddd1; }"
+    },
+    {
+      "name": "Order Notice",
+      "kind": "custom",
+      "refersTo": "notice-ok",
+      "description": "Fills announce politely in gold; rejections announce assertively in terracotta. They never share a colour.",
+      "html": "<div class=\"ds-notice ds-notice-ok\" role=\"status\" aria-live=\"polite\">Filled · bought 5 AAPL at $147.04</div><div class=\"ds-notice ds-notice-error\" role=\"status\" aria-live=\"assertive\">Insufficient buying power</div>",
+      "css": ".ds-notice { padding: 14px; border-radius: 0; text-align: center; font-family: Manrope, ui-sans-serif, system-ui, sans-serif; font-size: 10.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; } .ds-notice + .ds-notice { margin-top: 8px; } .ds-notice-ok { border: 1px solid #34291f; background: rgba(217,189,139,0.06); color: #d9bd8b; } .ds-notice-error { border: 1px solid rgba(224,121,107,0.4); background: rgba(224,121,107,0.14); color: #e0796b; }"
+    },
+    {
+      "name": "Quantity Stepper",
+      "kind": "input",
+      "refersTo": "card",
+      "description": "The one place a serif figure sits inside a form. Square ends, 50px tall, hairline dividers.",
+      "html": "<div class=\"ds-stepper\"><button class=\"ds-stepper-btn\" aria-label=\"Decrease quantity\">−</button><output class=\"ds-stepper-value\">5</output><button class=\"ds-stepper-btn\" aria-label=\"Increase quantity\">+</button></div>",
+      "css": ".ds-stepper { display: flex; align-items: center; border: 1px solid #241f1a; border-radius: 0; } .ds-stepper-btn { display: grid; place-items: center; width: 52px; height: 50px; flex: none; background: transparent; border: none; border-radius: 0; color: #8a8076; font-size: 17px; cursor: pointer; transition: color 200ms ease; } .ds-stepper-btn:first-child { border-right: 1px solid #241f1a; } .ds-stepper-btn:last-child { border-left: 1px solid #241f1a; } .ds-stepper-btn:hover { color: #d9bd8b; } .ds-stepper-btn:focus-visible { outline: 1px solid #d9bd8b; outline-offset: 3px; } .ds-stepper-value { flex: 1; text-align: center; font-family: 'Instrument Serif', ui-serif, Georgia, serif; font-size: 26px; color: #f2ede5; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Private Ledger",
+    "overview": "Meridian is a hand-ruled book of account rendered in light. Its structure comes from lines, not boxes: a hairline separates every row, every column, every section, and nothing is ever put in a card to make it look important. Names are set in a serif, figures in a monospace that holds its columns, and the labels between them are tiny and widely tracked, the way a printed ledger annotates its own margins. The ground is a warm near-black rather than a neutral grey, lit by a single radial wash of gold from above the fold and dusted with film grain, so the surface reads as paper in a dim room instead of glass in a bright one.\n\nThe system spends almost nothing so that a few things can be expensive. Champagne gilt appears on roughly a tenth of any screen — a 1px underline beneath the live tab, a 2px bar beside the current nav item, the previous-close reference on the chart, and exactly one filled gradient button. Everything else is ink on paper at four levels of quiet. Because so little is filled, the one gold CTA is unmissable without being loud, and a row can signal selection with nothing more than a hairline warming and eight pixels of indent.\n\nDensity is high but never cramped: this is a working instrument, read for long stretches by someone who already knows what the numbers mean. The confirmed anti-reference is the terminal this replaced — graphite ground, neon #3BE081 accent, rounded filled cards from 9px to 22px, Space Grotesk throughout. Meridian is its opposite on every axis, and drifting back toward filled rounded panels is the specific failure mode to guard against.",
+    "keyCharacteristics": [
+      "Structure by hairline rule, never by card fill",
+      "Three typefaces with strict jobs: serif names, mono numbers, sans labels",
+      "Square by law — 0px radius everywhere except the 3px shell and true circles",
+      "Gold as punctuation, not as surface",
+      "Warm black ground with a gold wash and 5% film grain",
+      "Micro-labels at 10px with 0.26em tracking as the connective tissue"
+    ],
+    "rules": [
+      { "name": "The One Gold Rule", "body": "Champagne gilt covers no more than ~10% of any screen, and exactly one filled gold element exists per view — the primary CTA. Everything else gilt is a line, a dot, or type. If a second gold fill appears, one of them is wrong.", "section": "colors" },
+      { "name": "The Warm Black Rule", "body": "No pure black and no neutral grey. Every ground and every rule carries red-yellow warmth (#080706, not #000; #241f1a, not #222). A cool grey anywhere in this system reads as a bug.", "section": "colors" },
+      { "name": "The Muted Signal Rule", "body": "Up and down are sage and terracotta, never saturated green and red. The palette states direction without shouting it, because a trader reads these for hours.", "section": "colors" },
+      { "name": "The Decoration Floor Rule", "body": "gold-deep (4.1:1) and the chart gridlines sit below the AA text floor and may never carry text — they are rules and ticks only. Text bottoms out at ink-4 (5.1:1).", "section": "colors" },
+      { "name": "The Three Voices Rule", "body": "Serif for names and magnitudes, mono for anything comparable, sans for labels and prose. A number in the serif is a headline figure; a number in Manrope is a mistake.", "section": "typography" },
+      { "name": "The Tracked Caps Rule", "body": "Micro-labels are 10px minimum at 0.26em (0.3–0.34em for section eyebrows). Never below 10px — the source design's 8.5px does not survive a real display, and the tracking is what carries the character, not the smallness.", "section": "typography" },
+      { "name": "The Tabular Rule", "body": "Every figure that sits in a column uses font-variant-numeric: tabular-nums. Prices that jiggle as they tick are the single most obvious tell of a non-financial UI.", "section": "typography" },
+      { "name": "The Rule-Not-Box Rule", "body": "Sections are separated by a 1px rule and vertical space. If a grouping needs a background fill to be legible, the hierarchy is wrong — fix the spacing, not the surface.", "section": "layout" },
+      { "name": "The Drop-Don't-Squeeze Rule", "body": "Below a breakpoint, a column moves or leaves. Columns never narrow past their design width; a 358px reference rail at 240px is worse than no rail.", "section": "layout" },
+      { "name": "The No-Resting-Shadow Rule", "body": "Nothing casts a shadow at rest. A card, a row or a panel with a box-shadow is out of system; if it needs separation, give it a rule.", "section": "elevation" },
+      { "name": "The Grain-Is-Material Rule", "body": "The film grain is a single cached SVG-noise tile at 5% over mix-blend-mode: overlay — never a live feTurbulence filter, which re-rasterises on every paint.", "section": "elevation" },
+      { "name": "The Square Rule", "body": "border-radius: 0. If a new component arrives with rounded corners, it was designed for a different system.", "section": "shapes" }
+    ],
+    "dos": [
+      "Do separate things with a 1px rule and vertical space. The Rule-Not-Box Rule is the system's spine.",
+      "Do keep radius at 0px. Only the shell (3px) and true circles are exempt.",
+      "Do set names in Instrument Serif, comparable figures in IBM Plex Mono with tabular-nums, and labels in Manrope at 10px/0.26em uppercase.",
+      "Do keep exactly one filled gold element per view, and let everything else gilt be a line, a dot or type.",
+      "Do show state by warming a border to gold, revealing a 2px bar, or indenting a row 8px.",
+      "Do give every interactive element a 44px minimum touch target and a 1px gold focus ring at 3px offset.",
+      "Do colour direction with sage (#7dd3a0) and terracotta (#e0796b), and pair destructive gradients with dark ink.",
+      "Do keep text at ink-4 (5.1:1) or lighter, and confine gold-deep and the gridline tones to decoration.",
+      "Do drop a column at a breakpoint rather than narrowing it.",
+      "Do animate on cubic-bezier(0.22, 1, 0.36, 1), and guard every motion path with a prefers-reduced-motion branch."
+    ],
+    "donts": [
+      "Don't put content in a filled, rounded card. That is the previous system, and it is the specific drift this document exists to prevent.",
+      "Don't add a resting box-shadow. Shadow marks displacement or the one CTA, never rest.",
+      "Don't introduce a pure black, a neutral grey, or a cool-toned hairline. Every ground and rule is warm.",
+      "Don't saturate the up/down colours toward neon green and red.",
+      "Don't set a label below 10px, or drop the 0.26em tracking to fit more in — re-word instead.",
+      "Don't put a figure in Manrope or a paragraph in the serif. Three voices, three jobs.",
+      "Don't use a second gold fill. If two gold surfaces are on screen, one is wrong.",
+      "Don't let a data table scroll sideways on mobile; collapse it into ruled blocks.",
+      "Don't ship the grain as a live feTurbulence filter — it must stay a cached noise tile.",
+      "Don't rely on AnimatePresence for unmounting in this stack; presence is owned by lib/use-presence.ts."
+    ]
+  }
+}

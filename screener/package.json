@@ -1,0 +1,40 @@
+{
+  "name": "screener",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "dev:mac": "NODE_OPTIONS=--max-old-space-size=3072 next dev",
+    "dev:win": "set NODE_OPTIONS=--max-old-space-size=3072&& next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "probe": "node --conditions=react-server --env-file=.env.local scripts/probe.mts",
+    "build:master": "node --conditions=react-server --env-file=.env.local scripts/build-master.mts",
+    "build:sectors": "node --conditions=react-server --env-file=.env.local scripts/build-sectors.mts",
+    "test": "node --conditions=react-server --test \"tests/**/*.test.ts\"",
+    "build:baseline": "node --conditions=react-server --env-file=.env.local scripts/build-baseline.mts",
+    "build:returns": "node --conditions=react-server --env-file=.env.local scripts/build-returns.mts",
+    "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "@gsap/react": "^2.1.2",
+    "gsap": "^3.15.0",
+    "lightweight-charts": "^5.2.0",
+    "motion": "^12.43.0",
+    "next": "16.2.12",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.12",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
