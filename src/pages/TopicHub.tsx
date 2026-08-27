@@ -19,7 +19,7 @@ const ArrowIcon = () => (
  * nothing should be read at; it has the site's prose measure now. And the hub's
  * own questions were static heading/paragraph pairs while /faqs used a
  * collapsing accordion for the identical job — two instruments for one idea on
- * one site. A hub carries three or four questions and collapsing four saves
+ * one site. A hub carries five or six questions and collapsing six saves
  * nothing worth a click, so the hub stays open and /faqs collapses only at the
  * question level; both are hairline rows now, the same thing at two densities.
  */
@@ -96,7 +96,7 @@ export default function TopicHub() {
         <div className="container">
           <div className="section-header">
             <p className="eyebrow">Common questions</p>
-            <h2 id="hub-faq">Asked most often about {topic.title.toLowerCase()}</h2>
+            <h2 id="hub-faq">Asked most often about {topic.title}</h2>
           </div>
           <div className="topic-faq">
             {topic.faqs.map((faq) => (

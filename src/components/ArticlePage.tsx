@@ -98,8 +98,15 @@ export default function ArticlePage() {
           *
           * It keeps the job it is good at: SEO above still passes it as
           * `ogImage`, which is what a share card is for.
+          *
+          * The standfirst is `excerpt`, which types.ts defines as the one- or
+          * two-sentence summary written to be read. `description` is the SEO
+          * meta description and is already emitted in <head>; printing it here
+          * as well put the same sentence in the page twice, and three of them
+          * end "Updated August 2026." — a line written for a search result,
+          * not for a reader.
           */}
-        <p className="article-lede">{article.description}</p>
+        <p className="article-lede">{article.excerpt}</p>
 
         <div className="article-body" dangerouslySetInnerHTML={{ __html: article.bodyHtml }} />
 

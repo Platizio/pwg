@@ -2,7 +2,8 @@ import { Link } from 'react-router-dom'
 import { TRADING_PLATFORM_URL } from '../constants'
 import { useAppContext } from '../context/AppContext'
 import SEO, { breadcrumbSchema } from '../components/SEO'
-import { FREE_ITEMS } from '../../Platizio_Global_Revamp/data/pricingRates'
+import { FREE_ITEMS, RATES, TRADING_CHARGES, pct } from '../../Platizio_Global_Revamp/data/pricingRates'
+import { formatInr } from '../../Platizio_Global_Revamp/lib/pricing'
 
 const ArrowIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -36,9 +37,18 @@ const DocIcon = () => (
  * The cost line reads from FREE_ITEMS rather than restating it, so it cannot
  * drift from the Pricing page the way a hand-typed figure would.
  */
-const openingCost = FREE_ITEMS.filter((i) =>
-  i.label === 'Account opening' || i.label === 'KYC and profile verification',
-)
+const OPENING_COST_LABELS = ['Account opening', 'KYC and profile verification']
+const openingCost = FREE_ITEMS.filter((i) => OPENING_COST_LABELS.includes(i.label))
+
+/* Matched by label, because FREE_ITEMS carries no id. If either is renamed in
+   pricingRates.ts the sentence below would quietly lose a clause, so the
+   coupling fails the prerender instead of shipping half a fact. */
+if (openingCost.length !== OPENING_COST_LABELS.length) {
+  throw new Error(
+    `UserGuide expected ${OPENING_COST_LABELS.length} FREE_ITEMS by label, found ${openingCost.length}. ` +
+      'Check the labels in Platizio_Global_Revamp/data/pricingRates.ts.',
+  )
+}
 
 /** Account opening, from FAQs.tsx question gs-5. */
 const OPEN_STEPS = [
@@ -64,7 +74,7 @@ const OPEN_STEPS = [
   },
 ]
 
-/** Funding, from FAQs.tsx questions fd-1 and fd-2. */
+/** Funding, from FAQs.tsx questions fa-1, fa-2 and fa-4. */
 const FUND_STEPS = [
   {
     title: 'Choose your bank in the platform',
@@ -160,17 +170,20 @@ export default function UserGuide() {
           <div className="guide-layout">
             <dl className="guide-facts">
               <div className="guide-fact">
-                <dt>What it costs</dt>
+                <dt>What the account costs</dt>
                 <dd>
                   {openingCost.map((i) => `${i.label} ${i.value}`).join(' · ')}. You pay
-                  to trade, not to hold an account.
+                  to trade, not to hold an account: {TRADING_CHARGES[0].head.toLowerCase()} at{' '}
+                  {TRADING_CHARGES[0].value}.
+                  Moving the money costs separately; see track two.
                 </dd>
               </div>
               <div className="guide-fact">
                 <dt>How long it takes</dt>
                 <dd>
-                  Instant for resident Indians with no blockers. Up to 48 hours for NRI
-                  and foreign nationals.
+                  Approval is instant for resident Indians with no blockers, up to 48
+                  hours for NRI and foreign nationals. Funds land the same day if you
+                  remit before 1:30 PM, the next working day after.
                 </dd>
               </div>
               <div className="guide-fact">
@@ -222,6 +235,16 @@ export default function UserGuide() {
                 ))}
               </ol>
               <DocRow {...DOCS[1]} />
+
+              <p className="faq-note">
+                <strong>Two costs sit on the remittance itself, not on the account.</strong>{' '}
+                Your bank applies its own exchange rate and markup when it converts the
+                rupees, and TCS applies at {pct(RATES.tcsPct)} on LRS remittances above{' '}
+                {formatInr(RATES.tcsThresholdInr)} cumulative across the financial year —
+                collected by the bank, and creditable against your income tax, so it is
+                a timing cost rather than a fee.{' '}
+                <Link to="/pricing">What investing costs</Link> sets out both.
+              </p>
 
               <p className="faq-note">
                 An LRS investment remittance has to come from your own bank account under

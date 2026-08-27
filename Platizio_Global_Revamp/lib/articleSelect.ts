@@ -42,7 +42,7 @@ export interface TopicGroup {
  * is constructed, which would differ between the build machine and the client.
  */
 export function groupByPrimaryTopic(articles: Article[], topics: Topic[]): TopicGroup[] {
-  return topics
+  const groups = topics
     .map((topic) => ({
       topic,
       articles: articles
@@ -50,6 +50,27 @@ export function groupByPrimaryTopic(articles: Article[], topics: Topic[]): Topic
         .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)),
     }))
     .filter((group) => group.articles.length > 0)
+
+  /*
+   * The index claims to hold everything. `topics[0]` is a plain string with no
+   * union type behind it, so a typo in the registry — or a new hub added to
+   * an article before it is declared in topics.ts — would drop that article
+   * from the page silently, with nothing failing. It fails loudly instead: the
+   * build prerenders this component, so a mismatch stops the build rather than
+   * shipping a library that is quietly missing a piece.
+   */
+  const filed = groups.reduce((n, g) => n + g.articles.length, 0)
+  if (filed !== articles.length) {
+    const missing = articles
+      .filter((a) => !topics.some((t) => t.id === primaryTopic(a)))
+      .map((a) => `${a.slug} -> ${primaryTopic(a) ?? '(no topic)'}`)
+    throw new Error(
+      `groupByPrimaryTopic filed ${filed} of ${articles.length} articles. ` +
+        `Unrecognised primary topic on: ${missing.join(', ')}`,
+    )
+  }
+
+  return groups
 }
 
 /** Newest first, without mutating the caller's array. */

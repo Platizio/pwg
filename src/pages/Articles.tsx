@@ -147,11 +147,21 @@ export default function Articles() {
             </p>
           </div>
 
-          {groups.map(({ topic, articles }) => (
+          {groups.map(({ topic, articles }) => {
+            /* Two different true numbers under one heading: this group holds
+               the articles filed HERE, while the hub above collects everything
+               that touches the subject. Printing only one of them made the
+               topic card say "14 articles" above a group listing one row. */
+            const inHub = articlesByTopic(topic.id).length
+            return (
             <div className="lib-group" key={topic.id}>
               <div className="lib-group-head">
                 <h3>{topic.title}</h3>
-                <Link to={`/articles/topic/${topic.id}`}>Open the hub</Link>
+                <Link to={`/articles/topic/${topic.id}`}>
+                  {articles.length === inHub
+                    ? `All ${inHub} in the hub`
+                    : `${articles.length} filed here · ${inHub} in the hub`}
+                </Link>
               </div>
               <ul className="lib-rows">
                 {articles.map((a) => (
@@ -165,7 +175,8 @@ export default function Articles() {
                 ))}
               </ul>
             </div>
-          ))}
+            )
+          })}
         </div>
       </section>
     </>
