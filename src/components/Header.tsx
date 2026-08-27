@@ -66,7 +66,14 @@ export default function Header() {
   }, [location.pathname])
 
   const isMediaActive = location.pathname === '/media' || location.pathname.startsWith('/articles')
-  const isResourcesActive = location.pathname === '/faqs' || location.pathname === '/user-guide'
+  /* Every route the Help dropdown offers. /help was added to the menu without
+     being added here, so the one page the dropdown leads with showed no current
+     section at all: the trigger never took `.active`, and the travelling marker
+     has nothing to measure against, so it stayed at opacity 0. */
+  const isResourcesActive =
+    location.pathname === '/help' ||
+    location.pathname === '/faqs' ||
+    location.pathname === '/user-guide'
 
   return (
     <header className="site-header">
