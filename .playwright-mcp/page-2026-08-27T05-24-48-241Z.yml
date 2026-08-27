@@ -1,0 +1,155 @@
+- generic [ref=e2]:
+  - link "Skip to main content" [ref=e3] [cursor=pointer]:
+    - /url: "#main-content"
+  - banner:
+    - navigation "Primary" [ref=e4]:
+      - link "Platizio Global home" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img "Platizio Global" [ref=e7]
+      - list [ref=e8]:
+        - listitem [ref=e9]:
+          - link "Home" [ref=e10] [cursor=pointer]:
+            - /url: /
+        - listitem [ref=e11]:
+          - link "Products" [ref=e12] [cursor=pointer]:
+            - /url: /products
+        - listitem [ref=e13]:
+          - link "Pricing" [ref=e14] [cursor=pointer]:
+            - /url: /pricing
+        - listitem [ref=e15]:
+          - link "Media" [ref=e16] [cursor=pointer]:
+            - /url: /media
+        - listitem [ref=e17]:
+          - link "About Us" [ref=e18] [cursor=pointer]:
+            - /url: /about
+        - listitem [ref=e19]:
+          - button "Help" [ref=e20] [cursor=pointer]
+      - generic [ref=e22]:
+        - button "Contact Us" [ref=e23] [cursor=pointer]
+        - link "Start Investing" [ref=e24] [cursor=pointer]:
+          - /url: https://trade.clientbridge.in/login?platizioglobal
+  - main [ref=e27]:
+    - generic [ref=e29]:
+      - generic [ref=e30]: 404 — Not found
+      - heading "This page can't be found" [level=1] [ref=e31]
+      - paragraph [ref=e32]: The link may be mistyped, or the page may have moved. Everything below still works.
+    - region [ref=e33]:
+      - generic [ref=e34]:
+        - heading "Where to go next" [level=2] [ref=e35]
+        - paragraph [ref=e36]: If you were reading something in particular, the article library is the most likely place to find it again.
+        - generic [ref=e37]:
+          - link "Browse articles" [ref=e38] [cursor=pointer]:
+            - /url: /articles
+          - link "Back to home" [ref=e41] [cursor=pointer]:
+            - /url: /
+        - generic [ref=e42]:
+          - generic [ref=e43]: "Or go straight to:"
+          - link "Products" [ref=e44] [cursor=pointer]:
+            - /url: /products
+          - link "Pricing" [ref=e45] [cursor=pointer]:
+            - /url: /pricing
+          - link "FAQs" [ref=e46] [cursor=pointer]:
+            - /url: /faqs
+          - link "User Guide" [ref=e47] [cursor=pointer]:
+            - /url: /user-guide
+          - link "About Us" [ref=e48] [cursor=pointer]:
+            - /url: /about
+  - contentinfo [ref=e49]:
+    - generic [ref=e50]:
+      - generic [ref=e51]:
+        - generic [ref=e52]:
+          - img "Platizio Global" [ref=e55]
+          - paragraph [ref=e56]: Platizio Global makes international investing simple — explore US Stocks and ETFs with education and support built in.
+          - generic "Social media" [ref=e57]:
+            - link "YouTube" [ref=e58] [cursor=pointer]:
+              - /url: https://www.youtube.com/@platizioglobal
+            - link "Instagram" [ref=e61] [cursor=pointer]:
+              - /url: https://www.instagram.com/platizioglobal/
+            - link "X" [ref=e66] [cursor=pointer]:
+              - /url: https://x.com/platizioglobal
+            - link "WhatsApp" [ref=e69] [cursor=pointer]:
+              - /url: https://wa.me/919289837100
+          - generic [ref=e72]:
+            - heading "Download Our App" [level=3] [ref=e73]
+            - generic [ref=e74]:
+              - link "Download Platizio Global on the App Store" [ref=e75] [cursor=pointer]:
+                - /url: https://apps.apple.com/in/app/platizio-global/id6789550428
+                - img "Download Platizio Global on the App Store" [ref=e76]
+              - link "Get Platizio Global on Google Play" [ref=e77] [cursor=pointer]:
+                - /url: https://play.google.com/store/apps/details?id=com.platizio.global
+                - img "Get Platizio Global on Google Play" [ref=e78]
+        - generic [ref=e79]:
+          - heading "Platizio Global" [level=3] [ref=e80]
+          - list [ref=e81]:
+            - listitem [ref=e82]:
+              - link "About Us" [ref=e83] [cursor=pointer]:
+                - /url: /about
+            - listitem [ref=e84]:
+              - link "Why Global Investing" [ref=e85] [cursor=pointer]:
+                - /url: /#why
+            - listitem [ref=e86]:
+              - link "Contact Us" [ref=e87] [cursor=pointer]:
+                - /url: "#"
+        - generic [ref=e88]:
+          - heading "Products" [level=3] [ref=e89]
+          - list [ref=e90]:
+            - listitem [ref=e91]:
+              - link "US Stocks & ETFs" [ref=e92] [cursor=pointer]:
+                - /url: /products
+            - listitem [ref=e93]:
+              - link "Live terminal" [ref=e94] [cursor=pointer]:
+                - /url: /terminal/aapl
+            - listitem [ref=e95]:
+              - link "Pricing & Charges" [ref=e96] [cursor=pointer]:
+                - /url: /pricing
+        - generic [ref=e97]:
+          - heading "Learn" [level=3] [ref=e98]
+          - list [ref=e99]:
+            - listitem [ref=e100]:
+              - link "Articles" [ref=e101] [cursor=pointer]:
+                - /url: /media#articles
+            - listitem [ref=e102]:
+              - link "Videos" [ref=e103] [cursor=pointer]:
+                - /url: /media#videos
+            - listitem [ref=e104]:
+              - link "FAQs" [ref=e105] [cursor=pointer]:
+                - /url: /faqs
+        - generic [ref=e106]:
+          - heading "Support" [level=3] [ref=e107]
+          - list [ref=e108]:
+            - listitem [ref=e109]:
+              - link "Contact Us" [ref=e110] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e111]:
+              - link "Help" [ref=e112] [cursor=pointer]:
+                - /url: /faqs
+            - listitem [ref=e113]:
+              - link "Grievance" [ref=e114] [cursor=pointer]:
+                - /url: mailto:grievances@platizio.com
+        - generic [ref=e115]:
+          - heading "Contact Us On" [level=3] [ref=e116]
+          - list [ref=e117]:
+            - listitem [ref=e118]:
+              - generic [ref=e119]: Call / WhatsApp
+              - link "+91 92898 37100" [ref=e120] [cursor=pointer]:
+                - /url: tel:+919289837100
+            - listitem [ref=e121]:
+              - generic [ref=e122]: Email
+              - link "supportglobal@platizio.com" [ref=e123] [cursor=pointer]:
+                - /url: mailto:supportglobal@platizio.com
+            - listitem [ref=e124]:
+              - generic [ref=e125]: Address
+              - generic [ref=e126]: "Noida (Delhi NCR)Unit No. 415, Tower-B,KLJ Noida One,Plot #B-8, Sector-62, NoidaUP 201309, India"
+      - generic [ref=e127]:
+        - paragraph [ref=e128]:
+          - strong [ref=e129]: "Disclaimer:"
+          - text: Investments in US Stocks and ETFs are subject to market risk, currency risk, and tax implications. Past performance is not indicative of future results. Platizio Global does not guarantee returns. Please read all relevant documents and consult a qualified financial or tax advisor before investing.
+        - generic [ref=e130]:
+          - paragraph [ref=e131]: © 2026 Platizio Global. All rights reserved.
+          - paragraph [ref=e132]:
+            - link "Terms & Conditions" [ref=e133] [cursor=pointer]:
+              - /url: /terms
+            - link "Privacy Policy" [ref=e134] [cursor=pointer]:
+              - /url: /privacy
+            - link "Risk Disclosure & Disclaimer" [ref=e135] [cursor=pointer]:
+              - /url: /disclaimer

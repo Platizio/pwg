@@ -74,14 +74,16 @@
 
 /* ===================================================== the standing note */
 
-/* Was `background: #fff7f0` — a raw hex belonging to no token, and the only
-   place on the site that colour appears. The accent rule is the device this
-   design already uses to mark an aside. */
+/* Was `background: #fff7f0` behind a 3px `--gold` side-bar — a raw hex
+   belonging to no token, and the only place on the site that colour appears.
+   Replacing it with a thinner bar of the same kind would have kept the tell
+   and spent the accent on decoration; the sunken ground and a full hairline
+   are what the rest of the revamp uses to raise a passage. */
 .legal-note {
   padding: var(--space-4) var(--space-5);
-  border-left: 2px solid var(--accent-500);
   background: var(--surface-sunken);
-  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
   margin-bottom: var(--space-10);
   font-size: var(--text-sm);
   line-height: 1.7;

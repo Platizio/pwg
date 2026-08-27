@@ -161,16 +161,25 @@
   margin: 0 0 var(--space-6);
 }
 
-/* The intra-section note — previously a nine-property inline style object that
-   asked for an Inter italic the site never loads, so it rendered as a
-   synthesised oblique. Set upright, on the accent rule the rest of the page
-   uses to mark an aside. */
+/*
+ * The intra-section note — previously a nine-property inline style object that
+ * asked for an Inter italic the site never loads, so it rendered as a
+ * synthesised oblique.
+ *
+ * Set upright, on a sunken ground inside a full hairline. NOT on an accent
+ * side-bar: the signed-off sheets set a note as quiet grey text
+ * (.structure-note, .calc-note, .charge-note) and use the accent bar exactly
+ * once, and this page already spends that mark on something that earns it —
+ * the inset rule marking an open question. One device cannot say both "this is
+ * an aside" and "this row is open" without the second one stopping to mean
+ * anything.
+ */
 .faq-note {
   margin: 0 0 var(--space-6);
-  padding: var(--space-3) var(--space-4);
-  border-left: 2px solid var(--accent-500);
+  padding: var(--space-4) var(--space-5);
   background: var(--surface-sunken);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
   font-size: var(--text-sm);
   color: var(--gray-600);              /* 6.74:1 on --surface-sunken */
 }
@@ -318,10 +327,10 @@
    every other aside on the page. */
 .faq-disclaimer {
   margin-top: var(--space-12);
-  padding: var(--space-5) var(--space-6);
-  border-left: 2px solid var(--accent-500);
+  padding: var(--space-6);
   background: var(--surface-sunken);
-  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
 }
 
 .faq-disclaimer h2 {
