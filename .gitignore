@@ -46,3 +46,6 @@ client-url-config.json
 # clone an empty directory. It ships as its own service; see the deployment
 # task in the plan.
 screener/
+
+# Scratch output from MCP browser tooling during review runs.
+.playwright-mcp/
