@@ -2,22 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "platizio-dev",
+      "name": "platizio",
       "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev:lan"
-      ],
-      "port": 5173
-    },
-    {
-      "name": "screener",
-      "cwd": "screener",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev"
-      ],
+      "runtimeArgs": ["run", "dev"],
       "port": 3000
     }
   ]

@@ -1,4 +1,4 @@
-export default `
+const content = `
 <p><em>Updated August 2026.</em></p>
 <p>Dividends are the one part of US investing where both countries tax the same income. Capital gains are taxed only in India; dividends are withheld in the United States and then taxed again in India, with credit available for the first.</p>
 <p>Understanding the sequence matters, because the arithmetic looks alarming until you see where the credit lands.</p>
@@ -69,3 +69,4 @@ export default `
 
 <p><strong>Disclaimer:</strong> This article is for educational purposes only and is not tax or investment advice. Rates and treaty positions are stated as of August 2026 and can change. Foreign tax credit entitlement depends on individual facts, residential status, and correct and timely filing. Please consult a qualified CA before claiming credit, and read our <a href="/disclaimer">Risk Disclosure and Disclaimer</a>.</p>
 `
+export default content

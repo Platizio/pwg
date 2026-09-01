@@ -1,4 +1,4 @@
-export default `
+const content = `
 <p><em>Updated August 2026.</em></p>
 <p>TCS — Tax Collected at Source — is the deduction your bank applies when you remit money abroad under the Liberalised Remittance Scheme. It is widely misunderstood as a tax on investing abroad. It is not. It is a prepayment of your own income tax, and you get it back.</p>
 <p>That distinction matters, because treated as a cost it makes global investing look considerably more expensive than it is.</p>
@@ -75,3 +75,4 @@ export default `
 
 <p><strong>Disclaimer:</strong> This article is for educational purposes only and is not tax advice. Rates and thresholds are stated as of August 2026 and change with each Finance Act. Your ability to adjust or claim a refund of TCS depends on your overall tax position. Please consult a qualified CA, and read our <a href="/disclaimer">Risk Disclosure and Disclaimer</a>.</p>
 `
+export default content

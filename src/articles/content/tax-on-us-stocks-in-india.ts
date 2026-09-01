@@ -1,4 +1,4 @@
-export default `
+const content = `
 <p><em>Updated August 2026.</em></p>
 <p>Tax is where most of the confusion around US investing sits, and a lot of it comes from merging two separate questions: what the United States takes, and what India takes.</p>
 <p>The short version is that the <strong>United States does not tax an Indian resident's capital gains</strong> on US shares. It does withhold tax on dividends. India taxes both — capital gains at rates that depend on how long you held, and dividends at your slab rate, with credit available for the tax already withheld in the US.</p>
@@ -88,3 +88,4 @@ export default `
 
 <p><strong>Disclaimer:</strong> This article is for educational purposes only and is not tax, legal, investment, or financial advice. Rates and thresholds are stated as of August 2026 and can change with each Finance Act. Tax treatment varies with residential status, income level, surcharge, cess, product structure and individual facts. Please consult a qualified CA or tax advisor before acting, and read our <a href="/disclaimer">Risk Disclosure and Disclaimer</a>.</p>
 `
+export default content

@@ -1,5 +1,7 @@
+"use client"
+
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
 import { RATES, pct } from '../data/pricingRates'
 import { compareGainsTax, formatInr } from '../lib/pricing'
 
@@ -85,7 +87,7 @@ export default function CapitalGainsCompare() {
         Your actual slab may be lower than {pct(RATES.stcgAssumedSlabPct)}, and
         surcharge and cess are not included — so the short-term figure understates
         what you would owe. An illustration, not tax advice.{' '}
-        <Link to="/disclaimer">Risk disclosure</Link>
+        <Link href="/disclaimer">Risk disclosure</Link>
       </p>
     </div>
   )

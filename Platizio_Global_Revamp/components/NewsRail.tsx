@@ -1,5 +1,7 @@
+"use client"
+
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
 import { NEWS, type NewsItem } from '../data/mediaNews'
 import { sortNews, formatNewsDate } from '../lib/mediaSelect'
 
@@ -40,7 +42,7 @@ function Headline({ item, clone }: { item: RailItem; clone?: boolean }) {
   return item.external ? (
     <a {...props} href={item.href} target="_blank" rel="noopener noreferrer">{inner}</a>
   ) : (
-    <Link {...props} to={item.href}>{inner}</Link>
+    <Link {...props} href={item.href}>{inner}</Link>
   )
 }
 

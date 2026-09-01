@@ -1,5 +1,4 @@
 import type { Article } from './types'
-
 import whyInternationalInvesting from './content/why-international-investing-matters-2026'
 import lrsExplained from './content/lrs-explained'
 import currencyRiskExplained from './content/currency-risk-explained'

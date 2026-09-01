@@ -1,3 +1,5 @@
+"use client"
+
 import { useCallback, useMemo, useState } from 'react'
 import { NODE_BY_ID, ROOT_NODES, childrenOf } from '../../content/support'
 import type { ResolvedSupportNode } from '../../content/support'

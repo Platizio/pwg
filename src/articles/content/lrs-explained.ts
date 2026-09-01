@@ -1,4 +1,4 @@
-export default `
+const content = `
 <p>For Indian investors, global investing often begins with one important term: <strong>LRS</strong>, or the Liberalised Remittance Scheme.</p>
 
 <p>Whether you want to invest in US stocks, buy US ETFs, plan for a child's foreign education, diversify currency exposure, or manage dollar-linked goals, LRS is the framework that allows resident Indian individuals to remit money overseas for permitted purposes.</p>
@@ -112,3 +112,4 @@ export default `
 <h3>5. Is LRS only for HNIs?</h3>
 <p>No. LRS is available to resident individuals, subject to rules. However, HNIs often need more careful planning because of larger remittances, foreign goals, and tax-reporting complexity.</p>
 `
+export default content

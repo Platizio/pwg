@@ -75,8 +75,11 @@
 }
 
 /* The wrapper reserves the box at a fixed ratio, so the image needs no width
-   and height attributes to stop the page shifting as it loads. */
+   and height attributes to stop the page shifting as it loads. It is also the
+   positioned ancestor the next/image `fill` inside it resolves against — drop
+   the relative and the picture escapes to the nearest positioned parent. */
 .lib-thumb {
+  position: relative;
   display: block;
   overflow: hidden;
   border-radius: var(--radius);

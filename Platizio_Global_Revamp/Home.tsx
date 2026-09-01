@@ -1,4 +1,6 @@
-import { Link } from 'react-router-dom'
+"use client"
+
+import Link from 'next/link'
 import { Globe } from '../src/components/Globe'
 import { TRADING_PLATFORM_URL } from '../src/constants'
 import SEO from '../src/components/SEO'
@@ -85,7 +87,7 @@ export default function Home() {
               <a className="btn btn-gold btn-lg" href={TRADING_PLATFORM_URL} target="_blank" rel="noopener noreferrer">
                 Start investing <ArrowIcon />
               </a>
-              <Link className="btn btn-light btn-lg" to="/products">Explore products</Link>
+              <Link className="btn btn-light btn-lg" href="/products">Explore products</Link>
             </div>
             <div className="hero-meta">
               <div><strong>US stocks &amp; ETFs</strong><span>Stocks, indices, sectors &amp; themes</span></div>
@@ -189,12 +191,12 @@ export default function Home() {
               wants the detail. */}
           <p className="start-here reveal">
             <span className="start-here-label">Read first</span>
-            <Link to="/articles/how-to-invest-in-us-stocks-from-india">
+            <Link href="/articles/how-to-invest-in-us-stocks-from-india">
               How to invest in US stocks from India
             </Link>
-            <Link to="/articles/lrs-explained">LRS explained</Link>
-            <Link to="/articles/tax-on-us-stocks-in-india">Tax on US stocks</Link>
-            <Link className="start-here-all" to="/articles">All articles →</Link>
+            <Link href="/articles/lrs-explained">LRS explained</Link>
+            <Link href="/articles/tax-on-us-stocks-in-india">Tax on US stocks</Link>
+            <Link className="start-here-all" href="/articles">All articles →</Link>
           </p>
         </div>
       </section>

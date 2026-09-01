@@ -1,4 +1,4 @@
-export default `
+const content = `
 <p>"What is the minimum I need to start?" has a misleading answer if you take it literally. Fractional shares mean there is no meaningful minimum imposed by share prices, and there are no account opening or maintenance charges.</p>
 <p>The real floor is set by something else: the cost of getting money from India to a US brokerage account. Those costs are largely <strong>fixed per transfer</strong> rather than proportional to the amount, so they weigh heavily on small remittances and barely register on large ones.</p>
 
@@ -65,3 +65,4 @@ export default `
 
 <p><strong>Disclaimer:</strong> This article is for educational purposes only and is not investment or tax advice. Bank charges, forex markups and applicable rates vary by institution and over time; figures used are illustrative rather than quoted. Please check current charges with your bank and refer to our <a href="/pricing">Pricing</a> page, and read our <a href="/disclaimer">Risk Disclosure and Disclaimer</a>.</p>
 `
+export default content

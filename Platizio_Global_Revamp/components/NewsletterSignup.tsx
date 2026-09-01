@@ -1,6 +1,7 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+"use client"
 
+import { useState } from 'react'
+import Link from 'next/link'
 type Status = 'idle' | 'sending' | 'done' | 'error'
 
 const SUPPORT_EMAIL = 'supportglobal@platizio.com'
@@ -103,7 +104,7 @@ export default function NewsletterSignup() {
               {status === 'idle' && (
                 <>
                   We will not share your address. See our{' '}
-                  <Link to="/privacy">privacy policy</Link>.
+                  <Link href="/privacy">privacy policy</Link>.
                 </>
               )}
             </p>

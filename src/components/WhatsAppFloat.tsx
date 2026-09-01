@@ -1,5 +1,7 @@
+"use client"
+
 import { useEffect, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { usePathname } from 'next/navigation'
 import { WHATSAPP_URL } from '../constants'
 
 const APPEAR_DELAY_MS = 5000
@@ -14,7 +16,7 @@ const SUPPRESSED_ON = ['/help']
 
 export default function WhatsAppFloat() {
   const [visible, setVisible] = useState(false)
-  const { pathname } = useLocation()
+  const pathname = usePathname()
 
   useEffect(() => {
     const timer = setTimeout(() => setVisible(true), APPEAR_DELAY_MS)

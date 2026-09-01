@@ -1,4 +1,6 @@
-import { Link } from 'react-router-dom'
+"use client"
+
+import Link from 'next/link'
 import SEO, { breadcrumbSchema } from '../../src/components/SEO'
 import { TRADING_PLATFORM_URL } from '../../src/constants'
 import { RATES, FREE_ITEMS, TRADING_CHARGES, pct } from '../data/pricingRates'
@@ -31,7 +33,7 @@ export default function Pricing() {
       <section className="page-hero">
         <div className="container">
           <div className="breadcrumb">
-            <Link to="/">Home</Link><span className="crumb-sep" aria-hidden="true">/</span><span>Pricing</span>
+            <Link href="/">Home</Link><span className="crumb-sep" aria-hidden="true">/</span><span>Pricing</span>
           </div>
           <h1>What investing costs</h1>
           <p>
@@ -173,7 +175,7 @@ export default function Pricing() {
               <strong>40%</strong>. The India–US treaty does not relieve it. It is the
               one item here that a growing portfolio grows into rather than one you meet
               on day one, and it is widely under-discussed.{' '}
-              <Link to="/articles/us-estate-tax-indian-investors">
+              <Link href="/articles/us-estate-tax-indian-investors">
                 What the threshold means for you <ArrowIcon />
               </Link>
             </p>
@@ -186,7 +188,7 @@ export default function Pricing() {
               US-listed companies withhold {pct(RATES.dividendWithholdingPct)} of any
               dividend at source. Under the India–US treaty you can claim that back as a
               foreign tax credit when filing in India, so it is rarely taxed twice.{' '}
-              <Link to="/articles/dtaa-india-us-foreign-tax-credit">
+              <Link href="/articles/dtaa-india-us-foreign-tax-credit">
                 How the foreign tax credit works <ArrowIcon />
               </Link>
             </p>

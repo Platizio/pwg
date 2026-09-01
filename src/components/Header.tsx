@@ -1,13 +1,48 @@
+"use client"
+
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Link, NavLink, useLocation } from 'react-router-dom'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useAppContext } from '../context/AppContext'
 import { TRADING_PLATFORM_URL } from '../constants'
+
+/* React Router's NavLink, reimplemented over next/link.
+
+   The nav calls it with a className *function* and an `end` flag, and relies on
+   the aria-current it set for free. Reproducing that API here keeps all eight
+   call sites — and the travelling marker's onPointerEnter — exactly as they
+   were, rather than rewriting each one around usePathname. */
+function NavLink({
+  href,
+  className,
+  end,
+  children,
+  ...rest
+}: {
+  href: string;
+  className?: (state: { isActive: boolean }) => string | undefined;
+  end?: boolean;
+  children: React.ReactNode;
+} & Omit<React.ComponentPropsWithoutRef<typeof Link>, "href" | "className">) {
+  const pathname = usePathname() ?? "";
+  const isActive = end ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+  return (
+    <Link
+      href={href}
+      className={className?.({ isActive })}
+      aria-current={isActive ? "page" : undefined}
+      {...rest}
+    >
+      {children}
+    </Link>
+  );
+}
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [resourcesOpen, setResourcesOpen] = useState(false)
   const { openContact } = useAppContext()
-  const location = useLocation()
+  const pathname = usePathname()
 
   /*
    * One indicator that travels between the links rather than eight that each
@@ -57,28 +92,35 @@ export default function Header() {
     const fonts = (document as Document & { fonts?: FontFaceSet }).fonts
     fonts?.ready.then(() => placeMarker())
     return () => window.removeEventListener('resize', onResize)
-  }, [location.pathname, placeMarker])
+  }, [pathname, placeMarker])
 
-  // Close mobile menu and dropdowns on navigation
-  useEffect(() => {
+  /* Close the mobile menu and dropdowns on navigation.
+
+     Adjusted during render against the last path rather than set from an
+     effect: an effect runs after the new page has already painted with the
+     menu still open, and setting state there cascades a second render to
+     close it. Comparing here means the new route never paints open. */
+  const [navPath, setNavPath] = useState(pathname)
+  if (navPath !== pathname) {
+    setNavPath(pathname)
     setMenuOpen(false)
     setResourcesOpen(false)
-  }, [location.pathname])
+  }
 
-  const isMediaActive = location.pathname === '/media' || location.pathname.startsWith('/articles')
+  const isMediaActive = pathname === '/media' || pathname.startsWith('/articles')
   /* Every route the Help dropdown offers. /help was added to the menu without
      being added here, so the one page the dropdown leads with showed no current
      section at all: the trigger never took `.active`, and the travelling marker
      has nothing to measure against, so it stayed at opacity 0. */
   const isResourcesActive =
-    location.pathname === '/help' ||
-    location.pathname === '/faqs' ||
-    location.pathname === '/user-guide'
+    pathname === '/help' ||
+    pathname === '/faqs' ||
+    pathname === '/user-guide'
 
   return (
     <header className="site-header">
       <nav className="nav" aria-label="Primary">
-        <Link to="/" className="logo" aria-label="Platizio Global home">
+        <Link href="/" className="logo" aria-label="Platizio Global home">
           <picture>
             <source srcSet="/logo-wordmark.webp" type="image/webp" />
             <img
@@ -109,7 +151,7 @@ export default function Header() {
           />
           <li>
             <NavLink
-              to="/"
+              href="/"
               className={({ isActive }) => (isActive ? 'active' : undefined)} end
               onPointerEnter={(e) => placeMarker(e.currentTarget)}
             >
@@ -118,7 +160,7 @@ export default function Header() {
           </li>
           <li>
             <NavLink
-              to="/products"
+              href="/products"
               className={({ isActive }) => (isActive ? 'active' : undefined)}
               onPointerEnter={(e) => placeMarker(e.currentTarget)}
             >
@@ -127,7 +169,7 @@ export default function Header() {
           </li>
           <li>
             <NavLink
-              to="/pricing"
+              href="/pricing"
               className={({ isActive }) => (isActive ? 'active' : undefined)}
               onPointerEnter={(e) => placeMarker(e.currentTarget)}
             >
@@ -136,7 +178,7 @@ export default function Header() {
           </li>
           <li>
             <NavLink
-              to="/media"
+              href="/media"
               className={() => (isMediaActive ? 'active' : undefined)}
               onPointerEnter={(e) => placeMarker(e.currentTarget)}
             >
@@ -145,7 +187,7 @@ export default function Header() {
           </li>
           <li>
             <NavLink
-              to="/about"
+              href="/about"
               className={({ isActive }) => (isActive ? 'active' : undefined)}
               onPointerEnter={(e) => placeMarker(e.currentTarget)}
             >
@@ -166,19 +208,19 @@ export default function Header() {
             <div className="dropdown-wrap">
               <ul className="dropdown">
                 <li>
-                  <Link to="/help" onClick={() => { setMenuOpen(false); setResourcesOpen(false) }}>
+                  <Link href="/help" onClick={() => { setMenuOpen(false); setResourcesOpen(false) }}>
                     <strong>Help &amp; Support</strong>
                     <span>Get an answer, or reach our team</span>
                   </Link>
                 </li>
                 <li>
-                  <Link to="/faqs" onClick={() => { setMenuOpen(false); setResourcesOpen(false) }}>
+                  <Link href="/faqs" onClick={() => { setMenuOpen(false); setResourcesOpen(false) }}>
                     <strong>FAQ</strong>
                     <span>Common questions on investing, funding &amp; taxes</span>
                   </Link>
                 </li>
                 <li>
-                  <Link to="/user-guide" onClick={() => { setMenuOpen(false); setResourcesOpen(false) }}>
+                  <Link href="/user-guide" onClick={() => { setMenuOpen(false); setResourcesOpen(false) }}>
                     <strong>User Guide</strong>
                     <span>Step-by-step guide to start investing</span>
                   </Link>

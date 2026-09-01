@@ -1,4 +1,4 @@
-export default `
+const content = `
 <p><em>Updated August 2026.</em></p>
 <p>Holding US shares changes how you file. It rules out the simpler return forms, adds three or four schedules, and introduces a currency conversion step that has a prescribed basis rather than a convenient one.</p>
 <p>None of it is difficult once the records exist. Almost all of the difficulty comes from trying to reconstruct a year of transactions in July.</p>
@@ -81,3 +81,4 @@ export default `
 
 <p><strong>Disclaimer:</strong> This article is for educational purposes only and is not tax advice. Return forms, schedules, reporting periods and rates are prescribed by the Income Tax Department and change between assessment years; details are stated as of August 2026. This is a general outline and not a substitute for professional assistance with your own return. Please consult a qualified CA and read our <a href="/disclaimer">Risk Disclosure and Disclaimer</a>.</p>
 `
+export default content

@@ -1,4 +1,6 @@
-import { Link } from 'react-router-dom'
+"use client"
+
+import Link from 'next/link'
 import SEO, { breadcrumbSchema } from '../../src/components/SEO'
 import { TRADING_PLATFORM_URL } from '../../src/constants'
 import TeamGrid from '../components/TeamGrid'
@@ -83,7 +85,7 @@ export default function About() {
       <section className="page-hero">
         <div className="container">
           <div className="breadcrumb">
-            <Link to="/">Home</Link><span className="crumb-sep" aria-hidden="true">/</span><span>About Us</span>
+            <Link href="/">Home</Link><span className="crumb-sep" aria-hidden="true">/</span><span>About Us</span>
           </div>
           <h1>The people behind your portfolio</h1>
           <p>
@@ -205,8 +207,8 @@ export default function About() {
 
           <p className="structure-note">
             Full terms are set out in our{' '}
-            <Link to="/disclaimer">risk disclosure and disclaimer</Link>, and the
-            practical questions are answered in the <Link to="/faqs">FAQs</Link>.
+            <Link href="/disclaimer">risk disclosure and disclaimer</Link>, and the
+            practical questions are answered in the <Link href="/faqs">FAQs</Link>.
           </p>
         </div>
       </section>

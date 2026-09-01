@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
 import { formatAsOf } from '../lib/format'
 
 interface MarketNoteProps {
@@ -26,7 +26,7 @@ export default function MarketNote({ asOf, delayed, tone = 'light' }: MarketNote
     <p className={`market-note market-note--${tone}`}>
       {delayed ? 'Prices delayed.' : 'Prices'} Last updated {formatAsOf(asOf)}.{' '}
       For information only — not investment advice or a recommendation to buy or sell.{' '}
-      <Link to="/disclaimer">Risk disclosure</Link>
+      <Link href="/disclaimer">Risk disclosure</Link>
     </p>
   )
 }

@@ -1,3 +1,5 @@
+"use client"
+
 // withRotate — HOC that auto-rotates the globe every animation frame.
 //
 // Mirrors the Framer override pattern:

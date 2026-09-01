@@ -1,3 +1,5 @@
+"use client"
+
 // withHover — HOC that pauses rotation while the user hovers the globe.
 //
 // Mirrors the Framer override pattern:

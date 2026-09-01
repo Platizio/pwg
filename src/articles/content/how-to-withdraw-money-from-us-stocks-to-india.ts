@@ -1,4 +1,4 @@
-export default `
+const content = `
 <p>This is the question that most often stops a first deposit, and it deserves answering before the money goes out rather than after. Money invested in US stocks is not locked away. The path back is defined, and the constraint that matters is a bank-account rule rather than a regulatory barrier.</p>
 
 <h2>The sequence</h2>
@@ -77,3 +77,4 @@ export default `
 
 <p><strong>Disclaimer:</strong> This article is for educational purposes only and is not investment or tax advice. Processing times, charges and bank requirements vary and are outside our control. Tax rates and rules are stated as of August 2026 and can change. Please consult a qualified CA regarding your own position, and read our <a href="/disclaimer">Risk Disclosure and Disclaimer</a>.</p>
 `
+export default content

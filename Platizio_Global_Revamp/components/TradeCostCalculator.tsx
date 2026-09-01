@@ -1,5 +1,7 @@
+"use client"
+
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
 import { RATES, pct } from '../data/pricingRates'
 import { calculateTradeCost, formatUsd, formatPct, type TradeSide } from '../lib/pricing'
 
@@ -154,12 +156,12 @@ export default function TradeCostCalculator() {
             that silently omits it understates the real number by more than
             every fee above it combined. */}
         <p className="calc-note">
-          Your bank's currency conversion is not included above — the rate and margin
+          Your bank&apos;s currency conversion is not included above — the rate and margin
           are set by your remitting bank, not by us, and on most trades it is the
           largest single cost. FINRA also charges ${RATES.finraPerShare} per share sold,
           excluded because it depends on share count rather than trade value and is
           typically under $0.05 on a retail order. Figures are an illustration, not tax
-          or investment advice. <Link to="/disclaimer">Risk disclosure</Link>
+          or investment advice. <Link href="/disclaimer">Risk disclosure</Link>
         </p>
       </div>
     </section>

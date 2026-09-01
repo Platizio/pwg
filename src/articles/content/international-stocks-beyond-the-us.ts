@@ -1,4 +1,4 @@
-export default `
+const content = `
 <p>"Global investing" and "US investing" get used interchangeably, and they are not the same thing. An S&amp;P 500 tracker gives you US exposure. Europe, Japan and emerging markets are entirely absent from it.</p>
 <p>For many investors that is a reasonable place to stop — the US is the largest and deepest equity market in the world. But if the objective is genuine international diversification rather than US diversification, it is worth knowing that a US brokerage account already reaches considerably further than US-domiciled companies.</p>
 
@@ -51,3 +51,4 @@ export default `
 
 <p><strong>Disclaimer:</strong> This article is for educational purposes only and is not investment or tax advice. It does not recommend any region, security, ADR or fund. Availability of specific instruments depends on the broker. Tax treatment, including on foreign dividends with multiple layers of withholding, depends on individual facts; rates are stated as of August 2026. Please consult a qualified adviser and read our <a href="/disclaimer">Risk Disclosure and Disclaimer</a>.</p>
 `
+export default content

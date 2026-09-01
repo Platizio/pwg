@@ -1,3 +1,5 @@
+"use client"
+
 // Compose the Globe using the Framer-style HOC pattern:
 //
 //   Globe = withHover(withRotate(GlobeBase))

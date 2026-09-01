@@ -1,4 +1,4 @@
-export default `
+const content = `
 <p>Two questions sit behind most hesitation about investing abroad, and they are different questions. <em>Is it legal?</em> is about Indian regulation. <em>Is it safe?</em> is about what happens to your shares if an intermediary fails. Both have clear answers.</p>
 
 <h2>Is it legal? Yes, and here is the specific basis</h2>
@@ -63,3 +63,4 @@ export default `
 
 <p><strong>Disclaimer:</strong> This article is for educational purposes only and is not investment, tax, or legal advice. Regulatory and protection details are stated as of August 2026 and can change. SIPC coverage limits apply per customer as defined by SIPC rules. Please read our <a href="/disclaimer">Risk Disclosure and Disclaimer</a> and consult a qualified professional before investing.</p>
 `
+export default content

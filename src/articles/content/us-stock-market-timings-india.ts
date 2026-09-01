@@ -1,4 +1,4 @@
-export default `
+const content = `
 <p>The US market runs on a different clock from the one Indian investors are used to, and the clock moves twice a year. Getting this wrong means missing an open, or placing an order into a session with far worse pricing than you expected.</p>
 
 <h2>The short answer</h2>
@@ -52,3 +52,4 @@ export default `
 
 <p><strong>Disclaimer:</strong> This article is for educational purposes only and should not be treated as investment advice. Session timings and holiday schedules are stated as of August 2026 and are set by the exchanges, which can change them. Please read our <a href="/disclaimer">Risk Disclosure and Disclaimer</a>.</p>
 `
+export default content

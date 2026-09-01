@@ -1,5 +1,8 @@
+"use client"
+
 import { useState, useEffect, useRef, useCallback, type CSSProperties } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { ARTICLES } from '../articles/registry'
 
 const INTERVAL = 5000
@@ -37,12 +40,12 @@ export default function ArticlesCarousel() {
   const movedRef = useRef(false)
   const startXRef = useRef(0)
   const stageRef = useRef<HTMLDivElement>(null)
-  const navigate = useNavigate()
+  const router = useRouter()
 
   const go = useCallback((i: number) => setCurrent(((i % N) + N) % N), [])
   const next = useCallback(() => setCurrent((c) => (c + 1) % N), [])
   const prev = useCallback(() => setCurrent((c) => (c - 1 + N) % N), [])
-  const openArticle = useCallback((slug: string) => navigate(`/articles/${slug}`), [navigate])
+  const openArticle = useCallback((slug: string) => router.push(`/articles/${slug}`), [router])
 
   useEffect(() => {
     reduceRef.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -137,7 +140,19 @@ export default function ArticlesCarousel() {
                 aria-label={isActive ? `Read article: ${a.title}` : a.title}
                 onClick={() => onCardClick(i, a.slug)}
               >
-                <img className="ac-logo" src={a.logo} alt={a.title} width={1200} height={630} loading="lazy" draggable={false} />
+                {/* `fill`, not intrinsic dimensions: the card fixes its own
+                    box at 4/3 and .ac-logo crops into it, so the 1200x630 the
+                    markup used to declare described no box on the page. The
+                    sizes list mirrors the card's clamp(280px, 42vw, 440px) —
+                    42vw only bites between roughly 667px and 1047px wide. */}
+                <Image
+                  className="ac-logo"
+                  src={a.logo}
+                  alt={a.title}
+                  fill
+                  sizes="(max-width: 666px) 280px, (max-width: 1047px) 42vw, 440px"
+                  draggable={false}
+                />
                 <div className="ac-scrim" aria-hidden="true" />
                 <div className="ac-hint">
                   <span className="ac-tag">{a.category}</span>

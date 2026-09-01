@@ -1,4 +1,4 @@
-export default `
+const content = `
 <p>Moving money from an Indian bank account to a US brokerage account is a regulated, well-defined process. It runs under the Liberalised Remittance Scheme, goes through an authorised dealer bank, and takes a few business days.</p>
 <p>The mechanics are straightforward. What catches people out is the cost embedded in the exchange rate, and the fact that the TCS threshold is cumulative rather than per transaction.</p>
 
@@ -79,3 +79,4 @@ export default `
 
 <p><strong>Disclaimer:</strong> This article is for educational purposes only and is not investment, tax or legal advice. Bank processes, charges, exchange rates and timelines vary by institution. LRS rules and TCS rates are stated as of August 2026 and can change. Please confirm current requirements with your bank and a qualified adviser, and read our <a href="/disclaimer">Risk Disclosure and Disclaimer</a>.</p>
 `
+export default content

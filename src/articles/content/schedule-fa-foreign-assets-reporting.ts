@@ -1,4 +1,4 @@
-export default `
+const content = `
 <p><em>Updated August 2026.</em></p>
 <p>Schedule FA is the part of the Indian tax return where resident taxpayers disclose foreign assets. It is also the obligation most commonly missed by investors holding US shares, because it does not behave like the rest of the return.</p>
 <p>The single most important point: <strong>disclosure is triggered by holding the asset, not by earning from it or selling it</strong>. An investor who bought US shares, held them all year, sold nothing and received no dividend still has a Schedule FA obligation.</p>
@@ -63,3 +63,4 @@ export default `
 
 <p><strong>Disclaimer:</strong> This article is for educational purposes only and is not tax or legal advice. Schedule FA requirements, including the applicable reporting period and disclosure format, are set by the Income Tax Department and have been revised across assessment years. Details are stated as of August 2026. Given the penalty exposure involved, please confirm your specific obligations with a qualified CA before filing, and read our <a href="/disclaimer">Risk Disclosure and Disclaimer</a>.</p>
 `
+export default content

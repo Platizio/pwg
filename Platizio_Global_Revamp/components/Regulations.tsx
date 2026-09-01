@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
 import { TRADING_PLATFORM_URL } from '../../src/constants'
 
 const ArrowIcon = () => (
@@ -66,7 +66,7 @@ export default function Regulations() {
           Investing in securities carries risk, including possible loss of capital.
           Overseas investments also carry currency risk. Past performance does not
           indicate future results. Nothing on this page is investment advice.{' '}
-          <Link to="/disclaimer">Read the full risk disclosure</Link>
+          <Link href="/disclaimer">Read the full risk disclosure</Link>
         </p>
 
         <div className="regs-cta reveal">

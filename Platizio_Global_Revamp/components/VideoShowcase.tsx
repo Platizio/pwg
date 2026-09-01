@@ -1,3 +1,5 @@
+"use client"
+
 import { VIDEOS } from '../../src/videos'
 import { YOUTUBE_CHANNEL_URL } from '../../src/constants'
 import { selectVideos, formatNewsDate } from '../lib/mediaSelect'
@@ -59,6 +61,7 @@ export default function VideoShowcase() {
             rel="noopener noreferrer"
           >
             <span className="video-feature-thumb">
+              {/* eslint-disable-next-line @next/next/no-img-element -- next/image owns src and srcset, so the maxres->mq fallback below would silently stop firing. */}
               <img
                 src={thumbMax(feature.id)}
                 alt=""
@@ -88,6 +91,7 @@ export default function VideoShowcase() {
                 <li key={v.id}>
                   <a className="video-row" href={v.url} target="_blank" rel="noopener noreferrer">
                     <span className="video-row-thumb">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- img.youtube.com is remote and unlisted in next.config remotePatterns, which we are not widening for a thumbnail. */}
                       <img src={thumbMq(v.id)} alt="" width={320} height={180} loading="lazy" />
                       <span className="video-play is-small" aria-hidden="true"><PlayIcon /></span>
                     </span>
