@@ -1,3 +1,5 @@
+"use client"
+
 import { forwardRef, useEffect, useRef, type HTMLAttributes } from 'react'
 import createGlobe from 'cobe'
 import { globeState } from './globeStore'

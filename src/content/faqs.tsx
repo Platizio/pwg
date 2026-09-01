@@ -46,7 +46,7 @@ export const FAQ_SECTIONS: FaqSection[] = [
       {
         id: 'gs-3',
         q: 'Can NRIs (Non-Resident Indians) invest through Platizio?',
-        a: <span>Yes. NRIs may invest where supported, subject to the rules of their country of residence and our broker partner's onboarding requirements. NRIs are typically asked to provide their passport, proof of address, and a tax identification number for their country of tax residence. NRIs are taxed according to the laws of the country where they are tax residents. Please contact <a href="mailto:supportglobal@platizio.com">supportglobal@platizio.com</a> to confirm eligibility for your country.</span>,
+        a: <span>Yes. NRIs may invest where supported, subject to the rules of their country of residence and our broker partner&apos;s onboarding requirements. NRIs are typically asked to provide their passport, proof of address, and a tax identification number for their country of tax residence. NRIs are taxed according to the laws of the country where they are tax residents. Please contact <a href="mailto:supportglobal@platizio.com">supportglobal@platizio.com</a> to confirm eligibility for your country.</span>,
       },
       {
         id: 'gs-4',
@@ -487,7 +487,7 @@ export const FAQ_SECTIONS: FaqSection[] = [
               <li>Downloaded all necessary reports (trade confirms, ledger, and P&amp;L statements), as these will not be accessible once your account is closed</li>
               <li>If you wish to move securities to another broker, transferred your shares and cash prior to requesting account closure</li>
             </ul>
-            <strong>Please note:</strong> Upon submission of an account closure request, the client irrevocably agrees that any residual amounts — including but not limited to dividends, corporate action proceeds, or any other entitlements arising from prior holdings and received post-closure — shall not be credited to the client's account. The client acknowledges and accepts that such amounts may be forfeited, and that no claims shall lie against the Company in respect of the same.
+            <strong>Please note:</strong> Upon submission of an account closure request, the client irrevocably agrees that any residual amounts — including but not limited to dividends, corporate action proceeds, or any other entitlements arising from prior holdings and received post-closure — shall not be credited to the client&apos;s account. The client acknowledges and accepts that such amounts may be forfeited, and that no claims shall lie against the Company in respect of the same.
           </span>
         ),
       },

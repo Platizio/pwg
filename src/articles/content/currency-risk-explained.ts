@@ -1,4 +1,4 @@
-export default `
+const content = `
 <p>For Indian investors investing in US stocks and ETFs, returns are not affected only by the performance of the investment. They are also affected by the movement of the rupee against the US dollar.</p>
 
 <p>This is called <strong>currency risk</strong>.</p>
@@ -133,3 +133,4 @@ export default `
 <h3>5. Should investors predict currency movement before investing?</h3>
 <p>No. Currency forecasting is difficult. Long-term investors should focus on suitability, goals, and diversification.</p>
 `
+export default content

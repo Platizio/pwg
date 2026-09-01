@@ -1,4 +1,4 @@
-export default `
+const content = `
 <p>Form W-8BEN is a short declaration with a disproportionate effect. Filing it reduces US withholding tax on your dividends from 30% to 25%. Not filing it costs you five percentage points of every dividend, permanently and for no reason.</p>
 
 <h2>What the form does</h2>
@@ -65,3 +65,4 @@ export default `
 
 <p><strong>Disclaimer:</strong> This article is for educational purposes only and is not tax or legal advice. Form W-8BEN is an IRS form and its requirements, validity period and treaty rates are set by US law and the India–US treaty, which can change. Details are stated as of August 2026. Please consult a qualified tax professional if your circumstances are not straightforward, and read our <a href="/disclaimer">Risk Disclosure and Disclaimer</a>.</p>
 `
+export default content

@@ -1,5 +1,5 @@
+import Link from 'next/link'
 import type { Quote } from '../types/market'
-import { TRADING_PLATFORM_URL } from '../../src/constants'
 import { POPULAR_8 } from '../data/marketUniverse'
 import { formatChange, formatPrice } from '../lib/format'
 import QuoteChange from './QuoteChange'
@@ -14,12 +14,11 @@ interface PopularStocksProps {
 
 function StockCard({ quote }: { quote: Quote }) {
   return (
-    <a
-      className="stock-card"
-      href={TRADING_PLATFORM_URL}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
+    /* These eight are the way into the terminal, not a way out of the site.
+       They used to open the external trading platform in a new tab, which sent
+       a reader who wanted to *learn about* Apple to a place that asks them to
+       buy it. The terminal answers the question they actually had. */
+    <Link className="stock-card" href={`/terminal/${quote.symbol}`}>
       <span className="stock-card-top">
         {/* Ticker leads: investors scan a grid like this by symbol, not by
             company name. */}
@@ -31,7 +30,7 @@ function StockCard({ quote }: { quote: Quote }) {
       <span className="stock-abs">
         {formatChange(quote.change)} <span className="stock-currency">{quote.currency}</span>
       </span>
-    </a>
+    </Link>
   )
 }
 

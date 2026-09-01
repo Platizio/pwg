@@ -1,3 +1,5 @@
+"use client"
+
 import SEO, { breadcrumbSchema, videoSchema } from '../../src/components/SEO'
 import { VIDEOS } from '../../src/videos'
 import NewsRail from '../components/NewsRail'

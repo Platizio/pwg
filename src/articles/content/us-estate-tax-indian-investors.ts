@@ -1,4 +1,4 @@
-export default `
+const content = `
 <p><em>Updated August 2026.</em></p>
 <p>This is the least discussed aspect of US investing for Indian residents, and above a certain portfolio size it is the most consequential. India abolished estate duty in 1985, so the concept is unfamiliar. The United States did not.</p>
 <p>The headline: US-situs assets above a <strong>USD 60,000</strong> exemption can attract US estate tax at rates rising to <strong>40%</strong> on the death of a non-resident alien owner. India has no estate tax treaty with the United States that raises that threshold.</p>
@@ -59,3 +59,4 @@ export default `
 
 <p><strong>Disclaimer:</strong> This article is for educational purposes only and is not tax, legal or estate planning advice. US estate tax rules, situs determinations, exemption amounts and rate bands are set by US law and can change; their application depends on individual facts, domicile and the structure of holdings. Figures are stated as of August 2026 and are illustrative. Please consult a qualified cross-border tax and estate advisor, and read our <a href="/disclaimer">Risk Disclosure and Disclaimer</a>.</p>
 `
+export default content

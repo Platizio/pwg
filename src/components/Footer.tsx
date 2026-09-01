@@ -1,4 +1,6 @@
-import { Link } from 'react-router-dom'
+"use client"
+
+import Link from 'next/link'
 import { useAppContext } from '../context/AppContext'
 import { YOUTUBE_CHANNEL_URL, WHATSAPP_URL, APP_STORE_URL, PLAY_STORE_URL } from '../constants'
 
@@ -61,6 +63,7 @@ export default function Footer() {
                   rel="noopener noreferrer"
                   aria-label="Download Platizio Global on the App Store"
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- a store badge is a local SVG, and next/image cannot optimise a vector source. */}
                   <img
                     src="/badge-app-store.svg"
                     alt="Download Platizio Global on the App Store"
@@ -76,6 +79,7 @@ export default function Footer() {
                   rel="noopener noreferrer"
                   aria-label="Get Platizio Global on Google Play"
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- a store badge is a local SVG, and next/image cannot optimise a vector source. */}
                   <img
                     src="/badge-google-play.svg"
                     alt="Get Platizio Global on Google Play"
@@ -91,32 +95,32 @@ export default function Footer() {
           <div className="footer-col">
             <h3>Platizio Global</h3>
             <ul>
-              <li><Link to="/about">About Us</Link></li>
-              <li><Link to="/#why">Why Global Investing</Link></li>
+              <li><Link href="/about">About Us</Link></li>
+              <li><Link href="/#why">Why Global Investing</Link></li>
               <li><a href="#" onClick={(e) => { e.preventDefault(); openContact() }}>Contact Us</a></li>
             </ul>
           </div>
           <div className="footer-col">
             <h3>Products</h3>
             <ul>
-              <li><Link to="/products">US Stocks &amp; ETFs</Link></li>
-              <li><Link to="/terminal/aapl">Live terminal</Link></li>
-              <li><Link to="/pricing">Pricing &amp; Charges</Link></li>
+              <li><Link href="/products">US Stocks &amp; ETFs</Link></li>
+              <li><Link href="/terminal/aapl">Live terminal</Link></li>
+              <li><Link href="/pricing">Pricing &amp; Charges</Link></li>
             </ul>
           </div>
           <div className="footer-col">
             <h3>Learn</h3>
             <ul>
-              <li><Link to="/media#articles">Articles</Link></li>
-              <li><Link to="/media#videos">Videos</Link></li>
-              <li><Link to="/faqs">FAQs</Link></li>
+              <li><Link href="/media#articles">Articles</Link></li>
+              <li><Link href="/media#videos">Videos</Link></li>
+              <li><Link href="/faqs">FAQs</Link></li>
             </ul>
           </div>
           <div className="footer-col">
             <h3>Support</h3>
             <ul>
               <li><a href="#" onClick={(e) => { e.preventDefault(); openContact() }}>Contact Us</a></li>
-              <li><Link to="/faqs">Help</Link></li>
+              <li><Link href="/faqs">Help</Link></li>
               <li><a href="mailto:grievances@platizio.com">Grievance</a></li>
             </ul>
           </div>
@@ -154,11 +158,11 @@ export default function Footer() {
             a qualified financial or tax advisor before investing.
           </p>
           <div>
-            <p className="copyright">&copy; {__BUILD_YEAR__} Platizio Global. All rights reserved.</p>
+            <p className="copyright">&copy; {Number(process.env.NEXT_PUBLIC_BUILD_YEAR)} Platizio Global. All rights reserved.</p>
             <p className="copyright" style={{ marginTop: '0.5rem' }}>
-              <Link to="/terms" className="footer-legal-link">Terms &amp; Conditions</Link>
-              <Link to="/privacy" className="footer-legal-link">Privacy Policy</Link>
-              <Link to="/disclaimer" className="footer-legal-link">Risk Disclosure &amp; Disclaimer</Link>
+              <Link href="/terms" className="footer-legal-link">Terms &amp; Conditions</Link>
+              <Link href="/privacy" className="footer-legal-link">Privacy Policy</Link>
+              <Link href="/disclaimer" className="footer-legal-link">Risk Disclosure &amp; Disclaimer</Link>
             </p>
           </div>
         </div>

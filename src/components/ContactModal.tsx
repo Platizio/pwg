@@ -1,3 +1,5 @@
+"use client"
+
 import { useState, useEffect, useRef } from 'react'
 import { useAppContext } from '../context/AppContext'
 import { anonHeaders, backendConfig } from '../lib/backend'
@@ -69,19 +71,34 @@ export default function ContactModal() {
   // Empty on the fallback path, which produces no reference at all.
   const [reference, setReference] = useState('')
   const turnstile = useTurnstile()
+  /* Bound once so the ref reaches the element as a plain value; reading
+     `turnstile.containerRef` in the JSX is a member access during render. */
+  const { containerRef: turnstileRef } = turnstile
   const nameRef = useRef<HTMLInputElement>(null)
   const modalRef = useRef<HTMLDivElement>(null)
   const lastFocusedRef = useRef<HTMLElement | null>(null)
 
+  /* Seed the form for this opening.
+
+     Adjusted during render rather than from an effect: seeding after paint
+     shows the previous visit's answers for one frame before replacing them,
+     and setting state in the effect cascades an extra render to do it. */
+  const [openedWith, setOpenedWith] = useState<string | null>(null)
+  if (isContactOpen && openedWith !== contactInterest) {
+    setOpenedWith(contactInterest ?? '')
+    setForm((f) => ({ ...f, interest: contactInterest || '' }))
+    setSubmitted(false)
+    setError('')
+  }
+  if (!isContactOpen && openedWith !== null) setOpenedWith(null)
+
+  /* Focus and the restore target are DOM work, which belongs in an effect. */
   useEffect(() => {
-    if (isContactOpen) {
-      lastFocusedRef.current = document.activeElement as HTMLElement
-      setForm((f) => ({ ...f, interest: contactInterest || '' }))
-      setSubmitted(false)
-      setError('')
-      setTimeout(() => nameRef.current?.focus(), 200)
-    }
-  }, [isContactOpen, contactInterest])
+    if (!isContactOpen) return
+    lastFocusedRef.current = document.activeElement as HTMLElement
+    const t = setTimeout(() => nameRef.current?.focus(), 200)
+    return () => clearTimeout(t)
+  }, [isContactOpen])
 
   useEffect(() => {
     if (!isContactOpen) {
@@ -276,7 +293,7 @@ export default function ContactModal() {
               {/* Absent entirely until VITE_TURNSTILE_SITE_KEY is set. */}
               {turnstile.enabled && (
                 <div
-                  ref={turnstile.containerRef}
+                  ref={turnstileRef}
                   style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.9rem' }}
                 />
               )}

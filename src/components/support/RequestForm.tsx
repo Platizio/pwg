@@ -1,3 +1,5 @@
+"use client"
+
 import { useId, useRef, useState } from 'react'
 import {
   ACCEPT_ATTR,
@@ -60,6 +62,9 @@ export default function RequestForm({
   const [sending, setSending] = useState(false)
   const [failure, setFailure] = useState('')
   const turnstile = useTurnstile()
+  /* Bound once so the ref reaches the element as a plain value; reading
+     `turnstile.containerRef` in the JSX is a member access during render. */
+  const { containerRef: turnstileRef } = turnstile
   const [files, setFiles] = useState<File[]>([])
   const [fileError, setFileError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -337,7 +342,7 @@ export default function RequestForm({
         Renders nothing at all when VITE_TURNSTILE_SITE_KEY is unset, so the
         form keeps its current layout until the captcha is configured.
       */}
-      {turnstile.enabled && <div className="sform-captcha" ref={turnstile.containerRef} />}
+      {turnstile.enabled && <div className="sform-captcha" ref={turnstileRef} />}
 
       {failure && <p className="sform-error is-block" role="alert">{failure}</p>}
 

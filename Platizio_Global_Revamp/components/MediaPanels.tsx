@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
 import { ARTICLES } from '../../src/articles/registry'
 import { selectTopArticles } from '../lib/mediaSelect'
 
@@ -54,7 +54,7 @@ export default function MediaPanels() {
             <ol className="article-list">
               {top.map((a, i) => (
                 <li key={a.slug}>
-                  <Link className="article-row" to={`/articles/${a.slug}`}>
+                  <Link className="article-row" href={`/articles/${a.slug}`}>
                     <span className="article-idx" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
                     <span className="article-body">
                       <span className="article-title">{a.title}</span>
@@ -67,7 +67,7 @@ export default function MediaPanels() {
               ))}
             </ol>
 
-            <Link className="view-all" to="/articles">
+            <Link className="view-all" href="/articles">
               View all articles <ArrowIcon />
             </Link>
           </section>

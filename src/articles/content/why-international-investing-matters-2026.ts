@@ -1,4 +1,4 @@
-export default `
+const content = `
 <p>For many Indian investors, international investing has long been seen as optional — something to consider "later," once domestic goals are met. But as we look ahead to 2026, that mindset is quietly becoming outdated.</p>
 
 <p>The reality is simple: your portfolio is already exposed to global forces, whether you actively invest overseas or not. The question is no longer whether global markets affect Indian investors — it is whether your portfolio is positioned to benefit from that reality. This shift in thinking is what makes international investing increasingly relevant as we move into the next phase of global markets.</p>
@@ -117,3 +117,4 @@ export default `
 
 <blockquote>The real question is: Does your portfolio reflect that reality?</blockquote>
 `
+export default content

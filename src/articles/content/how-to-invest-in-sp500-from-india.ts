@@ -1,4 +1,4 @@
-export default `
+const content = `
 <p>The S&amp;P 500 tracks 500 of the largest US-listed companies, weighted by market capitalisation. For an Indian investor who wants broad US exposure without picking individual companies, it is usually the first index considered.</p>
 <p>The complication is that the same index is reachable through several different structures, and they are <strong>not equivalent</strong>. They differ in what you own, what it costs, which currency you hold, and — most consequentially over time — how the gains are taxed.</p>
 
@@ -56,3 +56,4 @@ export default `
 
 <p><strong>Disclaimer:</strong> This article is for educational purposes only and is not investment or tax advice. It does not recommend any specific fund, ETF or index. Rates and rules are stated as of August 2026 and can change. Investors should consult a qualified financial and tax professional before choosing a route, and read our <a href="/disclaimer">Risk Disclosure and Disclaimer</a>.</p>
 `
+export default content

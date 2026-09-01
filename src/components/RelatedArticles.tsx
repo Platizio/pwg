@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
 import type { Article } from '../articles/types'
 import { getRelatedArticles } from '../articles/registry'
 import { getTopic } from '../articles/topics'
@@ -30,7 +30,7 @@ export default function RelatedArticles({ article }: { article: Article }) {
           <ul className="related-list">
             {related.map((a) => (
               <li key={a.slug}>
-                <Link to={`/articles/${a.slug}`}>
+                <Link href={`/articles/${a.slug}`}>
                   <span className="related-tag">{a.category}</span>
                   <span className="related-title">{a.title}</span>
                   <span className="related-excerpt">{a.excerpt}</span>
@@ -47,7 +47,7 @@ export default function RelatedArticles({ article }: { article: Article }) {
           {topics.map((t, i) => (
             <span key={t.id}>
               {i > 0 && (i === topics.length - 1 ? ' and ' : ', ')}
-              <Link to={`/articles/topic/${t.id}`}>{t.title}</Link>
+              <Link href={`/articles/topic/${t.id}`}>{t.title}</Link>
             </span>
           ))}
           .
@@ -55,7 +55,7 @@ export default function RelatedArticles({ article }: { article: Article }) {
       )}
 
       <p className="related-all">
-        <Link to="/articles">
+        <Link href="/articles">
           Browse all articles <ArrowIcon />
         </Link>
       </p>

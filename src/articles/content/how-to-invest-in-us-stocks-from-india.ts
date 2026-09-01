@@ -1,4 +1,4 @@
-export default `
+const content = `
 <p>Indian residents can legally own shares in US-listed companies. The route runs through the Reserve Bank of India's Liberalised Remittance Scheme, and the process is more straightforward than most first-time investors expect.</p>
 <p>What usually causes hesitation is not the legality. It is the mechanics: which account holds the shares, how rupees become dollars, what a trade actually costs once forex markup and TCS are counted, and what happens to the holding if something goes wrong at the broker.</p>
 <p>This article walks through the full process end to end, then links out to the articles that go deeper on each step.</p>
@@ -76,3 +76,4 @@ export default `
 
 <p><strong>Disclaimer:</strong> This article is for educational purposes only and should not be treated as investment, tax, legal, or financial advice. Rules and rates stated are current as of August 2026 and can change. Investors should consult a qualified CA, tax advisor, or financial professional before making investment decisions. Please also read our <a href="/disclaimer">Risk Disclosure and Disclaimer</a>.</p>
 `
+export default content

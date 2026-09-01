@@ -4,6 +4,8 @@ node_modules/
 # Build output
 dist/
 dist-ssr/
+.next/
+next-env.d.ts
 
 # Local env files
 .env
@@ -33,6 +35,7 @@ Thumbs.db
 
 # Local agent tooling state
 .claude-flow/
+.impeccable-terminal/
 .claude/proven-config.json
 .claude/.proven-config-version
 
@@ -49,15 +52,12 @@ client-url-config.json
 # TypeScript incremental build info
 *.tsbuildinfo
 
-# The market terminal (screener/) used to be excluded here: it carried its own
-# .git, so committing it would have created a gitlink to a repo with no remote,
-# and a deploy would have cloned an empty directory. It is now flattened into
-# this repository, so it is tracked like any other directory.
-#
-# Its own screener/.gitignore still applies — git honours nested ignore files —
-# which is what keeps screener/node_modules, screener/.next and, critically,
-# screener/Global_API (live UAT credentials) out of every commit. The
-# Global_API/ and node_modules/ rules above cover it a second time, at any depth.
+# The market terminal used to live in screener/, with its own .gitignore that
+# covered screener/node_modules, screener/.next and screener/Global_API. That
+# directory has now been flattened into the repository root, and its nested
+# .gitignore went with it — so those three rules had to be restated above, at
+# the root, or the 1.8 GB .next build output would land in the next commit.
+# node_modules/ and Global_API/ were already rooted here; .next/ was not.
 
 # Scratch output from MCP browser tooling during review runs.
 .playwright-mcp/

@@ -1,4 +1,4 @@
-export default `
+const content = `
 <p>The question is usually posed as a choice. It is more useful as a comparison, because for most Indian investors the sensible answer is not one or the other but a deliberate split between them.</p>
 <p>India and the United States are different economies at different stages, with different sector composition, different currencies and different tax treatment. Those differences are precisely why holding both does something that holding either alone does not.</p>
 
@@ -69,3 +69,4 @@ export default `
 
 <p><strong>Disclaimer:</strong> This article is for educational purposes only and is not investment or tax advice. It does not recommend any allocation, market or security. Tax rates are stated as of August 2026 and can change. Past relationships between markets are not a guide to future ones. Please consult a qualified financial adviser and read our <a href="/disclaimer">Risk Disclosure and Disclaimer</a>.</p>
 `
+export default content

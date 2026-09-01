@@ -1,8 +1,11 @@
-import { Link, useParams } from 'react-router-dom'
+"use client"
+
+import Link from 'next/link'
+import { useParams } from 'next/navigation'
 import { TRADING_PLATFORM_URL } from '../constants'
 import SEO, { breadcrumbSchema, faqSchema } from './SEO'
 import RelatedArticles from './RelatedArticles'
-import NotFound from '../pages/NotFound'
+import NotFound from '../views/NotFound'
 import { getArticle } from '../articles/registry'
 import { SITE_NAME, SITE_URL, LOGO_URL, absoluteUrl } from '../siteConfig'
 
@@ -72,9 +75,9 @@ export default function ArticlePage() {
 
       <article className="article">
         <div className="breadcrumb">
-          <Link to="/">Home</Link><span className="crumb-sep" aria-hidden="true">/</span>
-          <Link to="/media">Media</Link><span className="crumb-sep" aria-hidden="true">/</span>
-          <Link to="/articles">Articles</Link><span className="crumb-sep" aria-hidden="true">/</span>
+          <Link href="/">Home</Link><span className="crumb-sep" aria-hidden="true">/</span>
+          <Link href="/media">Media</Link><span className="crumb-sep" aria-hidden="true">/</span>
+          <Link href="/articles">Articles</Link><span className="crumb-sep" aria-hidden="true">/</span>
           <span>{article.category}</span>
         </div>
 

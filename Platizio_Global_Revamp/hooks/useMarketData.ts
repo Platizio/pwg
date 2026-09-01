@@ -1,3 +1,5 @@
+"use client"
+
 import { useEffect, useState } from 'react'
 import type { Quote, QuotesResponse } from '../types/market'
 import { MIN_USABLE_QUOTES } from '../data/marketUniverse'

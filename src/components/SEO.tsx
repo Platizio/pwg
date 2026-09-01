@@ -1,4 +1,3 @@
-import { Helmet } from 'react-helmet-async'
 import {
   SITE_NAME,
   SITE_URL,
@@ -8,6 +7,10 @@ import {
   TWITTER_HANDLE,
 } from '../siteConfig'
 
+/* React 19 hoists <title>, <meta> and <link> into <head> from anywhere in the
+   tree, server render included, which is the whole of what Helmet was doing
+   here. Dropping the provider keeps all fourteen call sites and their
+   server-rendered tags exactly as they were. */
 interface SEOProps {
   title: string
   description: string
@@ -41,7 +44,7 @@ export default function SEO({
   const schemas = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : []
 
   return (
-    <Helmet>
+    <>
       {/* Primary */}
       <title>{fullTitle}</title>
       <meta name="description" content={description} />
@@ -83,7 +86,7 @@ export default function SEO({
           {JSON.stringify(schema)}
         </script>
       ))}
-    </Helmet>
+    </>
   )
 }
 

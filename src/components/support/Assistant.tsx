@@ -1,5 +1,7 @@
+"use client"
+
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
 import { FAQ_BY_ID } from '../../content/faqs'
 import RequestForm from './RequestForm'
 import { searchSupport } from './search'
@@ -189,7 +191,7 @@ export default function Assistant() {
                       <article className="assistant-answer" key={id}>
                         <h2 className="assistant-answer-q">{answer.q}</h2>
                         <div className="assistant-answer-a">{answer.a}</div>
-                        <Link className="assistant-answer-link" to={`/faqs#${answer.sectionId}`}>
+                        <Link className="assistant-answer-link" href={`/faqs#${answer.sectionId}`}>
                           Read more in {answer.sectionTitle}
                         </Link>
                       </article>
@@ -282,7 +284,7 @@ export default function Assistant() {
                 <>
                   <h2 className="assistant-question">Glad that sorted it.</h2>
                   <p className="assistant-lede">
-                    Ask something else below, or read the full <Link to="/faqs">FAQs</Link>.
+                    Ask something else below, or read the full <Link href="/faqs">FAQs</Link>.
                   </p>
                   <button type="button" className="assistant-option" onClick={restart}>
                     Back to topics

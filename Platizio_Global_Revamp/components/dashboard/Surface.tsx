@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
 import { direction, formatPercent } from '../../lib/format'
 
 /*
@@ -33,7 +33,7 @@ export function Card({
   const base = glow ? 'card-glow' : tone ? `card-${tone}` : lit ? 'card-lit' : 'card'
   const classes = `${base}${interactive || to ? ' card-hover' : ''} edge-lit ${className}`.trim()
 
-  if (to) return <Link to={to} className={`${classes} is-block`}>{children}</Link>
+  if (to) return <Link href={to} className={`${classes} is-block`}>{children}</Link>
   return <Tag className={classes}>{children}</Tag>
 }
 

@@ -1,3 +1,5 @@
+"use client"
+
 // Cloudflare Turnstile, rendered only when a site key is configured.
 //
 // With VITE_TURNSTILE_SITE_KEY unset this hook does nothing at all: no script
@@ -44,7 +46,7 @@ declare global {
   }
 }
 
-export const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY ?? ''
+export const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? ''
 export const isTurnstileEnabled = (): boolean => Boolean(TURNSTILE_SITE_KEY)
 
 function loadScript(): Promise<void> {
@@ -71,7 +73,7 @@ function loadScript(): Promise<void> {
 
 export interface TurnstileHandle {
   /** Attach to the element the widget should be rendered into. */
-  containerRef: RefObject<HTMLDivElement>
+  containerRef: RefObject<HTMLDivElement | null>
   /** The current token, or null when there is none to give. */
   getToken: () => string | null
   /** Clears the solved token so the next submission needs a fresh one. */

@@ -10,12 +10,14 @@
 #   validate:support  — the 111-node support tree still resolves to a coherent
 #                       category/subcategory pair, every leaf has an answer, and
 #                       no FAQ id referenced by the tree has gone missing
-#   tsc               — typecheck, `strict`, no emit
-#   prerender         — renders all 49 routes and throws if any produces no
-#                       <title> or falls through to <NotFound/>
+#   tsc               — `next build` typechecks the whole app under `strict`
+#   prerender         — `next build` renders every statically generated route,
+#                       so a page that throws while rendering fails here rather
+#                       than at request time in production
 #
-# There are no unit tests in this repo yet, so this is the whole safety net.
-# Treat a failure here as a real failure rather than something to re-run.
+# The repo's `npm test` suite is not wired into this workflow yet, so this build
+# is still close to the whole safety net. Treat a failure here as a real failure
+# rather than something to re-run.
 
 name: CI
 
@@ -51,12 +53,24 @@ jobs:
 
       - run: npm run build
 
-      # Cheap, and it means a PR that breaks prerendering says so with the
-      # actual page count rather than just a stack trace.
+      # `next build` can exit 0 having written nothing useful, and the counts
+      # come from the build's own manifests so a prerendering regression shows
+      # up here as a number that moved rather than only as a stack trace. The
+      # previous version of this step counted files under dist/, which the Vite
+      # build wrote and Next never does, so it reported 0 forever and passed.
       - name: Report what was built
         run: |
-          echo "pages: $(find dist -name '*.html' | wc -l)"
-          echo "sitemap urls: $(grep -c '<loc>' dist/sitemap.xml || echo 0)"
+          node -e '
+            const fs = require("node:fs");
+            if (!fs.existsSync(".next")) {
+              console.error("build exited 0 but wrote no .next directory");
+              process.exit(1);
+            }
+            const appRoutes = require("./.next/app-path-routes-manifest.json");
+            const { routes: prerendered } = require("./.next/prerender-manifest.json");
+            console.log(`app routes: ${Object.keys(appRoutes).length}`);
+            console.log(`prerendered routes: ${Object.keys(prerendered).length}`);
+          '
 
   database:
     name: Database tests

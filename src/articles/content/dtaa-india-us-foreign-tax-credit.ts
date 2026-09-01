@@ -1,4 +1,4 @@
-export default `
+const content = `
 <p><em>Updated August 2026.</em></p>
 <p>The India–US Double Taxation Avoidance Agreement exists so that the same income is not fully taxed twice. For an investor holding US shares, it does two specific things: it caps US withholding on dividends, and it entitles you to credit in India for the US tax you have already paid.</p>
 <p>The second half is not automatic. It has to be claimed, on a specific form, and the form is changing.</p>
@@ -77,3 +77,4 @@ export default `
 
 <p><strong>Disclaimer:</strong> This article is for educational purposes only and is not tax or legal advice. Treaty interpretation, credit entitlement and procedural requirements depend on individual facts and are subject to change, including under the Income-tax Act, 2025 and rules made under it. Details are stated as of August 2026. Please consult a qualified CA before claiming foreign tax credit, and read our <a href="/disclaimer">Risk Disclosure and Disclaimer</a>.</p>
 `
+export default content

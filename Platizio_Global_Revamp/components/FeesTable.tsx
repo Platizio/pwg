@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
 import { RATES, FREE_ITEMS, pct } from '../data/pricingRates'
 
 const ArrowIcon = () => (
@@ -58,7 +58,7 @@ export default function FeesTable() {
         <p className="fees-footnote">
           Taxes apply separately — TCS on remittances above the LRS threshold, and capital
           gains and dividend tax on your returns.{' '}
-          <Link className="fees-link" to="/pricing">
+          <Link className="fees-link" href="/pricing">
             See full pricing and taxes <ArrowIcon />
           </Link>
         </p>

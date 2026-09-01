@@ -1,4 +1,4 @@
-export default `
+const content = `
 <p>A single share of some well-known US companies trades in the hundreds or thousands of dollars. On a whole-share basis that puts them out of reach for an investor putting aside a few thousand rupees a month.</p>
 <p>Fractional shares remove that constraint. You invest an <strong>amount</strong> rather than a <strong>quantity</strong>, and receive whatever fraction of a share that amount buys.</p>
 
@@ -54,3 +54,4 @@ export default `
 
 <p><strong>Disclaimer:</strong> This article is for educational purposes only and is not investment or tax advice. Availability of fractional trading, corporate action handling and transfer restrictions depend on the broker and the specific security. Figures used are illustrative. Please read our <a href="/disclaimer">Risk Disclosure and Disclaimer</a>.</p>
 `
+export default content

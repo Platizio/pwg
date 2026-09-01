@@ -1,4 +1,4 @@
-export default `
+const content = `
 <p>Two categories get merged constantly in market commentary, and keeping them apart makes everything else easier to follow.</p>
 <p><strong>NYSE and NASDAQ are exchanges</strong> — venues where shares change hands. <strong>The S&amp;P 500, the Dow Jones Industrial Average and the Nasdaq 100 are indices</strong> — measurements of a basket of shares. A company listed on NASDAQ may well be a member of the S&amp;P 500. The two facts are unrelated.</p>
 
@@ -60,3 +60,4 @@ export default `
 
 <p><strong>Disclaimer:</strong> This article is for educational purposes only and is not investment advice. Index construction and methodology are set by their respective providers and can change. It does not recommend any index, ETF or security. Please read our <a href="/disclaimer">Risk Disclosure and Disclaimer</a>.</p>
 `
+export default content

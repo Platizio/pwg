@@ -1,4 +1,4 @@
-export default `
+const content = `
 <p>These three terms overlap enough to cause genuine confusion, partly because they answer two different questions at once. One question is <em>how the fund decides what to hold</em>. The other is <em>how you buy and sell it</em>.</p>
 <p>Separating those two axes makes the whole thing clear.</p>
 
@@ -77,3 +77,4 @@ export default `
 
 <p><strong>Disclaimer:</strong> This article is for educational purposes only and is not investment or tax advice. It does not recommend any fund, ETF or structure. Tax treatment depends on the specific product, scheme category and your own circumstances, and rates stated are as of August 2026. Please consult a qualified financial and tax adviser, and read our <a href="/disclaimer">Risk Disclosure and Disclaimer</a>.</p>
 `
+export default content

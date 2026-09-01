@@ -1,3 +1,5 @@
+"use client"
+
 /*
  * DIRECTION CONTRACT — seed a08a840d (surface roll, persuade, assigned index 6)
  *
@@ -36,7 +38,8 @@
 
 import { useMemo, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
+import Image from 'next/image'
 import { TRADING_PLATFORM_URL, SCREENER_URL, screenerInstrument } from '../../src/constants'
 import { POPULAR_8, LARGE_CAP_SAMPLE } from '../data/marketUniverse'
 import { RATES, FREE_ITEMS, TRADING_CHARGES, pct } from '../data/pricingRates'
@@ -50,14 +53,6 @@ import MarketNote from '../components/MarketNote'
 import QuoteChange from '../components/QuoteChange'
 import '../styles/products.css'
 
-/** The five stops, named once. The route rail and the sections both read this. */
-const ROUTE = [
-  { id: 'pick', n: 1, label: 'Pick a company' },
-  { id: 'decide', n: 2, label: 'See more than a price' },
-  { id: 'cost', n: 3, label: 'Know the whole cost' },
-  { id: 'after', n: 4, label: 'Know what you owe later' },
-  { id: 'open', n: 5, label: 'Open the account' },
-] as const
 
 /*
  * What the terminal adds once a name is chosen.
@@ -244,13 +239,19 @@ export default function Products() {
           {/* The product itself, as the hero's subject. This is the capture of
               the running terminal; replacing it is a one-line swap of src. */}
           <figure className="ft-hero-shot">
-            <img
+            <Image
               src="/terminal-hero.webp"
               width={1600}
               height={1000}
               alt="The Platizio terminal: a company's price and day's move beside its events calendar, newswire and analyst coverage on one page."
-              /* Above the fold on every visit, so it is never deferred. */
-              loading="eager"
+              /* Above the fold on every visit and this page's largest paint, so
+                 it is never deferred. `priority` rather than eager loading:
+                 eager only stops the deferral, while priority also emits the
+                 preload link that lets the fetch start before the hero renders. */
+              priority
+              /* The hero is the wider half of a two-column grid inside a
+                 1360px-capped container until it stacks at 1100px. */
+              sizes="(max-width: 1100px) 92vw, 640px"
               decoding="async"
             />
           </figure>
@@ -588,7 +589,7 @@ export default function Products() {
             FINRA is charged per share rather than per dollar, so it is stated on its
             own line rather than folded into a percentage — excluded and disclosed
             beats included and wrong. Rates as published {RATES.ratesAsOf}.{' '}
-            <Link className="ft-link ft-link--inline" to="/pricing">
+            <Link className="ft-link ft-link--inline" href="/pricing">
               The full schedule <span className="ft-link-rule" aria-hidden="true" />
             </Link>
           </p>
@@ -614,7 +615,7 @@ export default function Products() {
               <article className="ft-later-item" key={l.title}>
                 <h3>{l.title}</h3>
                 <p>{l.body}</p>
-                <Link className="ft-link" to={l.to}>
+                <Link className="ft-link" href={l.to}>
                   {l.cta} <span className="ft-link-rule" aria-hidden="true" />
                 </Link>
               </article>

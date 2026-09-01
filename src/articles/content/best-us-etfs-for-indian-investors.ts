@@ -1,4 +1,4 @@
-export default `
+const content = `
 <p>This article does not name funds to buy. Recommending specific securities to a general audience is neither useful nor appropriate — the right holding depends on circumstances this page knows nothing about.</p>
 <p>What it does instead is set out the criteria that actually distinguish one ETF from another, including one that matters specifically to Indian investors and appears in no fund factsheet.</p>
 
@@ -75,3 +75,4 @@ export default `
 
 <p><strong>Disclaimer:</strong> This article is for educational purposes only and is not investment, tax or financial advice. It does not recommend any specific ETF, fund, index or security, and no performance claims are made or implied. All investments carry risk, including loss of capital. Tax positions are stated as of August 2026 and can change. Please consult a qualified financial and tax adviser, and read our <a href="/disclaimer">Risk Disclosure and Disclaimer</a>.</p>
 `
+export default content

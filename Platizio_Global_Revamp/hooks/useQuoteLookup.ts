@@ -1,3 +1,5 @@
+"use client"
+
 import { useEffect, useState } from 'react'
 import type { Quote, SymbolsResponse } from '../types/market'
 
@@ -28,7 +30,11 @@ export interface QuoteLookup {
  * a ticker we cannot quote needs to be told that, not shown a failure.
  */
 export function useQuoteLookup(symbol: string): QuoteLookup {
-  const [state, setState] = useState<QuoteLookup>({
+  /* The symbol travels with the result. "Loading" is then a fact about the two
+     disagreeing rather than a flag to be set, which is what let the old code
+     write state from inside the effect and cascade a render on every lookup. */
+  const [state, setState] = useState<QuoteLookup & { symbol: string }>({
+    symbol: '',
     quote: null,
     status: 'loading',
     asOf: null,
@@ -39,11 +45,6 @@ export function useQuoteLookup(symbol: string): QuoteLookup {
     if (!symbol) return
     const controller = new AbortController()
 
-    // Keep the previous quote on screen while the next one loads. Blanking it
-    // collapses the panel and reflows the page under the reader's cursor every
-    // time they pick a different company.
-    setState((prev) => ({ ...prev, status: 'loading' }))
-
     fetch(`/api/quotes?symbols=${encodeURIComponent(symbol)}`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`quotes responded ${res.status}`)
@@ -53,10 +54,11 @@ export function useQuoteLookup(symbol: string): QuoteLookup {
         if (!Array.isArray(payload?.quotes)) throw new Error('quotes payload malformed')
         const quote = payload.quotes[0]
         if (!quote || typeof quote.price !== 'number') {
-          setState({ quote: null, status: 'missing', asOf: null, delayed: true })
+          setState({ symbol, quote: null, status: 'missing', asOf: null, delayed: true })
           return
         }
         setState({
+          symbol,
           quote,
           status: 'ready',
           asOf: payload.asOf ?? null,
@@ -65,11 +67,18 @@ export function useQuoteLookup(symbol: string): QuoteLookup {
       })
       .catch((err: Error) => {
         if (err.name === 'AbortError') return
-        setState({ quote: null, status: 'failed', asOf: null, delayed: true })
+        setState({ symbol, quote: null, status: 'failed', asOf: null, delayed: true })
       })
 
     return () => controller.abort()
   }, [symbol])
 
+  /* The previous company's quote stays on screen while the next one loads —
+     blanking it collapses the panel and reflows the page under the reader's
+     cursor. It is reported as loading, not as ready, because it is no longer
+     the quote for the symbol being asked about. */
+  if (symbol && state.symbol !== symbol) {
+    return { ...state, status: 'loading' }
+  }
   return state
 }
