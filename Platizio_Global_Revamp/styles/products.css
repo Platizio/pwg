@@ -118,7 +118,10 @@
   background: var(--m-bg);
   color: var(--m-ink);
   font-family: var(--m-sans);
-  overflow: hidden;
+  /* No `overflow: hidden` here. It made `.ft` the scrollport, which silently
+     killed `.ft-ind`'s `position: sticky` — measured, the panel's top stayed at
+     1104px after scrolling 1400px. Clipping belongs on `.ft-tape`, which has
+     its own. */
 }
 
 
@@ -225,7 +228,7 @@
   transform-origin: left center;
   transition: transform 0.28s var(--m-ease);
 }
-.ft-link:hover { color: #F0DCB8; }
+.ft-link:hover { color: var(--m-gold-hi); }
 .ft-link:hover .ft-link-rule,
 .ft-link:focus-visible .ft-link-rule { transform: scaleX(1); }
 .ft-link--inline { font-size: 9.5px; }
@@ -377,7 +380,6 @@
   border-radius: var(--m-radius-tile);
   background: var(--m-card-bg);
   border: 1px solid var(--m-card-border);
-  box-shadow: ;
 }
 .ft-movers-sym {
   font-family: var(--m-mono); font-variant-numeric: tabular-nums;
@@ -537,7 +539,6 @@ span.ft-name-mark {
 /* ---- the indicator ------------------------------------------------------ */
 
 .ft-ind {
-  position: relative;
   margin: 0;
   position: sticky;
   top: 96px;
@@ -816,7 +817,6 @@ span.ft-ind-mark {
   border-radius: var(--m-radius-tile);
   background: var(--m-card-bg);
   border: 1px solid var(--m-card-border);
-  box-shadow: ;
 }
 .ft-free li > span:last-child {
   display: block;

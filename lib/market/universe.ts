@@ -65,6 +65,12 @@ export const TRADABLE_SYMBOLS: string[] = TRADABLE.map((e) => e.s);
 export const NAME_BY_SYMBOL = new Map(TRADABLE.map((e) => [e.s, e.n]));
 export const EXCHANGE_BY_SYMBOL = new Map(TRADABLE.map((e) => [e.s, e.ex]));
 
+/* The actual venue, which `ex` is not. `ex` buckets 2,731 NYSE Arca listings,
+   1,640 Cboe BZX listings and 325 NYSE American listings all under "AMEX", so
+   anything that has to name a venue precisely — see lib/market/tradingview.ts
+   — has to read this instead. */
+export const MIC_BY_SYMBOL = new Map(TRADABLE.map((e) => [e.s, e.mic]));
+
 /* ------------------------------------------------------------------ */
 /* Index and sector proxies                                            */
 /* ------------------------------------------------------------------ */
@@ -147,6 +153,18 @@ const PALETTE = ["#E5DDD1", "#D9BD8B", "#93C7A8", "#B0BFCB", "#C9A88A"] as const
    These are large caps spread across the dividend calendar, so that something
    is always upcoming, and across sectors, so the wire is not four stories
    about semiconductors. */
+/* Kept alive by hand, because a delisted name here is indistinguishable from an
+   outage: it 404s on every reference endpoint forever, and the sweep's health
+   flag counted that as a failure. EA (last print 2026-08-04) and EQR
+   (2026-08-17) were both dead and were replaced by TMUS and UDR — same sector,
+   same place in the ex-dividend spread, both verified answering. AVB died the
+   same day as EQR and is the obvious substitute for it; it is deliberately not
+   used here for that reason.
+
+   Note that symbol-master.json is not a reliable liveness check: it was rebuilt
+   on 2026-08-21, four days after EQR stopped trading, and still lists it under
+   MIC XNYS. Only the quote's updateTime and a 404 from the reference endpoints
+   told the truth. */
 export const CALENDAR_TICKERS = [
   "AAPL", "MSFT", "NVDA", "AVGO", "CSCO", "IBM", "TXN", "QCOM", "ORCL", "ACN",
   "JPM", "BAC", "GS", "MS", "AXP", "BLK", "SPGI", "CB", "PGR", "USB",
@@ -155,10 +173,10 @@ export const CALENDAR_TICKERS = [
   "PG", "KO", "PEP", "WMT", "COST", "MO", "MDLZ", "CL", "KMB", "GIS",
   "HD", "MCD", "NKE", "SBUX", "LOW", "TGT", "TJX", "F", "GM",
   "CAT", "UNP", "HON", "RTX", "LMT", "UPS", "DE", "GD", "EMR", "ETN",
-  "VZ", "T", "CMCSA", "DIS", "EA", "OMC",
+  "VZ", "T", "CMCSA", "DIS", "TMUS", "OMC",
   "NEE", "DUK", "SO", "D", "AEP", "EXC",
   "LIN", "APD", "SHW", "NUE", "DOW", "FCX",
-  "AMT", "PLD", "O", "SPG", "PSA", "CCI", "WELL", "EQR",
+  "AMT", "PLD", "O", "SPG", "PSA", "CCI", "WELL", "UDR",
 ] as const;
 
 /** Enough tickers for a rail that does not repeat, without a call per name. */
@@ -175,6 +193,29 @@ export const WIRE_TICKERS = [
   "LIN", "FCX",
   "AMT", "PLD",
   "UBER", "ABNB", "PLTR", "COIN",
+] as const;
+
+/* The names a reader already knows, for the ribbon labelled "Popular".
+
+   Committed by hand because the question has no field behind it. Everything a
+   sweep can measure about attention is a volume measure, and the ribbon was
+   ranked on relative volume until it was noticed that this answers a question
+   nobody asked: a mid-cap at nine times its average volume is what the market
+   is watching today, and someone opening this page has never heard of it. They
+   have heard of Apple. Recognition is editorial, so it is written down.
+
+   Ordered, not sorted — the ribbon renders this sequence as given. The first
+   eight are the mega-cap technology names that carry the market and lead every
+   front page; the rest are consumer brands recognised from the street rather
+   than from a quote screen, which is what keeps the strip from reading as a
+   sector board.
+
+   Deliberately longer than the twelve cells the ribbon draws. A curated list
+   has no fallback — an absent name is simply a shorter ribbon — so the tail
+   here is the margin that keeps it full when a few do not quote. */
+export const POPULAR_TICKERS = [
+  "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "NFLX",
+  "DIS", "KO", "MCD", "NKE", "SBUX", "WMT", "V", "AMD", "INTC", "UBER",
 ] as const;
 
 /** The six symbols with instrument pages of their own. */

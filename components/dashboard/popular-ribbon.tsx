@@ -29,9 +29,11 @@ export function PopularRibbon({ rows }: { rows: Quote[] }) {
   const track = useRef<HTMLDivElement>(null);
 
   /* The server snapshot is what renders; ticks only overwrite a row once a real
-     trade arrives for that symbol. The order is a relative-volume ranking done
-     server-side, so this maps over `rows` in place — re-ranking a strip that is
-     already gliding past would swap cells under the reader's eye. */
+     trade arrives for that symbol. The order is editorial — a curated list of
+     the names a reader recognises, best-known first — so this maps over `rows`
+     in place. Sorting here by price or move would re-rank a strip that is
+     already gliding past, swapping cells under the reader's eye, and would
+     throw away the one thing the order is carrying. */
   const symbols = useMemo(() => rows.map((r) => r.id), [rows]);
   const ticks = useLive(symbols);
 

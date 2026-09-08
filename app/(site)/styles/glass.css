@@ -1,0 +1,221 @@
+/* Liquid glass.
+ *
+ * One material, two variants, five surfaces: the nav pill, the gold button,
+ * the glass button, the footer bar, and the floating cards inside a night
+ * panel. backdrop-filter is priced per painted area, so it never goes on a
+ * full-bleed region and the blur radius is never animated.
+ *
+ * The sheen is fixed. A highlight that tracked the pointer across the nav and
+ * every gold button read as a glow chasing the cursor rather than as light on
+ * a material, so it is gone; what remains is the inset edge light, which is
+ * the part that makes the surface read as glass.
+ *
+ * Every backdrop-filter is written as a literal, unprefixed, and once: this
+ * build's CSS minifier empties any @supports body that uses var(), and its
+ * prefixer DROPS the unprefixed declaration when a rule also spells the
+ * -webkit- one by hand (verified against the served chunk: only the prefixed
+ * line survived, and Chrome ignores the prefixed alias, so no glass blurred).
+ * The pipeline adds the prefix itself; tests/guard-css-declarations enforces
+ * both rules.
+ */
+
+.glass {
+  position: relative;
+  isolation: isolate;
+  background: color-mix(in srgb, var(--paper-2) 58%, transparent);
+  border: 1px solid rgba(26, 18, 7, 0.09);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -1px 0 rgba(26, 18, 7, 0.05),
+    0 1px 2px rgba(26, 18, 7, 0.05),
+    0 12px 32px -16px rgba(26, 18, 7, 0.25);
+  backdrop-filter: blur(18px) saturate(170%);
+}
+
+/* The lens edge: an inner ring and a diagonal sheen, so the object reads as
+   having thickness rather than as a tinted rectangle. */
+.glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: -1;
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.4), inset 0 0 20px rgba(255, 255, 255, 0.35);
+  background: linear-gradient(115deg, rgba(255, 255, 255, 0.4), transparent 42%, transparent 58%, rgba(255, 255, 255, 0.2));
+}
+
+.glass--dark {
+  background: rgba(18, 41, 74, 0.55);
+  border-color: rgba(217, 189, 139, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(240, 220, 184, 0.35),
+    0 20px 60px -20px rgba(0, 0, 0, 0.6);
+  color: var(--night-ink);
+}
+.glass--dark::before {
+  box-shadow: inset 0 0 0 1px rgba(240, 220, 184, 0.12), inset 0 0 24px rgba(240, 220, 184, 0.08);
+  background: linear-gradient(115deg, rgba(240, 220, 184, 0.18), transparent 40%, transparent 60%, rgba(240, 220, 184, 0.08));
+}
+/* ================================================================ buttons */
+
+/* Shared anatomy. 44px minimum everywhere; the nav uses --sm at 40px, which
+   is the one exception and is why the pill can be 60px tall. */
+.btn-gold,
+.btn-glass,
+.btn-quiet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 48px;
+  padding-inline: 1.5rem;
+  border-radius: var(--r-pill);
+  font-family: var(--sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform var(--t) var(--ease),
+    border-color var(--t) var(--ease),
+    background-color var(--t) var(--ease),
+    color var(--t) var(--ease),
+    box-shadow var(--t-slow) var(--ease);
+}
+.btn-gold svg,
+.btn-glass svg,
+.btn-quiet svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  transition: transform var(--t-slow) var(--ease);
+}
+.btn-gold:hover svg,
+.btn-glass:hover svg { transform: translateX(3px); }
+.btn--sm { min-height: 40px; padding-inline: 1.1rem; font-size: 0.8125rem; }
+.btn--lg { min-height: 52px; padding-inline: 1.75rem; font-size: 0.9375rem; }
+
+/* The primary action. Gold foil in glass: one per view. */
+.btn-gold {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 0;
+  color: var(--on-gold);
+  font-weight: 600;
+  background: linear-gradient(120deg, #efd9b0 0%, var(--foil) 34%, #c7a468 58%, #e6cc9f 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -1px 0 rgba(90, 60, 20, 0.25),
+    0 1px 2px rgba(26, 18, 7, 0.15),
+    var(--shadow-gold);
+}
+/* The sweep on hover. Transform only. */
+.btn-gold::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.55) 48%, transparent 60%);
+  transform: translateX(-120%);
+  transition: transform 0.9s var(--ease);
+}
+.btn-gold:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 -1px 0 rgba(90, 60, 20, 0.25),
+    0 2px 4px rgba(26, 18, 7, 0.15),
+    0 22px 50px -16px rgba(184, 148, 92, 0.9);
+}
+.btn-gold:hover::after { transform: translateX(120%); }
+.btn-gold:active { transform: translateY(0) scale(0.985); }
+
+/* The press ripple, appended by components/marketing/motion/ripple.ts. */
+.btn-gold .ripple {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+  transform: translate(-50%, -50%) scale(0);
+  animation: ripple 0.7s var(--ease) forwards;
+  pointer-events: none;
+}
+@keyframes ripple {
+  to { transform: translate(-50%, -50%) scale(40); opacity: 0; }
+}
+
+/* The ghost. Glass with a hairline; ink on paper, cream on navy. */
+.btn-glass {
+  position: relative;
+  isolation: isolate;
+  color: var(--ink);
+  border: 1px solid var(--rule-2);
+  background: color-mix(in srgb, var(--paper-2) 40%, transparent);
+  backdrop-filter: blur(8px) saturate(140%);
+}
+.btn-glass:hover {
+  border-color: var(--gold-text);
+  transform: translateY(-2px);
+}
+.btn-glass--dark {
+  color: var(--night-ink);
+  border-color: var(--rule-n2);
+  background: rgba(242, 237, 229, 0.08);
+}
+.btn-glass--dark:hover { border-color: var(--foil); }
+
+/* The quiet button: a hairline and nothing else. */
+.btn-quiet {
+  color: var(--ink-2);
+  border: 1px solid var(--rule-2);
+  background: transparent;
+}
+.btn-quiet:hover {
+  color: var(--ink);
+  border-color: var(--ink-3);
+  background: var(--paper-3);
+}
+.night .btn-quiet {
+  color: var(--night-ink-2);
+  border-color: var(--rule-n2);
+}
+.night .btn-quiet:hover {
+  color: var(--night-ink);
+  border-color: var(--foil);
+  background: rgba(242, 237, 229, 0.06);
+}
+
+/* ============================================================== opt-outs */
+
+/* Reduced transparency: a real opaque ground, not a thinner blur. */
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .btn-glass {
+    backdrop-filter: none;
+    background: var(--paper-2);
+  }
+  .glass--dark,
+  .btn-glass--dark { background: var(--navy-2); }
+  .glass::before { display: none; }
+}
+
+/* Reduced motion: the material stays, the movement goes. */
+@media (prefers-reduced-motion: reduce) {
+  .btn-gold::after,
+  .btn-gold .ripple { display: none; }
+  .btn-gold,
+  .btn-glass,
+  .btn-quiet,
+  .btn-gold svg,
+  .btn-glass svg { transition: none; }
+  .btn-gold:hover,
+  .btn-glass:hover,
+  .btn-gold:active { transform: none; }
+}

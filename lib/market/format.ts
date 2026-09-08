@@ -23,18 +23,26 @@ export const compactVolume = (n: number) => {
   return n.toFixed(0);
 };
 
+/* Market time, not UTC and not the reader's.
+ *
+ * These were UTC and unlabelled, so a US equity's intraday chart opened at
+ * 13:30 and a reader in Mumbai had no way to tell whether that was a New York
+ * session hour, their own, or neither. The session is a fact about New York,
+ * so the clock is New York and every stamp that carries a clock says ET. */
+const ET_ZONE = "America/New_York";
+
 const TIME = new Intl.DateTimeFormat("en-US", {
   hour: "2-digit",
   minute: "2-digit",
   hour12: false,
-  timeZone: "UTC",
+  timeZone: ET_ZONE,
 });
 
 const DATE = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
   month: "short",
   year: "numeric",
-  timeZone: "UTC",
+  timeZone: ET_ZONE,
 });
 
 /** Clock only — an intraday axis repeating the same date five times says nothing. */
@@ -45,12 +53,15 @@ export const dayOf = (seconds: number) =>
   new Intl.DateTimeFormat("en-US", {
     day: "numeric",
     month: "short",
-    timeZone: "UTC",
+    timeZone: ET_ZONE,
   }).format(seconds * 1000);
 
+/* A clock is meaningless without its zone, so the intraday stamp carries one.
+   A date needs none: the ET calendar day is the trading day, which is the only
+   day a reader of this chart cares about. */
 export const formatStamp = (seconds: number, intraday: boolean) =>
   intraday
-    ? `${DATE.format(seconds * 1000)} · ${TIME.format(seconds * 1000)}`
+    ? `${DATE.format(seconds * 1000)} · ${TIME.format(seconds * 1000)} ET`
     : DATE.format(seconds * 1000);
 
 /* Market capitalisation, in the register a table column has room for.

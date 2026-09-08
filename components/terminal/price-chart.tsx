@@ -2,7 +2,6 @@
 
 import {
   AreaSeries,
-  CandlestickSeries,
   ColorType,
   CrosshairMode,
   LineStyle,
@@ -20,12 +19,11 @@ import {
 import { motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatStamp, money } from "@/lib/market/format";
+import { rangeCaption } from "@/lib/market/ranges";
 import { getRange } from "@/lib/market/ranges";
 import type { RangeId } from "@/lib/market/types";
 import type { PricePoint } from "@/lib/api/normalize/series";
 import { chartPalette, EASE, type ChartPalette, chartFontFamily } from "@/lib/tokens";
-
-export type ChartKind = "area" | "candles";
 
 /**
  * The resolved canvas palette, kept in step with the page's lighting.
@@ -65,14 +63,12 @@ function useChartPalette(): ChartPalette {
 export function PriceChart({
   history,
   range,
-  kind,
 }: {
   /* Both series, so the control can switch between them without a refetch:
      the day comes from minute bars, everything else is a slice of the daily
      pull the snapshot already holds. */
   history: { daily: PricePoint[]; intraday: PricePoint[]; intradayNote: string | null };
   range: RangeId;
-  kind: ChartKind;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
@@ -85,7 +81,6 @@ export function PriceChart({
   const prevLineRef = useRef<IPriceLine | null>(null);
   /* Which series type `mainRef` currently holds — the data effect needs it to
      pick the right payload shape without re-running on every series swap. */
-  const kindRef = useRef<ChartKind>(kind);
 
   const reduceMotion = useReducedMotion();
 
@@ -105,8 +100,11 @@ export function PriceChart({
   const tickMarkFormatter = useCallback(
     (time: UTCTimestamp, tickMarkType: TickMarkType) => {
       const ms = (time as number) * 1000;
+      /* America/New_York, not UTC. The axis used to open a US session at 13:30
+         with nothing saying which zone that was; the caption under the chart
+         now states ET and the ticks agree with it. */
       const fmt = (opts: Intl.DateTimeFormatOptions) =>
-        new Intl.DateTimeFormat("en-US", { timeZone: "UTC", ...opts }).format(ms);
+        new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", ...opts }).format(ms);
 
       if (intraday) return fmt({ hour: "2-digit", minute: "2-digit", hour12: false });
       if (tickMarkType === TickMarkType.Year) return fmt({ year: "numeric" });
@@ -124,23 +122,33 @@ export function PriceChart({
 
     const at = (p: PricePoint) => Math.floor(p.at / 1000) as UTCTimestamp;
 
-    /* Real bodies and wicks. Both feeds carry open, high and low; the chart
-       used to keep only the close and set all four equal to it, which drew a
-       candlestick view made entirely of flat dashes. */
-    const candles = slice.map((p) => ({
-      time: at(p),
-      open: p.open ?? p.price,
-      high: p.high ?? p.price,
-      low: p.low ?? p.price,
-      close: p.price,
-    }));
-
     return {
       values: slice.map((p) => p.price),
+      /* The real ends of what is drawn. The window is a tail-slice of ROWS,
+         not a date range, so these are the only honest source for the caption:
+         if the feed's last row is Friday and today is Tuesday, 1W is showing
+         last Mon-Fri and only these two numbers reveal it. */
+      firstAt: slice[0]?.at ?? null,
+      lastAt: slice.at(-1)?.at ?? null,
       line: slice.map((p) => ({ time: at(p), value: p.price })),
-      candles,
       base: slice[0]?.price ?? 0,
-      prev: slice.length > 1 ? slice[slice.length - 2].price : (slice[0]?.price ?? 0),
+      /* The previous close, and on the day range that means the previous
+         SESSION — not the previous minute.
+
+         This read `slice[length - 2]` for every range. On a daily range that is
+         yesterday's close and correct. On 1D it is the bar one minute earlier,
+         and it was driving three things at once: the dashed gold "PREV CLOSE"
+         marker, the up/down colour of the whole area fill, and the percentage
+         in the screen-reader summary. So a session up 2% could paint red
+         because the last minute ticked down a cent, disagreeing with the
+         header sitting directly above it, which reads the day change off the
+         quote. The daily series ends at the last completed session, which is
+         exactly the figure the day range needs. */
+      prev: rangeDef.intraday
+        ? (history.daily.at(-1)?.price ?? slice[0]?.price ?? 0)
+        : slice.length > 1
+          ? slice[slice.length - 2].price
+          : (slice[0]?.price ?? 0),
       empty: slice.length === 0,
       /* The extremes of this range, wicks included. The price axis is pinned
          to these rather than to whatever is inside the visible window. */
@@ -166,6 +174,15 @@ export function PriceChart({
   useEffect(() => {
     liveRef.current = { base: data.base, intraday: rangeDef.intraday, P };
   });
+
+  /* What the chart is actually showing, in words: interval, count, real span,
+     timezone. None of this was stated anywhere before — six buttons labelled
+     1D through 5Y and nothing distinguishing five daily closes from a week of
+     minutes. */
+  const caption = useMemo(
+    () => rangeCaption(rangeDef, data.firstAt, data.lastAt, data.values.length),
+    [rangeDef, data.firstAt, data.lastAt, data.values.length],
+  );
 
   const last = data.values.at(-1) ?? 0;
   const up = last >= data.prev;
@@ -219,15 +236,23 @@ export function PriceChart({
       },
       crosshair: {
         mode: CrosshairMode.Magnet,
-        /* The source draws a vertical guide only — no horizontal line, no
-           label floating over the ladder. */
+        /* Both guides. The vertical alone tells a reader which bar they are on
+           but not what it is worth without tracking their eye to the axis; the
+           horizontal closes that, and its axis label is the price. */
         vertLine: {
           color: P.crosshair,
           width: 1,
           style: LineStyle.Solid,
           labelBackgroundColor: P.raised,
         },
-        horzLine: { visible: false, labelVisible: false },
+        horzLine: {
+          color: P.crosshair,
+          width: 1,
+          style: LineStyle.Solid,
+          visible: true,
+          labelVisible: true,
+          labelBackgroundColor: P.raised,
+        },
       },
       handleScale: { axisPressedMouseMove: { price: false } },
     });
@@ -318,39 +343,26 @@ export function PriceChart({
 
     const previous = mainRef.current;
 
-    const series =
-      kind === "area"
-        ? chart.addSeries(
-            AreaSeries,
-            {
-              priceScaleId: "left",
-              lineWidth: 1,
-              priceLineVisible: false,
-              lastValueVisible: false,
-              crosshairMarkerVisible: true,
-              crosshairMarkerRadius: 4.5,
-              crosshairMarkerBorderWidth: 1.5,
-              crosshairMarkerBorderColor: P.shell,
-            },
-            0,
-          )
-        : chart.addSeries(
-            CandlestickSeries,
-            {
-              priceScaleId: "left",
-              borderVisible: false,
-              priceLineVisible: false,
-              lastValueVisible: false,
-            },
-            0,
-          );
+    const series = chart.addSeries(
+      AreaSeries,
+      {
+        priceScaleId: "left",
+        lineWidth: 1,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: true,
+        crosshairMarkerRadius: 4.5,
+        crosshairMarkerBorderWidth: 1.5,
+        crosshairMarkerBorderColor: P.shell,
+      },
+      0,
+    );
 
     mainRef.current = series;
-    kindRef.current = kind;
     prevLineRef.current = null;
 
     if (previous) chart.removeSeries(previous);
-  }, [kind, P]);
+  }, [P]);
 
   /* Colour, data and the previous-close marker follow the instrument. */
   useEffect(() => {
@@ -382,41 +394,28 @@ export function PriceChart({
       return { priceRange: { minValue: min - pad, maxValue: max + pad } };
     };
 
-    if (kindRef.current === "area") {
-      const area = series as ISeriesApi<"Area">;
-      area.applyOptions({
-        lineColor: tone,
-        topColor: up ? "rgba(125, 211, 160, 0.22)" : "rgba(224, 121, 107, 0.22)",
-        bottomColor: up ? "rgba(125, 211, 160, 0)" : "rgba(224, 121, 107, 0)",
-        crosshairMarkerBackgroundColor: tone,
-        autoscaleInfoProvider,
-      });
-      area.setData(
-        data.line.map((d) => ({ time: d.time as UTCTimestamp, value: d.value })),
-      );
-    } else {
-      const candles = series as ISeriesApi<"Candlestick">;
-      candles.applyOptions({
-        upColor: P.up,
-        downColor: P.down,
-        wickUpColor: P.up,
-        wickDownColor: P.down,
-        autoscaleInfoProvider,
-      });
-      candles.setData(
-        data.candles.map((c) => ({
-          time: c.time as UTCTimestamp,
-          open: c.open,
-          high: c.high,
-          low: c.low,
-          close: c.close,
-        })),
-      );
-    }
+    const area = series as ISeriesApi<"Area">;
+    area.applyOptions({
+      lineColor: tone,
+      topColor: up ? "rgba(125, 211, 160, 0.22)" : "rgba(224, 121, 107, 0.22)",
+      bottomColor: up ? "rgba(125, 211, 160, 0)" : "rgba(224, 121, 107, 0)",
+      crosshairMarkerBackgroundColor: tone,
+      autoscaleInfoProvider,
+    });
+    area.setData(data.line.map((d) => ({ time: d.time as UTCTimestamp, value: d.value })));
 
     /* The dashed prev-close marker the Lux design adds. A native price line
-       rather than an absolutely-positioned div, so it tracks the scale. */
-    if (prevLineRef.current) series.removePriceLine(prevLineRef.current);
+       rather than an absolutely-positioned div, so it tracks the scale.
+
+       Skipped when there is nothing plotted: `prev` is 0 on an empty slice, so
+       this drew a dashed gold line labelled PREV CLOSE at 0.00 behind the "no
+       trades yet this session" message, and handed the price axis a zero to
+       scale against. */
+    if (prevLineRef.current) {
+      series.removePriceLine(prevLineRef.current);
+      prevLineRef.current = null;
+    }
+    if (data.empty) return;
     prevLineRef.current = series.createPriceLine({
       price: data.prev,
       color: P.goldDeep,
@@ -426,7 +425,7 @@ export function PriceChart({
       title: "PREV CLOSE",
     });
 
-  }, [data, tone, up, kind, P]);
+  }, [data, tone, up, P]);
 
   /* Reset the time window. The price axis needs no resetting: it is pinned to
      the range's own extremes by the provider above, so it never drifted. */
@@ -436,7 +435,7 @@ export function PriceChart({
 
   useEffect(() => {
     refit();
-  }, [refit, range, kind, data.values.length]);
+  }, [refit, range, data.values.length]);
 
   /* The canvas holds literal colours, so it does not follow the theme on its
      own. Re-apply them when the lighting changes: without this the chart keeps
@@ -462,17 +461,31 @@ export function PriceChart({
      `bounds` are. Reading values[0] raw threw on any ticker whose range came
      back empty — the empty state below renders fine, but this label is built
      first, so the crash preceded it. */
+  /* One baseline, named. The sentence used to open "Opened X, last Y" — which
+     announces a range return — and then quote a percentage measured against
+     the PREVIOUS BAR instead. Two baselines in one sentence, with only the
+     percentage silently switching. The range move is now measured from the
+     range's own first price, and the previous close is stated separately as
+     the different fact it is. */
+  const rangeMove = data.base > 0 ? (last / data.base - 1) * 100 : 0;
   const summary = data.empty
     ? `${range} chart. No price history available for this range.`
-    : `${range} chart. Opened ${money(
-        data.base,
-      )} dollars, last ${money(last)} dollars, ${up ? "up" : "down"} ${Math.abs(
-        data.prev > 0 ? (last / data.prev - 1) * 100 : 0,
-      ).toFixed(2)} percent. Previous close ${money(data.prev)} dollars.`;
+    : `${range} chart, ${caption}. Opened ${money(data.base)} dollars, last ${money(
+        last,
+      )} dollars, ${rangeMove >= 0 ? "up" : "down"} ${Math.abs(rangeMove).toFixed(
+        2,
+      )} percent across the range. Previous close ${money(data.prev)} dollars.`;
 
   return (
-    <figure className="relative m-0 h-full">
-      <div className="h-full w-full" role="img" aria-label={summary}>
+    /* A column, not a stack. The caption used to be absolutely positioned at
+       bottom-0 of this figure, which put it exactly on top of the time axis —
+       measured at 784-802px against an axis occupying 776-802px, so it covered
+       the earliest date labels on every range. It now takes its own row and the
+       plot gives up the ~18px. */
+    <figure className="relative m-0 flex h-full flex-col">
+      {/* `relative` so the empty-state overlay below covers the plot rather
+          than the whole figure, caption included. */}
+      <div className="relative w-full min-h-0 flex-1" role="img" aria-label={summary}>
         {/* Double-click restores the fitted view. With autoscale held off so
             zooming stays put, a reader who has zoomed into a corner needs a
             way back that does not involve reloading the page. */}
@@ -487,7 +500,7 @@ export function PriceChart({
             <p className="max-w-[30ch] text-center text-[13px] leading-[1.7] text-ink-3">
               {rangeDef.source === "intraday"
                 ? (history.intradayNote ?? "No trades yet this session.")
-                : "No price history is available for this instrument."}
+                : "No price history is available for this stock."}
             </p>
           </div>
         )}
@@ -501,7 +514,7 @@ export function PriceChart({
       */}
       {!reduceMotion && (
         <motion.div
-          key={`${range}-${kind}-${data.values.length}`}
+          key={`${range}-${data.values.length}`}
           aria-hidden="true"
           initial={{ scaleX: 1 }}
           animate={{ scaleX: 0 }}
@@ -528,8 +541,17 @@ export function PriceChart({
         />
       </div>
 
-      {/* Canvas is opaque to assistive tech — this is the readable equivalent. */}
-      <figcaption className="sr-only">
+      {/* A figure takes one figcaption, so the visible line and the readable
+          equivalent of the canvas share it: the caption states what is drawn,
+          the table beneath it carries the numbers for assistive tech. */}
+      <figcaption>
+        {/* Interval, count, real span, timezone. The chart said none of this —
+            six buttons and no way to tell five daily closes from a week of
+            minutes, nor that a 13:30 tick was UTC rather than a session hour. */}
+        <p className="font-mono shrink-0 truncate pt-1.5 text-[10.5px] tracking-[0.04em] text-ink-4">
+          {caption}
+        </p>
+        <span className="sr-only">
         <table>
           <caption>{summary}</caption>
           <thead>
@@ -539,16 +561,17 @@ export function PriceChart({
             </tr>
           </thead>
           <tbody>
-            {data.candles
-              .filter((_, i) => i % 6 === 0 || i === data.candles.length - 1)
-              .map((c) => (
-                <tr key={c.time}>
-                  <td>{formatStamp(c.time, rangeDef.intraday)}</td>
-                  <td>{money(c.close)}</td>
+            {data.line
+              .filter((_, i) => i % 6 === 0 || i === data.line.length - 1)
+              .map((d) => (
+                <tr key={d.time}>
+                  <td>{formatStamp(d.time as number, rangeDef.intraday)}</td>
+                  <td>{money(d.value)}</td>
                 </tr>
               ))}
           </tbody>
         </table>
+        </span>
       </figcaption>
     </figure>
   );

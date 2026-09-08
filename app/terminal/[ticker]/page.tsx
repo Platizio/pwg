@@ -22,7 +22,7 @@ export const revalidate = 300;
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { ticker } = await params;
   const snapshot = await getInstrumentSnapshot(ticker);
-  if (!snapshot) return { title: "Platizio Global · Instrument not found" };
+  if (!snapshot) return { title: "Platizio Global · Stock not found" };
 
   const { profile } = snapshot;
   return {

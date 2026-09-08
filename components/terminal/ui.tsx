@@ -52,6 +52,18 @@ export function Section({
 /**
  * 2px hairline meter — the only bar Lux draws. Grows from zero, keyed by
  * instrument so it replays when the terminal switches symbol.
+ *
+ * The fill is laid out once at its final width and animated with scaleX, not
+ * by animating width itself. Width is a layout property: animating it makes
+ * the browser re-run layout on every frame, and the Performance tab puts seven
+ * of these inside the cells of a `border-collapse`, `table-layout: auto`
+ * table — where each frame re-resolves column widths and borders for every
+ * row. Seven cells doing that at 60fps for 1.1s is roughly 460 full table
+ * relayouts, which is why that tab felt slow while its actual data cost was
+ * 0.075ms. scaleX is composited: no layout, no reflow, same 1.1s growth.
+ *
+ * transformOrigin is pinned left so the bar still grows from its start edge
+ * rather than opening outward from the middle.
  */
 export function Meter({
   width,
@@ -67,10 +79,16 @@ export function Meter({
   return (
     <div className="w-full bg-rule-list" style={{ height }}>
       <motion.div
-        initial={{ width: 0 }}
-        animate={{ width }}
+        initial={{ scaleX: 0 }}
+        animate={{ scaleX: 1 }}
         transition={{ duration: 1.1, ease: EASE, delay }}
-        style={{ height, background: color }}
+        style={{
+          width,
+          height,
+          background: color,
+          transformOrigin: "left center",
+          willChange: "transform",
+        }}
       />
     </div>
   );

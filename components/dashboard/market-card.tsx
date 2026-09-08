@@ -223,14 +223,20 @@ function freshen(rows: Quote[] | undefined, ticks: ReadonlyMap<string, Tick>): Q
 /**
  * How broadly the index moved.
  *
- * This is the fix for a line that used to read "19 of the 34 we cover here
- * rose today" — a sentence that left two questions open: 34 out of what, and
- * what does 34 have to do with an index of five hundred. It is spelled out
- * now, in the order a reader actually asks it.
+ * The two headline counts and the denominator must reconcile. They did not:
+ * the card printed "163 rose" and "311 fell" beneath a total of 500, and a
+ * reader who added them found 474. The 26 were not flat names — they were
+ * names the gateway priced but sent no change for, which land on chg 0 and
+ * were being counted in the total and in neither direction. They now have
+ * their own figure, and the four numbers sum.
  *
- * The closing clause once called the level above the real one. No index
- * instrument is entitled on this account, so it is not: the number is a
- * tracking fund. The line now admits the same thing the index note does.
+ * The bar splits advancing against declining among the names that actually
+ * moved. Splitting it against the total painted every unreported name as a
+ * decline, which is how 23 large caps quoting one share each became red.
+ *
+ * The three-sentence disclosure that used to close this tile is gone. Two of
+ * its claims were already made better elsewhere — the ETF caveat is the index
+ * note directly above, and the sample caveat is the basis clause below.
  */
 function Breadth({
   index,
@@ -238,12 +244,16 @@ function Breadth({
   basis,
 }: {
   index: MarketIndex;
-  breadth: { total: number; up: number; down: number };
+  breadth: { total: number; up: number; down: number; flat: number; unreported: number };
   /* How the sample was drawn, supplied by the data. The count moves with the
      sweep, and the wording must never harden into a claim of membership. */
   basis: string;
 }) {
-  const upShare = breadth.total ? (breadth.up / breadth.total) * 100 : 0;
+  /* Among the names that moved, not among the sample: an unreported name is not
+     a decline, and the bar must not draw it as one. */
+  const moved = breadth.up + breadth.down;
+  const upShare = moved ? (breadth.up / moved) * 100 : 0;
+  const reported = breadth.up + breadth.down + breadth.flat;
 
   return (
     <div className="min-w-0 rounded-[var(--radius-tile)] border border-rule-section bg-[linear-gradient(140deg,var(--c-tile-from),var(--c-tile-to))] p-5">
@@ -267,13 +277,12 @@ function Breadth({
         </span>
       </div>
 
-      <p className="mt-4 border-t border-rule-section pt-3.5 text-[13px] leading-[1.65] text-ink-3">
-        Counted across{" "}
-        <span className="text-ink-2">{breadth.total} companies</span> — {basis}.
-        No constituent list is available on this account, so this is a stand-in
-        for the index rather than its own membership, and the level above is the
-        price of the tracking fund.
+      <p className="font-mono mt-4 border-t border-rule-section pt-3.5 text-[12px] leading-[1.6] text-ink-3">
+        <span className="text-ink-2">{reported}</span> of {breadth.total} reported
+        {breadth.flat > 0 && <> · {breadth.flat} unchanged</>}
+        {breadth.unreported > 0 && <> · {breadth.unreported} sent no change</>}
       </p>
+      <p className="mt-1.5 text-[12px] leading-[1.55] text-ink-3">{basis}.</p>
     </div>
   );
 }

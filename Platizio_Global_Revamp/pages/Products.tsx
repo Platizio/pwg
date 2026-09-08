@@ -37,7 +37,7 @@
  */
 
 import { useMemo, useState } from 'react'
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { TRADING_PLATFORM_URL, SCREENER_URL, screenerInstrument } from '../../src/constants'
@@ -310,7 +310,6 @@ export default function Products() {
         <div className="container">
           <header className="ft-head">
             <div className="ft-head-l">
-              <span className="ft-label">01 — the name</span>
               <h2 className="ft-h2">Pick a company you already know.</h2>
             </div>
             <p className="ft-body">
@@ -472,7 +471,6 @@ export default function Products() {
         <div className="container">
           <header className="ft-head">
             <div className="ft-head-l">
-              <span className="ft-label">02 — the evidence</span>
               <h2 className="ft-h2">See more than a price.</h2>
             </div>
             <p className="ft-body">
@@ -544,7 +542,6 @@ export default function Products() {
         <div className="container">
           <header className="ft-head">
             <div className="ft-head-l">
-              <span className="ft-label">03 — the cost</span>
               <h2 className="ft-h2">Know the whole cost, before you trade.</h2>
             </div>
             <p className="ft-body">
@@ -601,7 +598,6 @@ export default function Products() {
         <div className="container">
           <header className="ft-head">
             <div className="ft-head-l">
-              <span className="ft-label">04 — afterwards</span>
               <h2 className="ft-h2">Know what you owe later.</h2>
             </div>
             <p className="ft-body">
@@ -668,7 +664,6 @@ export default function Products() {
       <section className="ft-close" id="open">
         <div className="container">
           <div className="ft-close-inner">
-            <span className="ft-label">05 — the account</span>
             <h2 className="ft-h2">Open an account in an afternoon.</h2>
             <p className="ft-body">
               Opening costs nothing and closes nothing off. You can hold the terminal

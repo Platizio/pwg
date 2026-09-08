@@ -179,7 +179,7 @@ export function SectorView({ sector }: { sector: SectorSnapshot }) {
           <div className="flex flex-wrap items-center justify-between gap-4 px-2">
             <div
               role="tablist"
-              aria-label="Instrument type"
+              aria-label="Stock type"
               className="flex gap-1 rounded-full border border-rule-control p-1"
             >
               {(
@@ -309,9 +309,10 @@ export function SectorView({ sector }: { sector: SectorSnapshot }) {
 
         <p className="mt-8 max-w-[74ch] text-[12.5px] leading-[1.75] text-ink-3">
           Prices come from a US market feed and reach this page about fifteen minutes behind the
-          exchange. One-year and five-year figures are total returns to the last completed session
-          and are refreshed daily, not live. Five-year CAGR is a compound annual rate, not the
-          cumulative move. Nothing here is advice.
+          exchange. One-year and five-year figures are price returns to the last completed
+          session, adjusted for splits but not for dividends, and are refreshed daily, not live.
+          Five-year CAGR is a compound annual rate, not the cumulative move. Nothing here is
+          advice.
         </p>
       </div>
     </main>

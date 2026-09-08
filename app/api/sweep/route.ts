@@ -1,6 +1,7 @@
 import { revalidateTag } from "next/cache";
 
 import { TAGS } from "@/lib/api/ttl";
+import { health } from "@/lib/market/health";
 import { getHomeSnapshot } from "@/lib/market/home";
 
 import type { NextRequest } from "next/server";
@@ -30,8 +31,12 @@ export async function GET(request: NextRequest) {
 
   /* Vercel's scheduler presents CRON_SECRET as a bearer token; the query
      parameter is for calling it by hand. Missing configuration fails closed. */
+  /* `||`, not `??`: `?.` short-circuits only when the header is ABSENT. A
+     present-but-empty `Authorization:` — some proxies add one — yields "",
+     which is not nullish, so `??` would keep the empty string and never
+     consult the query parameter. An empty string is not a credential. */
   const presented =
-    request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
+    request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ||
     request.nextUrl.searchParams.get("key");
 
   if (process.env.NODE_ENV === "production" && (!secret || presented !== secret)) {
@@ -47,7 +52,32 @@ export async function GET(request: NextRequest) {
      the snapshot it came to replace. */
   revalidateTag(TAGS.sweep, "max");
 
-  const { sweptAt, rows, eligible, calls, ms, failures } = snapshot.diagnostics;
+  const { sweptAt, rows, eligible, calls, ms, faults } = snapshot.diagnostics;
+  const { status, ok } = health(faults);
 
-  return Response.json({ ok: failures.length === 0, sweptAt, rows, eligible, calls, ms });
+  /* Two things this used to get wrong.
+
+     It reported `ok: failures.length === 0`, and one of the eight things it
+     counted was a per-ticker shortfall — so two delisted companies held the
+     flag at false forever and it carried no information at all. Severity now
+     decides: a thinner panel is "degraded" and still ok, a wrong or absent
+     page is "failed".
+
+     And it answered 200 regardless. Vercel Cron's own success indicator reads
+     the STATUS CODE, not the body, so a run serving the committed baseline
+     reported success to the only system watching it. Now they agree. */
+  return Response.json(
+    {
+      ok,
+      status,
+      sweptAt,
+      rows,
+      eligible,
+      calls,
+      ms,
+      fatal: faults.filter((f) => f.severity === "fatal").map((f) => f.message),
+      degraded: faults.filter((f) => f.severity === "degraded").map((f) => f.message),
+    },
+    { status: ok ? 200 : 503 },
+  );
 }

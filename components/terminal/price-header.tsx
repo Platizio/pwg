@@ -3,15 +3,15 @@
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { useRef } from "react";
-import { IconArea, IconCandles } from "@/components/icons";
+import { IconCandles } from "@/components/icons";
 import { money, pct } from "@/lib/market/format";
 import { RANGES } from "@/lib/market/ranges";
 import type { RangeId } from "@/lib/market/types";
+import { chartPath } from "@/lib/market/paths";
 import type { CompanyProfile } from "@/lib/api/normalize/profile";
-import type { Session } from "@/lib/market/session";
+import { pricesMove, type Session } from "@/lib/market/session";
 import { C } from "@/lib/tokens";
-import type { ChartKind } from "./price-chart";
-import { QuietToggle, Segmented, SegmentedItem, cn } from "./ui";
+import { Segmented, SegmentedItem, cn } from "./ui";
 import { useLiveQuote } from "./live-provider";
 
 export function PriceHeader({
@@ -19,15 +19,11 @@ export function PriceHeader({
   session,
   range,
   onRange,
-  kind,
-  onKind,
 }: {
   profile: CompanyProfile;
   session: Session;
   range: RangeId;
   onRange: (id: RangeId) => void;
-  kind: ChartKind;
-  onKind: (k: ChartKind) => void;
 }) {
   const priceRef = useRef<HTMLSpanElement>(null);
 
@@ -118,12 +114,16 @@ export function PriceHeader({
           </span>
 
           <span className="eyebrow flex items-center gap-2.5">
-            {/* The dot pulses only while the book is actually live. */}
+            {/* The dot pulses while the figure beside it is moving, which is
+                a wider window than session.live: live is the regular session
+                alone, and pre-market and post-market quotes move too. Pairing
+                a "Pre-market" tag with a dead dot told the reader the number
+                they were looking at was frozen when it was not. */}
             <span
               aria-hidden="true"
               className={cn(
                 "h-[5px] w-[5px] rounded-full",
-                session.live ? "animate-gold-pulse bg-gold" : "bg-ink-4",
+                pricesMove(session.phase) ? "animate-gold-pulse bg-gold" : "bg-ink-4",
               )}
             />
             {session.label}
@@ -131,31 +131,29 @@ export function PriceHeader({
         </div>
       </div>
 
-      {/* Two tiers, separated by space rather than by boxes.
+      {/* Two tiers, separated by space rather than by boxes. The range is the
+          control reached for repeatedly, so it keeps the bordered strip.
 
-          The range is the only control here that gets reached for repeatedly,
-          so it keeps the bordered strip; chart type is set once and recedes to
-          a quiet toggle. Boxing both equally is what made this row read as a
-          line of cells shoved together. */}
+          CANDLES used to be the other half of an in-page AREA/CANDLES toggle.
+          It is now a departure: candlesticks live in TradingView's advanced
+          chart, which brings its own data and toolset rather than drawing our
+          delayed, minute-sparse feed. It is deliberately NOT the old quiet
+          toggle vocabulary — that styling carried no border and no fill, and
+          the owner could not find the control at all. A link that leaves the
+          page should look like one. */}
       <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-5">
-        <div role="group" aria-label="Chart type" className="flex items-center gap-4">
-          <QuietToggle
-            active={kind === "area"}
-            onClick={() => onKind("area")}
-            title="Area chart"
-          >
-            <IconArea className="h-3.5 w-3.5" />
-            <span>AREA</span>
-          </QuietToggle>
-          <QuietToggle
-            active={kind === "candles"}
-            onClick={() => onKind("candles")}
-            title="Candlestick chart"
-          >
-            <IconCandles className="h-3.5 w-3.5" />
-            <span>CANDLES</span>
-          </QuietToggle>
-        </div>
+        <a
+          href={chartPath(profile.id)}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={`Open ${profile.id} candlesticks in TradingView`}
+          className="font-mono flex min-h-11 items-center gap-2 text-[11px] tracking-[0.1em] text-gold transition-colors hover:text-gold-hi md:min-h-0 md:py-2.5"
+        >
+          <IconCandles className="h-3.5 w-3.5" />
+          <span>CANDLES</span>
+          <span aria-hidden="true" className="text-[10px]">&#8599;</span>
+          <span className="sr-only"> (opens in a new tab)</span>
+        </a>
 
         <Segmented label="Time range">
           {RANGES.map((r) => (

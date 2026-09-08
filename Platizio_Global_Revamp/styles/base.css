@@ -214,7 +214,3 @@ p { color: var(--gray-600); font-weight: 450; text-wrap: pretty; }
 
 /* The reveal animation gets the new easing and a shorter travel — the old
    one moved far enough to read as a page assembling itself. */
-.reveal {
-  transition: opacity var(--t-slow), transform var(--t-slow);
-  transform: translateY(14px);
-}

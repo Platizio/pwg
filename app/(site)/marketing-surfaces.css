@@ -1,0 +1,618 @@
+/* The product page's world, applied to the surfaces that were dark bands.
+ *
+ * THE BRIEF. "Same colour scheme as the product page." /products is cream
+ * paper, warm ink type and a gold accent, and it contains no dark band and no
+ * black anywhere. That last clause is the whole of it.
+ *
+ * WHY TOKENS ALONE COULD NOT DO IT. css/styles.css paints large surfaces with
+ * `--navy` and the revamp sheets paint more with `--ink-900`. Re-pointing
+ * those names only changes what colour the dark band is — navy became a warm
+ * near-black, which is precisely the "black and champagne" that was wrong. A
+ * band that is dark is dark whatever hex you give it. The fix is for it to
+ * stop being a band, so each one is converted here to paper: the cream ground,
+ * the radial gold wash, a warm hairline where an edge is genuinely needed.
+ *
+ * WHY THIS FILE LOADS LAST. Every surface below is declared in a sheet that
+ * used to load after this one — page.css, home-market.css, media.css,
+ * pricing.css, legal.css. At equal specificity the later sheet wins, so an
+ * earlier import lost silently: `.page-hero` kept its ink floor and this file
+ * appeared to do nothing at all. It is now the final CSS import in layout.tsx
+ * and must stay there.
+ *
+ * TWO MECHANICAL RULES, both learned the hard way:
+ *
+ *   1. LONGHANDS, never the `background` shorthand. chrome.css sets
+ *      `background-origin: border-box` on whatever a page puts first so the
+ *      ground paints up behind the floating nav pill. The shorthand resets it
+ *      and puts a hard-edged colour break across the top of every page.
+ *      Where a rule being overridden set `background-image` and
+ *      `background-size` as well, both are re-declared, or a two-layer dot
+ *      screen sized `34px 34px, auto` survives underneath the new wash.
+ *
+ *   2. NO `@supports`. The CSS minifier in this build silently empties any
+ *      `@supports` block whose declaration contains a `var()` — verified in
+ *      the browser, where the rule shipped as literally `.nav { }`. glass.css
+ *      records the same finding. Nothing here needs one.
+ *
+ * AND ONE DESIGN RULE. Converting a ground is half a change. Everything that
+ * was coloured FOR that ground — headings in `--white`, decks in
+ * `rgba(255,255,255,.78)`, links in `--accent-300`, hairlines in
+ * `--line-on-dark` — has to move with it, or the result is white type on
+ * cream. Each conversion below carries its interior with it, in the same
+ * block, for exactly that reason.
+ */
+
+:root {
+  /* The paper, named once. These are the values products.css hardcodes on
+     `.ft`, reached through the marketing names marketing-tokens.css already
+     re-pointed at them. */
+  --paper: var(--surface);              /* #f7f3ec — the ground */
+  --paper-sunken: var(--surface-sunken);/* #f2ece2 — a band that is still a band */
+  --paper-raised: var(--surface-raised);/* #fffdf9 — a sheet on the desk */
+  --paper-ink: var(--gray-800);         /* #1a1207 */
+  --paper-dim: var(--gray-700);         /* #4a3f30 */
+  --paper-mute: var(--gray-600);        /* #6b5f4e */
+  --paper-faint: var(--gray-500);       /* #857458 */
+
+  /* Gold as a letterform has to be measured against cream, not against ink.
+     #b99a63 (`--accent-300`, the on-dark step) is 2.1:1 here and unreadable;
+     these are the two products.css sets, 5.18:1 and 7.77:1 on #f7f3ec. */
+  --paper-gold: var(--gold);            /* #7e6238 */
+  --paper-link: var(--gold-hi);         /* #5f4926 */
+
+  /* The wash. One radial of the product page's own tint, in the two shapes it
+     is needed in: a wide one for a full-bleed opener, a boxed one for a card. */
+  --paper-wash: radial-gradient(900px 420px at 50% 0%, var(--m-tint-shared), transparent 62%);
+  --paper-wash-box: radial-gradient(120% 140% at 50% 0%, var(--m-tint-shared), transparent 64%);
+
+  /* A gold tint solid enough to be a chip or a callout ground. */
+  --paper-tint: rgba(201, 164, 111, 0.16);
+  --paper-tint-2: rgba(201, 164, 111, 0.26);
+
+  /* Scrims and shadows. The originals were rgba(10,37,64) — a blue slate that
+     smudges rather than shades on a warm ground. Same alphas, warm ink. */
+  --scrim-ink: 26, 18, 7;
+}
+
+/* ============================================================ 0. the ground
+
+   `html` was still the terminal's `--color-page` — #080706, a warm near-black.
+   The body's cream covers it at rest, so it shows only at the overscroll
+   bounce and in the browser's own chrome, which is exactly where a reader
+   reads it as "the site is black". This is scoped by loading: the file is
+   imported from app/(site)/layout.tsx, so it ships in the marketing route
+   group's stylesheet and never reaches /terminal. */
+
+html {
+  background-color: var(--paper);
+}
+
+/* ==================================================== 1. the page openers
+
+   `.hero` (home) and `.page-hero` (nineteen inner routes) were ink floors
+   carrying white type. They are the same continuous paper as the section
+   below them now — `.ft-hero` draws no boundary, so neither do these. */
+
+.page-hero,
+.hero {
+  background-color: var(--paper);
+  background-image: var(--paper-wash);
+  background-size: auto;
+  background-repeat: no-repeat;
+  color: var(--paper-dim);
+}
+
+/* The band used to end on a 2px gold rule because it needed a boundary
+   against the page below it. On one continuous ground there is no boundary to
+   draw. `.page-hero::before` is that rule in page.css and the dot screen in
+   styles.css; both go. */
+.page-hero::before,
+.hero::before {
+  display: none;
+}
+
+.page-hero h1,
+.hero h1,
+.page-hero h2,
+.hero h2,
+.hero-text h1 {
+  color: var(--paper-ink);
+}
+
+.hero-text h1 span {
+  color: var(--paper-gold);
+}
+
+.page-hero p,
+.hero p,
+.hero-text p,
+.page-hero .lede,
+.hero .lede {
+  color: var(--paper-dim);
+}
+
+/* The effective-date line on the three legal pages. */
+.page-hero-meta {
+  color: var(--paper-mute);
+}
+
+/* ---- the home hero's meta strip and badges ---- */
+
+.hero-meta {
+  border-top: 1px solid var(--rule-hair-2);
+}
+
+.hero-meta div strong {
+  color: var(--paper-ink);
+}
+
+.hero-meta div span {
+  color: var(--paper-mute);
+}
+
+.hero-badge {
+  background-color: var(--paper-raised);
+  border: 1px solid var(--rule-hair-2);
+  color: var(--paper-dim);
+}
+
+.hero-badge svg {
+  color: var(--paper-gold);
+}
+
+.orbit {
+  border: 1px dashed rgba(126, 98, 56, 0.35);
+}
+
+/* ---- the breadcrumb trail ----
+   Set in pale tints on ink, with `--accent-300` for the way back and pure
+   white for "you are here". The roles are unchanged; only the ground is. */
+
+.page-hero .breadcrumb,
+.page-hero nav[aria-label="Breadcrumb"] {
+  color: var(--paper-mute);
+}
+
+.page-hero .breadcrumb .crumb-sep {
+  color: var(--gray-400);
+}
+
+.page-hero .breadcrumb a {
+  color: var(--paper-link);
+}
+
+.page-hero .breadcrumb a:hover,
+.page-hero .breadcrumb a:focus-visible {
+  color: var(--paper-ink);
+}
+
+.page-hero .breadcrumb > span:last-child {
+  color: var(--paper-ink);
+}
+
+/* The 404's code label sits in the same opener. */
+.notfound-code {
+  color: var(--paper-link);
+}
+
+/* ================================================= 2. the full-bleed bands
+
+   `.trending-band` (home) and `.news-band` (/media) run edge to edge under
+   the header. They stay legible as bands — a band is a structural idea, not a
+   dark one — by dropping to the sunken paper with a hairline top and bottom,
+   which is how /products separates a zone from the sheet it sits on. */
+
+.trending-band,
+.news-band {
+  background-color: var(--paper-sunken);
+  background-image: none;
+  color: var(--paper-dim);
+  box-shadow: inset 0 -1px 0 var(--rule-hair-2);
+}
+
+/* Was a 2px gold-gradient rule, which on ink was an edge and on paper would
+   be an ornament. One warm hairline instead. */
+.trending-band::before,
+.news-band::before {
+  height: 1px;
+  background: var(--rule-hair-2);
+  opacity: 1;
+}
+
+/* ---- trending band interior ---- */
+
+.trending-label {
+  color: var(--paper-mute);
+}
+
+.trending-scope {
+  color: var(--paper-link);
+  border: 1px solid rgba(126, 98, 56, 0.32);
+}
+
+.ticker-symbol {
+  color: var(--paper-ink);
+}
+
+.ticker-price {
+  color: var(--paper-mute);
+}
+
+.quote-change--inline.is-flat {
+  color: var(--paper-faint);
+}
+
+/* The loading shimmer was three stops of white over ink; on paper it was
+   invisible. Same sweep, warm and subtractive. */
+.trending-band .is-loading-text::after {
+  background-image: linear-gradient(90deg,
+    rgba(var(--scrim-ink), 0.05) 25%,
+    rgba(var(--scrim-ink), 0.12) 37%,
+    rgba(var(--scrim-ink), 0.05) 63%);
+}
+
+.market-note--dark {
+  color: var(--paper-mute);
+}
+
+.market-note--dark a {
+  color: var(--paper-dim);
+}
+
+.market-note--dark a:hover {
+  color: var(--paper-link);
+}
+
+/* ---- news marquee interior ----
+   The pinned label carries the band's own ground so headlines scroll behind
+   it, and feathers into them with a gradient of that same ground. Both follow
+   the band. */
+
+.news-band-label {
+  background-color: var(--paper-sunken);
+  color: var(--paper-mute);
+}
+
+.news-band-label::after {
+  background: linear-gradient(90deg, var(--paper-sunken), transparent);
+}
+
+.news-band-dot {
+  background: var(--paper-gold);
+  box-shadow: 0 0 0 4px var(--paper-tint);
+}
+
+.nh-text {
+  color: var(--paper-ink);
+}
+
+.news-headline-item:hover .nh-text {
+  color: var(--paper-link);
+}
+
+.nh-source {
+  color: var(--paper-gold);
+}
+
+.nh-date {
+  color: var(--paper-faint);
+}
+
+/* Below 860px media.css unpins the label and clears its ground so it can sit
+   above the track. A media query adds no specificity, so the rule above would
+   otherwise win inside it and put the label's block back. */
+@media (max-width: 860px) {
+  .news-band-label {
+    background-color: transparent;
+  }
+}
+
+/* ================================================== 3. the closing panels
+
+   Four cards that were ink wells inside a light section: the home page's
+   `.regs-cta`, the shared `.cta-band`, /media's `.newsletter` and the three
+   legal pages' `.legal-contact`. On paper they become what a panel is on
+   /products — a warm-white sheet, one hairline, the gold wash pooled at the
+   top edge. */
+
+.regs-cta,
+.cta-band,
+.newsletter,
+.legal-contact {
+  background-color: var(--paper-raised);
+  background-image: var(--paper-wash-box);
+  background-size: auto;
+  background-repeat: no-repeat;
+  border: 1px solid var(--rule-hair-2);
+  color: var(--paper-dim);
+}
+
+.regs-cta h3,
+.cta-band h2,
+.newsletter-copy h2,
+.legal-contact h2,
+.legal-contact h3 {
+  color: var(--paper-ink);
+}
+
+.regs-cta p,
+.cta-band p,
+.newsletter-copy p,
+.legal-contact p {
+  color: var(--paper-dim);
+}
+
+.legal-contact strong {
+  color: var(--paper-ink);
+}
+
+.legal-contact a {
+  color: var(--paper-link);
+}
+
+.legal-contact a:hover {
+  color: var(--paper-ink);
+}
+
+/* The two blurred blobs behind `.cta-band`. One was burnt orange; the other
+   was rgba(37, 99, 235, .18) — a flat blue, the last unambiguously blue thing
+   on any marketing page. Both are the one gold tint now. */
+.cta-band::before,
+.cta-band::after {
+  background: radial-gradient(circle, var(--paper-tint-2), transparent 65%);
+}
+
+/* ---- the newsletter's field ----
+   Built as a white-on-ink input: a 6% white fill, a white label, a 42% white
+   placeholder. All three inverted. */
+
+.newsletter-input {
+  background-color: var(--paper-raised);
+  border: 1px solid var(--rule-hair-2);
+  color: var(--paper-ink);
+}
+
+.newsletter-input::placeholder {
+  color: var(--paper-faint);
+}
+
+.newsletter-input:focus {
+  border-color: var(--paper-gold);
+  background-color: var(--paper);
+}
+
+.newsletter-status {
+  color: var(--paper-mute);
+}
+
+.newsletter-status a {
+  color: var(--paper-dim);
+}
+
+.newsletter-status a:hover {
+  color: var(--paper-link);
+}
+
+/* ================================================= 4. the pricing surfaces
+
+   `.pricing-head` is the fee table's header row — a full-width ink slab on
+   both the home page and /pricing. `.calc-result` is the calculator's
+   readout, deliberately "an instrument output rather than more page copy":
+   that distinction survives as the sunken paper and a hairline rather than as
+   an ink panel. */
+
+.pricing-head {
+  background-color: var(--paper-tint);
+  background-image: none;
+  color: var(--paper-ink);
+  border-bottom: 1px solid var(--rule-hair-2);
+}
+
+.pricing-head span {
+  color: var(--paper-ink);
+}
+
+.calc-result {
+  background-color: var(--paper-sunken);
+  background-image: none;
+  border-top: 1px solid var(--rule-hair-2);
+  color: var(--paper-dim);
+}
+
+.calc-line-label {
+  color: var(--paper-dim);
+}
+
+.calc-line-label em {
+  color: var(--paper-mute);
+}
+
+.calc-line-value,
+.calc-total-row strong {
+  color: var(--paper-ink);
+}
+
+.calc-tag {
+  background: var(--paper-tint-2);
+  color: var(--paper-link);
+}
+
+.calc-effective span,
+.calc-effective strong {
+  color: var(--paper-link);
+}
+
+.calc-callout {
+  background: var(--paper-tint);
+  border-left: 2px solid var(--paper-gold);
+  color: var(--paper-dim);
+}
+
+/* ==================================================== 5. remaining slabs
+
+   Four smaller ink fields that are still large enough to read as bands.
+
+   `.faq-section.section-open .faq-section-header` inverts a whole accordion
+   header to ink when its section opens — a 60px full-width slab. On paper the
+   open state is carried by the gold wash instead, which is the same signal
+   without the flash of black. (help.css strips this on /faqs itself; the rule
+   still fires wherever the older accordion is used.)
+
+   `.about-art` is a decorative panel on /about, `.article-body thead th` is a
+   table header inside long-form copy, and `.promo-video` / `.yt-card-thumb`
+   are the wells a video sits in — converted not because they are branding but
+   because an unloaded frame should be paper, not a black rectangle. */
+
+.faq-section.section-open .faq-section-header {
+  background-color: var(--paper-tint);
+  color: var(--paper-ink);
+}
+
+.faq-section.section-open .faq-section-label .num {
+  background: var(--paper-tint-2);
+  color: var(--paper-link);
+}
+
+.faq-section.section-open .faq-section-chevron {
+  background: var(--paper-tint-2);
+  color: var(--paper-ink);
+}
+
+.about-art {
+  background-color: var(--paper-sunken);
+  background-image: var(--paper-wash-box);
+  background-size: auto;
+  border: 1px solid var(--rule-hair-2);
+}
+
+.about-art::before {
+  background-image: radial-gradient(circle at 1px 1px, rgba(var(--scrim-ink), 0.07) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+.about-art svg {
+  color: var(--paper-gold);
+}
+
+.article-body thead th {
+  background-color: var(--paper-tint);
+  color: var(--paper-dim);
+}
+
+.promo-video,
+.yt-card-thumb {
+  background-color: var(--paper-sunken);
+}
+
+/* The floating assistant's title bar. Small, but it is a strip of chrome the
+   reader sees on every page, and an ink strip on cream reads as a leftover. */
+.assistant-bar {
+  background-color: var(--paper-tint);
+  color: var(--paper-ink);
+}
+
+.assistant-bar-reset {
+  color: var(--paper-mute);
+}
+
+.assistant-bar-reset:hover {
+  color: var(--paper-ink);
+}
+
+/* ========================================================= 6. the controls
+
+   DELIBERATELY LEFT DARK, because a filled control is not a band and a dark
+   fill is the correct thing on paper:
+     .btn-primary / :hover   the espresso primary button
+     .skip-link              the keyboard skip target
+     .menu-toggle            (chrome.css already relights it light)
+     .product-card-icon, .reg-statement-icon, .partner-card-icon,
+     .guide-pdf-icon         24-32px icon tiles
+     .calc-preset.is-active, .calc-toggle-option.is-active
+                             selected pills, where the fill IS the selection
+     .lib-thumb, .video-feature-thumb, .video-row-thumb,
+     .founder-photo-wrap, .team-photo-wrap,
+     .team-carousel .tc-card, .articles-carousel .ac-card
+                             photo wells: a photograph covers them, and the
+                             white caption sits on a scrim over the image, so
+                             lightening the well would break that pairing
+   All of them now read espresso rather than navy, through the token remap.
+
+   What follows is the controls that were built FOR an ink band and are now
+   sitting on paper, plus the burnt-orange fill that never belonged to this
+   palette. */
+
+/* `.btn-gold` hardcoded #C25514 and a burnt-orange shadow — the old brand
+   accent, literal, so no token remap could reach it. This is the product
+   page's own `--m-gold-face`: a champagne fill carrying `--m-on-gold` ink,
+   which is how /products draws its one filled control. */
+.btn-gold,
+.btn-pulse {
+  background: linear-gradient(135deg, #e8cfa3, #c9a46f);
+  color: var(--paper-ink);
+  box-shadow: 0 2px 6px rgba(var(--scrim-ink), 0.10), 0 10px 24px rgba(var(--scrim-ink), 0.12);
+}
+
+.btn-gold:hover,
+.btn-pulse:hover {
+  box-shadow: 0 4px 10px rgba(var(--scrim-ink), 0.14), 0 16px 34px rgba(var(--scrim-ink), 0.16);
+}
+
+/* A blue-slate outline, measured against a ground that no longer exists. */
+.btn-ghost {
+  color: var(--paper-ink);
+  border-color: rgba(var(--scrim-ink), 0.45);
+}
+
+.btn-ghost:hover {
+  border-color: var(--paper-ink);
+  background: var(--paper-sunken);
+}
+
+/* `.btn-light` exists only to sit on an ink band. There are no ink bands, so
+   it becomes the ghost button it is now standing next to. */
+.btn-light {
+  background: transparent;
+  color: var(--paper-ink);
+  border-color: rgba(var(--scrim-ink), 0.45);
+}
+
+.btn-light:hover {
+  background: var(--paper-sunken);
+  border-color: var(--paper-ink);
+}
+
+/* The eyebrow's on-dark step, on surfaces that are no longer dark. */
+.eyebrow.on-dark {
+  color: var(--paper-gold);
+}
+
+/* ======================================================= 7. blue residue
+
+   Six scrims and overlays that hardcoded rgba(10, 37, 64, …) — the old brand
+   navy — and so survived the token remap untouched. A neutral-blue shade over
+   a warm photograph reads as a colour cast; these are the same alphas in the
+   palette's own ink. They stay dark on purpose: they are shades over
+   photographs, not surfaces. */
+
+.media-thumb::after {
+  background: linear-gradient(180deg, rgba(var(--scrim-ink), 0.2) 0%, rgba(var(--scrim-ink), 0.55) 100%);
+}
+
+.articles-carousel .ac-scrim {
+  background: linear-gradient(to top, rgba(var(--scrim-ink), 0.9) 0%, rgba(var(--scrim-ink), 0.5) 45%, transparent 100%);
+}
+
+/* `.yt-card-thumb` itself is paper now (section 5), so its scrim only has to
+   darken the thumbnail that covers it. */
+.yt-card-thumb::after {
+  background: linear-gradient(180deg, rgba(var(--scrim-ink), 0.05) 0%, rgba(var(--scrim-ink), 0.4) 100%);
+}
+
+.video-play {
+  background: rgba(var(--scrim-ink), 0.78);
+}
+
+.modal-overlay {
+  background: rgba(var(--scrim-ink), 0.55);
+}

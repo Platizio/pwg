@@ -24,7 +24,12 @@ export const ANCHOR = Date.UTC(2026, 7, 3, 16, 0, 0) / 1000;
 /* Session state                                                       */
 /* ------------------------------------------------------------------ */
 
-export type SessionPhase = "pre-market" | "open" | "closed" | "halted";
+export type SessionPhase =
+  | "pre-market"
+  | "open"
+  | "post-market"
+  | "closed"
+  | "halted";
 
 export type Session = {
   phase: SessionPhase;
@@ -32,11 +37,17 @@ export type Session = {
   label: string;
   /** Long-form date, e.g. "Monday, 3 August 2026". */
   date: string;
-  /** Clock, e.g. "16:00 UTC". */
+  /** Clock in the reader's zone (IST), e.g. "7:00 pm". */
   clock: string;
   /** Seconds since the last tick arrived — the staleness readout. */
   lastTick: string;
-  /** True only while the book is live; drives the pulsing gold dot. */
+  /** The next opening, whenever it is — the pill rotates onto it. Null only
+      if nothing opens inside the next eight days. */
+  opens: { label: string; time: string; at: number } | null;
+  /** True only during the regular session. This is the narrow reading: the
+      chrome bar renders it as the words "US markets Open"/"Closed", and an
+      08:00 ET pre-market book is quoting but is not open. For "are these
+      numbers moving", which is a wider question, use pricesMove(phase). */
   live: boolean;
 
   /* Only a live feed carries these; sessionAt leaves them unset. */
@@ -47,13 +58,24 @@ export type Session = {
 };
 
 /*
-  US cash equities in August: 09:30–16:00 ET is 13:30–20:00 UTC, with the
-  pre-market opening at 08:00 ET / 12:00 UTC. Expressed in seconds past
-  midnight UTC so the comparison is integer arithmetic rather than date math.
+  US cash equities, as seconds past midnight *Eastern*: the pre-market opens at
+  04:00, the regular session runs 09:30–16:00, and the post-market runs on to
+  20:00. Seconds rather than dates so the comparison stays integer arithmetic.
+
+  These were frozen UTC offsets — `PRE_OPEN_UTC = 12 * 3600` and so on, with a
+  comment that began "US cash equities in August". August is the tell: an
+  offset that is right in August is an hour wrong from November to March,
+  because the exchange keeps its hours in Eastern time and Eastern time changes
+  offset twice a year. Read against 13:30 UTC, a January session opened at
+  08:30 ET and shut at 15:00 ET — an hour early in both directions, and quietly,
+  since nothing about a wrong label looks wrong. The holiday list below already
+  read its dates through America/New_York for exactly this reason; the clock
+  now does too.
 */
-const PRE_OPEN_UTC = 12 * 3600;
-const OPEN_UTC = 13 * 3600 + 30 * 60;
-const CLOSE_UTC = 20 * 3600;
+const PRE_OPEN_ET = 4 * 3600;
+const OPEN_ET = 9 * 3600 + 30 * 60;
+const CLOSE_ET = 16 * 3600;
+const POST_CLOSE_ET = 20 * 3600;
 
 const DATE_FMT = new Intl.DateTimeFormat("en-US", {
   weekday: "long",
@@ -63,19 +85,61 @@ const DATE_FMT = new Intl.DateTimeFormat("en-US", {
   timeZone: "UTC",
 });
 
-const CLOCK_FMT = new Intl.DateTimeFormat("en-US", {
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-  timeZone: "UTC",
-});
+/*
+  The tag that sits beside the price on an instrument page.
 
+  "open" reads as plain "Market" rather than "Market open" because the three
+  trading phases are now one series — Pre-market, Market, Post-market — and a
+  reader picks a member out of a series by its name. "Market open" alongside
+  "Pre-market" reads as a different kind of fact, a state rather than a phase,
+  and invites the question of whether "Pre-market" means open or not.
+
+  The two non-trading phases keep their fuller wording: they are not members of
+  that series, they are the absence of it, and "Closed" on its own beside a
+  price is ambiguous about what closed.
+*/
 const PHASE_LABEL: Record<SessionPhase, string> = {
   "pre-market": "Pre-market",
-  open: "Market open",
+  open: "Market",
+  "post-market": "Post-market",
   closed: "Market closed",
   halted: "Trading halted",
 };
+
+/**
+ * Whether the numbers on the page are changing.
+ *
+ * Deliberately not `session.live`. The two questions look identical and are
+ * not: `live` is consumed as the literal words "US markets Open"/"Closed" in
+ * the chrome bar, so it has to stay the regular session and nothing else,
+ * while the pulsing gold dot beside the price claims only that the figure it
+ * sits next to is moving. Extended-hours quotes do move — thinly, on wider
+ * spreads, but they move — so a frozen dot over a changing price was the
+ * wrong half of the pair to be honest about.
+ */
+/* The word the chrome-bar pill puts after "US markets".
+ *
+ * Deliberately NOT PHASE_LABEL. That names the phase beside a price, where
+ * "Market" is the right word for the bell; after "US markets" it would read
+ * "US markets Market". The two are different sentences and only diverge here.
+ *
+ * This exists because the pill and the price tag were answering the same
+ * question differently: at 06:49 ET the tag read "Pre-market" with a pulsing
+ * dot while the pill read "US markets Closed", on the same screen. Both were
+ * defensible alone — "open/closed" properly describes the regular session —
+ * and together they made the reader arbitrate. One clock, one answer. */
+const PHASE_WORD: Record<SessionPhase, string> = {
+  "pre-market": "Pre-market",
+  open: "Market",
+  "post-market": "Post-market",
+  closed: "Closed",
+  halted: "Halted",
+};
+
+export const phaseWord = (phase: SessionPhase): string => PHASE_WORD[phase];
+
+export const pricesMove = (phase: SessionPhase): boolean =>
+  phase === "pre-market" || phase === "open" || phase === "post-market";
 
 /**
  * Resolve the session at a given instant. Weekends read as closed; every other
@@ -122,30 +186,126 @@ export function isMarketHoliday(at: number): boolean {
   return MARKET_HOLIDAYS.has(easternDate(at * 1000));
 }
 
+/* The exchange's own wall clock, read for the same reason as its calendar day.
+   Weekday comes from this read rather than from getUTCDay(): a Friday
+   post-market at 19:00 EST is already Saturday in UTC, so a UTC weekday shut
+   the book as a weekend four hours before the Friday session actually ended.
+
+   hourCycle "h23" rather than hour12: false because the two disagree at exactly
+   one instant — midnight, which some ICU builds render as hour 24 — and
+   midnight is inside the closed stretch this arithmetic has to get right. */
+const ET_CLOCK = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/New_York",
+  weekday: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+
+function easternClock(ms: number): { weekday: string; secondsIntoDay: number } {
+  const parts = ET_CLOCK.formatToParts(ms);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? "";
+  return {
+    weekday: part("weekday"),
+    secondsIntoDay:
+      Number(part("hour")) * 3600 +
+      Number(part("minute")) * 60 +
+      Number(part("second")),
+  };
+}
+
+/* The reader's clock. This terminal is built for Indian investors trading US
+   equities, and the pill used to report UTC — a zone neither the reader nor the
+   market lives in. Times are formatted, never arithmetic'd: IST is UTC+5:30 and
+   US hours are Eastern, so the gap between them is 9:30 in summer and 10:30 in
+   winter. Intl does that; a constant would be wrong for half the year. */
+const IST_CLOCK = new Intl.DateTimeFormat("en-US", {
+  timeZone: "Asia/Kolkata",
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+});
+
+/** e.g. "7:00 pm" — lower-cased, because the pill is not shouting. */
+const istTime = (ms: number): string =>
+  IST_CLOCK.format(ms).replace(/\s*([AP])M$/i, (_m, p: string) => ` ${p.toLowerCase()}m`);
+
+/* The three moments something starts trading. The close at POST_CLOSE_ET is
+   deliberately absent: this announces openings, and nobody needs an hour's
+   warning that trading is about to stop. */
+const OPENINGS: Array<{ at: number; word: string }> = [
+  { at: PRE_OPEN_ET, word: "Pre-market" },
+  { at: OPEN_ET, word: "Market" },
+  { at: CLOSE_ET, word: "Post-market" },
+];
+
+/**
+ * The next moment something starts trading — always, not only when it is near.
+ *
+ * The pill rotates between what the market is doing now and what it does next,
+ * so it needs an answer at every hour of the day, including the ones where the
+ * next opening is on the far side of a weekend or a holiday.
+ *
+ * Walks forward a day at a time and takes the first opening it can reach. The
+ * eight-day bound clears the longest real gap — a Friday evening followed by a
+ * Monday holiday still lands inside it — and returning null past that is
+ * better than looping forever if the holiday list is ever fed something odd.
+ *
+ * Midnight is derived per day rather than by adding 86400 to a fixed origin,
+ * so a DST shift cannot drag the boundaries an hour off: the clocks move at
+ * 02:00 on a Sunday, that Sunday is skipped as a weekend, and Monday measures
+ * from its own Eastern midnight.
+ */
+export function nextOpening(
+  at: number = ANCHOR,
+): { label: string; time: string; at: number } | null {
+  for (let day = 0; day <= 8; day += 1) {
+    const probe = at + day * 86_400;
+    const { weekday, secondsIntoDay } = easternClock(probe * 1000);
+    if (weekday === "Sat" || weekday === "Sun" || isMarketHoliday(probe)) continue;
+
+    const easternMidnight = probe - secondsIntoDay;
+    for (const o of OPENINGS) {
+      const when = easternMidnight + o.at;
+      if (when > at) {
+        return { label: `US ${o.word} opens`, time: istTime(when * 1000), at: when };
+      }
+    }
+  }
+  return null;
+}
+
 export function sessionAt(at: number = ANCHOR): Session {
   const ms = at * 1000;
-  const dayOfWeek = new Date(ms).getUTCDay();
-  const secondsIntoDay = ((at % 86400) + 86400) % 86400;
-  const weekend = dayOfWeek === 0 || dayOfWeek === 6;
+  const { weekday, secondsIntoDay } = easternClock(ms);
+  const weekend = weekday === "Sat" || weekday === "Sun";
   const shut = weekend || isMarketHoliday(at);
 
+  /* Order matters: the shut test runs first, so a holiday or a weekend can
+     never fall through into an extended-hours phase. Thanksgiving at 05:00 ET
+     is closed, not pre-market. */
   const phase: SessionPhase = shut
     ? "closed"
-    : secondsIntoDay < PRE_OPEN_UTC || secondsIntoDay >= CLOSE_UTC
+    : secondsIntoDay < PRE_OPEN_ET || secondsIntoDay >= POST_CLOSE_ET
       ? "closed"
-      : secondsIntoDay < OPEN_UTC
+      : secondsIntoDay < OPEN_ET
         ? "pre-market"
-        : "open";
+        : secondsIntoDay < CLOSE_ET
+          ? "open"
+          : "post-market";
 
   return {
     phase,
     label: PHASE_LABEL[phase],
     date: DATE_FMT.format(ms),
-    clock: `${CLOCK_FMT.format(ms)} UTC`,
+    clock: istTime(ms),
     /* Fixed rather than counted: a ticking staleness readout would need a
        clock, and a clock would need to agree with the server. The shape is
        what matters — a live feed fills it in. */
-    lastTick: phase === "open" ? "2s ago" : "—",
+    lastTick: pricesMove(phase) ? "2s ago" : "—",
+    opens: nextOpening(at),
     live: phase === "open",
   };
 }
@@ -324,12 +484,21 @@ export function calendarDate(event: CalendarEvent, at: number = ANCHOR) {
   const stamp = (at + event.offset * DAY) * 1000;
   return {
     date: SHORT_DATE.format(stamp),
+    /* A past event fell through to `In ${offset} days` and rendered "In -12
+       days" — in an h2 and in the section's aria-label. The calendar carries
+       recent ex-dividends deliberately, so the past branch is not an edge
+       case. The dashboard rail had its own wrapper for this; the full page
+       never got one, so the reading now lives here for both. */
     relative:
       event.offset === 0
         ? "Today"
         : event.offset === 1
           ? "Tomorrow"
-          : `In ${event.offset} days`,
+          : event.offset === -1
+            ? "Yesterday"
+            : event.offset > 0
+              ? `In ${event.offset} days`
+              : `${Math.abs(event.offset)} days ago`,
   };
 }
 
@@ -393,6 +562,10 @@ export type Quote = {
   price: number;
   /** Day change, percent. */
   chg: number;
+  /* Whether `chg` is a reading or a stand-in. The gateway prices names it sends
+     no change for, and those arrive as 0 — the same value a flat close carries.
+     Absent means reported: the authored quotes below predate the flag. */
+  chgKnown?: boolean;
   seed: number;
   /** GICS sector, matching a name in SECTORS. */
   sector: string;

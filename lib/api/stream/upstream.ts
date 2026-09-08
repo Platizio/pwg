@@ -20,10 +20,34 @@ import { isFresh, toTick, type Tick } from "./tick.ts";
 
 const WS_PATH = "/aes-ws/wsevent";
 
-/* The gateway documents this same frame as both the subscribe message and the
-   keep-alive "pong". It sends {"type":"ping"} and expects one back inside its
-   own timeout; observed once per ~25s against UAT. */
+/* The documented protocol, and the whole of it. ViewTrade's developer portal
+   lists exactly one client-to-server message for this socket, and this frame is
+   its body. There is no separate subscribe message and no named-symbol form:
+   sending this IS the subscription, and `symbol: "*"` is the only shape given.
+ *
+ * `querypolygonfmv` is also the only query type the gateway recognises.
+ * querypolygonquote, querypolygontrade, querypolygonagg, querypolygonnbbo,
+ * queryquote, querytrade, querylevel1, querymarketdata, subscribe, quote and
+ * level1 each answer {"error":"Query type '<x>' is not recognized"}, so there
+ * is no trade, quote or aggregate channel to fall back to.
+ *
+ * SENT ONCE, on open — and this is exactly where the documentation is wrong.
+ * It describes this frame as a heartbeat to "send periodically (every 30 s)".
+ * Doing that asks the gateway to create a wildcard subscription that already
+ * exists, and it replies {"error":"Failed to create wildcard subscription"},
+ * tearing down the subscription the resend was meant to keep alive. Measured
+ * over 75s on parallel sockets: resending every 30s produces that error;
+ * sending once produces no error and the same data. Following the published
+ * documentation literally is what breaks this feed. */
 const SUBSCRIBE_FRAME = JSON.stringify({ type: "querypolygonfmv", symbol: "*" });
+
+/* The gateway pings; this is the reply. Undocumented — the portal names its one
+   message "pong" but gives the subscribe frame as the body — yet it is the only
+   answer that satisfies the heartbeat without re-subscribing, and it draws no
+   error for the life of the connection. A socket that answered nothing at all
+   also survived 75s and three pings, so this is the conservative choice rather
+   than a strictly required one. */
+const PONG_FRAME = JSON.stringify({ type: "pong" });
 
 const IDLE_CLOSE_MS = 60_000;
 const RECONNECT_BASE_MS = 1_000;
@@ -40,6 +64,15 @@ let closedForGood = false;
 
 const listeners = new Set<TickListener>();
 
+/* The gateway reports subscription problems in bare {"error":...} frames that
+   carry no `updates`. This module used to drop anything without `updates` on
+   the floor, which is precisely why a failing subscription went unnoticed while
+   the terminal quietly served REST snapshots and looked like a live page on a
+   quiet day. Kept so streamStatus() — and therefore a human — can see it. */
+let lastError: string | null = null;
+let lastStatus: string | null = null;
+let lastTickAt: number | null = null;
+
 /* Last usable tick per symbol. A new subscriber gets this immediately rather
    than waiting for the symbol it cares about to trade again — which, for a
    quiet name outside market hours, may be never. */
@@ -53,6 +86,11 @@ export function streamStatus() {
     subscribers: listeners.size,
     symbolsKnown: latest.size,
     reconnectAttempt: attempt,
+    /* A socket that is connected but has never produced a usable tick is the
+       exact state this feed has been in; "connected" alone hides it. */
+    lastTickAt,
+    lastStatus,
+    lastError,
   };
 }
 
@@ -79,21 +117,31 @@ function emit(ticks: Tick[]) {
 }
 
 function handleMessage(data: unknown) {
-  let parsed: { type?: unknown; updates?: unknown };
+  let parsed: { type?: unknown; updates?: unknown; error?: unknown; status?: unknown };
   try {
     parsed = JSON.parse(String(data));
   } catch {
     return;
   }
 
-  /* The gateway drives the heartbeat: it pings, we answer with the same frame
-     that opened the subscription. Missing this drops the connection silently. */
   if (parsed?.type === "ping") {
     try {
-      socket?.send(SUBSCRIBE_FRAME);
+      socket?.send(PONG_FRAME);
     } catch {
       /* Send on a closing socket; the close handler will reconnect. */
     }
+    return;
+  }
+
+  /* Subscription bookkeeping, not data — recorded rather than ignored. */
+  if (typeof parsed?.error === "string") {
+    lastError = parsed.error;
+    console.error(`[stream] gateway refused: ${parsed.error}`);
+    return;
+  }
+  if (typeof parsed?.status === "string") {
+    lastStatus = parsed.status;
+    lastError = null;
     return;
   }
 
@@ -109,6 +157,7 @@ function handleMessage(data: unknown) {
     const prev = latest.get(tick.symbol);
     if (prev && prev.at > tick.at) continue; // never move a symbol backwards
     latest.set(tick.symbol, tick);
+    lastTickAt = now;
     fresh.push(tick);
   }
   emit(fresh);
@@ -143,6 +192,8 @@ async function open(): Promise<void> {
 
     ws.addEventListener("open", () => {
       attempt = 0;
+      /* Once. A reconnect is a new socket and so a new subscription; within one
+         socket this frame is never sent again. */
       ws.send(SUBSCRIBE_FRAME);
       if (!settled) {
         settled = true;
@@ -197,7 +248,12 @@ function armIdleClose() {
   }, IDLE_CLOSE_MS);
 }
 
-/** Attach a listener, opening the upstream connection if it is the first. */
+/**
+ * Attach a listener, opening the upstream connection if it is the first.
+ *
+ * No symbols: the subscription is a wildcard, so every reader receives every
+ * tick and filters for its own. See the note on SUBSCRIBE_FRAME.
+ */
 export function subscribe(fn: TickListener): () => void {
   listeners.add(fn);
   if (idleTimer) {
@@ -206,7 +262,11 @@ export function subscribe(fn: TickListener): () => void {
   }
   void ensureConnected();
 
+  let done = false;
   return () => {
+    /* A cleanup that runs twice must not drop another reader's listener. */
+    if (done) return;
+    done = true;
     listeners.delete(fn);
     if (listeners.size === 0) armIdleClose();
   };

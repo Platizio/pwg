@@ -1,8 +1,23 @@
 import Link from 'next/link'
 import SEO from '../components/SEO'
 
+/* Sized on the element, not only in CSS. This page is the one route that can
+   render before or without the site's stylesheets, and an unsized inline SVG
+   has no intrinsic size — it filled the entire viewport the one time a sheet
+   did not load. The attributes cost nothing and cannot be missed. */
 const ArrowIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width={18}
+    height={18}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+    focusable="false"
+  >
     <path d="M5 12h14M13 5l7 7-7 7" />
   </svg>
 )

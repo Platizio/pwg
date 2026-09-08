@@ -51,7 +51,7 @@ export function TabBar({
     <div
       ref={listRef}
       role="tablist"
-      aria-label="Instrument detail"
+      aria-label="Stock detail"
       onKeyDown={onKeyDown}
       className="no-scrollbar flex gap-8 overflow-x-auto border-b border-rule-section"
     >

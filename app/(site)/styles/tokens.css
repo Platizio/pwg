@@ -1,0 +1,169 @@
+/* The marketing site's tokens. One :root, every sheet reads from here.
+ *
+ * Ground is the products page's cream, ink is its warm brown-black, gold is
+ * split into a FILL (--foil, the v4 button colour, which measures 1.9:1 as
+ * words on paper) and a TEXT tone (--gold-text, 5.5:1 on paper, 4.9:1 on the
+ * sunken paper of the ticker band). Navy is the night:
+ * it appears on at most one instrument panel per page and on the footer.
+ *
+ * tests/tokens-contrast.test.ts measures every pair below against the ground
+ * it is used on. Change a value here and the test says whether it still reads.
+ */
+
+:root {
+  /* ------------------------------------------------------------ ground */
+  --paper: #f2ede5;
+  --paper-2: #fcf8f1;
+  --paper-3: #e9e2d6;
+
+  /* --------------------------------------------------------------- ink */
+  --ink: #1a1207;
+  --ink-2: #4a3f30;
+  --ink-3: #6b5f4e;
+
+  /* -------------------------------------------------------------- gold */
+  --foil: #d9bd8b;
+  --foil-hi: #f0dcb8;
+  --foil-deep: #b8945c;
+  --gold-text: #765a33;
+  --on-gold: #1a1207;
+
+  /* ------------------------------------------------------------- night */
+  --navy: #0b1b33;
+  --navy-2: #12294a;
+  --navy-3: #1b3660;
+  --night-ink: #f2ede5;
+  --night-ink-2: rgba(242, 237, 229, 0.72);
+  --night-ink-3: rgba(242, 237, 229, 0.58);
+
+  /* ----------------------------------------------------------- signals */
+  --gain: #1b7a50;
+  --loss: #b0392c;
+  --gain-n: #7dd3a0;
+  --loss-n: #e0796b;
+  --gain-wash: rgba(27, 122, 80, 0.1);
+  --loss-wash: rgba(176, 57, 44, 0.1);
+
+  /* ------------------------------------------------------------- rules */
+  --rule: rgba(26, 18, 7, 0.11);
+  --rule-2: rgba(26, 18, 7, 0.18);
+  --rule-n: rgba(217, 189, 139, 0.18);
+  --rule-n2: rgba(217, 189, 139, 0.32);
+
+  /* ------------------------------------------------------------- radii */
+  --r-card: 24px;
+  --r-tile: 16px;
+  --r-chip: 8px;
+  --r-pill: 999px;
+
+  /* ----------------------------------------------------------- shadows */
+  --shadow-card: 0 1px 2px rgba(26, 18, 7, 0.04), 0 2px 6px rgba(26, 18, 7, 0.05);
+  --shadow-card-hover: 0 2px 4px rgba(26, 18, 7, 0.04), 0 18px 44px -22px rgba(26, 18, 7, 0.3);
+  --shadow-gold: 0 14px 34px -14px rgba(184, 148, 92, 0.75);
+  --shadow-night: 0 40px 100px -40px rgba(11, 27, 51, 0.7);
+
+  /* -------------------------------------------------------------- type */
+  --display: var(--font-newsreader), Georgia, "Times New Roman", serif;
+  --sans: var(--font-manrope), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: var(--font-plex-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  --size-display: clamp(2.75rem, 6.4vw, 6rem);
+  --size-h2: clamp(2rem, 3.8vw, 3.75rem);
+  --size-h3: 1.5rem;
+  --size-lede: clamp(1.0625rem, 1.3vw, 1.2rem);
+
+  /* ------------------------------------------------------------ rhythm */
+  --section: clamp(5rem, 9vw, 8.5rem);
+  --section-tight: clamp(3rem, 5vw, 4.5rem);
+  --gutter: clamp(1.25rem, 4vw, 3rem);
+  --measure: 1360px;
+
+  /* ------------------------------------------------------------ motion */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --t-fast: 140ms;
+  --t: 260ms;
+  --t-slow: 420ms;
+
+  /* ------------------------------------------------------------ chrome */
+  /* The rail's inset and the pill's height. Five sheets size sticky offsets
+     and scroll margins off these two, so they are declared once. */
+  --bar-inset: 14px;
+  --bar-h: 70px;
+
+  /* ------------------------------------------------------------- grain */
+  /* v4's tile. A cached raster, never a live filter. Used on navy only. */
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='g' x='0' y='0' width='180' height='180' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='180' height='180' filter='url(%23g)'/></svg>");
+}
+
+/* ======================================================================
+   LEGACY ALIASES — delete this block in P6.
+
+   The pages not yet rebuilt (pricing, about, media, articles, help, legal)
+   still load css/styles.css and the revamp sheets, which read the names
+   below. These re-point every one of them at the new palette so those pages
+   stay paper-toned until their own phase replaces them. Nothing new may
+   read a name from this block.
+   ====================================================================== */
+:root {
+  --paper-raised: var(--paper-2);
+  --paper-sunken: var(--paper-3);
+  --white: var(--paper-2);
+  --surface: var(--paper);
+  --surface-sunken: var(--paper-3);
+  --surface-raised: var(--paper-2);
+
+  --ink-900: var(--ink);
+  --ink-800: #2b251d;
+  --ink-700: #5a5044;
+  --navy-deep: var(--navy);
+  --navy-soft: var(--navy-3);
+
+  --gray-800: var(--ink);
+  --gray-700: #443c31;
+  --gray-600: var(--ink-3);
+  --gray-500: #8b8172;
+  --gray-400: #a89e8d;
+  --gray-300: #c9c0af;
+  --gray-200: #ddd5c6;
+  --gray-100: var(--paper-3);
+  --gray-50: #f7f4ee;
+
+  --champagne: var(--foil);
+  --champagne-deep: #9f7e47;
+  --gold: var(--gold-text);
+  --gold-hi: #5f4926;
+  --gold-deep: #9f7e47;
+  --gold-light: var(--foil);
+  --gold-gradient: linear-gradient(135deg, var(--foil-hi) 0%, var(--foil) 40%, var(--foil-deep) 100%);
+  --gold-gradient-h: linear-gradient(90deg, var(--foil-hi) 0%, var(--foil) 40%, var(--foil-deep) 100%);
+  --accent-300: #e6d3ae;
+  --accent-400: var(--foil);
+  --accent-500: #9f7e47;
+  --accent-600: var(--gold-text);
+  --accent-700: #5f4926;
+
+  --wash: rgba(217, 189, 139, 0.22);
+  --wash-soft: rgba(217, 189, 139, 0.12);
+  --m-tint-shared: rgba(217, 189, 139, 0.22);
+
+  --gain-on-dark: var(--gain-n);
+  --loss-on-dark: var(--loss-n);
+  --emerald: var(--gain);
+
+  --line: var(--rule);
+  --line-strong: rgba(26, 18, 7, 0.2);
+  --line-on-dark: var(--rule-n);
+  --line-on-dark-strong: var(--rule-n2);
+  --rule-hair: rgba(26, 18, 7, 0.09);
+  --rule-hair-2: rgba(26, 18, 7, 0.13);
+
+  --font: var(--sans);
+  --font-mono: var(--mono);
+  --font-display: var(--display);
+  --font-body: var(--sans);
+  --ease-out: var(--ease);
+
+  --glass-ground: var(--paper-2);
+  --glass-ink: 26, 18, 7;
+  --glass-accent: var(--gold-text);
+}

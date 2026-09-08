@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Outfit } from "next/font/google";
+import { IBM_Plex_Mono, Manrope, Newsreader, Outfit } from "next/font/google";
 import "./globals.css";
 
 /*
@@ -19,6 +19,42 @@ const outfit = Outfit({
   variable: "--font-outfit",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
+});
+
+/* The v4 pairing, self-hosted by next/font.
+ *
+ * Newsreader carries the display voice and Manrope the prose. This is most of
+ * why the reference reads as designed rather than defaulted: a serif set LARGE
+ * at weight 400 with negative tracking looks drawn, where the same words in a
+ * geometric sans at 600 look like a default heading enlarged.
+ *
+ * Newsreader ships an italic, which the reference uses as its one emphasis
+ * device — "Invest *Globally* with Platizio." — so the italic axis is loaded
+ * deliberately, not by accident.
+ *
+ * Outfit stays: the terminal is built on it and keeps its own world. */
+const newsreader = Newsreader({
+  variable: "--font-newsreader",
+  subsets: ["latin"],
+  weight: ["300", "400", "500"],
+  style: ["normal", "italic"],
+  display: "swap",
+});
+
+const manrope = Manrope({
+  variable: "--font-manrope",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+
+/* Figures, tickers and provenance lines. Loaded at two weights only: 500 for
+   figures that carry a value, 400 for the provenance line under them. */
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-plex-mono",
+  subsets: ["latin"],
+  weight: ["400", "500"],
   display: "swap",
 });
 
@@ -89,7 +125,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${outfit.variable} h-full antialiased`}
+      className={`${outfit.variable} ${newsreader.variable} ${manrope.variable} ${plexMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>

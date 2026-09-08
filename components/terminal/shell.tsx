@@ -10,6 +10,7 @@ import { C, EASE } from "@/lib/tokens";
 import { usePortfolio } from "@/lib/portfolio";
 import { usePresence } from "@/lib/use-presence";
 import { Grain } from "./grain";
+import { InvestButton } from "./invest-button";
 import { MarketStatus } from "./market-status";
 import { OrderTicket } from "./order-ticket";
 import { InstrumentSearch, type SearchData } from "./search";
@@ -243,14 +244,26 @@ export function Shell({
                 {search && <InstrumentSearch data={search} />}
               </div>
 
-              {/* Off the phone, where the compact bar above already names the
-                  session and the two of them side by side would leave the
-                  search a stub. */}
-              {session && (
-                <div className="hidden justify-end sm:flex">
-                  <MarketStatus session={session} />
-                </div>
-              )}
+              {/* The bar's right-hand end: whether the market is trading, and
+                  the one way out of a terminal that reads into the platform
+                  that transacts.
+
+                  The two are gated differently on purpose. The session goes off
+                  the phone, where the compact bar above already names it and
+                  the two of them side by side would leave the search a stub.
+                  Invest stays at every width: it is stated nowhere else in the
+                  terminal chrome, and an action that disappears at the size
+                  most readers arrive at is not a call to action. The search
+                  gives up the width instead, which is what minmax(0,1fr) on
+                  this grid's first track has always been for. */}
+              <div className="flex items-center justify-end gap-2 sm:gap-3">
+                {session && (
+                  <div className="hidden sm:flex">
+                    <MarketStatus session={session} />
+                  </div>
+                )}
+                <InvestButton />
+              </div>
             </div>
           )}
 

@@ -1,0 +1,313 @@
+/* Base: the ground, the type roles, the layout rhythm, and the handful of
+ * classes the products page and the legacy sheets share.
+ *
+ * Loads after tokens.css and after every legacy sheet, so where a legacy
+ * sheet sets the same property at the same specificity, this wins.
+ */
+
+/* ================================================================ ground */
+
+:root {
+  color-scheme: light;
+  accent-color: var(--gold-text);
+  caret-color: var(--gold-text);
+  scrollbar-color: rgba(26, 18, 7, 0.22) transparent;
+  scrollbar-width: thin;
+}
+
+/* app/globals.css paints html and body with the terminal's near-black page
+   colour for every route. The marketing site is paper to the very top of the
+   viewport, overscroll included. */
+html {
+  background-color: var(--paper);
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 1rem;
+  line-height: 1.65;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  font-synthesis-weight: none;
+}
+
+::selection {
+  background: rgba(217, 189, 139, 0.45);
+  color: var(--ink);
+}
+
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(26, 18, 7, 0.18);
+  border: 3px solid var(--paper);
+  border-radius: var(--r-pill);
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(26, 18, 7, 0.3); }
+
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--gold-text);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+a {
+  color: inherit;
+  text-decoration-thickness: from-font;
+  text-underline-offset: 0.18em;
+}
+
+/* ================================================================== type */
+
+h1, h2, h3, .display {
+  font-family: var(--display);
+  font-weight: 400;
+  color: var(--ink);
+  text-wrap: balance;
+  margin: 0;
+}
+
+h1 {
+  font-size: var(--size-display);
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  max-width: 15ch;
+}
+
+h2 {
+  font-size: var(--size-h2);
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+  max-width: 18ch;
+}
+
+h3 {
+  font-size: var(--size-h3);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+/* The one emphasis device: a true italic clause inside a roman headline. */
+h1 em, h2 em, .display em {
+  font-style: italic;
+  font-weight: 400;
+  color: inherit;
+}
+
+p { margin: 0; text-wrap: pretty; }
+
+.lede {
+  font-size: var(--size-lede);
+  line-height: 1.6;
+  color: var(--ink-2);
+  max-width: 50ch;
+}
+
+.body {
+  line-height: 1.65;
+  color: var(--ink-2);
+  max-width: 62ch;
+}
+
+/* Tracked caps with a short gold rule. The section marker on every page. */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold-text);
+}
+.eyebrow::before {
+  content: "";
+  width: 24px;
+  height: 1px;
+  border-radius: 0;
+  background: var(--foil-deep);
+}
+.eyebrow--bare::before { content: none; }
+.night .eyebrow { color: var(--foil); }
+.night .eyebrow::before { background: var(--foil); }
+
+.label {
+  font-family: var(--sans);
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* Figures never jitter: every digit is one width. */
+.figure, .num, [data-num] {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.provenance {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+.night .provenance { color: var(--night-ink-3); }
+
+/* ================================================================ layout */
+
+.wrap {
+  width: 100%;
+  max-width: var(--measure);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.band { padding-block: var(--section); }
+.band--tight { padding-block: var(--section-tight); }
+
+.rule {
+  height: 1px;
+  border: 0;
+  margin: 0;
+  background: var(--rule);
+}
+
+/* The night surface. At most one instrument panel per page carries it, and
+   the footer. Cream type, gold rules, a 5% grain so it reads as material
+   rather than as a flat fill. */
+.night {
+  position: relative;
+  background: linear-gradient(180deg, var(--navy-2), var(--navy) 70%);
+  color: var(--night-ink);
+}
+.night::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: var(--grain);
+  background-size: 180px 180px;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  border-radius: inherit;
+}
+.night::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--foil), transparent);
+  border-radius: inherit;
+}
+
+/* ================================================================ marquee */
+
+/* One list rendered twice, translated -50%. Spacing is margin on the ITEM;
+   a gap on the track makes the wrap land one gap short (lib/motion.ts). */
+.marquee {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee var(--marquee-duration, 46s) linear infinite;
+}
+.marquee:hover .marquee-track,
+.marquee:focus-within .marquee-track { animation-play-state: paused; }
+.marquee-item { flex: none; margin-inline-end: var(--marquee-spacing, 2rem); }
+@keyframes marquee {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
+}
+
+/* ========================================= shared with the products page */
+
+/* The products page overrides this to 1360 under .ft; the legacy pages keep
+   the 1200 reading measure until they are rebuilt. */
+.container {
+  max-width: var(--container, 1200px);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* QuoteChange. The arrow is load-bearing (WCAG 1.4.1), never remove it. */
+.quote-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-family: var(--mono);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.quote-arrow { width: 9px; height: 9px; flex: none; }
+.quote-change--inline { font-size: 0.875rem; }
+.quote-change--inline.is-up { color: var(--gain); }
+.quote-change--inline.is-down { color: var(--loss); }
+.quote-change--inline.is-flat { color: var(--ink-3); }
+.night .quote-change--inline.is-up { color: var(--gain-n); }
+.night .quote-change--inline.is-down { color: var(--loss-n); }
+.night .quote-change--inline.is-flat { color: var(--night-ink-3); }
+.quote-change--chip {
+  font-size: 0.75rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: var(--r-chip);
+  border: 1px solid transparent;
+}
+.quote-change--chip.is-up { color: var(--gain); background: var(--gain-wash); }
+.quote-change--chip.is-down { color: var(--loss); background: var(--loss-wash); }
+.quote-change--chip.is-flat { color: var(--ink-3); background: var(--paper-3); }
+.night .quote-change--chip.is-up { color: var(--gain-n); background: transparent; border-color: rgba(125, 211, 160, 0.4); }
+.night .quote-change--chip.is-down { color: var(--loss-n); background: transparent; border-color: rgba(224, 121, 107, 0.4); }
+.night .quote-change--chip.is-flat { color: var(--night-ink-3); background: transparent; border-color: var(--rule-n); }
+
+/* MarketNote. The disclosure under every block of prices. */
+.market-note {
+  margin-top: 1.25rem;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  line-height: 1.55;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  text-align: center;
+}
+.market-note a {
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--rule-2);
+}
+.market-note a:hover { color: var(--gold-text); text-decoration-color: currentColor; }
+.market-note--dark { color: var(--night-ink-3); }
+.market-note--dark a { color: var(--night-ink-2); }
+.market-note--dark a:hover { color: var(--foil); }
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track { animation: none; }
+}

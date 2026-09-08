@@ -1,7 +1,10 @@
-import { C, PEER_COLORS, trend } from "../tokens";
-import { marketCap as capOf, money, pct, ratio, usd } from "./format";
-import type { PricePoint } from "../api/normalize/series";
-import type { InstrumentSnapshot } from "./instrument";
+/* Explicit .ts extensions, matching lib/api/: Turbopack resolves without them
+   but node --test does not, and this module had no tests at all because it
+   could not be imported outside the bundler. */
+import { C, PEER_COLORS, trend } from "../tokens.ts";
+import { marketCap as capOf, money, pct, ratio, usd } from "./format.ts";
+import type { PricePoint } from "../api/normalize/series.ts";
+import type { InstrumentSnapshot } from "./instrument.ts";
 
 /* The instrument page's readings, derived from what the feed actually says.
 
@@ -170,18 +173,47 @@ export function revenue(s: InstrumentSnapshot) {
   });
 }
 
-type Signal = "BULLISH" | "BEARISH" | "NEUTRAL" | "ABOVE" | "BELOW" | "ELEVATED" | "MODERATE" | "—";
-const NEGATIVE: Signal[] = ["BEARISH", "BELOW"];
-const POSITIVE: Signal[] = ["BULLISH", "ABOVE"];
+type Signal =
+  | "BULLISH"
+  | "BEARISH"
+  | "NEUTRAL"
+  | "ABOVE"
+  | "BELOW"
+  | "ELEVATED"
+  | "MODERATE"
+  | "STRETCHED"
+  | "WASHED OUT"
+  | "—";
+/* STRETCHED and WASHED OUT exist because RSI has no bullish or bearish reading
+   to give. This row used to map overbought to BULLISH and oversold to BEARISH,
+   which is the convention backwards and, worse, the exact opposite of what
+   insights() five hundred lines up tells the reader about the same number: it
+   calls overbought "Momentum reads stretched" and tints it warn. One page, two
+   tabs, one RSI, two contradictory verdicts. */
+const NEGATIVE: Signal[] = ["BEARISH", "BELOW", "STRETCHED"];
+const POSITIVE: Signal[] = ["BULLISH", "ABOVE", "WASHED OUT"];
 
 export function technicals(s: InstrumentSnapshot) {
   const { technical: t, profile: p } = s;
 
+  /* The meter reads against a midpoint: half-full is the price sitting exactly
+     on its average, and the bar leans right above it and left below it.
+
+     It used to take the ABSOLUTE gap — `50 + |gap| * 4` — so a price five per
+     cent under its fifty-day average drew precisely the same seventy per cent
+     bar as one five per cent over it. The bar could not express direction at
+     all; only the word beside it could, and a reader scanning the column saw
+     two identical bars saying opposite things. Signed, the glance and the word
+     finally agree. */
   const against = (avg: number | null): { value: string; signal: Signal; fill: number } => {
     if (avg === null || p.price === null) return { value: DASH, signal: "—", fill: 0 };
     const above = p.price >= avg;
-    const gap = Math.abs(p.price / avg - 1) * 100;
-    return { value: money(avg), signal: above ? "ABOVE" : "BELOW", fill: Math.min(96, 50 + gap * 4) };
+    const gap = (p.price / avg - 1) * 100;
+    return {
+      value: money(avg),
+      signal: above ? "ABOVE" : "BELOW",
+      fill: Math.max(4, Math.min(96, 50 + gap * 4)),
+    };
   };
 
   const sma = against(t.sma.latest);
@@ -192,7 +224,13 @@ export function technicals(s: InstrumentSnapshot) {
       label: "RSI (14)",
       value: t.rsi.latest === null ? DASH : t.rsi.latest.toFixed(1),
       signal:
-        t.rsiState === "overbought" ? "BULLISH" : t.rsiState === "oversold" ? "BEARISH" : t.rsiState === null ? "—" : "NEUTRAL",
+        t.rsiState === "overbought"
+          ? "STRETCHED"
+          : t.rsiState === "oversold"
+            ? "WASHED OUT"
+            : t.rsiState === null
+              ? "—"
+              : "NEUTRAL",
       fill: t.rsi.latest ?? 0,
     },
     { label: "SMA (50)", ...sma },
@@ -251,8 +289,10 @@ export function competitors(s: InstrumentSnapshot) {
       price: asUsd(c.price),
       mcap: capOf(c.marketCap),
       pe: ratio(c.pe),
-      ret: c.chg === null ? DASH : pct(c.chg, 1),
-      retColor: c.chg === null ? C.ink4 : trend(c.chg >= 0),
+      /* c.ret1y, not c.chg: the column header says 1Y return and the
+         subject's row above supplies exactly that. */
+      ret: c.ret1y === null ? DASH : pct(c.ret1y, 1),
+      retColor: c.ret1y === null ? C.ink4 : trend(c.ret1y >= 0),
       isSelf: false,
       /* Every quoted symbol has a page now, so a peer row always leads
          somewhere real. */
@@ -279,28 +319,26 @@ export function position(s: InstrumentSnapshot, held: number, portfolio: number)
   ];
 }
 
-/* The largest single-session moves in the record, which is a fact about the
-   series rather than the three hardcoded dates this replaced. */
+/* The largest single-session moves, as the snapshot decided them.
+ *
+ * This used to recompute the list from `s.history.daily`, which was a second
+ * implementation of something getInstrumentSnapshot already computes — and,
+ * critically, already GUARDS: it publishes
+ * `notableMoves: record.readable ? largestSessions(daily) : []`, withholding
+ * the list when a failed corporate-actions call means a split could not be
+ * repaired.
+ *
+ * The daily series is left unrepaired in that case on purpose (a break in a
+ * drawn line is visible to a reader in a way a number is not), so recomputing
+ * from it walked straight past the guard and rendered a missed 10:1 split as a
+ * "−90.00%" session — a fabricated event, on a finance page, with nothing
+ * saying so. right-rail.tsx and performance-panel.tsx both call this one, so
+ * the guard reached no reader at all.
+ *
+ * One source of truth now. The formatting is identical either way — same UTC
+ * long-date, same shape — so nothing on the page moves except the wrong number,
+ * which disappears. */
 export function notableMoves(s: InstrumentSnapshot, count = 3) {
-  const pts = s.history.daily;
-  if (pts.length < 2) return [];
-
-  const moves: Array<{ at: number; chg: number }> = [];
-  for (let i = 1; i < pts.length; i += 1) {
-    const prev = pts[i - 1].price;
-    if (prev > 0) moves.push({ at: pts[i].at, chg: (pts[i].price / prev - 1) * 100 });
-  }
-
-  const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: "UTC",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-
-  return moves
-    .sort((a, b) => Math.abs(b.chg) - Math.abs(a.chg))
-    .slice(0, count)
-    .sort((a, b) => b.at - a.at)
-    .map((m) => ({ date: fmt.format(m.at), chg: pct(m.chg), color: trend(m.chg >= 0) }));
+  return (s.notableMoves ?? []).slice(0, count);
 }
+

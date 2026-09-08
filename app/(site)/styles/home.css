@@ -1,0 +1,828 @@
+/* The home page, in the products page's world.
+ *
+ * The page's root carries `.ft`, so every token, type role, card and action
+ * comes from Platizio_Global_Revamp/styles/products.css. This sheet adds only
+ * what the home page has and the products page does not: the tall ticker,
+ * the three steps, the five regulatory cells, and the session pill. Every
+ * value below reads a `--m-*` token from that sheet.
+ */
+
+/* The entrance the products hero has, on the home hero too. */
+.hm .ft-hero-copy { animation: ft-rise 0.9s var(--m-ease) both; }
+.hm .ft-hero-shot { animation-delay: 0.12s; }
+
+.magnet { display: inline-block; }
+
+/* ================================================================= globe */
+
+/* The globe stands on the paper rather than inside a card: a sphere in a
+   bordered box reads as a screenshot of a sphere. The frame is a warm wash
+   behind it, the same tint the products hero puts behind the terminal.
+
+   css/styles.css sizes `.globe` at a fixed 380px for the old dark hero. Here
+   it fills the hero's column, and GlobeBase measures that width to size cobe's
+   framebuffer, so the canvas is sharp at whatever width the column resolves to. */
+.hm-globe {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 380px;
+}
+
+.hm-globe .globe {
+  position: relative;
+  width: min(100%, 480px);
+  height: auto;
+  aspect-ratio: 1 / 1;
+}
+
+/* The globe keeps its own colours. Only the shadow is re-tuned: the original
+   is a 60px black one, sized for the dark hero it used to sit in, and on
+   paper that is a smudge rather than a shadow. */
+.hm-globe .globe-canvas {
+  filter: drop-shadow(0 24px 48px rgba(26, 18, 7, 0.22));
+}
+
+/* ================================================================ ticker */
+
+.hm-ticker { padding: 0 0 clamp(2rem, 3.5vw, 3rem); }
+
+.hm-ticker-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-bottom: 16px;
+}
+
+.hm-ticker-head .ft-movers-head { margin: 0; }
+
+.hm-tape {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+}
+
+/* A tall tile: the products tape's tile with the name on its own line and the
+   price at a size that reads from across the room. */
+.hm-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 232px;
+  min-height: 118px;
+  padding: 16px 18px 15px;
+  border-radius: var(--m-radius-card);
+  border: 1px solid var(--m-rule-4);
+  background-color: var(--m-card-bg);
+  background-image: radial-gradient(74% 86% at 6% 0%, var(--m-tint), transparent 70%);
+  box-shadow: var(--m-card-shadow-md);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.32s var(--m-ease), box-shadow 0.32s var(--m-ease), transform 0.32s var(--m-ease);
+}
+
+.hm-tile:hover {
+  border-color: var(--m-card-border-hover);
+  box-shadow: var(--m-card-shadow-lg);
+  transform: translateY(-2px);
+}
+
+.hm-tile-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.hm-tile-sym {
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--m-gold);
+}
+
+.hm-tile-name {
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.012em;
+  color: var(--m-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hm-tile-px {
+  margin-top: auto;
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--m-ink);
+}
+
+.hm-ticker-wait {
+  display: flex;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.hm-tile--wait {
+  flex: none;
+  background-image: linear-gradient(90deg, rgba(26, 18, 7, 0.03), rgba(26, 18, 7, 0.07), rgba(26, 18, 7, 0.03));
+  background-size: 200% 100%;
+  animation: hm-shimmer 1.4s linear infinite;
+}
+
+/* The ticker's loading tiles are the only thing that shimmers now; the
+   portfolio panel's quote list, which shared this keyframe, is gone. */
+@keyframes hm-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+.hm-ticker .market-note { margin-top: 16px; }
+
+/* The session pill, in the products vocabulary. */
+.hm-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding-inline: 16px;
+  border-radius: var(--m-radius-pill);
+  border: 1px solid var(--m-rule-4);
+  background: var(--m-card-bg);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--m-mute);
+  white-space: nowrap;
+}
+
+.hm-pill.is-moving {
+  border-color: var(--m-card-border-hover);
+  background: var(--m-tint-soft);
+  color: var(--m-gold);
+}
+
+.hm-pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--m-mute);
+  flex: none;
+}
+
+.hm-pill.is-moving .hm-pill-dot {
+  background: var(--m-gold);
+  animation: ft-gold-pulse 2.4s ease-in-out infinite;
+}
+
+.hm-pill-l { flex: none; }
+
+.hm-pill-sep {
+  width: 1px;
+  height: 12px;
+  background: var(--m-rule-4);
+}
+
+.hm-pill-t {
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.hm-roll {
+  display: inline-grid;
+  overflow: hidden;
+}
+
+.hm-roll-sizer {
+  grid-area: 1 / 1;
+  visibility: hidden;
+  white-space: nowrap;
+}
+
+.hm-roll-v {
+  grid-area: 1 / 1;
+  white-space: nowrap;
+}
+
+.hm .ft-hero .ft-actions { margin-top: clamp(2rem, 3.4vw, 3rem); }
+
+/* ---- one display face -------------------------------------------------
+ *
+ * base.css sets `h1, h2, h3 { font-family: var(--display) }` for the old
+ * marketing world, so every sub-head on this page rendered in Newsreader while
+ * the section headings, which name their own family, rendered in Outfit. Two
+ * display faces, neither chosen. The products world is single-face; this is
+ * where the page says so once. */
+.hm h3,
+.hm .hm-ledger-h {
+  font-family: var(--m-serif);
+  font-weight: 500;
+  color: var(--m-ink);
+}
+
+/* ---- the two standing facts, on the page's own sheet -----------------
+ *
+ * They sat in a bare grid under a gold hairline: the last block on the page
+ * still off the material every other block is on.
+ *
+ * One card holding both cells, not a card each. The hero's copy column is
+ * half the page, and separate sheets across it would each come out narrower
+ * than the sentence they carry. The gold rule the permission paragraph used
+ * to carry becomes the card's top edge, so the accent stays exactly where it
+ * was and now has a reason to be an edge rather than a line floating above
+ * unbounded text.
+ *
+ * It is deliberately the smallest sheet on the page. This is a footnote to
+ * the headline, not a section: the tile radius rather than the card radius,
+ * the light shadow rather than the mid one, a hairline gold edge rather than
+ * a 2px one, and a box that shrinks to its own two facts instead of running
+ * the width of the column. Everything above it should stay larger than it.
+ *
+ * The sheet itself is declared once, with `.hm-card` and `.hm-ledger` below;
+ * only the trim, the wash and the cell divider are set here. The `.hm` prefix
+ * outweighs that group whichever order the two load in.
+ */
+
+.hm-hero-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, auto));
+  /* Shrink to the facts. Stretched to the column the strip read as a band
+     across the hero and competed with the actions above it. */
+  width: fit-content;
+  max-width: 100%;
+  margin: clamp(1.75rem, 2.8vw, 2.5rem) 0 0;
+  padding: clamp(0.8rem, 1.25vw, 1rem) 0;
+  background-image: radial-gradient(74% 86% at 6% 0%, var(--m-tint), transparent 70%);
+}
+
+.hm .hm-hero-facts {
+  border-top: 1px solid var(--m-gold-deep);
+  border-radius: var(--m-radius-tile);
+  box-shadow: var(--m-card-shadow);
+}
+
+.hm-hero-fact {
+  min-width: 0;
+  padding-inline: clamp(0.95rem, 1.5vw, 1.25rem);
+  border-left: 1px solid var(--m-rule-2);
+}
+
+.hm-hero-fact:first-child { border-left: 0; }
+
+.hm-hero-fact dt {
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: -0.008em;
+  line-height: 1.35;
+  color: var(--m-ink);
+}
+
+.hm-hero-fact dd {
+  margin: 0.28rem 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--m-mute);
+  text-wrap: pretty;
+}
+
+/* ============================================================== sections
+ *
+ * One material, taken from the pricing page: a warm sheet lit by a soft gold
+ * wash out of one corner, a hairline edge, a 16px radius and a low shadow.
+ * `.pz-rate` and `.pz-ledger` are the two shapes that page makes out of it,
+ * and this page uses both so six sections are not one shape repeated.
+ *
+ * Rebuilt on this page's tokens rather than imported: pricing.css is scoped to
+ * `.pz` and every value in it resolves through that page's own variables.
+ */
+
+.hm-card,
+.hm-ledger,
+.hm-hero-facts {
+  border: 1px solid var(--m-rule-4);
+  border-radius: var(--m-radius-card);
+  background-color: var(--m-card-bg);
+  box-shadow: var(--m-card-shadow-md);
+}
+
+/* ---- the sheet: a padded card holding one idea ----------------------- */
+
+.hm-card {
+  padding: clamp(1.6rem, 2.6vw, 2.35rem);
+  background-image: radial-gradient(74% 86% at 6% 0%, var(--m-tint), transparent 70%);
+  transition: border-color 0.32s var(--m-ease), box-shadow 0.32s var(--m-ease), transform 0.32s var(--m-ease);
+}
+
+.hm-card:hover {
+  border-color: var(--m-card-border-hover);
+  box-shadow: var(--m-card-shadow-lg);
+  transform: translateY(-2px);
+}
+
+.hm-card-b { margin-top: 0; }
+
+
+.hm-card-t {
+  margin: 0;
+  font-size: clamp(1.2rem, 1.6vw, 1.5rem);
+  letter-spacing: -0.022em;
+  line-height: 1.22;
+  text-wrap: balance;
+}
+
+.hm-card-b {
+  margin: 0.8rem 0 0;
+  font-size: 15.5px;
+  line-height: 1.75;
+  color: var(--m-dim);
+  max-width: 46ch;
+  text-wrap: pretty;
+}
+
+/* ---- the bento: three stacked columns, one of them an instrument panel -
+ *
+ * The v4 draft lays its reasons out as three columns with a portfolio panel
+ * sitting among them, taller than a card, so the column under it starts lower
+ * than its neighbours. Stacked columns give that offset for free; a grid would
+ * force the second row to share a line.
+ */
+
+.hm-kicker {
+  margin: clamp(2rem, 3.4vw, 3rem) 0 0;
+  text-align: center;
+}
+
+.hm-bento {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(0.9rem, 1.5vw, 1.15rem);
+  align-items: start;
+  margin-top: clamp(1.25rem, 2vw, 1.75rem);
+}
+
+.hm-bento-col {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.9rem, 1.5vw, 1.15rem);
+  min-width: 0;
+}
+
+/* ---- the portfolio panel ----------------------------------------------
+ *
+ * The same sheet every other card on this page wears — it takes `.hm-card`
+ * for the ground, the wash, the edge and the shadow.
+ *
+ * It held a quote list for one round, following the v4 draft, and that made
+ * the section read as a stock ticker with prose around it; prices already run
+ * on the tape above and live in the terminal. It carries the allowance now,
+ * which is the figure that answers the question the reasons around it assume
+ * has been settled: how much a resident may send at all.
+ */
+
+.hm-pf {
+  display: flex;
+  flex-direction: column;
+  padding: clamp(1.5rem, 2.4vw, 2rem);
+}
+
+.hm-pf-l {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--m-gold);
+}
+
+.hm-pf-v {
+  margin-top: clamp(1.35rem, 2.2vw, 1.85rem);
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(2.5rem, 3.6vw, 3.25rem);
+  font-weight: 600;
+  line-height: 0.94;
+  letter-spacing: -0.04em;
+  color: var(--m-ink);
+}
+
+.hm-pf-u {
+  margin-top: 0.85rem;
+  padding-bottom: clamp(1.1rem, 1.8vw, 1.5rem);
+  border-bottom: 1px solid var(--m-rule);
+  font-size: 14.5px;
+  color: var(--m-dim);
+}
+
+.hm-pf-note {
+  margin-top: clamp(1.1rem, 1.8vw, 1.5rem);
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--m-mute);
+  text-wrap: pretty;
+}
+
+/* ---- the route: one card per step ------------------------------------
+ *
+ * Rows on the page's own left edge read as a narrow column of text against an
+ * empty right half, and the eye kept being pulled back to that edge. Three
+ * cards across put each step on the page's own material and use the whole
+ * measure. What is inside is unchanged — the gold step mark, the title, the
+ * sentence — because that part reads well; only the shape holding it moved.
+ *
+ * The title and body match `.hm-card-t` and `.hm-card-b` exactly, so the
+ * steps and the reasons above them are one family rather than two.
+ */
+
+.hm-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(1.1rem, 1.8vw, 1.6rem);
+  margin: clamp(2.25rem, 3.6vw, 3.25rem) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hm-step {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.hm-step-l {
+  display: block;
+  margin-bottom: clamp(1rem, 1.6vw, 1.35rem);
+  padding-bottom: clamp(1rem, 1.6vw, 1.35rem);
+  border-bottom: 1px solid var(--m-rule-2);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--m-gold);
+}
+
+.hm-step-t {
+  margin: 0;
+  font-size: clamp(1.2rem, 1.6vw, 1.5rem);
+  letter-spacing: -0.022em;
+  line-height: 1.22;
+  text-wrap: balance;
+}
+
+.hm-step-b {
+  margin: 0.85rem 0 0;
+  font-size: 15.5px;
+  line-height: 1.75;
+  color: var(--m-dim);
+  text-wrap: pretty;
+}
+
+/* ---- the ledger: one sheet holding rows divided by hairlines --------- */
+
+.hm-ledger {
+  overflow: hidden;
+  margin: clamp(2rem, 3.4vw, 3rem) 0 0;
+  padding: 0;
+  list-style: none;
+  background-image: radial-gradient(64% 120% at 0% 0%, var(--m-tint), transparent 68%);
+}
+
+.hm-ledger-row {
+  display: grid;
+  /* The term is four words; the gloss is a sentence. An even split leaves a
+     hole between them. */
+  grid-template-columns: minmax(0, 0.5fr) minmax(0, 1fr);
+  align-items: baseline;
+  gap: clamp(1rem, 3vw, 2.5rem);
+  padding: clamp(1.15rem, 1.9vw, 1.6rem) clamp(1.3rem, 2.4vw, 2rem);
+  border-bottom: 1px solid var(--m-rule);
+  transition: background 0.3s var(--m-ease);
+}
+
+.hm-ledger-row:last-child { border-bottom: 0; }
+.hm-ledger-row:hover { background: color-mix(in srgb, var(--m-tint) 45%, transparent); }
+
+.hm-ledger-h {
+  display: flex;
+  align-items: baseline;
+  gap: 11px;
+  font-size: clamp(1.05rem, 1.3vw, 1.2rem);
+  font-weight: 500;
+  letter-spacing: -0.018em;
+  line-height: 1.25;
+  color: var(--m-ink);
+}
+
+.hm-ledger-v {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--m-dim);
+  text-wrap: pretty;
+}
+
+/* Green carries the tick; every row it marks also says its own word. */
+.hm-tick {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  /* Nudged onto the cap line of the term beside it rather than centred on a
+     box whose height the term sets. */
+  transform: translateY(1px);
+  color: var(--m-up);
+}
+
+/* ---- the cost: three figures, each on its own sheet -------------------
+ *
+ * A first-time buyer is weighing three numbers: what a trade costs, what the
+ * account costs, and what the data costs. Each one gets a card on the same
+ * sheet as every other block on this page, so the section a reader came for
+ * is not the one place the material drops away.
+ *
+ * The label and the note are set in the page's body face at body sizes. They
+ * were 15px and 11px tracked caps, and tracked caps that small stop reading
+ * as the same typeface as the figure above them: three lines of one number
+ * arrived as three unrelated fragments, with nothing between them.
+ */
+
+.hm-figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(1.1rem, 1.8vw, 1.6rem);
+  margin: clamp(2.25rem, 3.6vw, 3.25rem) 0 0;
+}
+
+.hm-figure {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* The figure leads the card. It is second in the markup because a definition
+   list wants its term first, and a screen reader reading "brokerage, per
+   transaction — 0.29%" is the right order anyway. */
+.hm-figure-v {
+  order: -1;
+  display: block;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(2.9rem, 4.4vw, 3.9rem);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.038em;
+  color: var(--m-ink);
+}
+
+.hm-figure-l {
+  display: block;
+  margin-top: clamp(1.4rem, 2.2vw, 1.9rem);
+  padding-top: clamp(1.4rem, 2.2vw, 1.9rem);
+  border-top: 1px solid var(--m-rule-2);
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: -0.012em;
+  color: var(--m-ink);
+}
+
+.hm-figure-n {
+  display: block;
+  margin: 0.7rem 0 0;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--m-mute);
+  text-wrap: pretty;
+}
+
+/* The honest line and the way to the whole schedule, on one row. */
+.hm-cost-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(1.25rem, 3vw, 2.5rem);
+  margin-top: clamp(1.5rem, 2.6vw, 2.25rem);
+}
+
+.hm-note--flush { margin-top: 0; max-width: 62ch; }
+
+/* ---- the questions: a ledger whose rows open ------------------------- */
+
+.hm-qs .hm-q { border-bottom: 1px solid var(--m-rule); }
+.hm-qs .hm-q:last-child { border-bottom: 0; }
+.hm-q h3 { margin: 0; font-size: inherit; font-weight: inherit; }
+
+.hm-q-head {
+  font: inherit;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 4rem minmax(0, 1fr) 1.5rem;
+  align-items: baseline;
+  gap: 1rem;
+  text-align: left;
+  padding: clamp(1.25rem, 2vw, 1.75rem) clamp(1.3rem, 2.4vw, 2rem);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--m-ink);
+  transition: background 0.3s var(--m-ease);
+}
+
+.hm-q-head:hover { background: color-mix(in srgb, var(--m-tint) 45%, transparent); }
+
+.hm-q-n {
+  font-family: var(--m-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--m-gold);
+}
+
+.hm-q-t {
+  font-size: clamp(1.15rem, 1.5vw, 1.4rem);
+  font-weight: 500;
+  letter-spacing: -0.022em;
+  line-height: 1.26;
+  text-wrap: balance;
+}
+
+/* A plus that becomes a minus: two rules, one of which rotates away. */
+.hm-q-sign { position: relative; width: 14px; height: 14px; justify-self: end; align-self: center; }
+.hm-q-sign span {
+  position: absolute;
+  inset: 50% 0 auto 0;
+  height: 1.5px;
+  background: var(--m-gold);
+  transition: transform 0.42s var(--m-ease), opacity 0.42s var(--m-ease);
+}
+.hm-q-sign span:last-child { transform: rotate(90deg); }
+.hm-q.is-open .hm-q-sign span:last-child { transform: rotate(0deg); opacity: 0; }
+
+.hm-q-panel { overflow: hidden; }
+
+.hm-q-a {
+  margin: 0;
+  padding: 0 clamp(1.3rem, 2.4vw, 2rem) clamp(1.35rem, 2.2vw, 1.85rem) 5rem;
+  font-size: 15.5px;
+  line-height: 1.8;
+  color: var(--m-dim);
+  max-width: 74ch;
+  text-wrap: pretty;
+}
+
+/* ---- prose between the blocks ---------------------------------------- */
+
+.hm-note {
+  margin: clamp(1.4rem, 2.4vw, 2rem) 0 0;
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--m-mute);
+  max-width: 78ch;
+  text-wrap: pretty;
+}
+
+.hm-note strong { color: var(--m-gold); font-weight: 500; }
+
+/* The section header, on one axis.
+ *
+ * The products page splits its heads: heading left, a line of body pinned to
+ * the right edge. That works there because its headings run long enough to
+ * close the gap. Here they do not — "Three steps, one legal route." left
+ * seven hundred pixels of nothing between the two, and the paragraph read as
+ * having drifted to the far side of the page. The body sits under the heading
+ * now, so the label, the heading, the body and everything below them share
+ * one left edge. */
+.hm .ft-head {
+  display: block;
+  padding-bottom: clamp(1.35rem, 2.2vw, 1.85rem);
+}
+
+.hm .ft-head .ft-body {
+  margin: clamp(1.1rem, 1.8vw, 1.5rem) 0 0;
+  font-size: 16px;
+  line-height: 1.75;
+  color: var(--m-dim);
+  max-width: 62ch;
+}
+
+.hm .ft-close .ft-body { font-size: 15.5px; }
+
+/* ---- read first: the way into the article library --------------------- */
+
+.hm-reads {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 1.75rem;
+  margin: clamp(1.75rem, 2.8vw, 2.5rem) 0 0;
+  padding-top: clamp(1.35rem, 2vw, 1.75rem);
+  border-top: 1px solid var(--m-rule-2);
+}
+
+.hm-reads-l { flex: none; }
+
+.hm-reads-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hm-read {
+  font-size: 15px;
+  color: var(--m-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--m-rule-4);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  transition: color 0.25s var(--m-ease), text-decoration-color 0.25s var(--m-ease);
+}
+
+.hm-read:hover {
+  color: var(--m-gold);
+  text-decoration-color: var(--m-gold);
+}
+
+.hm-reads-all { margin-left: auto; }
+
+/* A link inside prose reads at prose size. The 9.5px tracked-caps link the
+   products page uses for tertiary navigation disappears inside a sentence. */
+.hm-inline {
+  color: var(--m-gold);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: color 0.25s var(--m-ease);
+}
+
+.hm-inline:hover { color: var(--m-gold-hi); }
+
+.hm-qs-foot { margin-top: clamp(1.5rem, 2.6vw, 2.25rem); }
+
+/* ============================================================ responsive */
+
+@media (max-width: 1180px) {
+  .hm-globe { min-height: 320px; }
+  .hm-globe .globe { width: min(100%, 400px); }
+}
+
+@media (max-width: 1024px) {
+  .hm-bento { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 900px) {
+  .hm-steps,
+  .hm-figures {
+    grid-template-columns: minmax(0, 1fr);
+    gap: clamp(1rem, 2.4vw, 1.4rem);
+  }
+  .hm-ledger-row { grid-template-columns: minmax(0, 1fr); gap: 0.6rem; }
+  .hm-cost-foot { justify-content: flex-start; }
+}
+
+@media (max-width: 760px) {
+  .hm-bento { grid-template-columns: minmax(0, 1fr); }
+  .hm-reads-all { margin-left: 0; }
+  .hm-tile { min-width: 200px; min-height: 108px; }
+  .hm-hero-facts { grid-template-columns: minmax(0, 1fr); width: auto; }
+  .hm-hero-fact {
+    border-left: 0;
+    border-top: 1px solid var(--m-rule-2);
+    padding-block: clamp(0.7rem, 2vw, 0.9rem);
+  }
+  .hm-hero-fact:first-child { border-top: 0; padding-top: 0; }
+  .hm-hero-fact:last-child { padding-bottom: 0; }
+  .hm-reads-all { margin-left: 0; }
+  .hm-q-head { grid-template-columns: 2.75rem minmax(0, 1fr) 1.25rem; gap: 0.75rem; }
+  .hm-q-a { padding-left: clamp(1.3rem, 2.4vw, 2rem); }
+}
+
+@media (max-width: 480px) {
+  .hm-figure-v { font-size: clamp(2.5rem, 13vw, 3.1rem); }
+  .hm-globe { min-height: 260px; }
+  .hm-globe .globe { width: min(100%, 300px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hm .ft-hero-copy { animation: none; }
+  .hm-tile--wait,
+  .hm-pill-dot { animation: none; }
+  .hm-tape { overflow-x: auto; -webkit-mask-image: none; mask-image: none; }
+  .hm-tile,
+  .hm-card,
+  .hm-read,
+  .hm-inline,
+  .hm-ledger-row,
+  .hm-q-head,
+  .hm-q-sign span { transition: none; }
+}

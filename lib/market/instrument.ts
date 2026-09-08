@@ -6,15 +6,30 @@ import {
   fetchIntraday,
   fetchQuotes,
   type RawEquityQuote,
+  type RawHistoryPoint,
 } from "@/lib/api/clients/quotes";
 import { fetchIndicator, fetchShortInterest } from "@/lib/api/clients/technicals";
-import { getCorporateActions, getFinancials, getFundamentals } from "@/lib/api/cache-layer";
+import {
+  getCorporateActions,
+  getFinancials,
+  getFundamentals,
+  getStockArticles,
+} from "@/lib/api/cache-layer";
 import { toFinancialYears, type FinancialYear } from "@/lib/api/normalize/financials";
 import { toCompanyProfile, type CompanyProfile } from "@/lib/api/normalize/profile";
 import { toTechnicalRead, type TechnicalRead } from "@/lib/api/normalize/technicals";
-import { repairSplitBreaks, returnsFrom, type Returns } from "@/lib/api/normalize/returns";
+import { fetchAnalystConsensus } from "@/lib/api/clients/analysts";
+import { toAnalystAvailability, type AnalystAvailability } from "@/lib/api/normalize/analyst";
+import { type Returns } from "@/lib/api/normalize/returns";
+import {
+  repairAgainst,
+  returnsAgainst,
+  splitRecord,
+  type ActionsRecord,
+} from "@/lib/market/split-record";
 import { relativeAge } from "@/lib/api/normalize/time";
 import { toPricePoints, type PricePoint } from "@/lib/api/normalize/series";
+import { toStockNews } from "@/lib/api/normalize/stock-news";
 import { toWireItems } from "@/lib/api/normalize/wire";
 import { TAGS, TTL } from "@/lib/api/ttl";
 import { nowMs, nowSeconds } from "@/lib/market/clock";
@@ -46,7 +61,15 @@ export type PeerQuote = {
   id: string;
   name: string;
   price: number | null;
+  /** Move since yesterday's close, percent. */
   chg: number | null;
+  /* Trailing-year return, percent, measured the same way the subject's is.
+     The comparison table used to print `chg` under a "1Y return" header, so
+     the subject's year sat beside every peer's day in one column. Null when
+     the peer's history does not reach back a year — returnsFrom refuses to
+     extrapolate one, and the table must show a dash rather than fall back to
+     the day move to fill the cell. */
+  ret1y: number | null;
   marketCap: number | null;
   pe: number | null;
 };
@@ -82,6 +105,16 @@ export type InstrumentSnapshot = {
   market: { symbol: string; daily: PricePoint[] } | null;
   /** The largest single-session moves in the record. */
   notableMoves: Array<{ date: string; chg: string; color: string }>;
+  /* Analyst coverage, as a state rather than a claim.
+     `unavailable.analystTargets` was hardcoded `true` — correct today, because
+     every analyst path answers 403/4031, but it is a fact about the account
+     rather than about the company, and it could not become false when the
+     entitlement lifts. This carries the live answer instead, and distinguishes
+     "the account cannot see this" from "nobody covers this company" from "the
+     call failed and we do not know". The panel renders whichever it gets, and
+     starts showing real consensus the day the door opens with no code change
+     here. */
+  analyst: AnalystAvailability;
   /** What this account has no entitlement for, so a panel can say so. */
   unavailable: { analystTargets: true; institutionalHolders: true; marketShare: true };
   status: "live" | "stale" | "degraded" | "down";
@@ -148,6 +181,8 @@ export const getInstrumentSnapshot = cache(
       shortS,
       intradayS,
       marketS,
+      analystS,
+      articlesS,
     ] = await Promise.allSettled([
       fetchQuotes([ticker], TTL.sweep, [TAGS.quotes]),
       getFundamentals(ticker),
@@ -160,6 +195,17 @@ export const getInstrumentSnapshot = cache(
       fetchShortInterest(ticker, TTL.fundamentals, [TAGS.fundamentals]),
       fetchIntraday(ticker, TTL.sweep, [TAGS.history]),
       fetchHistory(MARKET_PROXY, "5y", TTL.history1m, [TAGS.history]),
+      /* 403 today on every analyst path. It rides the fan-out anyway so the
+         refusal is observed per request rather than assumed, and so the panel
+         fills itself the day the entitlement arrives. allSettled means the
+         refusal cannot take the page down. */
+      fetchAnalystConsensus(ticker, TTL.fundamentals, [TAGS.fundamentals]),
+      /* The wider news pool. The gateway bundles three articles per ticker and
+         about two are filler, so three relevant stories cannot come from it —
+         this is the second source, cached a day and budget-guarded. It rides
+         allSettled like everything else: an exhausted allowance or a dead
+         provider costs the page its extra headlines, never the page. */
+      getStockArticles(presentation(ticker).name, ticker),
     ]);
 
     /* The quote decides whether this page exists at all. A ticker the gateway
@@ -196,18 +242,26 @@ export const getInstrumentSnapshot = cache(
     if (annual.length === 0) failures.push("filings");
 
     /* ---- history, split-repaired before anything is measured ---- */
-    const actions = dataOf<{
-      splits?: Array<{ execution_date: string; split_from: number; split_to: number }> | null;
-      dividends?: Array<{
-        ex_dividend_date: string;
-        cash_amount: number;
-        pay_date: string | null;
-      }> | null;
-    }>(value(actionsS, undefined));
+    const actions = dataOf<
+      ActionsRecord & {
+        dividends?: Array<{
+          ex_dividend_date: string;
+          cash_amount: number;
+          pay_date: string | null;
+        }> | null;
+      }
+    >(value(actionsS, undefined));
 
-    const rawHistory = dataOf<Parameters<typeof repairSplitBreaks>[0]>(value(historyS, undefined));
-    const splits = actions?.splits ?? [];
-    const series = rawHistory ? (splits.length ? repairSplitBreaks(rawHistory, splits) : rawHistory) : [];
+    /* A company with no splits and a corporate-actions call that failed used
+       to be the same value here, and they are opposites: the first says the
+       raw series needs no repair, the second says we cannot know whether it
+       does. See lib/market/split-record.ts — Netflix shipped a −93.3% year
+       off an unapplied ten-for-one split on the strength of that conflation. */
+    const record = splitRecord(actions);
+    if (!record.readable) failures.push("corporate actions");
+
+    const rawHistory = dataOf<RawHistoryPoint[]>(value(historyS, undefined));
+    const series = rawHistory ? repairAgainst(rawHistory, record) : [];
     if (series.length === 0) failures.push("price history");
 
     const daily = toPricePoints(series);
@@ -231,12 +285,50 @@ export const getInstrumentSnapshot = cache(
             name: presentation(q.symbol, q.companyName).name,
             price: q.lastPrice ?? q.closingPrice ?? null,
             chg: q.changePercent === null ? null : q.changePercent * 100,
+            /* Filled from each peer's own history below; the quotes feed
+               carries no trailing-year figure. */
+            ret1y: null,
             // The quotes feed reports capitalisation in millions.
             marketCap: q.marketCap === null ? null : q.marketCap * 1e6,
             pe: q.priceEarningRatio !== null && q.priceEarningRatio > 0 ? q.priceEarningRatio : null,
           }));
       } else {
         failures.push("peers");
+      }
+
+      /* One trailing year per peer, so every row of the comparison measures
+         the same window. Two cached calls per peer, fanned out rather than
+         chained; warm page cost was unchanged at ~0.34s.
+
+         The corporate actions are not optional. Measuring the raw series
+         alone put Netflix at −93.3% off a $80.58 price — a ten-for-one split
+         the vendor had not applied, read as a collapse. The subject's series
+         is repaired the same way a few lines above, and a peer column that
+         skipped it would be quoting a different, wronger number than the one
+         it replaced.
+
+         Only the resulting scalar is kept. Attaching eight more years of
+         daily bars to the snapshot would inflate a flight payload that is
+         already 58% price series, to render eight numbers. A peer whose
+         history fails or falls short of a year keeps ret1y null and renders
+         a dash — and so does one whose corporate actions cannot be read,
+         because a series that could not be repaired is a series we cannot
+         say anything about. */
+      if (peers.length > 0) {
+        const [histories, actionsList] = await Promise.all([
+          Promise.allSettled(
+            peers.map((c) => fetchHistory(c.id, "1y", TTL.history1m, [TAGS.history])),
+          ),
+          Promise.allSettled(peers.map((c) => getCorporateActions(c.id))),
+        ]);
+        peers = peers.map((c, i) => {
+          const settled = histories[i];
+          const raw =
+            settled.status === "fulfilled" && settled.value.ok ? settled.value.data : null;
+          if (!raw) return { ...c, ret1y: null };
+          const peerRecord = splitRecord(dataOf<ActionsRecord>(value(actionsList[i], undefined)));
+          return { ...c, ret1y: returnsAgainst(raw, peerRecord).ret1y };
+        });
       }
     }
 
@@ -249,11 +341,17 @@ export const getInstrumentSnapshot = cache(
       }>;
     }>(value(shortS, undefined))?.results?.[0];
 
-    const news = toWireItems(
+    /* Both feeds, ranked as one list. toWireItems has already dropped anything
+       the gateway's own reasoning marks as a mention, and toStockNews scores
+       the second source on its concepts, dedupes the syndicated copies the two
+       share, caps any one publisher and takes the best three. */
+    const gatewayNews = toWireItems(
       fundamentals?.ticker_news?.length ? [{ ticker, news: fundamentals.ticker_news }] : [],
       now,
       8,
     );
+    const articles = dataOf(value(articlesS, undefined)) ?? [];
+    const news = toStockNews(gatewayNews, articles, ticker, now, 3);
 
     const dividends = (actions?.dividends ?? [])
       .filter((d) => d.cash_amount > 0 && d.ex_dividend_date)
@@ -293,7 +391,10 @@ export const getInstrumentSnapshot = cache(
         daysToCover: short?.days_to_cover ?? null,
         settlementDate: short?.settlement_date ?? null,
       },
-      returns: returnsFrom(series),
+      /* Measured from the raw series rather than the repaired one, so the
+         repair and the measurement cannot come apart: returnsAgainst does
+         both, or neither. The chart below keeps its bars either way. */
+      returns: returnsAgainst(rawHistory ?? [], record),
       history: {
         daily,
         intraday,
@@ -306,7 +407,11 @@ export const getInstrumentSnapshot = cache(
       news,
       peers,
       market: marketDaily.length ? { symbol: MARKET_PROXY, daily: marketDaily } : null,
-      notableMoves: largestSessions(daily),
+      /* An unapplied ten-for-one split is a −90% session, and it would top
+         this list every time — the one figure on the page most likely to be
+         a split break is the one this picks out. Withheld with the returns. */
+      notableMoves: record.readable ? largestSessions(daily) : [],
+      analyst: toAnalystAvailability(value(analystS, undefined), profile.price),
       unavailable: { analystTargets: true, institutionalHolders: true, marketShare: true },
       status,
       note,

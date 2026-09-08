@@ -29,7 +29,21 @@ export function OverviewPanel({ snapshot }: { snapshot: InstrumentSnapshot }) {
       </dl>
 
       <div className="grid gap-8 xl:grid-cols-[1.4fr_1fr] xl:gap-[34px]">
-        <Section title="Insights" action={<span className="eyebrow">Updated 4 min ago</span>}>
+        {/* This read "Updated 4 min ago" — a string literal, identical on every
+            render, attached to three derived claims on a page whose quotes run
+            fifteen minutes behind. A false freshness stamp is worse than none.
+            getInstrumentSnapshot already composes the true line and nothing
+            rendered it; `note` is null only when the feed is actually live. */}
+        <Section
+          title="Insights"
+          action={
+            snapshot.note ? (
+              <span className="eyebrow" title={snapshot.note}>
+                {snapshot.note}
+              </span>
+            ) : null
+          }
+        >
           <ol className="flex list-none flex-col p-0">
             {rows.map((i) => (
               <li key={i.title} className="rule-t flex gap-[18px] py-4">
@@ -53,7 +67,14 @@ export function OverviewPanel({ snapshot }: { snapshot: InstrumentSnapshot }) {
           </ol>
         </Section>
 
-        <Section title="Returns" eyebrow="Total return incl. dividends">
+        {/* "Total return incl. dividends" was a false label. Every figure
+            beneath it is computed from RawHistoryPoint.price — the close —
+            and repairSplitBreaks adjusts for splits only. There is no
+            dividend adjustment anywhere in this repository. A total return
+            includes dividends by definition; on a high-yield name held five
+            years the gap is material, and the label was overstating nothing
+            while claiming to include something. */}
+        <Section title="Returns" eyebrow="Price return, split-adjusted">
           <div className="flex flex-col gap-[18px]">
             {perf.map((r, i) => (
               <div key={r.label}>

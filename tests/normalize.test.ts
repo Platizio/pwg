@@ -39,6 +39,7 @@ function row(over: Partial<SweepRow> = {}): SweepRow {
     px: 311.56,
     // A percent already: toSweepRow multiplied the gateway's fraction.
     chg: -1.49,
+    chgKnown: true,
     vol: 42_000_000,
     avgVol: 50_000_000,
     dollarVol: 13_085_520_000,
@@ -242,7 +243,7 @@ test("toIndexView reads breadth, leaders and laggards from the members", () => {
   const members = [member("AAA", 3.1), member("BBB", -2.4), member("CCC", 0), member("DDD", 1.2)];
   const view = toIndexView("SPX", raw({ lastPrice: 612.4 }), sample(members));
   assert.ok(view);
-  assert.deepEqual(view.breadth, { total: 4, up: 2, down: 1 });
+  assert.deepEqual(view.breadth, { total: 4, up: 2, down: 1, flat: 1, unreported: 0 });
   assert.deepEqual(view.leaders.map((q) => q.id), ["AAA", "DDD", "CCC"]);
   assert.deepEqual(view.laggards.map((q) => q.id), ["BBB", "CCC", "DDD"]);
   // The caller's array is not the normalizer's to reorder.

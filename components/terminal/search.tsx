@@ -290,7 +290,7 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
   return (
     <div ref={rootRef} className="relative w-full">
       <label htmlFor={inputId} className="sr-only">
-        Search instruments by name or ticker
+        Search stocks by name or ticker
       </label>
 
       {/*
@@ -335,13 +335,13 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
           aria-activedescendant={
             open && activeRow ? `${uid}-${activeRow.key}` : undefined
           }
-          /* A dead feed leaves the corpus empty, and "Search 0 instruments"
-             is a figure stating something untrue about the market rather than
+          /* A dead feed leaves the corpus empty, and "Search 0 stocks" is
+             a figure stating something untrue about the market rather than
              about the box. */
           placeholder={
             universe.length > 0
-              ? `Search ${COUNT_FMT.format(universe.length)} instruments`
-              : "Search instruments"
+              ? `Search ${COUNT_FMT.format(universe.length)} stocks`
+              : "Search stocks"
           }
           className="w-full min-w-0 bg-transparent py-2.5 text-[13px] text-ink placeholder:text-ink-3 focus:outline-none"
         />
@@ -385,7 +385,7 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
             className="card edge-lit max-h-[min(70vh,560px)] overflow-y-auto p-2 shadow-[0_16px_34px_rgba(0,0,0,0.7)]"
             role="listbox"
             id={listId}
-            aria-label={term ? "Instrument results" : "Watch list"}
+            aria-label={term ? "Stock results" : "Watch list"}
           >
             {rows.length === 0 ? (
               <p className="px-4 py-5 text-[13.5px] leading-[1.7] text-ink-3">

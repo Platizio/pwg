@@ -84,13 +84,25 @@ Render, deferred until the interface work is settled.
 
 ## Brand Commitments
 
-Existing identity, binding: the name Platizio Global; the site's own light
-theme — white ground, navy ink, burnt orange accent; Bricolage Grotesque for
-display, Inter for prose, IBM Plex Mono for figures.
+Existing identity, binding: the name Platizio Global and the wordmark.
 
-User-stated and binding: **the marketing site keeps its white background**, and
-**the terminal keeps its own separate dark treatment** — the marketing world is
-not to be applied to it.
+Aayush-stated on 4 September 2026, binding for every marketing page: the
+products page's world — cream paper (`#f2ede5`), warm brown-black ink, gold
+split into a fill (`#d9bd8b`, never words on paper) and a text tone
+(`#7e6238`) — with midnight navy (`#0b1b33`) as night moments only: at most
+one instrument panel per page, plus the footer. The register is clean and
+industrial, like a US finance platform: structure by grid, hairline and
+whitespace; no ornament, lattice, stamp or engraving. Components and card
+styling follow the v4 draft (platizio-v4.vercel.app) and the products page.
+Type is Newsreader for display with one italic clause at most, Manrope for
+prose and labels, IBM Plex Mono for figures. Motion is Lenis smooth scroll
+with one rehearsed sequence per page; liquid glass on the nav pill, the
+primary button, the ghost button, the footer bar and floating night cards.
+Copy is preserved word for word through any redesign.
+
+**The terminal keeps its own separate dark treatment** — the marketing world
+is not applied to it — and `/products` is the reference surface, not a
+target.
 
 ## Evidence on Hand
 

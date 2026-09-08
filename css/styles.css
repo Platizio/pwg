@@ -97,10 +97,6 @@ svg {
     scroll-behavior: auto !important;
   }
 
-  .reveal {
-    opacity: 1 !important;
-    transform: none !important;
-  }
 }
 
 a {
@@ -191,256 +187,7 @@ p {
   font-size: 1.05rem;
 }
 
-/* =========================================================
-   Header / Navigation
-   ========================================================= */
-.site-header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: saturate(180%) blur(12px);
-  -webkit-backdrop-filter: saturate(180%) blur(12px);
-  border-bottom: 1px solid var(--gray-200);
-}
-
-.nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.5rem;
-  padding: 1rem 1.5rem;
-  max-width: var(--container);
-  margin: 0 auto;
-}
-
-/* ── Logo ───────────────────────────────────────────────────────────
-   Logo_V2.png has a transparent background, so it blends cleanly on
-   any surface. Negative margins trim the built-in canvas whitespace
-   so the nav height stays compact.                                   */
-.logo {
-  display: inline-flex;
-  align-items: center;
-  text-decoration: none;
-  overflow: hidden;
-  align-self: stretch;
-  flex-shrink: 0;
-}
-
-/* Picture wrapper must not collapse the logo in the flex nav */
-.logo picture {
-  display: inline-flex;
-  align-items: center;
-}
-
-/* Mobile-only CTA block inside the slide-out menu (hidden on desktop) */
-.nav-cta-mobile {
-  display: none;
-}
-
-.logo-img {
-  display: block;
-  height: 250px;
-  width: auto;
-  margin: -120px 0;
-  user-select: none;
-  -webkit-user-drag: none;
-}
-
-/* Footer: invert to all-white silhouette for the dark navy background.
-   Works correctly on a transparent PNG — transparent areas stay
-   transparent, coloured text becomes clean white.                    */
-.site-footer .logo-img {
-  height: 152px;
-  margin: -48px 0;
-  filter: brightness(0) invert(1);
-  opacity: 0.92;
-}
-
 @media (max-width: 768px) {
-  .logo-img {
-    height: 110px;
-    margin: -33px 0;
-  }
-}
-
-.nav-links {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  list-style: none;
-}
-
-.nav-links a:not(.btn) {
-  position: relative;
-  display: inline-block;
-  padding: 0.6rem 0.8rem;
-  border-radius: 8px;
-  font-weight: 500;
-  font-size: 0.875rem;
-  color: var(--gray-700);
-  transition: var(--t-fast);
-}
-
-.nav-links a:hover {
-  color: var(--navy);
-  background: var(--gray-100);
-}
-
-.nav-links a.active {
-  color: var(--navy);
-}
-
-.nav-links a.active::after {
-  content: '';
-  position: absolute;
-  bottom: 4px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 18px;
-  height: 2px;
-  background: var(--gold);
-  border-radius: 2px;
-}
-
-/* Dropdown trigger button (Resources) — styled to match .nav-links a */
-.nav-links .nav-trigger {
-  position: relative;
-  display: inline-block;
-  padding: 0.6rem 0.8rem;
-  border-radius: 8px;
-  font-family: inherit;
-  font-weight: 500;
-  font-size: 0.875rem;
-  color: var(--gray-700);
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: var(--t-fast);
-}
-
-.nav-links .nav-trigger:hover {
-  color: var(--navy);
-  background: var(--gray-100);
-}
-
-.nav-links .nav-trigger.active {
-  color: var(--navy);
-}
-
-.nav-links .nav-trigger.active::after {
-  content: '';
-  position: absolute;
-  bottom: 4px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 18px;
-  height: 2px;
-  background: var(--gold);
-  border-radius: 2px;
-}
-
-/* Dropdown */
-.has-dropdown {
-  position: relative;
-}
-
-.dropdown-chevron {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-right: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
-  transform: rotate(45deg) translateY(-2px);
-  margin-left: 6px;
-  opacity: 0.6;
-  transition: var(--t-fast);
-  vertical-align: middle;
-}
-
-.has-dropdown:hover .dropdown-chevron {
-  transform: rotate(225deg) translateY(2px);
-  opacity: 1;
-}
-
-/* Wrapper exists only so the mobile collapse can animate grid-template-rows,
-   which needs a single child. On desktop it is removed from the box tree. */
-.dropdown-wrap { display: contents; }
-
-.dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  min-width: 240px;
-  background: var(--white);
-  border: 1px solid var(--gray-200);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-lg);
-  padding: 0.5rem;
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(-6px);
-  transition: var(--t);
-  list-style: none;
-}
-
-.has-dropdown:hover .dropdown,
-.has-dropdown:focus-within .dropdown {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
-}
-
-/* Needs to out-specify `.nav-links a:not(.btn)`, which sets display:inline-block
-   and would otherwise keep the title and description on the same line. */
-.nav-links .dropdown a {
-  display: flex;
-  flex-direction: column;
-  padding: 0.65rem 0.85rem;
-  border-radius: 8px;
-}
-
-.dropdown a:hover {
-  background: var(--gray-100);
-}
-
-.dropdown a strong {
-  display: block;
-  color: var(--navy);
-  font-weight: 600;
-}
-
-.dropdown a span {
-  display: block;
-  margin-top: 0.15rem;
-  font-size: 0.82rem;
-  color: var(--gray-500);
-}
-
-.nav-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-}
-
-.menu-toggle {
-  display: none;
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
-  place-items: center;
-  background: var(--navy);
-  color: var(--white);
-}
-
-.menu-toggle svg {
-  width: 22px;
-  height: 22px;
-  display: block;
-}
-
-.menu-toggle:hover {
-  background: var(--navy-deep);
 }
 
 /* =========================================================
@@ -476,17 +223,6 @@ p {
   box-shadow: var(--shadow-md);
 }
 
-.btn-gold {
-  background: var(--gold-gradient);
-  color: var(--white);
-  box-shadow: 0 6px 18px rgba(185, 75, 18, 0.4);
-}
-
-.btn-gold:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 25px rgba(185, 75, 18, 0.45);
-}
-
 .btn-ghost {
   background: transparent;
   color: var(--navy);
@@ -511,25 +247,6 @@ p {
 .btn-lg {
   padding: 0.95rem 1.6rem;
   font-size: 1rem;
-}
-
-/* Pulsing Contact Us */
-.btn-pulse {
-  position: relative;
-  background: var(--gold-gradient);
-  color: var(--white);
-  font-weight: 700;
-  animation: pulse-glow 2.2s ease-in-out infinite;
-}
-
-.btn-pulse::before {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  border-radius: var(--radius-full);
-  border: 2px solid var(--gold);
-  opacity: 0;
-  animation: pulse-ring 2.2s ease-out infinite;
 }
 
 @keyframes pulse-glow {
@@ -636,28 +353,6 @@ p {
   color: rgba(255, 255, 255, 0.62);
   font-size: 0.82rem;
   white-space: nowrap;
-}
-
-/* ── Skip-to-content ── */
-.skip-link {
-  position: absolute;
-  top: -100%;
-  left: 1rem;
-  background: var(--navy);
-  color: var(--white);
-  padding: 0.75rem 1.25rem;
-  border-radius: 0 0 var(--radius) var(--radius);
-  font-weight: 600;
-  font-size: 0.95rem;
-  z-index: 9999;
-  transition: top 0.2s ease;
-  text-decoration: none;
-}
-
-.skip-link:focus {
-  top: 0;
-  outline: 3px solid var(--gold);
-  outline-offset: 2px;
 }
 
 /* Hero visual: globe */
@@ -2576,180 +2271,6 @@ p {
   margin-bottom: 0.5rem;
 }
 
-/* =========================================================
-   Footer
-   ========================================================= */
-.site-footer {
-  background: var(--navy-deep);
-  color: rgba(255, 255, 255, 0.7);
-  padding: 4rem 0 2rem;
-  margin-top: 5rem;
-}
-
-.footer-top {
-  display: grid;
-  grid-template-columns: 1.4fr repeat(5, 1fr);
-  gap: 2rem;
-  padding-bottom: 3rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.footer-brand {
-  max-width: 320px;
-}
-
-.footer-brand .logo {
-  color: var(--white);
-  margin-bottom: 1rem;
-}
-
-.footer-brand p {
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 0.9rem;
-  margin-bottom: 1.5rem;
-}
-
-.social {
-  display: flex;
-  gap: 0.55rem;
-}
-
-.social a {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.08);
-  display: grid;
-  place-items: center;
-  color: rgba(255, 255, 255, 0.75);
-  transition: var(--t);
-}
-
-.social a:hover {
-  background: var(--gold-gradient);
-  color: var(--white);
-  transform: translateY(-2px);
-}
-
-.social svg {
-  width: 18px;
-  height: 18px;
-}
-
-.footer-app {
-  margin-top: 1.75rem;
-}
-
-.footer-app h5 {
-  color: var(--white);
-  font-size: 0.85rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  margin-bottom: 0.85rem;
-}
-
-.footer-app-badges {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.footer-app-badges a {
-  display: block;
-  max-width: 100%;
-  border-radius: 8px;
-  transition: var(--t);
-}
-
-/* Widths keep both badges at the same rendered height (~42px) despite
-   their different aspect ratios; the img scales inside them. */
-.footer-app-badges .badge-ios {
-  width: 126px;
-}
-
-.footer-app-badges .badge-android {
-  width: 142px;
-}
-
-.footer-app-badges a:hover {
-  transform: translateY(-2px);
-}
-
-.footer-app-badges a:focus-visible {
-  outline: 2px solid var(--gold);
-  outline-offset: 3px;
-}
-
-.footer-app-badges img {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-.footer-col h5 {
-  color: var(--white);
-  font-size: 0.85rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  margin-bottom: 1.1rem;
-}
-
-.footer-col ul {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 0.7rem;
-}
-
-.footer-col a {
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 0.92rem;
-  transition: var(--t-fast);
-  overflow-wrap: break-word;
-}
-
-.footer-col a:hover {
-  color: var(--gold);
-}
-
-.footer-contact-list {
-  gap: 0.9rem !important;
-}
-
-.footer-contact-list li {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.footer-contact-label {
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: rgba(255, 255, 255, 0.35);
-}
-
-.footer-contact-list address {
-  font-style: normal;
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 0.88rem;
-  line-height: 1.65;
-}
-
-.footer-bottom {
-  padding-top: 2rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.5rem;
-  justify-content: space-between;
-  align-items: flex-start;
-  font-size: 0.85rem;
-}
-
 .disclaimer {
   max-width: 760px;
   color: rgba(255, 255, 255, 0.78);
@@ -2760,21 +2281,6 @@ p {
 .copyright {
   color: rgba(255, 255, 255, 0.72);
   font-size: 0.82rem;
-}
-
-.footer-legal-link {
-  color: rgba(255, 255, 255, 0.75);
-  margin-right: 0.85rem;
-  font-size: 0.82rem;
-  transition: var(--t-fast);
-}
-
-.footer-legal-link:hover {
-  color: var(--gold);
-}
-
-.footer-legal-link:last-child {
-  margin-right: 0;
 }
 
 /* =========================================================
@@ -2948,10 +2454,6 @@ p {
     grid-column: 4 / 6;
   }
 
-  .footer-top {
-    grid-template-columns: 1fr 1fr;
-  }
-
   .about-grid {
     grid-template-columns: 1fr;
   }
@@ -3032,127 +2534,15 @@ p {
     display: none;
   }
 
-  .menu-toggle {
-    display: grid;
-  }
-
-  .nav-links {
-    position: fixed;
-    top: 72px;
-    left: 0;
-    right: 0;
-    z-index: 200;
-    flex-direction: column;
-    align-items: stretch;
-    background: var(--white);
-    padding: 1rem 1.5rem 1.5rem;
-    border-bottom: 1px solid var(--gray-200);
-    box-shadow: var(--shadow-md);
-    gap: 0.25rem;
-    /* Translate fully off-screen: own height + the 72px top offset + shadow buffer.
-       Height-independent so a taller menu (with CTAs) can never peek at the top. */
-    transform: translateY(calc(-100% - 120px));
-    transition: transform var(--t);
-    /* Closed menu can't intercept taps even if a sub-pixel peeks on-screen */
-    pointer-events: none;
-  }
-
-  .nav-links.is-open {
-    transform: translateY(0);
-    pointer-events: auto;
-  }
-
-  .nav-links a {
-    padding: 0.85rem 1rem;
-  }
-
-  .nav-links .nav-trigger {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: 0.85rem 1rem;
-  }
-
-  .has-dropdown>a::after {
-    float: right;
-    margin-top: 6px;
-  }
-
-  /* Products dropdown: collapsed by default on mobile, toggled by .products-open class */
-  /* grid-template-rows animates without touching layout of anything outside
-     the wrapper, and needs no magic max-height that has to exceed the content. */
-  .dropdown-wrap {
-    display: grid;
-    grid-template-rows: 0fr;
-    transition: grid-template-rows 0.3s ease;
-  }
-
-  .has-dropdown.products-open .dropdown-wrap { grid-template-rows: 1fr; }
-
-  .dropdown {
-    position: static;
-    opacity: 1;
-    visibility: visible;
-    transform: none;
-    box-shadow: none;
-    border: 0;
-    padding: 0 0 0 1rem;
-    max-width: none;
-    overflow: hidden;
-    min-height: 0;
-  }
-
-  /* On mobile the top bar shows only logo + hamburger.
-     The CTAs move into the slide-out menu (.nav-cta-mobile). */
-  .nav-actions .btn-pulse,
-  .nav-actions .btn-primary {
-    display: none;
-  }
-
-  .nav-cta-mobile {
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-    margin-top: 0.85rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--gray-200);
-  }
-
-  .nav-cta-mobile .btn {
-    width: 100%;
-    justify-content: center;
-  }
-
   .section {
     padding: 3.5rem 0;
-  }
-
-  .footer-top {
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
-  }
-
-  .footer-brand {
-    grid-column: 1 / -1;
-    max-width: 100%;
-  }
-
-  .footer-bottom {
-    flex-direction: column;
   }
 }
 
 @media (max-width: 480px) {
-  .nav {
-    padding: 0.85rem 1rem;
-  }
 
   .container {
     padding: 0 1rem;
-  }
-
-  .logo span.full {
-    font-size: 1.05rem;
   }
 
   .hero-meta {
@@ -3160,18 +2550,8 @@ p {
     column-gap: 1rem;
   }
 
-  .footer-top {
-    grid-template-columns: 1fr;
-  }
-
   .feature-grid {
     grid-template-columns: 1fr;
-  }
-
-  .nav-actions .btn-pulse {
-    padding: 0.55rem 0.85rem;
-    font-size: 0.85rem;
-    min-height: 44px;
   }
 }
 
@@ -3355,16 +2735,6 @@ p {
 }
 
 /* Scroll reveal */
-.reveal {
-  opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.6s ease, transform 0.6s ease;
-}
-
-.reveal.in-view {
-  opacity: 1;
-  transform: translateY(0);
-}
 
 /* =========================================================
    YouTube Row — video card + channel circle (Media page)
@@ -3927,95 +3297,10 @@ p {
   text-decoration: underline;
 }
 
-/* =========================================================
-   Floating WhatsApp button
-   ========================================================= */
-.whatsapp-float {
-  position: fixed;
-  right: 1.5rem;
-  bottom: 1.5rem;
-  z-index: 900;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.7rem;
-  padding: 0.5rem 1.25rem 0.5rem 0.5rem;
-  border-radius: var(--radius-full);
-  background: #25D366;
-  color: var(--white);
-  font-size: 1rem;
-  font-weight: 600;
-  text-decoration: none;
-  box-shadow: 0 10px 28px rgba(37, 211, 102, 0.35), var(--shadow-md);
-  transition: transform var(--t), box-shadow var(--t), background var(--t);
-  /* No fill-mode: the animated transform must not linger and shadow the :hover lift. */
-  animation: whatsapp-float-in 0.35s ease;
-}
-
-@keyframes whatsapp-float-in {
-  from {
-    opacity: 0;
-    transform: translateY(14px) scale(0.92);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.whatsapp-float:hover,
-.whatsapp-float:focus-visible {
-  background: #1EBE5B;
-  transform: translateY(-3px);
-  box-shadow: 0 16px 36px rgba(37, 211, 102, 0.45), var(--shadow-lg);
-}
-
-.whatsapp-float:focus-visible {
-  outline: 3px solid var(--navy);
-  outline-offset: 3px;
-}
-
-.whatsapp-float-icon {
-  width: 40px;
-  height: 40px;
-  flex: none;
-  border-radius: 50%;
-  background: var(--white);
-  color: #25D366;
-  display: grid;
-  place-items: center;
-}
-
-.whatsapp-float-icon svg {
-  width: 24px;
-  height: 24px;
-}
-
-.whatsapp-float-label {
-  white-space: nowrap;
-}
-
 @media (max-width: 560px) {
-  .whatsapp-float {
-    right: 1rem;
-    bottom: 1rem;
-    padding: 0.4rem;
-  }
-
-  .whatsapp-float-label {
-    display: none;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-
-  .whatsapp-float,
-  .whatsapp-float:hover,
-  .whatsapp-float:focus-visible {
-    transform: none;
-    transition: none;
-    animation: none;
-  }
 }
 
 /* =========================================================
@@ -4735,16 +4020,30 @@ p {
   font-variant-numeric: tabular-nums;
 }
 
+/* The same ghost button /media, /pricing, /products and the home page use, so
+   the reader meets one control shape wherever a section hands off. It was a
+   plain gold text link with a "→" typed into the label — the arrow is what a
+   link reaches for when it is not shaped like somewhere to go. */
 .help-browse-all {
-  display: inline-block;
-  margin-top: 1.15rem;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--gold);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin-top: 1.35rem;
+  padding: 17px 30px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gray-700);
   text-decoration: none;
+  transition: border-color 0.24s var(--ease), color 0.24s var(--ease);
 }
 
-.help-browse-all:hover { color: var(--gold-deep); }
+.help-browse-all:hover,
+.help-browse-all:focus-visible { border-color: var(--gold); color: var(--gray-800); }
 
 /* ---- Responsive ---- */
 @media (max-width: 900px) {

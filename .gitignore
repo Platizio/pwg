@@ -61,3 +61,7 @@ client-url-config.json
 
 # Scratch output from MCP browser tooling during review runs.
 .playwright-mcp/
+
+# Impeccable design-skill local state: hook cache, config and review captures.
+# Tooling output, not project source (5.9MB of screenshots).
+.impeccable/

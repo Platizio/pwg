@@ -84,7 +84,17 @@ export type CompanyProfile = {
   dividendYield: number | null;
   /** Carried in the unit the feed states it in; see the note at the call. */
   returnOnEquity: number | null;
+  /** The same: carried in the feed's own unit, unconverted. */
+  returnOnAssets: number | null;
   debtToEquity: number | null;
+  /** Trailing free cash flow, in the unit the record states; see the note at
+      the call. Negative where the company burned cash, which is a reading. */
+  freeCashFlow: number | null;
+  /** Enterprise value, in the unit the record states; see the note at the
+      call. Negative where a company holds more cash than it is worth. */
+  enterpriseValue: number | null;
+  /** A MULTIPLE (x). */
+  evToEbitda: number | null;
   sharesOutstanding: number | null;
   delayed: boolean;
   asOf: number | null;
@@ -180,7 +190,29 @@ export function toCompanyProfile(args: {
        above exist to remove, so the figure is passed on as it arrived and the
        panel labels it as the feed states it. */
     returnOnEquity: nonZero(ratios?.return_on_equity),
+    returnOnAssets: nonZero(ratios?.return_on_assets),
     debtToEquity: nonZero(ratios?.debt_to_equity),
+    /* Also unconverted, and for a second reason on top of the one above. The
+       record counts its market cap in dollars where the quotes feed counts
+       millions, and nothing in the payload or the documentation says which of
+       the two these currency figures follow. No live response in this repo
+       carries them, so there is nothing to calibrate against either. A guessed
+       ×1e6 would be off by a million on the figure a valuation is built from,
+       so both are handed on exactly as they arrived and the panel labels them
+       as the feed states them.
+
+       Both keep their sign. A company that burned cash has a real, negative
+       free cash flow, and one holding more cash than it is worth has a real,
+       negative enterprise value; nulling either would hide the reading that
+       most deserves to be seen. An exact nought is the feed declining to
+       answer, which is why these go through nonZero and not num. */
+    freeCashFlow: nonZero(ratios?.free_cash_flow),
+    enterpriseValue: nonZero(ratios?.enterprise_value),
+    /* A valuation multiple, so `pos` on the same grounds as the price ratios
+       above: EV/EBITDA turns negative only because EBITDA did, and a -8x
+       landing in a column of 20x and 34x reads as the cheapest company on the
+       page when it is the one losing money. */
+    evToEbitda: pos(ratios?.ev_to_ebitda),
     sharesOutstanding: pos(company?.share_class_shares_outstanding),
     /* Absent a quote there is nothing live on the page, and the flag that
        claims nothing is the safer default. */

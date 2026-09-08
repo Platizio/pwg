@@ -77,3 +77,99 @@ test("the rail runs freshest first", () => {
   );
   assert.deepEqual(items.map((i) => i.id), ["new", "old"]);
 });
+
+/* ------------------------------------------------------------------ */
+/* Relevance                                                           */
+/* ------------------------------------------------------------------ */
+
+/* The provider tags an article with every ticker it names, and this module
+   used to treat the tag as coverage. Apple's page carried a Vanguard ETF
+   comparison, a Magnificent-Seven rebalancing note and a market wrap — three
+   headlines, not one about Apple.
+
+   lib/api/normalize/relevance.ts reads the per-ticker `sentiment_reasoning`
+   the feed already sends and that this module was discarding. Filtering and
+   ranking now run through it. */
+
+const withInsight = (
+  id: string,
+  ticker: string,
+  hoursAgo: number,
+  reasoning: string,
+  tags: string[] = [ticker],
+): RawTickerNews =>
+  ({
+    ...article(id, ticker, hoursAgo),
+    tickers: tags,
+    insights: [{ ticker, sentiment: "neutral", sentiment_reasoning: reasoning }],
+  }) as RawTickerNews;
+
+test("an article that only mentions the company never reaches the rail", () => {
+  const items = toWireItems(
+    [
+      {
+        ticker: "AAPL",
+        news: [
+          withInsight("etf", "AAPL", 1, "Apple is mentioned only as a top holding in both ETFs", [
+            "SCHB", "AAPL", "MSFT", "NVDA",
+          ]),
+          withInsight("real", "AAPL", 9, "Apple announced a CEO transition"),
+        ],
+      },
+    ],
+    NOW,
+    8,
+  );
+
+  assert.deepEqual(items.map((i) => i.id), ["real"], "the mention should be gone");
+});
+
+/* Recency alone put the weakest surviving item first: on NVDA's page a Vistra
+   story led purely because it was three hours newer. */
+test("the rail leads with the most relevant story, not merely the newest", () => {
+  const items = toWireItems(
+    [
+      {
+        ticker: "NVDA",
+        news: [
+          withInsight("wide", "NVDA", 1, "Acknowledged as a major AI winner", [
+            "A", "B", "C", "D", "E", "F", "NVDA",
+          ]),
+          withInsight("focused", "NVDA", 10, "NVIDIA raised guidance for the quarter"),
+        ],
+      },
+    ],
+    NOW,
+    8,
+  );
+
+  assert.equal(items[0]?.id, "focused", "a focused story must outrank a fresher roundup");
+});
+
+test("a story past the staleness bound is not news", () => {
+  const items = toWireItems(
+    [{ ticker: "AAPL", news: [withInsight("old", "AAPL", 24 * 30, "Apple announced a CEO transition")] }],
+    NOW,
+    8,
+  );
+  assert.deepEqual(items, []);
+});
+
+/* An empty rail is the honest answer when nothing qualifies. Backfilling with
+   the roundups we just rejected would undo the whole point. */
+test("a company with no coverage yields nothing rather than filler", () => {
+  const items = toWireItems(
+    [
+      {
+        ticker: "TSLA",
+        news: [
+          withInsight("f1", "TSLA", 1, "trading share barely moved, indicating minimal market impact", ["A","B","TSLA"]),
+          withInsight("f2", "TSLA", 2, "Apple is mentioned only as a top holding", ["A","B","TSLA"]),
+        ],
+      },
+    ],
+    NOW,
+    8,
+  );
+  assert.deepEqual(items, []);
+});

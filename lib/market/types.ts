@@ -89,6 +89,10 @@ export type RangeDef = {
   source: "intraday" | "daily";
   /** Trading sessions to show. Undefined means the whole series. */
   sessions?: number;
+  /* What one point on this range actually is, in words a reader can check
+     against the axis. The chart used to state this nowhere, so nothing on
+     screen distinguished five daily closes from a week of minutes. */
+  interval: string;
   /** Whether the time axis shows a clock rather than a date. */
   intraday: boolean;
 };

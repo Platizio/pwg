@@ -271,7 +271,11 @@ test("a call with neither feed still returns a profile rather than throwing", ()
     "priceToSales",
     "dividendYield",
     "returnOnEquity",
+    "returnOnAssets",
     "debtToEquity",
+    "freeCashFlow",
+    "enterpriseValue",
+    "evToEbitda",
     "sharesOutstanding",
     "asOf",
   ] as const) {
@@ -446,4 +450,98 @@ test("the price/earnings ratio falls back to the fundamentals ratio", () => {
   });
   assert.equal(p.pe, 32.1);
   assert.equal(p.eps, 6.11);
+});
+
+/* ------------------------------------------------------------------ */
+/* The four ratios the record was already paying for                   */
+/* ------------------------------------------------------------------ */
+
+test("return on assets, free cash flow, enterprise value and EV/EBITDA reach the profile", () => {
+  /* All four are declared on the ratios block, arrive in the same response as
+     the eleven already mapped, and were being dropped on the floor. */
+  const p = toCompanyProfile({
+    ticker: "AAPL",
+    fundamentals: record({
+      ratios: {
+        return_on_assets: 0.2841,
+        free_cash_flow: 98_760_000_000,
+        enterprise_value: 4_701_220_000_000,
+        ev_to_ebitda: 34.9,
+      },
+    }),
+  });
+
+  assert.equal(p.returnOnAssets, 0.2841);
+  assert.equal(p.freeCashFlow, 98_760_000_000);
+  assert.equal(p.enterpriseValue, 4_701_220_000_000);
+  assert.equal(p.evToEbitda, 34.9);
+});
+
+test("return on assets is passed on in the unit the feed states it, unconverted", () => {
+  /* The same decision already taken for return on equity: the endpoint
+     documents no unit and 0.2841 is equally readable as 28.41% or as 0.28%.
+     A guessed hundredfold here is the very error the conversions above exist
+     to remove, so the figure arrives on the profile exactly as it was sent. */
+  const p = toCompanyProfile({
+    ticker: "AAPL",
+    fundamentals: record({ ratios: { return_on_assets: 0.2841, return_on_equity: 1.7134 } }),
+  });
+
+  assert.equal(p.returnOnAssets, 0.2841, "not 28.41, and not 0.002841");
+  assert.equal(p.returnOnEquity, 1.7134);
+});
+
+test("a nought in the new four is an absence, not a reading", () => {
+  const p = toCompanyProfile({
+    ticker: "AAPL",
+    fundamentals: record({
+      ratios: {
+        return_on_assets: 0,
+        free_cash_flow: 0,
+        enterprise_value: 0,
+        ev_to_ebitda: 0,
+      },
+    }),
+  });
+
+  for (const key of ["returnOnAssets", "freeCashFlow", "enterpriseValue", "evToEbitda"] as const) {
+    assert.equal(p[key], null, `${key} should be null, not nought`);
+  }
+});
+
+test("a cash burn and a net-cash balance sheet keep their negative signs", () => {
+  /* A company spending more than it makes has a real, negative free cash flow,
+     and one holding more cash than it is worth has a real, negative enterprise
+     value. Nulling either would hide the reading that matters most. */
+  const p = toCompanyProfile({
+    ticker: "AAPL",
+    fundamentals: record({
+      ratios: { return_on_assets: -0.12, free_cash_flow: -2_400_000_000, enterprise_value: -310_000_000 },
+    }),
+  });
+
+  assert.equal(p.returnOnAssets, -0.12);
+  assert.equal(p.freeCashFlow, -2_400_000_000);
+  assert.equal(p.enterpriseValue, -310_000_000);
+});
+
+test("a multiple struck against negative earnings is not a multiple", () => {
+  /* EV/EBITDA goes negative only because EBITDA did, and a -8x sitting in a
+     column of 20x and 34x reads as the cheapest company on the page. It is the
+     one that is losing money. */
+  const p = toCompanyProfile({
+    ticker: "AAPL",
+    fundamentals: record({ ratios: { ev_to_ebitda: -8.4 } }),
+  });
+
+  assert.equal(p.evToEbitda, null);
+});
+
+test("the new four are null on a record that carries no ratios block at all", () => {
+  const bare: RawFundamentals = { status: "OK", ticker: null, ticker_news: null, ratios: null, related_companies: null };
+  const p = toCompanyProfile({ ticker: "AAPL", fundamentals: bare });
+
+  for (const key of ["returnOnAssets", "freeCashFlow", "enterpriseValue", "evToEbitda"] as const) {
+    assert.equal(p[key], null, `${key} should be null with no ratios behind it`);
+  }
 });

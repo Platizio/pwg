@@ -25,6 +25,7 @@ export function toQuote(row: SweepRow, sector: string | null): Quote {
     price: row.px,
     // Already a percent by the time it leaves toSweepRow.
     chg: row.chg,
+    chgKnown: row.chgKnown,
     seed: seedOf(row.s),
     /* Empty rather than a guessed sector: an unclassified name is a fact the
        callers filter on, and a wrong sector would quietly survive them. */

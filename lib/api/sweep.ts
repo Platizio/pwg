@@ -24,6 +24,11 @@ export type SweepRow = {
   px: number;
   /** Day change as a PERCENT — the fraction from the gateway, already ×100. */
   chg: number;
+  /* Whether that change is a reading or a stand-in. The gateway prices plenty
+     of names it sends no change for, and `chg` falls back to 0 for those —
+     indistinguishable from a name that closed exactly flat. Anything that
+     counts or ranks by direction must consult this first. */
+  chgKnown: boolean;
   vol: number;
   avgVol: number;
   /** Dollars traded today. The real basis for "most active". */
@@ -68,12 +73,16 @@ export function toSweepRow(q: RawEquityQuote): SweepRow | null {
   // fall back to the absolute change over the previous close.
   const frac = num(q.changePercent);
   const prev = num(q.yesterdayClose) ?? num(q.closingPrice);
-  const chg =
+  const measured =
     frac !== null
       ? frac * 100
       : prev && num(q.change) !== null
         ? ((num(q.change) as number) / prev) * 100
-        : 0;
+        : null;
+  /* 0 keeps every existing arithmetic consumer working; chgKnown is what tells
+     a caller the 0 was a fallback rather than a flat close. */
+  const chg = measured ?? 0;
+  const chgKnown = measured !== null;
 
   const vol = num(q.volume) ?? 0;
   const avgVol = num(q.averageVolume30) ?? 0;
@@ -85,6 +94,7 @@ export function toSweepRow(q: RawEquityQuote): SweepRow | null {
     name,
     px,
     chg,
+    chgKnown,
     vol,
     avgVol,
     dollarVol: px * vol,

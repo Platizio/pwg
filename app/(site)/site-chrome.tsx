@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { startSmoothScroll, getLenis, scrollToTarget } from "@/src/lib/smoothScroll";
+import { useRipple } from "@/components/marketing/motion/ripple";
 
 /* The chrome that used to live in src/App.tsx around <Outlet/>.
 
@@ -12,6 +13,12 @@ import { startSmoothScroll, getLenis, scrollToTarget } from "@/src/lib/smoothScr
 
 const HEADER_OFFSET = 96;
 
+/* The `.reveal` IntersectionObserver used to live here. It added `.in-view`
+   to elements whose hidden state was itself overridden by an
+   `html:not(.js) .reveal` rule left behind by the retired Vite index.html —
+   nothing in the App Router ever set that `.js` class, so the rule always
+   matched and the whole system was inert. Entrance motion is now owned by
+   <Reveal> in components/marketing/motion/. */
 function ScrollHandler() {
   const pathname = usePathname();
 
@@ -20,35 +27,6 @@ function ScrollHandler() {
     window.scrollTo({ top: 0 });
   }, [pathname]);
 
-  useEffect(() => {
-    let observer: IntersectionObserver | null = null;
-    const timer = setTimeout(() => {
-      const els = document.querySelectorAll<HTMLElement>(".reveal:not(.in-view)");
-      if (!("IntersectionObserver" in window)) {
-        els.forEach((el) => el.classList.add("in-view"));
-        return;
-      }
-      const io = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((entry) => {
-            if (entry.isIntersecting) {
-              entry.target.classList.add("in-view");
-              io.unobserve(entry.target);
-            }
-          });
-        },
-        { threshold: 0.12, rootMargin: "0px 0px -40px 0px" },
-      );
-      els.forEach((el) => io.observe(el));
-      observer = io;
-    }, 60);
-    /* Held outside the timeout so a navigation that lands after it has fired
-       still tears the observer down, instead of leaving one per route change. */
-    return () => {
-      clearTimeout(timer);
-      observer?.disconnect();
-    };
-  }, [pathname]);
 
   return null;
 }
@@ -78,11 +56,24 @@ function SmoothScroll() {
   return null;
 }
 
+/* The press ripple, attached once for the whole document.
+ *
+ * The pointer-tracked specular that used to sit beside it is gone: a white
+ * highlight sliding across the nav and every gold button as the cursor moved
+ * read as a glow chasing the pointer rather than as light on a material. The
+ * glass keeps its fixed sheen, which is the part that makes it look like
+ * glass. */
+function GlassEffects() {
+  useRipple();
+  return null;
+}
+
 export default function SiteChrome() {
   return (
     <>
       <SmoothScroll />
       <ScrollHandler />
+      <GlassEffects />
     </>
   );
 }

@@ -54,9 +54,7 @@ export default function Help() {
                   </li>
                 ))}
               </ul>
-              <Link className="help-browse-all" href="/faqs">
-                See all FAQs →
-              </Link>
+              <Link className="help-browse-all" href="/faqs">See all FAQs</Link>
             </aside>
           </div>
         </div>

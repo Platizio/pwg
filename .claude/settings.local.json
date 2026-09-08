@@ -3,5 +3,33 @@
     "allow": [
       "WebFetch(domain:www.framer.com)"
     ]
-  }
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ ! -f '/Users/aayushsharma/.claude/skills/impeccable/scripts/hook.mjs' ] || node '/Users/aayushsharma/.claude/skills/impeccable/scripts/hook.mjs'",
+            "timeout": 5,
+            "statusMessage": "Checking UI changes"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ ! -f '/Users/aayushsharma/.claude/skills/impeccable/scripts/hook.mjs' ] || node '/Users/aayushsharma/.claude/skills/impeccable/scripts/hook.mjs'",
+            "timeout": 30,
+            "statusMessage": "Design deep pass"
+          }
+        ]
+      }
+    ]
+  },
+  "description": "Impeccable design detector: immediate-tier checks after Edit/Write on UI files, full-rule deep pass on Stop."
 }

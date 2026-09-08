@@ -2,8 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   FLOOR,
-  POPULAR_MIN_REL_VOL,
   breadth,
+  current,
   eligible,
   eligibleRows,
   floorReport,
@@ -12,6 +12,7 @@ import {
   mostActive,
   popular,
 } from "../lib/market/screen.ts";
+import { POPULAR_TICKERS } from "../lib/market/universe.ts";
 import type { Snapshot, SweepRow } from "../lib/api/sweep.ts";
 
 /* The floor and the boards.
@@ -36,6 +37,7 @@ function row(over: Partial<SweepRow> = {}): SweepRow {
     name: "Acme Industrial Corp",
     px,
     chg: 0,
+    chgKnown: true,
     vol,
     avgVol,
     dollarVol: px * vol,
@@ -165,7 +167,20 @@ test("most active includes funds, because turnover is a fair question to ask of 
   assert.deepEqual(symbols(mostActive(s, 2)), ["SPY", "AAPL"]);
 });
 
-test("gainers, losers and popular are operating companies only", () => {
+/* The tape is fed from this board, and the tape is meant to read like a real
+   one: what changed hands, whatever it did with the money. A direction filter
+   here would quietly turn the strip along the top of the page into a second
+   gainers board. */
+test("most active keeps a name that fell, because turnover has no direction", () => {
+  const s = snapshot([
+    row({ s: "UP", px: 100, vol: 10_000_000, chg: 3.2 }),
+    row({ s: "DOWN", px: 100, vol: 30_000_000, chg: -8.7 }),
+    row({ s: "FLAT", px: 100, vol: 20_000_000, chg: 0 }),
+  ]);
+  assert.deepEqual(symbols(mostActive(s, 3)), ["DOWN", "FLAT", "UP"]);
+});
+
+test("gainers and losers are operating companies only", () => {
   /* A leveraged fund's move is arithmetic on somebody else's, so it tells a
      reader nothing about what happened today — and left in, the pair of them
      own both ends of the board. */
@@ -189,21 +204,84 @@ test("gainers, losers and popular are operating companies only", () => {
 
   assert.deepEqual(symbols(gainers(s, 5)), ["NVDA", "KO", "INTC"]);
   assert.deepEqual(symbols(losers(s, 5)), ["INTC", "KO", "NVDA"]);
-  assert.deepEqual(symbols(popular(s, 5)), ["NVDA", "INTC", "KO"]);
 });
 
-test("popular ranks by relative volume and drops anything under the threshold", () => {
-  const avg = 1_000_000;
-  const rel = (x: number) => ({ vol: Math.round(avg * x), avgVol: avg });
-  const s = snapshot([
-    row({ s: "AAA", ...rel(5) }),
-    row({ s: "BBB", ...rel(3) }),
-    row({ s: "CCC", ...rel(POPULAR_MIN_REL_VOL) }),
-    row({ s: "DDD", ...rel(POPULAR_MIN_REL_VOL - 0.1) }),
-  ]);
+/* ------------------------------------------------------------------ */
+/* Popular                                                             */
+/* ------------------------------------------------------------------ */
 
-  assert.deepEqual(symbols(popular(s)), ["AAA", "BBB", "CCC"], "the line itself is in");
-  assert.deepEqual(symbols(popular(s, 2)), ["AAA", "BBB"]);
+/* Popular is the only board with no market question underneath it. The other
+   three each rank a number the feed reports — a move, a turnover. Fame is not
+   a field in any feed, so it is committed by hand, and what these tests guard
+   is that it stays committed: every plausible proxy for "popular" that can be
+   computed from a sweep is a volume measure, and this board was one until it
+   was noticed that it answers a different question than the reader is asking.
+
+   Someone opening the page has heard of Apple. They have not heard of
+   whichever mid-cap is at nine times its average volume today, and being told
+   it is "popular" teaches them nothing. */
+
+/* Priced by the feed and clearing the floor, so a test can name the one thing
+   it is about. */
+const listed = (s: string, over: Partial<SweepRow> = {}) => row({ s, ...over });
+
+test("popular is the curated list, and only the curated list", () => {
+  const s = snapshot([
+    listed("ZZZZ"),
+    ...POPULAR_TICKERS.map((t) => listed(t)),
+    listed("QQQQ"),
+  ]);
+  assert.deepEqual(symbols(popular(s, POPULAR_TICKERS.length)), [...POPULAR_TICKERS]);
+});
+
+test("popular holds its curated order however the sweep happened to arrive", () => {
+  /* Swept backwards, and with turnover running the other way to the curation,
+     so a stray .sort() on any numeric field would show up here. */
+  const reversed = [...POPULAR_TICKERS].reverse();
+  const s = snapshot(reversed.map((t, i) => listed(t, { vol: 1_000_000 * (i + 1) })));
+  assert.deepEqual(symbols(popular(s, 4)), [...POPULAR_TICKERS].slice(0, 4));
+});
+
+test("popular never renders a name the feed did not price", () => {
+  /* The ribbon links every cell to an instrument page and prints a price on
+     it. A curated symbol that is absent from the sweep has neither, so it has
+     to be dropped rather than drawn empty. */
+  const present = [POPULAR_TICKERS[1], POPULAR_TICKERS[4]];
+  const s = snapshot(present.map((t) => listed(t)));
+  assert.deepEqual(symbols(popular(s)), present);
+});
+
+test("popular ignores volume, which is the whole point of the change", () => {
+  const avg = 1_000_000;
+  const s = snapshot([
+    listed("PUMP", { vol: avg * 40, avgVol: avg }),
+    listed(POPULAR_TICKERS[0], { vol: avg / 20, avgVol: avg }),
+  ]);
+  assert.deepEqual(symbols(popular(s)), [POPULAR_TICKERS[0]]);
+});
+
+test("a famous name still has to clear the floor like anything else", () => {
+  /* Curation says which companies belong, not which rows are fit to render.
+     A name quoted off-exchange, or under a dollar, is a row the boards cannot
+     trust — being a household name does not repair it. */
+  const s = snapshot([
+    listed(POPULAR_TICKERS[0], { ex: "OTC" }),
+    listed(POPULAR_TICKERS[1], { px: 0.4 }),
+    listed(POPULAR_TICKERS[2]),
+  ]);
+  assert.deepEqual(symbols(popular(s)), [POPULAR_TICKERS[2]]);
+});
+
+test("popular honours the count asked for and never pads it", () => {
+  const s = snapshot(POPULAR_TICKERS.map((t) => listed(t)));
+  assert.equal(popular(s, 3).length, 3);
+  assert.equal(popular(s, 999).length, POPULAR_TICKERS.length, "a short pool stays short");
+});
+
+test("the curated list names each company once", () => {
+  /* A duplicate is invisible in review and unmissable on the page: the ribbon
+     is a loop, so the same cell twice reads as the loop having gone wrong. */
+  assert.equal(new Set(POPULAR_TICKERS).size, POPULAR_TICKERS.length);
 });
 
 test("ranking leaves the snapshot in the order it was swept", () => {
@@ -221,14 +299,51 @@ test("ranking leaves the snapshot in the order it was swept", () => {
 /* Breadth                                                             */
 /* ------------------------------------------------------------------ */
 
-test("breadth counts both directions and leaves flat names out of each", () => {
+test("breadth counts both directions and holds flat names in their own bucket", () => {
   const b = breadth([{ chg: 1.2 }, { chg: 0 }, { chg: -0.4 }, { chg: 0 }, { chg: 3 }]);
-  assert.deepEqual(b, { total: 5, up: 2, down: 1 });
+  assert.deepEqual(b, { total: 5, up: 2, down: 1, flat: 2, unreported: 0 });
 });
 
 test("breadth reads a swept row as readily as a rendered quote", () => {
   const b = breadth([row({ chg: 2 }), row({ chg: -2 }), row({ chg: 0 })]);
-  assert.deepEqual(b, { total: 3, up: 1, down: 1 });
+  assert.deepEqual(b, { total: 3, up: 1, down: 1, flat: 1, unreported: 0 });
+});
+
+/* The bar used to print "163 rose" and "311 fell" under a total of 500, and the
+   two never reconciled. The gap was every name the gateway priced but never
+   sent a change for: toSweepRow lands those on chg 0, which is also what a
+   genuinely unmoved name looks like. Counting them as flat is a lie about
+   twenty-odd large caps a day — American Tower quoting one share — so they get
+   their own bucket and the four numbers are made to add up. */
+test("breadth separates a name that never reported from one that truly did not move", () => {
+  const b = breadth([
+    { chg: 1.5, chgKnown: true },
+    { chg: 0, chgKnown: true },
+    { chg: 0, chgKnown: false },
+    { chg: -2, chgKnown: true },
+  ]);
+  assert.deepEqual(b, { total: 4, up: 1, down: 1, flat: 1, unreported: 1 });
+});
+
+test("breadth always reconciles: up + down + flat + unreported equals total", () => {
+  const rows = [
+    { chg: 3, chgKnown: true },
+    { chg: -1, chgKnown: true },
+    { chg: 0, chgKnown: true },
+    { chg: 0, chgKnown: false },
+    { chg: 0, chgKnown: false },
+    { chg: 0.2, chgKnown: true },
+  ];
+  const b = breadth(rows);
+  assert.equal(b.up + b.down + b.flat + b.unreported, b.total);
+  assert.equal(b.total, rows.length);
+});
+
+/* A row with no chgKnown at all is a caller that predates the flag; treat it as
+   reported rather than silently moving every legacy row into "unreported". */
+test("breadth treats an absent chgKnown as reported", () => {
+  const b = breadth([{ chg: 0 }, { chg: 1 }]);
+  assert.deepEqual(b, { total: 2, up: 1, down: 0, flat: 1, unreported: 0 });
 });
 
 /* ------------------------------------------------------------------ */
@@ -268,4 +383,97 @@ test("the report's eligible count is the pool the boards actually draw from", ()
 
   assert.equal(f.eligible, eligibleRows(s).length);
   assert.equal(f.droppedChange, 1, "an unrankable day change is a reason of its own");
+});
+
+/* ------------------------------------------------------------------ */
+/* Recency                                                             */
+/* ------------------------------------------------------------------ */
+
+/* Every board ranks on a quantity that means "today": chg is today's move,
+   dollarVol is today's turnover, relVol is today's volume against a thirty-day
+   average. A quote that stopped updating supplies a frozen "today", and a
+   frozen extreme never decays — so it sorts to the top of a descending board
+   and stays there.
+
+   Observed live: Popular right now carried EA at 19.4x on a 28-day-old quote,
+   Webster at 16.2x on 13 days, Stellar and Select Medical at 13.3x and 12.6x
+   on 63 days. Four of the eight rows were fossils. Gainers carried RAAQ at
+   +24.0% on a 62-day-old quote for the same reason.
+
+   The floor already asks whether a company belongs on a board. This asks the
+   separate question of whether the row still describes the session the board
+   claims to be about. */
+
+const SWEPT = Date.UTC(2026, 7, 21, 14, 35);
+const DAY = 86_400_000;
+
+test("a row quoted during the sweep's own session is current", () => {
+  assert.equal(current(row({ asOf: SWEPT - 60_000 }), SWEPT), true);
+});
+
+test("a row quoted across a long weekend is still current", () => {
+  assert.equal(current(row({ asOf: SWEPT - 3 * DAY }), SWEPT), true);
+});
+
+test("a row that stopped updating weeks ago is not current", () => {
+  assert.equal(current(row({ asOf: SWEPT - 28 * DAY }), SWEPT), false);
+  assert.equal(current(row({ asOf: SWEPT - 63 * DAY }), SWEPT), false);
+});
+
+/* Fails open, deliberately. The floor's own history records a filter built on
+   a field that empties overnight taking every board with it. A feed that stops
+   stamping must degrade to the behaviour we had before the stamp existed, not
+   to a blank page. No row in the live universe is unstamped today. */
+test("a row with no timestamp is not judged, and is not dropped", () => {
+  assert.equal(current(row({ asOf: null }), SWEPT), true);
+});
+
+/* The four regressions, one per board. */
+test("popular refuses a famous name whose quote stopped reporting", () => {
+  /* Curation cannot rescue a fossil either. The ribbon prints a price beside
+     every household name it carries, and a price 28 days dead under a logo
+     the reader trusts is worse than the same price under one they do not. */
+  const rows = [
+    row({ s: POPULAR_TICKERS[0], asOf: SWEPT - 60_000 }),
+    row({ s: POPULAR_TICKERS[1], asOf: SWEPT - 28 * DAY }),
+  ];
+  assert.deepEqual(symbols(popular(snapshot(rows))), [POPULAR_TICKERS[0]]);
+});
+
+test("gainers refuses a fossil however large its frozen move looks", () => {
+  const rows = [
+    row({ s: "FRESH", chg: 4, asOf: SWEPT - 60_000 }),
+    row({ s: "FOSSIL", chg: 24, asOf: SWEPT - 62 * DAY }),
+  ];
+  assert.deepEqual(symbols(gainers(snapshot(rows))), ["FRESH"]);
+});
+
+test("losers refuses a fossil however large its frozen fall looks", () => {
+  const rows = [
+    row({ s: "FRESH", chg: -4, asOf: SWEPT - 60_000 }),
+    row({ s: "FOSSIL", chg: -24, asOf: SWEPT - 62 * DAY }),
+  ];
+  assert.deepEqual(symbols(losers(snapshot(rows))), ["FRESH"]);
+});
+
+test("most active refuses a fossil however large its frozen turnover looks", () => {
+  const rows = [
+    row({ s: "FRESH", px: 100, vol: 1_000_000, asOf: SWEPT - 60_000 }),
+    row({ s: "FOSSIL", px: 100, vol: 90_000_000, asOf: SWEPT - 40 * DAY }),
+  ];
+  assert.deepEqual(symbols(mostActive(snapshot(rows))), ["FRESH"]);
+});
+
+/* The floor report exists so a thin board is explainable. It already had to be
+   corrected once for counting a row as eligible that every board refused to
+   draw; a recency test that the report does not know about would reintroduce
+   exactly that. */
+test("the floor report accounts for the rows dropped as stale", () => {
+  const rows = [
+    row({ s: "FRESH", asOf: SWEPT - 60_000 }),
+    row({ s: "FOSSIL", asOf: SWEPT - 30 * DAY }),
+  ];
+  const r = floorReport(snapshot(rows));
+  assert.equal(r.droppedStale, 1);
+  assert.equal(r.eligible, 1);
 });

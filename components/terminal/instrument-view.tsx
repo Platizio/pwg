@@ -15,7 +15,6 @@ import { HoldingsPanel } from "./panels/holdings-panel";
 import { OverviewPanel } from "./panels/overview-panel";
 import { PerformancePanel } from "./panels/performance-panel";
 import { TechnicalsPanel } from "./panels/technicals-panel";
-import type { ChartKind } from "./price-chart";
 import { PriceHeader } from "./price-header";
 import { RightRail } from "./right-rail";
 import { TabBar } from "./tab-bar";
@@ -43,7 +42,6 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
   const stock = snapshot.profile;
   const [range, setRange] = useState<RangeId>(DEFAULT_RANGE);
   const [tab, setTab] = useState<TabId>("overview");
-  const [kind, setKind] = useState<ChartKind>("area");
 
   const { following, toggleFollow, openTrade, portfolio, sharesOf } = usePortfolio();
   const held = sharesOf(stock.id);
@@ -204,12 +202,10 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
         session={snapshot.session}
         range={range}
         onRange={setRange}
-        kind={kind}
-        onKind={setKind}
       />
 
       <div className="h-[240px] sm:h-[300px] lg:h-[340px]">
-        <PriceChart history={snapshot.history} range={range} kind={kind} />
+        <PriceChart history={snapshot.history} range={range} />
       </div>
 
       {/* Keyed entrance rather than AnimatePresence: the outgoing panel has

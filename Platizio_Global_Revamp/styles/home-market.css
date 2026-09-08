@@ -601,3 +601,474 @@ a.stock-card:hover {
 @media (max-width: 560px) {
   .start-here { justify-content: flex-start; gap: var(--space-2) var(--space-4); }
 }
+
+/* ==========================================================================
+   The home page, rebuilt on the design system.
+
+   These classes are consumed by Platizio_Global_Revamp/Home.tsx. Everything
+   above this line styles the market strips (TrendingBanner, PopularStocks)
+   and is unchanged.
+
+   The scale, the rhythm and the components all come from
+   app/(site)/design-system.css, which extracts them from /products. Nothing
+   here invents a size: if a value looks arbitrary it is wrong.
+   ========================================================================== */
+
+.hm {
+  background-color: var(--surface);
+  /* The wash runs to the top of the viewport because .hm is #main-content's
+     first child, and chrome.css runs that element up under the floating nav
+     pill. A hard-edged ground here puts a seam across the top of the page. */
+  background-image: radial-gradient(1100px 520px at 72% -8%, var(--m-tint-shared, rgba(201, 164, 111, 0.16)), transparent 60%);
+  background-repeat: no-repeat;
+}
+
+/* ------------------------------------------------------------------ hero */
+
+/* The v4 masthead, on paper.
+ *
+ * Everything here is measured off the approved draft: display at 96px, weight
+ * 400, tracking -0.02em, line-height 1.10; the eyebrow at 11px/0.22em; the
+ * accent pill at #D9BD8B carrying near-black text. What is NOT taken from it is
+ * the dark ground — see the note at the head of marketing-tokens.css. */
+
+.hm-hero {
+  position: relative;
+  padding-block: clamp(4.5rem, 11vw, 9.5rem) clamp(3rem, 6vw, 5.5rem);
+  text-align: center;
+  overflow: hidden;
+}
+
+/* Light pooling from above rather than a box. The draft lights every band from
+   its top edge; on paper the same gesture reads as warmth rather than glow. */
+.hm-hero::before {
+  content: "";
+  position: absolute;
+  inset: -20% 0 auto;
+  height: 90%;
+  pointer-events: none;
+  background: radial-gradient(760px 420px at 50% 0%, var(--wash), transparent 68%);
+}
+
+/* Registration marks at the shoulders. Four hairline crosses, one element. */
+.hm-ticks { position: absolute; inset: clamp(1rem, 3vw, 2.25rem); pointer-events: none; }
+.hm-ticks::before,
+.hm-ticks::after {
+  content: "";
+  position: absolute;
+  width: 9px; height: 9px;
+  border: 0 solid var(--line-strong);
+  top: 0;
+}
+.hm-ticks::before { left: 0; border-left-width: 1px; border-top-width: 1px; }
+.hm-ticks::after { right: 0; border-right-width: 1px; border-top-width: 1px; }
+
+.hm-hero-inner {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: clamp(1.1rem, 2vw, 1.6rem);
+}
+
+.hm-label {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gray-600);
+}
+
+/* 96px is the draft's size and the craft floor's display ceiling at once. The
+   serif carries it at weight 400 — size does the emphasis, not weight. */
+.hm-h1 {
+  margin: 0;
+  font-size: clamp(2.75rem, 7vw, 6rem);
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+  font-weight: 400;
+  max-width: 16ch;
+}
+
+.hm-lede {
+  margin: 0;
+  max-width: 54ch;
+  font-size: clamp(1rem, 1.25vw, 1.125rem);
+  line-height: 1.65;
+  color: var(--gray-700);
+  text-wrap: pretty;
+}
+
+.hm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.7rem;
+  margin-top: 0.5rem;
+}
+
+/* The draft's pill: champagne fill, near-black text, fully rounded. #D9BD8B
+   under #080706 measures 11.6:1 — the fill is where this colour belongs. */
+.hm-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 46px;
+  padding-inline: 1.6rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--champagne);
+  color: var(--ink-900);
+  font-weight: 500;
+  font-size: 0.9375rem;
+  text-decoration: none;
+  transition: transform 0.24s var(--ease), box-shadow 0.3s var(--ease);
+}
+.hm-cta svg { width: 15px; height: 15px; transition: transform 0.28s var(--ease); }
+.hm-cta:hover { transform: translateY(-2px); box-shadow: 0 16px 40px -18px rgba(159, 126, 71, 0.7); }
+.hm-cta:hover svg { transform: translateX(3px); }
+
+.hm-ghost {
+  display: inline-flex;
+  align-items: center;
+  min-height: 46px;
+  padding-inline: 1.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--gray-800);
+  font-weight: 500;
+  font-size: 0.9375rem;
+  text-decoration: none;
+  transition: border-color 0.24s var(--ease), transform 0.24s var(--ease);
+}
+.hm-ghost:hover { border-color: var(--champagne-deep); transform: translateY(-2px); }
+
+/* Three claims, centred, hairline above. */
+.hm-facts {
+  display: grid;
+  gap: clamp(1.25rem, 3vw, 2.75rem);
+  margin: clamp(1.5rem, 3vw, 2.5rem) 0 0;
+  padding-top: clamp(1.5rem, 3vw, 2rem);
+  border-top: 1px solid var(--line);
+  width: min(100%, 62rem);
+}
+@media (min-width: 620px) { .hm-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.hm-facts dt {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--gray-800);
+  margin-bottom: 0.35rem;
+}
+.hm-facts dd {
+  margin: 0;
+  font-size: 0.6875rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  line-height: 1.5;
+  color: var(--gray-600);
+}
+
+/* ------------------------------------------------------------ globe band */
+
+.hm-globe-band { padding-block: clamp(3.5rem, 7vw, 6.5rem); }
+
+.hm-globe-inner { display: grid; gap: clamp(2rem, 5vw, 4rem); align-items: center; }
+@media (min-width: 940px) {
+  /* Copy-led: 1fr / 0.82fr. Never 50/50 — an even split reads as a table. */
+  .hm-globe-inner { grid-template-columns: minmax(0, 1fr) minmax(0, 0.82fr); }
+}
+
+.hm-globe-copy { display: grid; gap: 1.1rem; justify-items: start; }
+
+.hm-h2 {
+  margin: 0;
+  font-size: clamp(1.85rem, 3.6vw, 3.25rem);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  font-weight: 400;
+  max-width: 17ch;
+}
+
+.hm-body {
+  margin: 0;
+  max-width: 52ch;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--gray-700);
+  text-wrap: pretty;
+}
+
+/* The site's one link gesture: a rule that completes. */
+.hm-rule-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding-block: 0.35rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--gold-hi);
+  text-decoration: none;
+}
+.hm-rule {
+  display: block;
+  width: 30px; height: 1px;
+  background: currentColor;
+  transform: scaleX(0.6);
+  transform-origin: left center;
+  transition: transform 0.3s var(--ease);
+}
+.hm-rule-link:hover .hm-rule,
+.hm-rule-link:focus-visible .hm-rule { transform: scaleX(1); }
+
+.hm-orb { position: relative; display: grid; place-items: center; min-height: clamp(260px, 32vw, 400px); }
+.hm-orb-ring {
+  position: absolute;
+  inset: 10%;
+  border-radius: 50%;
+  border: 1px solid rgba(217, 189, 139, 0.5);
+  background: radial-gradient(circle at 50% 38%, rgba(217, 189, 139, 0.18), transparent 64%);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hm-cta, .hm-cta svg, .hm-ghost, .hm-rule { transition: none; }
+  .hm-cta:hover, .hm-ghost:hover { transform: none; }
+}
+
+/* ==========================================================================
+   The rest of the page.
+
+   These sixteen classes had no rules at all — the "why" band, the three-step
+   walk, the cards and the reading aside were rendering as bare HTML. The cause
+   was mine: rewriting the hero truncated this file at the hero marker and took
+   every block after it with it.
+
+   Same world as the hero: Newsreader at 400 for anything that speaks, Manrope
+   for prose, paper ground, champagne as fill and the darker gold for words.
+   ========================================================================== */
+
+/* ------------------------------------------------------------------- why */
+
+.hm-why { padding-block: clamp(3.5rem, 7vw, 6.5rem); }
+
+/* The section head is a flex row, not a centred stack: label and heading left
+   at an 18ch measure, the supporting line right at 34ch, over a hairline. A
+   centred header gives a section no direction to read in. */
+.hm-why .section-header,
+.hm-how .section-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: clamp(1rem, 3vw, 2.5rem);
+  padding-bottom: clamp(1.25rem, 2vw, 1.75rem);
+  border-bottom: 1px solid var(--line);
+  margin-bottom: clamp(2rem, 4vw, 3rem);
+}
+.hm-why .section-header h2,
+.hm-how .section-header h2 {
+  margin: 0;
+  font-size: clamp(1.75rem, 3.4vw, 3rem);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  font-weight: 400;
+  max-width: 18ch;
+  flex: 1 1 20ch;
+}
+.hm-why .section-header > p,
+.hm-how .section-header > p {
+  margin: 0;
+  max-width: 34ch;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  color: var(--gray-700);
+  text-wrap: pretty;
+  flex: 1 1 26ch;
+}
+.hm-why .section-header .eyebrow,
+.hm-how .section-header .eyebrow {
+  display: block;
+  width: 100%;
+  margin-bottom: 0.7rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gray-600);
+}
+
+/* Asymmetric: 7/5 then 5/7 across twelve columns. Four equal quarters is the
+   layout every one of these pages already had, and it makes four different
+   arguments look like one list. */
+.hm-why-grid { display: grid; gap: clamp(0.9rem, 1.6vw, 1.25rem); }
+@media (min-width: 880px) {
+  .hm-why-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+  .hm-why-cell:nth-child(1) { grid-column: span 7; }
+  .hm-why-cell:nth-child(2) { grid-column: span 5; }
+  .hm-why-cell:nth-child(3) { grid-column: span 5; }
+  .hm-why-cell:nth-child(4) { grid-column: span 7; }
+}
+.hm-why-cell { display: grid; }
+
+.hm-card {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+  height: 100%;
+  padding: clamp(1.4rem, 2.4vw, 2.1rem);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--paper-raised);
+  transition:
+    transform 0.34s var(--ease),
+    border-color 0.34s var(--ease),
+    box-shadow 0.34s var(--ease);
+}
+.hm-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(159, 126, 71, 0.45);
+  box-shadow: 0 20px 48px -26px rgba(8, 7, 6, 0.3);
+}
+.hm-card h3 {
+  margin: 0;
+  font-size: clamp(1.0625rem, 1.5vw, 1.3rem);
+  line-height: 1.24;
+  letter-spacing: -0.012em;
+  font-weight: 400;
+}
+.hm-card p {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.68;
+  color: var(--gray-700);
+  max-width: 46ch;
+  text-wrap: pretty;
+}
+
+/* A drawn mark, not an emoji. Champagne ring on a champagne wash — the accent
+   at the weight it can carry without becoming text. */
+.hm-card-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  border: 1px solid rgba(217, 189, 139, 0.75);
+  background: rgba(217, 189, 139, 0.18);
+  color: var(--gold);
+}
+.hm-card-icon svg { width: 19px; height: 19px; }
+
+/* ------------------------------------------------------------------- how */
+
+.hm-how { padding-block: clamp(3.5rem, 7vw, 6.5rem); }
+
+.hm-how-body { display: grid; gap: clamp(2rem, 4vw, 3.5rem); }
+@media (min-width: 900px) {
+  /* The reading panel is the minor column; the walk itself is the major one. */
+  .hm-how-body { grid-template-columns: minmax(0, 0.6fr) minmax(0, 1fr); }
+}
+
+/* Sticky, so the reading list stays offered for exactly as long as the steps
+   are being read. NOTHING here may be wrapped in a transform — an ancestor
+   transform creates a containing block and position:sticky silently stops
+   working, which is how the identical panel on /products died unnoticed. */
+.hm-aside {
+  align-self: start;
+  position: sticky;
+  top: 104px;
+  padding: clamp(1.3rem, 2vw, 1.7rem);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--paper-raised);
+}
+@media (max-width: 899px) { .hm-aside { position: static; } }
+
+.hm-aside .hm-label { display: block; margin: 0 0 0.9rem; }
+
+.hm-aside-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+.hm-aside-list li { border-top: 1px solid var(--line); }
+.hm-aside-list li:first-child { border-top: 0; }
+
+/* The site's one link gesture: a short rule that completes on hover. It never
+   moves the text, so nothing reflows. */
+.hm-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-block: 0.7rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--gray-800);
+  text-decoration: none;
+  transition: color 0.24s var(--ease);
+}
+.hm-link:hover, .hm-link:focus-visible { color: var(--gold-hi); }
+.hm-link-rule {
+  flex: none;
+  display: block;
+  width: 26px;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.55;
+  transform: scaleX(0.55);
+  transform-origin: right center;
+  transition: transform 0.3s var(--ease), opacity 0.3s var(--ease);
+}
+.hm-link:hover .hm-link-rule,
+.hm-link:focus-visible .hm-link-rule { transform: scaleX(1); opacity: 1; }
+
+.hm-steps { list-style: none; margin: 0; padding: 0; display: grid; }
+.hm-step { display: grid; }
+
+.hm-step-in {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: clamp(1.1rem, 2.2vw, 2rem);
+  align-items: start;
+  padding-block: clamp(1.6rem, 2.8vw, 2.4rem);
+  border-top: 1px solid var(--line);
+}
+.hm-step:first-child .hm-step-in { border-top: 0; padding-top: 0; }
+
+/* The numeral is the ornament: set in the serif, at size, in the accent, and
+   aligned to the heading's cap height rather than floated beside it. */
+.hm-step-n {
+  font-family: var(--display);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--champagne-deep);
+  padding-top: 0.02em;
+}
+
+.hm-step-copy { display: grid; gap: 0.55rem; }
+.hm-step-copy h3 {
+  margin: 0;
+  font-size: clamp(1.0625rem, 1.6vw, 1.35rem);
+  line-height: 1.24;
+  letter-spacing: -0.012em;
+  font-weight: 400;
+}
+.hm-step-copy p {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  color: var(--gray-700);
+  max-width: 56ch;
+  text-wrap: pretty;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hm-card, .hm-link, .hm-link-rule { transition: none; }
+  .hm-card:hover { transform: none; }
+}

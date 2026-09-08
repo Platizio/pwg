@@ -226,7 +226,7 @@ export function Sidebar({
           id="watchlist-label"
           className={cn("card-label pb-2.5", collapsed ? "sr-only" : "px-2.5")}
         >
-          Covered instruments
+          Covered stocks
         </p>
         <ul
           className={cn(

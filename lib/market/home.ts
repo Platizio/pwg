@@ -11,14 +11,15 @@ import { changeOverSessions, relativeAge } from "@/lib/api/normalize/time";
 import { toWireItems } from "@/lib/api/normalize/wire";
 import { runSweep } from "@/lib/api/sweep";
 import { TAGS, TTL } from "@/lib/api/ttl";
+import { newest, oldest, quoteAge, type Freshness } from "@/lib/market/freshness";
 import { breadthSample } from "@/lib/market/membership";
 import { baselineSnapshot, describeBaseline } from "@/lib/market/baseline";
 import { nowMs, nowSeconds } from "@/lib/market/clock";
 import { eligibleRows, gainers, losers, mostActive, popular } from "@/lib/market/screen";
 import { sessionAt } from "@/lib/market/session";
+import { type Fault, shortfall } from "./health.ts";
 import {
   CALENDAR_TICKERS,
-  COVERED,
   INDEX_IDS,
   INDEX_PROXY,
   isFund,
@@ -62,9 +63,25 @@ export type Panel<T> = {
 
 export type TapeRow = { id: string; price: number; chg: number };
 
+/* How many names the tape carries.
+ *
+ * The strip renders its rows twice and translates by half its own width, so
+ * the loop is seamless but the *contents* repeat once per cycle regardless.
+ * What decides whether that repeat is noticed is how long a name is off-screen
+ * before it comes round again, and with the six covered symbols it was a few
+ * seconds — the tape read as the same handful of tickers cycling rather than
+ * as a market. Two dozen is comfortably wider than any viewport at this cell
+ * size, which puts a full traversal between one sighting of a symbol and the
+ * next. It is also well inside the eligible pool on any ordinary day, so the
+ * tape does not run short. */
+const TAPE_LENGTH = 24;
+
 export type IndexView = {
   index: MarketIndex;
-  breadth: { total: number; up: number; down: number };
+  /* Four buckets, and they sum to `total`. `unreported` is the names the
+     gateway priced but sent no change for; folding them into `flat` overstated
+     how still the day was and left the card's arithmetic visibly broken. */
+  breadth: { total: number; up: number; down: number; flat: number; unreported: number };
   leaders: Quote[];
   laggards: Quote[];
   /* How the breadth figures were drawn. Carried in the data rather than
@@ -101,6 +118,18 @@ export type WireItem = {
   /** Section label, e.g. "Markets". */
   tag: string;
   sentiment: "positive" | "neutral" | "negative" | null;
+  /* How much this article is about `ticker`, 0..1, from
+     lib/api/normalize/relevance.ts. Carried so the rail can rank on it rather
+     than on recency alone — a fresher roundup used to outrank real coverage. */
+  relevance?: number;
+  /* How much the story bears on the price, 0..1, from
+     lib/api/normalize/market-impact.ts. Relevance answers "is this about the
+     company" and is necessary but not sufficient: "Apple Maps Renames Lake
+     Ontario" is unimpeachably about Apple and worth nothing to somebody
+     deciding whether to hold it. The rail ranks on both. */
+  impact?: number;
+  /** What kind of event it looks like — "earnings", "leadership", "none". */
+  impactKind?: string;
 };
 
 export type HomeSnapshot = {
@@ -122,7 +151,9 @@ export type HomeSnapshot = {
     sweptAt: string;
     rows: number;
     eligible: number;
-    failures: string[];
+    /* Severity-tagged, because "the terminal is showing week-old prices" and
+       "one sector card lost its week column" used to be the same bit. */
+    faults: Fault[];
   };
 };
 
@@ -160,32 +191,21 @@ const HOUR_MS = 3_600_000;
 /** A quote counts as stale once it is older than the feed's own delay. */
 const STALE_AFTER_MS = 15 * 60 * 1000;
 
-/* `ages` separates the two kinds of timestamp on the page. A quote goes off:
-   fifteen minutes on and it is history. A dividend date or a headline does
-   not, so its stamp is shown and never judged. */
-type Freshness = { at: number | null; delayed: boolean; ages: boolean };
-
-function newest(stamps: Array<number | null>): number | null {
-  let latest: number | null = null;
-  for (const at of stamps) {
-    if (at !== null && (latest === null || at > latest)) latest = at;
-  }
-  return latest;
-}
-
-const quoteAge = (rows: ReadonlyArray<{ asOf?: number | null; delayed?: boolean }>): Freshness => ({
-  at: newest(rows.map((r) => r.asOf ?? null)),
-  delayed: rows.some((r) => r.delayed === true),
-  ages: true,
-});
+/* newest / oldest / quoteAge live in lib/market/freshness.ts, which is pure and
+   therefore reachable by node --test. Nothing in this file is: it imports
+   server-only and resolves through the @/ alias, which is why the badge below
+   went years without a test. */
 
 const stampOf = (q: RawEquityQuote): number | null => {
   const at = q.updateTime === null ? Number.NaN : Date.parse(q.updateTime);
   return Number.isFinite(at) ? at : null;
 };
 
+/* Dated by the oldest quote in the group, for the reason in freshness.ts: this
+   feeds the index strip's badge and the sector cards' badge, and a badge drawn
+   from the freshest member describes the one member rather than the card. */
 const rawAge = (quotes: readonly RawEquityQuote[]): Freshness => ({
-  at: newest(quotes.map(stampOf)),
+  at: oldest(quotes.map(stampOf)),
   delayed: quotes.some((q) => q.delayed),
   ages: true,
 });
@@ -305,7 +325,7 @@ async function weekChanges(): Promise<{ byEtf: Map<string, number | null>; faile
 export const getHomeSnapshot = cache(async (): Promise<HomeSnapshot> => {
   const startedAt = Date.now();
   const now = nowMs();
-  const failures: string[] = [];
+  const faults: Fault[] = [];
 
   /* Three index funds and eleven sector funds is fourteen symbols, well inside
      the gateway's fifty-symbol cap, so both strips cost one request. */
@@ -322,8 +342,11 @@ export const getHomeSnapshot = cache(async (): Promise<HomeSnapshot> => {
 
   /* ---- the sweep, which every board is drawn from ---- */
   const swept = settledOr(sweepSettled, null);
-  if (swept === null) failures.push("sweep: no snapshot returned");
-  else if (swept.failedChunks > 0) failures.push(`sweep: ${swept.failedChunks} chunks failed`);
+  if (swept === null) faults.push({ severity: "fatal", message: "sweep: no snapshot returned" });
+  else {
+    const chunks = shortfall("sweep chunks", swept.failedChunks, swept.calls);
+    if (chunks) faults.push(chunks);
+  }
 
   /* A live sweep, else the committed baseline, else nothing.
 
@@ -332,7 +355,9 @@ export const getHomeSnapshot = cache(async (): Promise<HomeSnapshot> => {
      session.ts: those were invented, and an invented price wearing a real
      company's name is the one failure mode this layer exists to prevent. */
   const fallback = swept === null || swept.rows.length === 0 ? baselineSnapshot() : null;
-  if (fallback !== null) failures.push("sweep: serving the committed baseline");
+  /* Fatal: every price on the page is a committed snapshot, not the market. */
+  if (fallback !== null)
+    faults.push({ severity: "fatal", message: "sweep: serving the committed baseline" });
 
   const s: Snapshot = swept?.rows.length
     ? swept
@@ -367,7 +392,8 @@ export const getHomeSnapshot = cache(async (): Promise<HomeSnapshot> => {
     stripResult !== null && stripResult.ok ? stripResult.data : [];
   if (stripQuotes.length === 0) {
     const why = stripResult !== null && !stripResult.ok ? `: ${stripResult.error}` : "";
-    failures.push(`index and sector fund quotes failed${why}`);
+    /* Fatal: the index strip and every sector card lose their quote. */
+    faults.push({ severity: "fatal", message: `index and sector fund quotes failed${why}` });
   }
   const stripBySymbol = new Map(stripQuotes.map((q) => [q.symbol, q]));
 
@@ -396,9 +422,8 @@ export const getHomeSnapshot = cache(async (): Promise<HomeSnapshot> => {
     byEtf: new Map<string, number | null>(),
     failed: SECTOR_ETF_SYMBOLS.length,
   });
-  if (week.failed > 0) {
-    failures.push(`week history: ${week.failed} of ${SECTOR_ETF_SYMBOLS.length} failed`);
-  }
+  const weekFault = shortfall("week history", week.failed, SECTOR_ETF_SYMBOLS.length);
+  if (weekFault) faults.push(weekFault);
 
   /* Eleven passes over the eligible list, which is cheaper than it looks and
      spares the map a cast from an unvalidated sector string. */
@@ -457,11 +482,15 @@ export const getHomeSnapshot = cache(async (): Promise<HomeSnapshot> => {
   const operatingCount = universe.reduce((n, q) => (isFund(q.name) ? n : n + 1), 0);
   const classified = universe.reduce((n, q) => (q.sector === "" ? n : n + 1), 0);
   const coverage = operatingCount === 0 ? 0 : classified / operatingCount;
-  if (classified === 0 && universe.length > 0) failures.push("sector map is empty");
+  /* Fatal, and a deployment fault rather than an upstream one: the sector map
+     is a committed file, so an empty one means the build shipped wrong. */
+  if (classified === 0 && universe.length > 0)
+    faults.push({ severity: "fatal", message: "sector map is empty" });
 
   /* ---- the wire ---- */
   const news = settledOr(newsSettled, { rows: [], failed: WIRE_TICKERS.length });
-  if (news.failed > 0) failures.push(`ticker news: ${news.failed} of ${WIRE_TICKERS.length} failed`);
+  const newsFault = shortfall("ticker news", news.failed, WIRE_TICKERS.length);
+  if (newsFault) faults.push(newsFault);
 
   const wire = toWireItems(
     news.rows
@@ -473,9 +502,8 @@ export const getHomeSnapshot = cache(async (): Promise<HomeSnapshot> => {
 
   /* ---- dated corporate actions ---- */
   const actions = settledOr(actionsSettled, { rows: [], failed: CALENDAR_TICKERS.length });
-  if (actions.failed > 0) {
-    failures.push(`corporate actions: ${actions.failed} of ${CALENDAR_TICKERS.length} failed`);
-  }
+  const actionsFault = shortfall("corporate actions", actions.failed, CALENDAR_TICKERS.length);
+  if (actionsFault) faults.push(actionsFault);
 
   const events = toCalendarEvents(
     actions.rows.map((r) => ({ ticker: r.ticker, actions: r.data })),
@@ -484,13 +512,27 @@ export const getHomeSnapshot = cache(async (): Promise<HomeSnapshot> => {
   );
 
   /* ---- the tape ---- */
-  const tapeRows = COVERED.map((t) => rowBySymbol.get(t)).filter(
-    (r): r is SweepRow => r !== undefined,
-  );
+  /* The most traded names by dollar volume, which is what a real tape shows.
+     It used to be COVERED — the six symbols with instrument pages — so the
+     strip along the top of the page was a menu of this site's own coverage
+     wearing a ticker's clothes, and it said the same six things every day
+     whatever the market did.
+     mostActive() is deliberately not filtered by direction here: a tape
+     reports what changed hands, and a name down eight percent on record
+     turnover is one of the truest things it can say. Screening for green
+     would make this a second gainers board with a marquee on it. */
+  const tapeRows = mostActive(s, TAPE_LENGTH);
   const tape: TapeRow[] = tapeRows.map((r) => ({ id: r.s, price: r.px, chg: r.chg }));
 
   /* ---- the dateline ---- */
-  const freshestQuote = newest([quoteAge(universe).at, rawAge(stripQuotes).at]);
+  /* The dateline answers "when did anything last arrive", which is a question
+     about the connection rather than about a card — so it reads the newest
+     stamp anywhere, and must not be built from quoteAge/rawAge now that those
+     two report their group's oldest. */
+  const freshestQuote = newest([
+    newest(universe.map((r) => r.asOf ?? null)),
+    newest(stripQuotes.map(stampOf)),
+  ]);
   const session: Session = {
     ...sessionAt(nowSeconds()),
     /* session.ts ships a fixed "2s ago" and says in its own comment that the
@@ -528,8 +570,8 @@ export const getHomeSnapshot = cache(async (): Promise<HomeSnapshot> => {
       now,
       fresh: quoteAge(tapeRows),
       degraded:
-        tape.length < COVERED.length
-          ? `${COVERED.length - tape.length} of the covered names are not quoting.`
+        tape.length < TAPE_LENGTH
+          ? `Only ${tape.length} names cleared the liquidity floor, so the tape is short.`
           : null,
       downNote: "The tape is offline.",
     }),
@@ -549,13 +591,13 @@ export const getHomeSnapshot = cache(async (): Promise<HomeSnapshot> => {
     gainers: board(gainerRows, 5, thin(gainerRows.length, 5)),
     losers: board(loserRows, 5, thin(loserRows.length, 5)),
     mostActive: board(activeRows, 5, thin(activeRows.length, 5)),
-    /* Wanted is one rather than twelve: the ribbon is a relative-volume filter,
-       so a short list is usually the market being quiet, not the feed failing. */
-    popular: board(
-      popularRows,
-      1,
-      "No name is trading at unusual volume just now; the ribbon fills when one is.",
-    ),
+    /* Wanted is the full twelve now, where it used to be one. Under the old
+       relative-volume screen a short ribbon was usually just a quiet market,
+       so demanding twelve would have cried wolf on ordinary days. A curated
+       list carries no such excuse: these names trade every session, and any
+       one of them missing means the feed did not price it. That is worth
+       saying out loud rather than hiding behind a shorter strip. */
+    popular: board(popularRows, 12, thin(popularRows.length, 12)),
 
     sectors: panelOf({
       data: sectors,
@@ -612,7 +654,7 @@ export const getHomeSnapshot = cache(async (): Promise<HomeSnapshot> => {
       sweptAt: new Date(s.sweptAt).toISOString(),
       rows: s.rows.length,
       eligible: eligible.length,
-      failures,
+      faults,
     },
   };
 });

@@ -18,6 +18,11 @@ export function quoteTtl(phase: SessionPhase): number {
       return 300;
     case "pre-market":
       return 300;
+    /* Extended hours are quoting, so the record ages at the same rate as one
+       taken during the session. Falling through to the closed-market 1800
+       would have cached a moving post-market price for half an hour. */
+    case "post-market":
+      return 300;
     case "halted":
       return 600;
     case "closed":
@@ -36,6 +41,11 @@ export const TTL = {
   fundamentals: 21_600,
   corporateActions: 43_200,
   newsArticles: 1_800,
+  /* A day per stock. The second news source bills against a non-renewable
+     lifetime allowance, and this cache is the only thing standing between a
+     per-ticker query and that allowance: at a day, a stock costs at most one
+     request however many times its page is opened. */
+  stockNews: 86_400,
   newsBudget: 86_400,
 } as const;
 

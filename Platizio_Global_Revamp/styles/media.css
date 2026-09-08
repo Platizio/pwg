@@ -1,7 +1,45 @@
-/* =========================================================
-   Media page
-   ========================================================= */
+/*
+ * /media — the channel, the library and the letter, in the /products world.
+ *
+ * WHY THIS SHEET WAS REWRITTEN. The page had two dark bands: the news marquee
+ * opened on `--ink-900`, and the newsletter closed on a navy radial. Once
+ * marketing-tokens.css re-pointed `--ink-*` at the champagne ramp those bands
+ * did not become cream, they became near-black — which is exactly the "black
+ * and champagne" reading that was rejected. A band that is dark stays dark
+ * whatever hex you hand it. Both are paper here, and everything that was
+ * coloured for an ink floor (the pale-tint headlines, the white-on-navy label,
+ * the 72%-white newsletter prose, the navy play chip) is re-toned for it. The
+ * failure mode this avoids is white type left on cream, which has already
+ * happened on this site once.
+ *
+ * TOKENS, NOT HEXES. Every colour resolves through --surface / --white /
+ * --gray-800..600 / --gold / --gold-hi / --line / --ease. Those names are being
+ * normalised globally; hardcoding the champagne values here would opt this page
+ * out of that work and out of any future palette change. The one derived value,
+ * the gold wash, is mixed from --gold-deep rather than pasted as an rgba, so it
+ * follows the ramp too — and degrades to no wash at all, not to a wrong colour,
+ * where color-mix() is unsupported.
+ *
+ * SCOPE. media.css is a GLOBAL import (app/(site)/layout.tsx), so a bare
+ * `.section-header` or `.eyebrow` rule in here would repaint every page on the
+ * site. Everything below is namespaced `.mw` / `.mw-*` and every rule is
+ * descended from `.mw`. The single exception is documented where it appears.
+ *
+ * NO @supports ANYWHERE. This build's CSS minifier silently empties an
+ * `@supports` block whose declaration uses a `var()` — verified in-browser,
+ * the rule shipped as `.nav { }`. Nothing here needs one, and nothing here
+ * should grow one.
+ */
 
+/*
+ * THE ONE UNSCOPED RULE, AND WHY IT STAYS.
+ *
+ * `.visually-hidden` is declared here and NOWHERE else in the codebase, but it
+ * is used by src/views/FAQs.tsx, UserGuide.tsx, NotFound.tsx and TopicHub.tsx.
+ * Scoping it under `.mw` would silently un-hide four other pages' skip copy.
+ * It belongs in base.css; moving it is someone else's file and someone else's
+ * change.
+ */
 .visually-hidden {
   position: absolute;
   width: 1px; height: 1px;
@@ -10,44 +48,371 @@
   white-space: nowrap; border: 0;
 }
 
-/* =========================================================
-   1. News marquee
-   =========================================================
-   Directly under the header. Headlines set large in the display face and
-   scrolling continuously, source beneath in small caps — a front page rather
-   than a widget.
-   ========================================================= */
+/* ===================================================== the world */
 
-.news-band {
+.mw {
+  /*
+   * The champagne wash, derived rather than pasted. --gold-deep is the light
+   * end of the gold ramp, so a 20% mix of it is the same tint /products lays
+   * under its hero — and it moves when the ramp moves. If color-mix() is
+   * missing the declaration is dropped and the ground is plain paper, which is
+   * the correct degradation: paper, never a stale hardcoded tint.
+   */
+  --mw-wash: color-mix(in srgb, var(--gold-deep) 20%, transparent);
+  --mw-wash-soft: color-mix(in srgb, var(--gold-deep) 10%, transparent);
+  --mw-hairline: var(--line);
+  --mw-hairline-2: var(--line-strong);
+
+  /* Warm, not neutral: a grey shadow on a warm ground reads as a smudge. The
+     ink is mixed to an alpha rather than declared as a black. */
+  --mw-shadow: 0 1px 2px color-mix(in srgb, var(--gray-800) 5%, transparent),
+               0 2px 6px color-mix(in srgb, var(--gray-800) 5%, transparent);
+  --mw-shadow-lg: 0 4px 8px color-mix(in srgb, var(--gray-800) 5%, transparent),
+                  0 22px 48px color-mix(in srgb, var(--gray-800) 10%, transparent);
+
   position: relative;
-  background: var(--ink-900);
+  /*
+   * LONGHANDS, DELIBERATELY. chrome.css pulls whatever a page puts first up
+   * under the floating nav pill and gives the height back as a transparent
+   * top border, then sets `background-origin: border-box` so the ground paints
+   * continuously to the top of the viewport. The `background` SHORTHAND resets
+   * background-origin to padding-box, which puts a hard-edged strip of the
+   * gradient's first colour across the top of the page. That bug has been
+   * fixed once already on the shared heroes; do not reintroduce it here.
+   */
+  background-color: var(--surface);
+  background-image: radial-gradient(1100px 520px at 50% 0%, var(--mw-wash), transparent 68%);
+  background-repeat: no-repeat;
+  color: var(--gray-800);
+}
+
+/*
+ * The site's .container caps at 1200px, which is a reading measure. /products
+ * lifts its own to 1360 with a gutter that grows with the viewport, because a
+ * page whose subject is a wide feed wants the display. Matching it is what
+ * makes the two pages read as one frame.
+ */
+.mw .container {
+  max-width: 1360px;
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: clamp(1.25rem, 4vw, 3rem);
+}
+
+.mw ::selection { background: var(--mw-wash); color: var(--gray-800); }
+
+/* Never rely on the browser default here: the gold ring is the only thing that
+   marks focus on the flat, borderless rows this page is mostly made of. */
+.mw :focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+.mw input { caret-color: var(--gold); }
+
+/* ===================================================== type */
+
+/* /products' labelling device: small, heavily tracked capitals in gold, at
+   11px/0.16em rather than the 9px/0.30em that reads as an eye chart. */
+.mw-label {
+  display: block;
+  margin: 0;
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  line-height: 1.45;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.mw-h1 {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 5vw, 4.5rem);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.028em;
+  color: var(--gray-800);
+  margin: 20px 0 0;
+  max-width: 15ch;
+  text-wrap: balance;
+}
+
+.mw-h2 {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 3.2vw, 2.75rem);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.022em;
+  color: var(--gray-800);
+  margin: 0;
+  text-wrap: balance;
+}
+
+.mw-h3 {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: var(--tracking-snug);
+  color: var(--gray-800);
+  margin: 0;
+  text-wrap: balance;
+}
+
+.mw-body {
+  font-size: 14.5px;
+  line-height: 1.8;
+  color: var(--gray-600);
+  max-width: 60ch;
+  margin: 18px 0 0;
+  text-wrap: pretty;
+}
+
+.mw-lede {
+  font-size: 15.5px;
+  line-height: 1.72;
+  color: var(--gray-700);
+  max-width: 48ch;
+  margin: clamp(1.5rem, 2.5vw, 2rem) 0 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--gold-deep);
+  text-wrap: pretty;
+}
+
+/* Figures sit in columns and never dance while a value updates. */
+.mw-fig,
+.mw-figure-n,
+.mw-article-i,
+.mw-date,
+.mw-item-date,
+.mw-count {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+}
+
+/* ---- where a section hands off ----
+ *
+ * "Watch more on YouTube" and "View all articles" were the signature link: a
+ * 9.5px tracked-caps label with a hairline beside it. At that size a call to
+ * action is decoration — it reads as a caption, not as somewhere to go, and it
+ * was the last thing a reader saw in each of the two sections that has more
+ * behind it. They are `.mw-ghost` now, the same control the hero uses, which
+ * is the same control /products and the home page use. One button shape across
+ * the site. */
+.mw-more { margin-top: clamp(1.5rem, 2.6vw, 2.25rem);
+  /* Its column stretches; a button is as wide as its label. */
+  width: fit-content;
+}
+
+/* ---- the two actions ---- */
+
+.mw-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin-top: 30px;
+}
+
+/*
+ * NOT `.btn-gold`. That control carries a hardcoded burnt-orange ramp in
+ * base.css (#C25514 -> #7E3008) which is the old cool palette's accent and
+ * reads as a visitor from another design on champagne paper. This is the same
+ * shape in the gold ramp, and it moves with the tokens.
+ */
+.mw-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 17px 32px;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-full);
+  background: var(--gold);
+  color: var(--white);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.2s var(--ease), background 0.24s var(--ease), border-color 0.24s var(--ease);
+}
+
+.mw-cta:hover { transform: translateY(-2px); background: var(--gold-hi); border-color: var(--gold-hi); }
+.mw-cta:active { transform: translateY(0); }
+.mw-cta[disabled] { opacity: 0.6; cursor: default; transform: none; }
+
+.mw-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 17px 30px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gray-700);
+  text-decoration: none;
+  transition: border-color 0.24s var(--ease), color 0.24s var(--ease);
+}
+
+.mw-ghost:hover { border-color: var(--gold); color: var(--gray-800); }
+
+/* ===================================================== the reveal
+
+   The wrapper is always a `motion.div` of the same type, mounted with
+   `initial={false}`, so the SERVER ships the final state and a visitor whose JS
+   never runs reads the whole page. `data-phase` is what CSS keys the inner
+   stagger off; the wrapper's own opacity/transform is driven by motion. Only
+   `transform` and `opacity` move — never width, height, top, filter or shadow. */
+
+.mw-reveal { will-change: auto; }
+
+.mw-stagger > * {
+  transition: opacity 0.5s var(--ease), transform 0.5s var(--ease);
+  /* N-th child delay. Set from the markup so the order is explicit rather than
+     hidden in an :nth-child ladder that breaks when an item is added. */
+  transition-delay: calc(var(--i, 0) * 70ms);
+}
+
+.mw-reveal[data-phase='hidden'] .mw-stagger > * {
+  opacity: 0;
+  transform: translateY(14px);
+}
+
+/* ===================================================== hero */
+
+.mw-hero { padding: clamp(3rem, 5vw, 5.5rem) 0 clamp(2.5rem, 4vw, 4rem); }
+
+/*
+ * Copy-led, so 1fr / 0.82fr — the figures panel is the answer to the copy, not
+ * its equal. Never 50/50: a symmetric split has no reading order.
+ */
+.mw-hero-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.82fr);
+  gap: clamp(2.5rem, 5vw, 4.5rem);
+  align-items: center;
+}
+
+.mw-mark { display: flex; align-items: center; gap: 12px; margin: 0; }
+
+.mw-mark-dot {
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border-radius: var(--radius-full);
+  background: var(--gold);
+}
+
+/* ---- the figures ----
+   Oversized, tabular, tight. Each number is read off the page's own data at
+   render time — VIDEOS.length, ARTICLES.length — so it cannot drift from what
+   the sections below actually list. */
+
+/* One column axis for all three rows.
+ *
+ * Each `.mw-figure` was its own grid with an `auto` first column, so the three
+ * rows sized their number column independently and the descriptions started at
+ * three different places — 915, 950, 950 — a ragged left edge inside a card
+ * whose whole job is to look ordered. The rows are subgrids of this one now, so
+ * the number column is measured once, off the widest number, and every
+ * description lines up. */
+.mw-figures {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  gap: 0;
+  margin: 0;
+  padding: clamp(1.5rem, 2.5vw, 2.25rem) clamp(1.5rem, 2.5vw, 2.25rem) clamp(0.5rem, 1.5vw, 1rem);
+  border: 1px solid var(--mw-hairline-2);
+  border-radius: var(--radius-xl);
+  background-color: var(--white);
+  background-image: radial-gradient(74% 86% at 6% 0%, var(--mw-wash) 0%, var(--mw-wash-soft) 34%, transparent 72%);
+  box-shadow: var(--mw-shadow-lg);
+}
+
+.mw-figure {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: baseline;
+  gap: clamp(1rem, 2vw, 1.75rem);
+  padding: clamp(1rem, 1.6vw, 1.4rem) 0;
+  border-bottom: 1px solid var(--mw-hairline);
+}
+
+.mw-figure:last-child { border-bottom: 0; }
+
+.mw-figure-n {
+  font-size: clamp(2.4rem, 4.6vw, 3.9rem);
+  font-weight: 400;
+  line-height: 0.94;
+  letter-spacing: -0.035em;
+  color: var(--gray-800);
+}
+
+.mw-figure-t {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--gray-600);
+  text-wrap: pretty;
+}
+
+.mw-figure-t b {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+/* ===================================================== the rail
+
+   Was a full-bleed `--ink-900` band with white headlines. It is a paper strip
+   now: two hairlines and the page's own ground, headlines in ink, the source in
+   gold. The marquee mechanics are unchanged and the comments that earned them
+   are kept — they were correct, only the colour was wrong. */
+
+.mw-rail {
+  position: relative;
+  border-top: 1px solid var(--mw-hairline);
+  border-bottom: 1px solid var(--mw-hairline);
+  background-color: var(--white);
   overflow: hidden;
 }
 
-.news-band::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto;
-  height: 2px;
-  background: var(--gold-gradient-h);
-  opacity: 0.85;
-  z-index: 3;
-}
-
-.news-band-inner {
+.mw-rail-inner {
+  /* The page's gutter, declared once and used on BOTH sides.
+     The label was padded to this on the left so it lines up with the heading
+     above it, while the track ran to the window edge on the right — so the
+     band sat inset on one side and flush on the other, and the headlines faded
+     out hard against the window while the left end kept a margin. The track
+     now stops at the same inset it starts from. */
+  /* The container's own content edge, derived rather than approximated:
+     the page is max-width 1360 centred inside clamp(1.25rem, 4vw, 3rem) of
+     padding, so its content starts at half the overflow (never negative) plus
+     that padding. The old form floored at --space-6 (24px), which is narrower
+     than the padding itself — so below 1360px the label sat at 24 while the
+     heading above it sat at 48 and the two stopped lining up. */
+  --rail-gutter: calc(max(0px, (100vw - 1360px) / 2) + clamp(1.25rem, 4vw, 3rem));
   display: flex;
   align-items: stretch;
-  /* Full-bleed: the marquee should run to the window edge, not stop at the
-     container gutter, or it reads as a boxed widget again. */
   max-width: none;
-  padding: 0;
+  padding: 0 var(--rail-gutter) 0 0;
 }
 
-/* ── Pinned label ────────────────────────────────────────
-   Sits above the track with the band's own background, so headlines scroll
-   behind it rather than colliding with it. */
-
-.news-band-label {
+/* Sits ABOVE the track on the band's own ground, so headlines scroll behind it
+   rather than colliding with it. */
+.mw-rail-label {
   position: relative;
   z-index: 2;
   flex: none;
@@ -55,85 +420,81 @@
   align-items: center;
   gap: var(--space-2);
   margin: 0;
-  padding: 0 var(--space-6) 0 max(var(--space-6), calc((100vw - var(--container)) / 2 + var(--space-6)));
-  background: var(--ink-900);
+  padding: 0 var(--space-6) 0 var(--rail-gutter);
+  background: var(--white);
   font-family: var(--font);
-  font-size: var(--text-xs);
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: var(--tracking-caps);
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--gold);
   white-space: nowrap;
 }
 
 /* Feathers the label into the moving headlines instead of a hard edge. */
-.news-band-label::after {
-  content: '';
-  position: absolute;
-  inset: 0 -28px 0 auto;
-  width: 28px;
-  background: linear-gradient(90deg, var(--ink-900), transparent);
-  pointer-events: none;
-}
-
-.news-band-dot {
+.mw-rail-dot {
   width: 7px;
   height: 7px;
+  flex: none;
   border-radius: var(--radius-full);
-  background: var(--accent-400);
-  box-shadow: 0 0 0 4px rgba(226, 104, 42, 0.18);
+  background: var(--gold);
 }
 
-/* ── Marquee ─────────────────────────────────────────────── */
-
-.news-marquee {
+.mw-marquee {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  /* Fade only the trailing edge; the leading edge is covered by the label. */
-  -webkit-mask-image: linear-gradient(90deg, #000 92%, transparent);
-  mask-image: linear-gradient(90deg, #000 92%, transparent);
+  /* Both edges. The leading edge used to rely on the label's opaque background
+     alone, so a headline sliding out from behind it appeared mid-word against
+     a hard vertical cut — it read as broken text rather than as motion. */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 5%, #000 93%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 5%, #000 93%, transparent);
 }
 
-.news-track {
+.mw-track {
   display: flex;
   align-items: center;
   width: max-content;
-  animation: news-scroll 64s linear infinite;
+  animation: mw-scroll 64s linear infinite;
 }
 
-/* Readers need to be able to stop it to actually read a headline, and a
-   keyboard user tabbing into a link must not have it slide away. */
-.news-marquee:hover .news-track,
-.news-marquee:focus-within .news-track {
-  animation-play-state: paused;
-}
+/* A reader has to be able to stop it to finish a headline, and a keyboard user
+   tabbing into a link must not have it slide away underneath them. */
+.mw-marquee:hover .mw-track,
+.mw-marquee:focus-within .mw-track { animation-play-state: paused; }
 
-@keyframes news-scroll {
+@keyframes mw-scroll {
   from { transform: translate3d(0, 0, 0); }
-  /* -50% because the list is rendered twice; one full pass lands exactly on
-     the duplicate, so the loop has no seam. */
+  /* -50% because the list is rendered twice; one full pass lands exactly on the
+     duplicate, so the loop has no seam. */
   to   { transform: translate3d(-50%, 0, 0); }
 }
 
-/* ── Headline ────────────────────────────────────────────── */
-
-.news-headline-item {
+/* One line, not two.
+ *
+ * The headline and its source were stacked, so the item was an 86px two-line
+ * block whose centre fell in the GAP between them. The "Markets" label is a
+ * single line centred in the same band, which put it 10px below the headline
+ * it was supposed to sit beside — aligned to nothing. On one line the label,
+ * the headline and the source all share a baseline, which is what a ticker
+ * should look like anyway. */
+.mw-item {
   position: relative;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 3px;
-  /* Inter-item spacing lives here, NOT in a flex gap on the track: gap puts
-     N-1 gaps between N items, so a -50% loop lands half a gap short and the
+  flex-direction: row;
+  align-items: baseline;
+  gap: var(--space-3);
+  /* Inter-item spacing lives HERE, not in a flex gap on the track: N items
+     carry N-1 gaps, so a gap leaves the -50% loop half a gap short and the
      marquee visibly jumps once per cycle. */
-  padding: var(--space-5) var(--space-8) var(--space-5) 0;
+  padding: var(--space-4) var(--space-8) var(--space-4) 0;
+  min-height: 44px;
   white-space: nowrap;
-  transition: color var(--t-fast);
+  text-decoration: none;
 }
 
 /* Hairline separator before each headline. */
-.news-headline-item::before {
+.mw-item::before {
   content: '';
   position: absolute;
   left: calc(var(--space-8) / -2);
@@ -141,103 +502,121 @@
   transform: translateY(-50%);
   width: 1px;
   height: 30px;
-  background: var(--line-on-dark);
+  background: var(--mw-hairline);
 }
 
-.nh-text {
+.mw-item-text {
   font-family: var(--font-display);
   font-size: clamp(1.05rem, 1.1vw + 0.75rem, 1.35rem);
   font-weight: 700;
   line-height: 1.15;
   letter-spacing: var(--tracking-snug);
-  color: rgba(255, 255, 255, 0.94);
-  transition: color var(--t-fast);
+  color: var(--gray-800);
+  transition: color 0.16s var(--ease);
 }
 
-.news-headline-item:hover .nh-text { color: var(--accent-300); }
+.mw-item:hover .mw-item-text { color: var(--gold-hi); }
 
-.nh-meta {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-}
+.mw-item-meta { display: flex; align-items: baseline; gap: var(--space-2); }
 
-.nh-source {
+.mw-item-kind {
   font-family: var(--font);
   font-size: 0.66rem;
   font-weight: 600;
   letter-spacing: 0.13em;
   text-transform: uppercase;
-  color: var(--accent-300);
+  color: var(--gold);
 }
 
-.nh-date {
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  color: rgba(255, 255, 255, 0.5);
+.mw-item-date { font-size: 0.68rem; color: var(--gray-500); }
+
+/* ===================================================== section head
+
+   /products' head: a flex row with the numbered eyebrow and an 18ch H2 on the
+   left, a 34ch paragraph on the right, over a single hairline. */
+
+.mw-section { padding: clamp(3rem, 5.5vw, 5.5rem) 0 0; }
+
+/* The head on one axis, as the home page sets it: the description sits under
+   the heading rather than pinned to the far edge. Split, the two halves left a
+   wide hole between them whenever the heading ran short, and the paragraph
+   read as a stray caption rather than as the section's own opening line. */
+.mw-head {
+  display: block;
+  padding-bottom: clamp(1.35rem, 2.2vw, 1.85rem);
+  border-bottom: 1px solid var(--mw-hairline-2);
 }
 
-.news-headline-item:focus-visible {
-  outline: 2px solid var(--accent-400);
-  outline-offset: -4px;
-  border-radius: var(--radius-sm);
+.mw-head-l { min-width: 0; }
+.mw-head .mw-h2 { margin-top: 16px; max-width: 18ch; }
+.mw-head .mw-body {
+  margin: clamp(1.1rem, 1.8vw, 1.5rem) 0 0;
+  max-width: 62ch;
+  font-size: 16px;
+  line-height: 1.75;
 }
 
-/* =========================================================
-   2. Video
-   ========================================================= */
+/* ===================================================== 01 · watch
 
-/* First section on the page now that the hero is gone. */
-.video-section { padding-top: var(--space-16); }
+   Image-led, so the 1 : 1.12 ratio — mirrored, because the thing that leads is
+   the feature still and it belongs at the start of the reading order. */
 
-.video-showcase {
+.mw-watch {
+  padding-top: 32px;
   display: grid;
-  /* 50/50, as agreed on the wireframe. */
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-6);
+  grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr);
+  gap: clamp(1.75rem, 3vw, 2.75rem);
   align-items: start;
 }
 
-/* ── Feature ─────────────────────────────────────────────── */
-
-.video-feature {
+.mw-feature {
   display: grid;
   gap: var(--space-4);
   padding: var(--space-4);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  transition: transform var(--t), box-shadow var(--t), border-color var(--t);
+  border: 1px solid var(--mw-hairline);
+  border-radius: var(--radius-xl);
+  background: var(--white);
+  box-shadow: var(--mw-shadow);
+  text-decoration: none;
+  transition: transform 0.32s var(--ease), border-color 0.32s var(--ease), box-shadow 0.32s var(--ease);
 }
 
-.video-feature:hover {
+.mw-feature:hover {
   transform: translateY(-3px);
-  border-color: var(--line-strong);
-  box-shadow: var(--shadow-md);
+  border-color: var(--gold);
+  box-shadow: var(--mw-shadow-lg);
 }
 
-.video-feature-thumb,
-.video-row-thumb {
+.mw-thumb,
+.mw-row-thumb {
   position: relative;
   display: block;
   overflow: hidden;
-  border-radius: var(--radius);
-  background: var(--ink-800);
+  border-radius: var(--radius-lg);
+  /* Was --ink-800: a navy plate flashing behind every thumbnail while it
+     loaded. The placeholder is warm paper now, so a slow image reads as an
+     empty frame rather than a hole in the page. */
+  background: var(--surface-sunken);
   aspect-ratio: 16 / 9;
 }
 
-/* Sources are natively 16:9 (maxresdefault / mqdefault), so no scaling is
-   needed. The previous scale(1.34) existed to hide hqdefault letterbox bars and
-   cropped the sides too, cutting the first and last word off every title card. */
-.video-feature-thumb img,
-.video-row-thumb img {
+/*
+ * The sources are natively 16:9 (maxresdefault / mqdefault), so nothing is
+ * scaled. The old scale(1.34) existed to hide hqdefault's letterbox bars and
+ * cropped the sides too, cutting the first and last word off every title card.
+ */
+.mw-thumb img,
+.mw-row-thumb img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.video-play {
+/* Was rgba(10, 37, 64, .78) — the old navy — with a backdrop-filter behind it.
+   Warm ink at the same weight reads as the same chip on paper, and dropping the
+   filter takes a compositing cost off every thumbnail for nothing lost. */
+.mw-play {
   position: absolute;
   inset: 50% auto auto 50%;
   transform: translate(-50%, -50%);
@@ -246,363 +625,358 @@
   width: 54px;
   height: 54px;
   border-radius: var(--radius-full);
-  background: rgba(10, 37, 64, 0.78);
+  background: color-mix(in srgb, var(--gray-800) 78%, transparent);
   color: var(--white);
-  backdrop-filter: blur(2px);
-  transition: background var(--t-fast), transform var(--t-fast);
+  transition: background 0.2s var(--ease), transform 0.2s var(--ease);
 }
 
-.video-play svg { width: 22px; height: 22px; margin-left: 2px; }
-.video-play.is-small { width: 34px; height: 34px; }
-.video-play.is-small svg { width: 14px; height: 14px; }
+.mw-play svg { width: 22px; height: 22px; margin-left: 2px; }
+.mw-play.is-small { width: 40px; height: 40px; }
+.mw-play.is-small svg { width: 15px; height: 15px; }
 
-.video-feature:hover .video-play,
-.video-row:hover .video-play {
-  background: var(--accent-500);
+.mw-feature:hover .mw-play,
+.mw-row:hover .mw-play {
+  background: var(--gold);
   transform: translate(-50%, -50%) scale(1.06);
 }
 
-.video-feature-body { display: grid; gap: var(--space-2); }
+.mw-feature-body { display: grid; gap: var(--space-2); }
 
-.video-date {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--gray-500);
-}
+.mw-date { font-size: var(--text-xs); color: var(--gray-500); }
 
-.video-feature-title {
+.mw-feature-title {
   font-family: var(--font-display);
   font-size: var(--text-2xl);
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: var(--tracking-snug);
-  color: var(--ink-800);
+  color: var(--gray-800);
   text-wrap: balance;
 }
 
-.video-feature-blurb {
+.mw-feature-blurb {
   font-size: var(--text-sm);
   line-height: 1.6;
   color: var(--gray-600);
+  max-width: 62ch;
+  text-wrap: pretty;
 }
 
-/* ── Side list ───────────────────────────────────────────── */
+.mw-side { display: flex; flex-direction: column; gap: var(--space-4); height: 100%; }
 
-.video-side {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  height: 100%;
-}
+.mw-list { list-style: none; display: grid; gap: var(--space-3); margin: 0; padding: 0; }
 
-.video-list {
-  list-style: none;
+.mw-row {
   display: grid;
-  gap: var(--space-3);
-}
-
-.video-row {
-  display: grid;
-  grid-template-columns: 132px 1fr;
+  grid-template-columns: 132px minmax(0, 1fr);
   gap: var(--space-4);
   align-items: center;
   padding: var(--space-3);
-  border: 1px solid var(--line);
+  border: 1px solid var(--mw-hairline);
   border-radius: var(--radius-lg);
-  background: var(--surface);
-  transition: transform var(--t-fast), border-color var(--t-fast), box-shadow var(--t-fast);
+  background: var(--white);
+  text-decoration: none;
+  transition: transform 0.24s var(--ease), border-color 0.24s var(--ease), box-shadow 0.24s var(--ease);
 }
 
-.video-row:hover {
+.mw-row:hover {
   transform: translateX(3px);
-  border-color: var(--line-strong);
-  box-shadow: var(--shadow-sm);
+  border-color: var(--gold);
+  box-shadow: var(--mw-shadow);
 }
 
-.video-row-body { display: grid; gap: var(--space-1); min-width: 0; }
+.mw-row-body { display: grid; gap: var(--space-1); min-width: 0; }
 
-.video-row-title {
+.mw-row-title {
   font-size: var(--text-sm);
   font-weight: 600;
   line-height: 1.4;
-  color: var(--ink-800);
+  color: var(--gray-800);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-/* Pushed to the bottom of the column so it sits under the list, aligning with
+/* Pushed to the bottom of the column so it sits under the list and lands near
    the base of the feature card at desktop widths. */
-.watch-more {
-  margin-top: auto;
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-5);
-  border: 1px solid var(--accent-line, rgba(185, 75, 18, 0.38));
-  border-radius: var(--radius-full);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--accent-500);
-  transition: var(--t-fast);
-}
+.mw-side .mw-more { margin-top: auto; align-self: flex-start; }
 
-.watch-more svg { width: 15px; height: 15px; transition: transform var(--t-fast); }
-.watch-more:hover { background: var(--accent-500); border-color: var(--accent-500); color: var(--white); }
-.watch-more:hover svg { transform: translateX(3px); }
+/* ===================================================== 02 · read
 
-/* =========================================================
-   3. Blog + Articles
-   ========================================================= */
+   Copy-led, so 1fr / 0.82fr. The articles are the substance and take the wide
+   column; the blog note is an aside and says so by being narrower. */
 
-.panels-section { background: var(--surface-sunken); }
-
-.media-panels {
+.mw-read {
+  padding-top: 32px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-6);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.82fr);
+  gap: clamp(1.75rem, 3vw, 2.75rem);
   align-items: start;
 }
 
-.media-panel {
+.mw-panel-head {
   display: flex;
-  flex-direction: column;
-  padding: var(--space-6);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  height: 100%;
-}
-
-.panel-head {
-  display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-3);
-  margin-bottom: var(--space-5);
   padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--mw-hairline);
 }
 
-.panel-head h3 { font-size: var(--text-xl); margin: 0; }
+.mw-count { margin-left: auto; font-size: var(--text-xs); color: var(--gray-500); }
 
-.panel-badge {
+.mw-badge {
   margin-left: auto;
   padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-full);
-  border: 1px solid var(--accent-line, rgba(185, 75, 18, 0.38));
+  border: 1px solid var(--gold);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   letter-spacing: 0.04em;
-  color: var(--accent-600);
+  color: var(--gold);
+  white-space: nowrap;
 }
 
-.panel-count {
-  margin-left: auto;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--gray-500);
-}
+.mw-article-list { list-style: none; display: grid; gap: 0; margin: 0; padding: 0; }
 
-/* ── Blog empty state ────────────────────────────────────── */
-
-.blog-empty {
-  flex: 1;
+.mw-article {
   display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: var(--space-3);
-  padding: var(--space-10) var(--space-4);
-  text-align: center;
-  border: 1px dashed var(--line-strong);
-  border-radius: var(--radius);
-  background: var(--surface-sunken);
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: var(--space-4);
+  align-items: baseline;
+  min-height: 44px;
+  padding: var(--space-4) var(--space-3);
+  border-bottom: 1px solid var(--mw-hairline);
+  text-decoration: none;
+  transition: background 0.2s var(--ease);
 }
 
-.blog-empty svg { width: 30px; height: 30px; color: var(--gray-400); }
+.mw-article:hover { background: var(--surface-sunken); }
 
-.blog-empty-title {
+.mw-article-i { font-size: var(--text-xs); color: var(--gold); }
+
+.mw-article-body { display: grid; gap: 3px; min-width: 0; }
+
+.mw-article-title {
+  font-size: var(--text-base);
+  font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: var(--tracking-snug);
+  color: var(--gray-800);
+  text-wrap: pretty;
+  transition: color 0.2s var(--ease);
+}
+
+.mw-article:hover .mw-article-title { color: var(--gold-hi); }
+
+.mw-article-meta { font-size: var(--text-xs); color: var(--gray-600); }
+
+/* The arrow is decorative; the row is already a link with a real accessible
+   name. It moves on hover only, and only by transform. */
+.mw-article-go {
+  align-self: center;
+  color: var(--gold);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 0.2s var(--ease), transform 0.2s var(--ease);
+}
+
+.mw-article-go svg { display: block; width: 15px; height: 15px; }
+.mw-article:hover .mw-article-go,
+.mw-article:focus-visible .mw-article-go { opacity: 1; transform: none; }
+
+/*
+ * Sticky, because the list beside it is long and the note is the one thing a
+ * reader may want to come back to. `top` is the nav pill's height plus a
+ * gutter — the pill floats, so a plain `top: 0` parks the card underneath it.
+ */
+.mw-aside {
+  position: sticky;
+  top: calc(var(--bar-h, 74px) + var(--space-8));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: clamp(1.5rem, 2.5vw, 2rem);
+  border: 1px solid var(--mw-hairline);
+  border-radius: var(--radius-xl);
+  background-color: var(--white);
+  background-image: radial-gradient(74% 86% at 6% 0%, var(--mw-wash-soft), transparent 70%);
+  box-shadow: var(--mw-shadow);
+}
+
+.mw-aside-empty {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-5);
+  border: 1px dashed var(--mw-hairline-2);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.mw-aside-empty svg { width: 30px; height: 30px; color: var(--gold); }
+
+.mw-aside-title {
+  margin: 0;
   font-family: var(--font-display);
   font-size: var(--text-lg);
   font-weight: 700;
-  color: var(--ink-800);
+  line-height: 1.25;
+  color: var(--gray-800);
 }
 
-.blog-empty-body {
+.mw-aside-body {
+  margin: 0;
   max-width: 34ch;
   font-size: var(--text-sm);
-  line-height: 1.6;
-  color: var(--gray-500);
+  line-height: 1.65;
+  color: var(--gray-600);
+  text-wrap: pretty;
 }
 
-/* ── Articles ────────────────────────────────────────────── */
+/* ===================================================== 03 · the letter
 
-.article-list {
-  list-style: none;
+   Was a navy radial slab with white type. Same panel, on paper: the raised
+   sheet the rest of the page uses, warm ink, and the gold hairline the hero
+   already draws. */
+
+.mw-letter { padding: clamp(3rem, 5.5vw, 5.5rem) 0 clamp(4rem, 7vw, 7rem); }
+
+/* One card holding the words and the field they introduce. */
+.mw-letter-panel {
   display: grid;
-  gap: var(--space-1);
-  margin: 0;
-  padding: 0;
-}
-
-.article-row {
-  display: grid;
-  grid-template-columns: 28px 1fr;
-  gap: var(--space-3);
-  align-items: baseline;
-  padding: var(--space-3);
-  border-radius: var(--radius);
-  transition: background var(--t-fast);
-}
-
-.article-row:hover { background: var(--surface-sunken); }
-
-/* --gray-400 measures ~2.9:1 on white. Decorative numbering is still
-   visible text, so it takes a text-grade token like everything else. */
-.article-idx {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums lining-nums;
-  font-size: var(--text-xs);
-  color: var(--gray-500);
-}
-
-.article-body { display: grid; gap: 2px; min-width: 0; }
-
-.article-title {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  line-height: 1.45;
-  color: var(--ink-800);
-}
-
-.article-row:hover .article-title { color: var(--accent-600); }
-
-.article-meta {
-  font-size: var(--text-xs);
-  color: var(--gray-500);
-}
-
-.view-all {
-  margin-top: var(--space-5);
-  align-self: flex-start;
-  display: inline-flex;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.82fr);
+  gap: clamp(2rem, 4vw, 3.5rem);
   align-items: center;
-  gap: var(--space-2);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--accent-500);
-}
-
-.view-all svg { width: 15px; height: 15px; transition: transform var(--t-fast); }
-.view-all:hover svg { transform: translateX(3px); }
-
-/* =========================================================
-   4. Newsletter
-   ========================================================= */
-
-.newsletter-section { padding-top: 0; }
-
-.newsletter {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-10);
-  align-items: center;
-  padding: var(--space-12);
+  padding: clamp(1.75rem, 4vw, 3.25rem);
+  border: 1px solid var(--mw-hairline-2);
   border-radius: var(--radius-xl);
-  background: radial-gradient(120% 140% at 15% 0%, var(--ink-700) 0%, var(--ink-900) 62%);
-  color: rgba(255, 255, 255, 0.72);
+  background-color: var(--white);
+  background-image: radial-gradient(90% 130% at 12% 0%, var(--mw-wash) 0%, var(--mw-wash-soft) 38%, transparent 74%);
+  box-shadow: var(--mw-shadow-lg);
 }
 
-.newsletter-copy h2 { color: var(--white); margin-bottom: var(--space-3); }
-.newsletter-copy p { color: rgba(255, 255, 255, 0.72); font-size: var(--text-base); line-height: 1.65; }
+/* No eyebrow above it any more, so the heading starts the card. */
+.mw-letter-copy .mw-h2 { margin-top: 0; max-width: 18ch; }
+/* The section descriptions read at 16px across the site; this one sits in a
+   narrower column, so it keeps the size and takes the measure the column gives
+   it rather than a 62ch line that would wrap to six lines here. */
+.mw-letter-copy .mw-body {
+  margin: clamp(1.1rem, 1.8vw, 1.5rem) 0 0;
+  max-width: 42ch;
+  font-size: 16px;
+  line-height: 1.75;
+}
 
-.newsletter-controls { display: grid; grid-template-columns: 1fr auto; gap: var(--space-3); }
+.mw-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-3); }
 
-.newsletter-input {
+.mw-input {
   min-width: 0;
+  min-height: 48px;
   padding: var(--space-4);
-  border: 1px solid var(--line-on-dark-strong);
-  border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--white);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--gray-800);
   font-family: var(--font);
   font-size: var(--text-base);
-  transition: border-color var(--t-fast), background var(--t-fast);
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
 }
 
-.newsletter-input::placeholder { color: rgba(255, 255, 255, 0.42); }
+.mw-input::placeholder { color: var(--gray-500); }
+.mw-input:hover { border-color: var(--gold-deep); }
+.mw-input:focus { outline: none; border-color: var(--gold); background: var(--white); }
 
-.newsletter-input:focus {
-  outline: none;
-  border-color: var(--accent-400);
-  background: rgba(255, 255, 255, 0.10);
-}
+.mw-submit { white-space: nowrap; }
 
-.newsletter-input:focus-visible { outline: 2px solid var(--accent-400); outline-offset: 2px; }
-
-.newsletter-submit { white-space: nowrap; }
-.newsletter-submit:disabled { opacity: 0.6; cursor: default; transform: none; }
-
-.newsletter-status {
-  margin-top: var(--space-3);
+.mw-status {
+  margin: var(--space-3) 0 0;
   font-size: var(--text-xs);
   line-height: 1.55;
-  color: rgba(255, 255, 255, 0.62);
-  min-height: 2.4em; /* reserved, so a message cannot shift the layout */
+  color: var(--gray-600);
+  /* Reserved, so an arriving message cannot shift the form under the pointer. */
+  min-height: 2.4em;
 }
 
-.newsletter-status a { color: rgba(255, 255, 255, 0.9); text-decoration: underline; text-underline-offset: 2px; }
-.newsletter-status a:hover { color: var(--accent-300); }
-.newsletter-status.is-error { color: var(--loss-on-dark); }
-.newsletter-status.is-done { color: var(--gain-on-dark); }
+.mw-status a { color: var(--gold); text-decoration: underline; text-underline-offset: 2px; }
+.mw-status a:hover { color: var(--gold-hi); }
 
-/* =========================================================
-   5. Responsive
-   ========================================================= */
+/*
+ * Never colour alone (WCAG 1.4.1): each state also carries a text prefix, so
+ * the difference survives a monochrome display and any form of colour
+ * blindness. The tones are the warm signal pair, legible on paper — the old
+ * --gain-on-dark / --loss-on-dark were mixed for an ink floor.
+ */
+.mw-status.is-error { color: var(--loss); }
+.mw-status.is-done { color: var(--gain); }
 
-@media (max-width: 900px) {
-  .video-showcase { grid-template-columns: 1fr; }
-  .media-panels { grid-template-columns: 1fr; }
-  .newsletter { grid-template-columns: 1fr; gap: var(--space-6); padding: var(--space-8); }
-  .watch-more { margin-top: 0; }
+.mw-status-flag {
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* ===================================================== responsive */
+
+@media (max-width: 1000px) {
+  .mw-hero-inner,
+  .mw-watch,
+  .mw-read,
+  .mw-letter-panel { grid-template-columns: minmax(0, 1fr); }
+
+  .mw-head { flex-direction: column; align-items: flex-start; gap: var(--space-4); }
+  .mw-head .mw-body { max-width: 60ch; }
+
+  /* Sticky is a two-column affordance. In one column it would pin the aside
+     over the list it is meant to sit beside. */
+  .mw-aside { position: static; }
+
+  .mw-side .mw-more { margin-top: 0; }
 }
 
 @media (max-width: 860px) {
   /* The pinned label eats too much of a narrow viewport, so it sits above the
      track and the marquee takes the full width. */
-  .news-band-inner { flex-direction: column; align-items: stretch; }
-  .news-band-label {
-    padding: var(--space-3) var(--space-5) 0;
-    background: transparent;
-  }
-  .news-band-label::after { display: none; }
-  .news-headline-item { padding-top: var(--space-3); padding-bottom: var(--space-4); }
-  .nh-text { font-size: var(--text-base); }
+  .mw-rail-inner { flex-direction: column; align-items: stretch; padding: 0 var(--space-5); }
+  .mw-rail-label { padding: var(--space-3) 0 0; background: transparent; }
+  .mw-item { padding-top: var(--space-3); padding-bottom: var(--space-4); }
+  .mw-item-text { font-size: var(--text-base); }
 }
 
 @media (max-width: 560px) {
-  .media-panel { padding: var(--space-5); }
-  .video-row { grid-template-columns: 104px 1fr; gap: var(--space-3); }
-  .newsletter { padding: var(--space-6); }
-  .newsletter-controls { grid-template-columns: 1fr; }
-  .newsletter-submit { justify-content: center; }
+  .mw-hero { padding-top: clamp(2rem, 8vw, 3rem); }
+  .mw-figure { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
+  .mw-row { grid-template-columns: 104px minmax(0, 1fr); gap: var(--space-3); }
+  .mw-article { grid-template-columns: 28px minmax(0, 1fr); }
+  /* The hover-revealed arrow has no meaning on a touch screen and the third
+     column costs width the title needs. */
+  .mw-article-go { display: none; }
+  .mw-controls { grid-template-columns: minmax(0, 1fr); }
+  .mw-cta,
+  .mw-ghost { width: 100%; }
 }
 
-/* =========================================================
-   6. Reduced motion
-   ========================================================= */
+/* ===================================================== reduced motion
+
+   MotionConfig reducedMotion="user" covers everything motion drives. These are
+   the CSS-driven pieces it cannot reach. */
 
 @media (prefers-reduced-motion: reduce) {
-  .video-feature:hover,
-  .video-row:hover { transform: none; }
-  .video-feature:hover .video-play,
-  .video-row:hover .video-play { transform: translate(-50%, -50%); }
+  .mw-feature:hover,
+  .mw-row:hover { transform: none; }
 
-  /* The global rule only collapses animation DURATION, which would freeze the
-     marquee mid-travel with half its headlines off-screen. Stop it properly
-     and hand the reader a row they can scroll themselves. */
-  .news-track {
+  .mw-feature:hover .mw-play,
+  .mw-row:hover .mw-play { transform: translate(-50%, -50%); }
+
+
+  .mw-stagger > * { transition: none; }
+
+  /*
+   * The global `animation-duration: .01ms` rule only collapses DURATION, which
+   * freezes the marquee mid-travel with half its headlines off-screen. Stop it
+   * properly and hand the reader a row they can scroll themselves.
+   */
+  .mw-track {
     animation: none !important;
     transform: none !important;
     width: 100%;
@@ -610,9 +984,9 @@
     scrollbar-width: thin;
   }
 
-  .news-marquee { -webkit-mask-image: none; mask-image: none; overflow: visible; }
+  .mw-marquee { -webkit-mask-image: none; mask-image: none; overflow: visible; }
 
   /* The duplicate pass exists only to hide the loop seam. With no loop it is
-     just repeated content taking up scroll length. */
-  .news-headline-item[aria-hidden="true"] { display: none; }
+     repeated content taking up scroll length. */
+  .mw-item[aria-hidden='true'] { display: none; }
 }

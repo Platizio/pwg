@@ -308,26 +308,6 @@
   text-decoration-color: currentColor;
 }
 
-/* ===================================================== no-JS reveal
-
-   `.reveal` sets opacity: 0 and waits for an IntersectionObserver in App.tsx to
-   add `.in-view`. There is a prefers-reduced-motion escape at css/styles.css:100
-   and there was no escape at all for a reader without JavaScript — so the
-   prerendered HTML, which exists precisely so the site works without it, was
-   shipping its own content hidden: 30 elements on /terms, 30 on /articles, 23
-   on /privacy, 19 on Home. Seventeen pages in total.
-
-   index.html marks the document `.js` from an inline script in <head>, before
-   the body paints, so there is no flash. Without that script the start state
-   never applies and the page is simply visible. Verified against the built
-   output with every <script> stripped: 30 of 30 reveals at opacity 1.
-
-   Specificity is (0,2,0) against `.reveal`'s (0,1,0), and this sheet loads
-   later, so it wins on both counts. */
-html:not(.js) .reveal {
-  opacity: 1;
-  transform: none;
-}
 
 @media (max-width: 640px) {
   .page-hero .container { text-align: left; }

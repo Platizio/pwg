@@ -68,16 +68,23 @@ export function Dashboard({ data }: { data: HomeSnapshot }) {
 
           <Card lit className="mt-5 px-7 py-7">
             <div className="flex flex-wrap items-baseline justify-between gap-4">
+              {/* "right now" went with the old relative-volume screen, which
+                  really did change hour to hour. The ribbon is a curated list
+                  of household names now, so the qualifier promised a liveness
+                  the card no longer has. */}
               <h2 className="font-serif text-[21px] leading-none text-ink-2">
-                Popular right now
+                Popular
               </h2>
               <p className="text-[13px] text-ink-3">Hold to read</p>
             </div>
             {data.popular.data.length === 0 ? (
               <p className="mt-5 text-[13.5px] leading-[1.7] text-ink-3">
+                {/* An empty ribbon no longer means a quiet market — these
+                    names trade every session — so it can only mean the feed
+                    priced none of them. */}
                 {emptyReason(
                   data.popular,
-                  "No name is trading at unusual volume just now.",
+                  "None of these names is quoting; the ribbon fills when the feed returns.",
                 )}
               </p>
             ) : (

@@ -82,9 +82,14 @@ export function WireView({ stories }: { stories: WireItem[] }) {
           ))}
         </ol>
 
+        {/* This said every story was simulated and that no news feed was
+            connected. Both were false: these are real published articles with
+            real URLs. A page that disclaims its own live data teaches readers
+            to ignore the disclaimers that matter. */}
         <p className="mt-8 max-w-[70ch] text-[12.5px] leading-[1.75] text-ink-3">
-          Every story on this page is simulated for demonstration. Platizio Global is
-          not connected to a news feed, and nothing here is advice.
+          Headlines come from the publishers named, are selected by the data
+          provider against each symbol, and may mention a company without being
+          about it. Nothing here is advice.
         </p>
       </div>
     </main>

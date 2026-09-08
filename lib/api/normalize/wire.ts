@@ -1,3 +1,5 @@
+import { marketImpactOf } from "./market-impact.ts";
+import { relevanceOf } from "./relevance.ts";
 import { relativeAge } from "./time.ts";
 import { presentation } from "../../market/universe.ts";
 import type { RawTickerNews } from "../clients/fundamentals.ts";
@@ -32,8 +34,12 @@ const SENTIMENT: Record<string, WireItem["sentiment"]> = {
   negative: "negative",
 };
 
+function insightFor(item: RawTickerNews, ticker: string) {
+  return item.insights?.find((i) => i.ticker === ticker) ?? null;
+}
+
 function sentimentFor(item: RawTickerNews, ticker: string): WireItem["sentiment"] {
-  const insight = item.insights?.find((i) => i.ticker === ticker);
+  const insight = insightFor(item, ticker);
   if (!insight) return null;
   return SENTIMENT[insight.sentiment.trim().toLowerCase()] ?? null;
 }
@@ -60,6 +66,34 @@ export function toWireItems(
       if (!Number.isFinite(published)) continue;
       seen.add(item.id);
 
+      /* Is this article ABOUT the company, or does it merely name it?
+         relevance.ts reads the per-ticker `sentiment_reasoning` that this
+         module used to open, take the one-word sentiment from, and throw the
+         rest away — the sentence beside it says outright whether the company
+         is the subject or a holding in someone else's fund. Anything that is
+         not coverage is dropped here rather than ranked below coverage,
+         because a rail of three roundups is what the reader complained about
+         and burying them at position four does not fix it. */
+      const relevance = relevanceOf(
+        {
+          title: item.title ?? "",
+          tickers: item.tickers ?? null,
+          reasoning: insightFor(item, ticker)?.sentiment_reasoning ?? null,
+          publishedMs: published,
+        },
+        ticker,
+        look.name,
+        nowMs,
+      );
+      if (relevance.verdict !== "coverage") continue;
+
+      /* Scored here as well as in stock-news.ts so an item does not change
+         rank by crossing a source boundary. */
+      const impact = marketImpactOf({
+        title: item.title ?? "",
+        summary: item.description ?? null,
+      });
+
       const keyword = item.keywords?.[0]?.trim();
 
       items.push({
@@ -76,11 +110,20 @@ export function toWireItems(
         age: (nowMs - published) / HOUR_MS,
         tag: keyword ? titleCase(keyword) : "Markets",
         sentiment: sentimentFor(item, ticker),
+        relevance: relevance.score,
+        impact: impact.score,
+        impactKind: impact.kind,
       });
     }
   }
 
-  const ordered = items.sort((a, b) => a.age - b.age);
+  /* Relevance first, recency only to break a tie. Sorting by age alone put the
+     weakest surviving story at the top whenever it happened to be freshest. */
+  const ordered = items.sort(
+    (a, b) =>
+      (b.relevance ?? 0) + (b.impact ?? 0) - ((a.relevance ?? 0) + (a.impact ?? 0)) ||
+      a.age - b.age,
+  );
 
   const takenFrom = new Map<string, number>();
   const spread: WireItem[] = [];

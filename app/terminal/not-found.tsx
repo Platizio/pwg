@@ -19,7 +19,7 @@ export default function NotFound() {
   return (
     <WorkColumn bleed>
       <div className={cn("border-b border-rule-section py-3.5", REGISTER_X)}>
-        <p className="eyebrow">No such instrument</p>
+        <p className="eyebrow">No such stock</p>
       </div>
 
       <div className={cn("py-12", REGISTER_X)}>
@@ -27,7 +27,7 @@ export default function NotFound() {
           Not in the followed universe
         </h1>
         <p className="mt-4 max-w-[54ch] text-[13.5px] leading-[1.75] text-pretty text-ink-3">
-          Platizio Global carries a fixed universe of six instruments. The symbol you
+          Platizio Global carries a fixed universe of six stocks. The symbol you
           asked for is not one of them — it has not been delisted, and nothing
           has gone wrong with the feed.
         </p>

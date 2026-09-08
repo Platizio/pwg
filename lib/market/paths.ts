@@ -20,6 +20,18 @@ export const WIRE_PATH = "/terminal/wire";
 export const instrumentPath = (ticker: string): string =>
   `${TERMINAL_PATH}/${encodeURIComponent(ticker)}`;
 
+/* The TradingView deep-dive, opened in its own tab.
+ *
+ * A top-level segment rather than a child of /terminal, for two reasons. The
+ * terminal layout awaits getHomeSnapshot() and wraps everything in the Shell —
+ * sidebar, drawer, ticker tape, order ticket — and a route group cannot escape
+ * a parent layout, so a full-screen chart under /terminal would mean
+ * restructuring every existing terminal route. And tickerFromPath below
+ * hardcodes the static children of /terminal; a new one there would be read as
+ * a ticker. */
+export const chartPath = (ticker: string): string =>
+  `/chart/${encodeURIComponent(ticker)}`;
+
 /** One sector. The slug is already url-safe by construction. */
 export const sectorPath = (slug: string): string => `${TERMINAL_PATH}/sector/${slug}`;
 
