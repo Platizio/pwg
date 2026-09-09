@@ -241,6 +241,29 @@
   .nav-links > li > a:not(.btn-gold)::after,
   .nav-links .nav-trigger::after { left: 1rem; right: auto; width: 18px; }
 
+  /* The submenu opens on a grid row.
+   *
+   * It used to animate `max-height: 0 -> 320px`, and 320 was a guess. The
+   * submenu's content measures 199px today, so a fifth link would be silently
+   * clipped and a shorter list leaves the animation running against nothing.
+   * `grid-template-rows: 0fr -> 1fr` resolves to whatever the content actually
+   * is, so there is no ceiling to outgrow.
+   *
+   * The wrapper animates, not the list: an `fr` track needs a grid container,
+   * and `.dropdown-wrap` is already in the markup for exactly this kind of job.
+   * Outside this breakpoint it stays `display: contents` and the desktop
+   * hover-dropdown is untouched.
+   *
+   * `padding` is no longer animated either. Only the left padding changed,
+   * which cannot affect height, so it cost a second layout property per frame
+   * and bought nothing. */
+  .dropdown-wrap {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows var(--t-slow) var(--ease);
+  }
+  .has-dropdown.products-open .dropdown-wrap { grid-template-rows: 1fr; }
+
   .dropdown {
     position: static;
     opacity: 1;
@@ -248,12 +271,12 @@
     transform: none;
     box-shadow: none;
     border: 0;
-    padding: 0;
-    max-height: 0;
+    padding: 0 0 0 1rem;
+    /* Both are required for a 0fr track to collapse: without min-height the
+       item keeps its automatic minimum size and the row never reaches zero. */
+    min-height: 0;
     overflow: hidden;
-    transition: max-height var(--t-slow) var(--ease), padding var(--t-slow) var(--ease);
   }
-  .has-dropdown.products-open .dropdown { max-height: 320px; padding: 0 0 0 1rem; }
 
   .nav-actions .btn-quiet,
   .nav-actions .btn-gold { display: none; }
@@ -718,6 +741,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nav-marker, .dropdown, .nav-links, .pgf-link::after, .whatsapp-float { transition: none; animation: none; }
+  .nav-marker, .dropdown, .dropdown-wrap, .nav-links, .pgf-link::after, .whatsapp-float { transition: none; animation: none; }
   .whatsapp-float:hover, .whatsapp-float:focus-visible { transform: none; }
 }
