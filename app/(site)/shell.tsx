@@ -23,12 +23,21 @@ import "@/Platizio_Global_Revamp/styles/products.css";
 
 /* The system. Order is the cascade: tokens, then the ground and type, then the
    material, then the chrome. Everything above loses to these at equal
-   specificity, which is the point. Nothing may be added below chrome.css. */
+   specificity, which is the point. Nothing may be added below chrome.css
+   except a sheet that is entirely inside a media query — see below. */
 import "./styles/tokens.css";
 import "./styles/base.css";
 import "./styles/glass.css";
 import "./styles/home.css";
 import "./styles/chrome.css";
+
+/* The one thing allowed after chrome.css, because it has to be and because it
+   cannot do any harm there. The phone type floor raises label sizes that are
+   set as low as 9px across nine sheets — several of them in chrome.css itself,
+   so it can only win from here. Every rule in it lives inside
+   `@media (max-width: 560px)`, so above that width the file contributes
+   nothing at all and the cascade above is exactly as it was. */
+import "./styles/mobile.css";
 
 import { AppProvider } from "@/src/context/AppContext";
 import Header from "@/components/marketing/chrome/header";

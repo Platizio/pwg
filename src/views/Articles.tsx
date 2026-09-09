@@ -670,6 +670,26 @@ const SHEET = `
   .alib-card { grid-template-columns: 96px minmax(0, 1fr); gap: 14px; }
 }
 
+/* The phone type floor, matching app/(site)/styles/mobile.css.
+   This page carries its own sheet, so the site-wide floor cannot reach it and
+   the same policy has to be restated here. 560px rather than the 520px above
+   on purpose: the floor is one number for the whole site, and a label that
+   turns legible at a different width from every other page is the kind of
+   inconsistency nobody finds until it looks wrong on one device. */
+@media (max-width: 560px) {
+  .alib-link,
+  .alib-fig-cap,
+  .alib-count-cap,
+  .alib-rail-h { font-size: 11.5px; }
+
+  .alib-label,
+  .alib-lead-meta,
+  .alib-card-meta,
+  .alib-row-meta { font-size: 12px; }
+
+  .alib-label { letter-spacing: 0.14em; }
+}
+
 /* ============================================================= reduced motion */
 
 /* MotionConfig reducedMotion="user" covers everything driven from JS. These are

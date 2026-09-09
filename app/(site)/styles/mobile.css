@@ -1,0 +1,144 @@
+/* The phone type floor.
+ *
+ * THE PROBLEM. Measured across eighteen routes at 375px, the site has no
+ * horizontal scroll and nothing overflows — the layout survives a phone
+ * intact. What does not survive is the type. Fifty-five rules across nine
+ * stylesheets set a font-size below 12px, bottoming out at 9px, and on the
+ * heavier pages that lands on a lot of elements at once:
+ *
+ *     /terminal/sector/…   61 elements     /media       42
+ *     /articles            57              /pricing     40
+ *     /terminal/AAPL       53              /products    36
+ *
+ * These are the label classes — eyebrows, column heads, rate labels, figure
+ * captions, the small-caps CTAs. At a desk, 10px of wide-tracked uppercase
+ * reads as precision. Held at arm's length on a 375px screen it reads as
+ * squinting, and it is the single thing that makes the site feel wrong on a
+ * phone while every box is in the right place.
+ *
+ * WHY A FLOOR RATHER THAN FIFTY-FIVE EDITS. The sizes are deliberate and they
+ * are right on a desktop; the design language genuinely is small tracked
+ * labels. Editing each rule would either damage the desktop or need a
+ * media query per rule in nine files. One floor, applied only below the phone
+ * breakpoint, leaves every desktop value untouched and puts the whole policy
+ * in one reviewable place.
+ *
+ * WHY TRACKING COMES DOWN AS THE SIZE GOES UP. .eyebrow carries 0.22em of
+ * letter-spacing. At 12px that is 2.6px of air per character, and the eyebrows
+ * are long — "US STOCKS & ETFS · FOR RESIDENTS OF INDIA". Raising the size
+ * without easing the tracking buys legibility per glyph and spends it on a
+ * worse wrap. Easing it to 0.14em keeps the small-caps character and gives the
+ * line back the width the larger glyphs took.
+ *
+ * 560px matches a breakpoint the codebase already uses, so this adds no new
+ * one. Phones in portrait top out around 430px, so it clears them comfortably.
+ */
+
+@media (max-width: 560px) {
+  /* Under 11px on the desktop → 11.5px. The decorative smallest tier:
+     store captions, inline product links, the small-caps CTAs, list kinds
+     and dates. */
+  .pgf-store-t small,
+  .ft-link,
+  .ft-link--inline,
+  .mw-cta,
+  .mw-ghost,
+  .pz-cta,
+  .pz-ghost,
+  .ft-cta,
+  .ft-ghost,
+  .ft-ind-live,
+  .label,
+  .pgf-col-h,
+  .help-browse-all,
+  .mw-item-kind,
+  .mw-item-date,
+  .pz .calc-tag,
+  .sform-trail span {
+    font-size: 11.5px;
+  }
+
+  /* 11px–11.6px on the desktop → 12px. The main label tier: every eyebrow,
+     the pricing and products labels, figure and card captions, footer copy. */
+  .hm-label,
+  .hm-facts dd,
+  .hm-why .section-header .eyebrow,
+  .hm-how .section-header .eyebrow,
+  .mw-label,
+  .mw-figure-t b,
+  .mw-rail-label,
+  .pz-label,
+  .pz .section-header .eyebrow,
+  .pz-rate-label,
+  .pz .calc-label,
+  .pz .calc-total-row > span,
+  .pz .calc-effective > span,
+  .pz-ledger-head,
+  .pz-example-label,
+  .pz-ledger-note,
+  .pz-asof,
+  .pz .gains-rate em,
+  .ft-label,
+  .ft-search label,
+  .ft-ind-chrome,
+  .ft-ind-go,
+  .ft-charge-head,
+  .ft-charge-note,
+  .ft-match-sym,
+  .ft-free li > span:last-child,
+  .ft-watch-n,
+  .ft-watch-go,
+  .ft .market-note,
+  .eyebrow,
+  .provenance,
+  .market-note,
+  .pgf-copy,
+  .hm-pf-l,
+  .hm-step-l,
+  .articles-carousel .ac-tag,
+  .media-tag,
+  .legal-meta-item dt,
+  .legal-toc h3,
+  .related-tag {
+    font-size: 12px;
+  }
+
+  /* The tracked uppercase labels, eased so the larger glyphs do not cost a
+     line. Only the ones that actually carry heavy tracking. */
+  .eyebrow,
+  .label,
+  .pgf-col-h,
+  .hm-label,
+  .mw-label,
+  .mw-rail-label,
+  .pz-label,
+  .pz-rate-label,
+  .pz-ledger-head,
+  .pz-example-label,
+  .ft-label,
+  .ft-charge-head {
+    letter-spacing: 0.14em;
+  }
+
+  /* The eyebrow's leading rule is a fixed 24px against a line that is now
+     shorter. Two thirds of it reads the same and leaves room for the words. */
+  .eyebrow::before {
+    width: 16px;
+  }
+
+  /* .ft-link is the heaviest tracking on the site — 0.24em, and it sets
+     `white-space: nowrap`, so the floor above widens every one of them on the
+     narrowest screen there is. products.css says as much three rules above its
+     own definition: 10px at 0.26em is "where tracking stops reading as
+     refinement and starts reading as an eye chart". Same reasoning, one screen
+     size down.
+
+     The padding is a tap target, not spacing. Twenty-four of these sit on
+     /products at 19px tall, which is half of what a thumb needs; the block
+     padding takes the hit area to roughly 39px while the text stays exactly
+     where it was, because the element centres its own content. */
+  .ft-link {
+    letter-spacing: 0.16em;
+    padding-block: 9px;
+  }
+}

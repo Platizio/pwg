@@ -982,3 +982,39 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* The phone type floor for the terminal.
+ *
+ * The terminal sits outside the marketing site's shell, so the floor in
+ * app/(site)/styles/mobile.css never reaches it. Its small type comes from
+ * Tailwind arbitrary values instead — text-[9px] through text-[11.5px], used
+ * across twenty component files. Measured at 375px, that lands on 53 elements
+ * on /terminal/AAPL and 61 on a sector page.
+ *
+ * The floor is 11.5px here rather than the 12px the marketing pages get, and
+ * the difference is deliberate. This is a dense data surface: tabular numbers
+ * in narrow columns, where 11px monospace is the convention rather than an
+ * accident, and where inflating every cell buys legibility by taking away the
+ * columns that make it a terminal. 11.5px removes the tier nobody can read
+ * without touching the tier that is doing real work.
+ *
+ * Written unlayered on purpose. Tailwind's utilities live in @layer utilities,
+ * and unlayered rules beat every layered one whatever the source order, so
+ * this does not depend on staying at the bottom of the file.
+ */
+@media (max-width: 560px) {
+  .text-\[9px\],
+  .text-\[10px\],
+  .text-\[10\.5px\],
+  .text-\[11px\],
+  /* .eyebrow is declared here in @layer base at 11px, so neither the site's
+     floor nor the utility rules above reach it. It is the terminal's most
+     repeated label — 23 of them on a single instrument page. */
+  .eyebrow {
+    font-size: 11.5px;
+  }
+
+  .eyebrow {
+    letter-spacing: 0.12em;
+  }
+}
