@@ -1,6 +1,7 @@
 import "server-only";
 import { vtGet } from "../http.ts";
 import type { ApiResult } from "../errors.ts";
+import { pooled } from "../pool.ts";
 
 /* /aes/api/quotes/* — the equity feed.
 
@@ -10,6 +11,19 @@ import type { ApiResult } from "../errors.ts";
    still renders, the numbers are just wrong by a factor of a hundred. */
 
 export const MAX_SYMBOLS = 50; // server-enforced: 51+ returns 400 "Too many symbols, max 50 allowed"
+
+/* How many quote chunks are in flight at once.
+ *
+ * Was 8. The gateway answers a 50-symbol chunk in a couple of seconds and the
+ * sweep has hundreds of chunks to get through, so the ceiling here is what
+ * decides whether a cold sweep is ten seconds or two and a half minutes.
+ *
+ * Tunable from the environment rather than only in source: if the gateway
+ * starts refusing or timing out under load, SWEEP_CONCURRENCY can be dialled
+ * back on the host without a code change. Failures are already counted as
+ * `failedChunks` and surfaced in the sweep's diagnostics, so throttling shows
+ * up as a fault rather than as silently missing rows. */
+const DEFAULT_CONCURRENCY = Number(process.env.SWEEP_CONCURRENCY) || 64;
 
 export type RawEquityQuote = {
   symbol: string;
@@ -119,20 +133,22 @@ export async function fetchQuotesBatched(
 ): Promise<BatchOutcome> {
   const started = Date.now();
   const groups = chunk(symbols);
-  const concurrency = Math.max(1, opts.concurrency ?? 8);
+
+  /* A pool, not waves. The old shape fired `concurrency` chunks, awaited all of
+     them, then fired the next batch — so every batch cost whatever its slowest
+     call cost and the rest of the workers idled. Against the live gateway that
+     was most of the sweep: 432 chunks in 54 batches took 150 seconds, roughly
+     2.8 seconds a batch, while a single call averages far less. */
+  const settled = await pooled(groups, opts.concurrency ?? DEFAULT_CONCURRENCY, (g) =>
+    fetchQuotes(g, revalidate, tags, opts.noStore),
+  );
 
   const quotes: RawEquityQuote[] = [];
   let failedChunks = 0;
 
-  for (let i = 0; i < groups.length; i += concurrency) {
-    const wave = groups.slice(i, i + concurrency);
-    const settled = await Promise.allSettled(
-      wave.map((g) => fetchQuotes(g, revalidate, tags, opts.noStore)),
-    );
-    for (const s of settled) {
-      if (s.status === "fulfilled" && s.value.ok) quotes.push(...s.value.data);
-      else failedChunks += 1;
-    }
+  for (const s of settled) {
+    if (s.status === "fulfilled" && s.value.ok) quotes.push(...s.value.data);
+    else failedChunks += 1;
   }
 
   const seen = new Set(quotes.filter((q) => !q.notFound).map((q) => q.symbol));

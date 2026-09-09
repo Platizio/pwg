@@ -114,8 +114,12 @@ export async function runSweep(
   const symbols = opts.symbols ?? TRADABLE_SYMBOLS;
   const started = Date.now();
 
+  /* No concurrency here. It used to hard-code 8, which overrode the client's
+     own default and meant the sweep could not be tuned without editing this
+     file. The ceiling now lives in one place, next to the batching that
+     enforces it, and reads SWEEP_CONCURRENCY from the environment. */
   const batch = await fetchQuotesBatched(symbols, TTL.sweep, [TAGS.sweep], {
-    concurrency: opts.concurrency ?? 8,
+    concurrency: opts.concurrency,
     noStore: opts.noStore,
   });
 
