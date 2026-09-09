@@ -1,10 +1,17 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { connection } from "next/server";
 import { InstrumentView } from "@/components/terminal/instrument-view";
 import { getInstrumentSnapshot } from "@/lib/market/instrument";
+import { COVERED } from "@/lib/market/universe";
 
 type Params = { params: Promise<{ ticker: string }> };
+
+/* Only the handful of names the terminal leads with are built ahead of time.
+   Every other ticker in the universe renders on demand — there are fourteen
+   thousand of them, and prerendering a market is not a build step. */
+export function generateStaticParams() {
+  return COVERED.map((ticker) => ({ ticker }));
+}
 
 /* Matching the rest of the terminal. It must not be 0 and must not be
    force-dynamic: Next reads revalidate:0 as an instruction to skip the fetch
@@ -29,16 +36,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 /* An unknown ticker is a 404 rather than a silent fallback to a default
    instrument — a URL that quietly shows different data than it names is worse
    than one that admits it does not exist. */
-/* Request-time, like the layout above it.
- *
- * Without this the route still announced itself as ISR-cacheable while its
- * layout had already opted into request-time data, and Next refused the
- * combination at runtime with DYNAMIC_SERVER_USAGE — a 500 on every instrument
- * page. The whole terminal subtree renders per request now; `revalidate` below
- * keeps governing the fetches underneath, so the upstream is still hit once per
- * five minutes rather than once per visitor. */
 export default async function InstrumentPage({ params }: Params) {
-  await connection();
   const { ticker } = await params;
   const snapshot = await getInstrumentSnapshot(ticker);
   if (!snapshot) notFound();
