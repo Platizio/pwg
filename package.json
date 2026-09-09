@@ -2,6 +2,9 @@
   "name": "platizio-global",
   "private": true,
   "version": "1.0.0",
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "npm run validate:support && next build",
