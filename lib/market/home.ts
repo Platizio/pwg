@@ -9,7 +9,7 @@ import { toQuote, toQuotes } from "@/lib/api/normalize/quote";
 import { SECTOR_ETF_SYMBOLS, toSectorGroups } from "@/lib/api/normalize/sector";
 import { changeOverSessions, relativeAge } from "@/lib/api/normalize/time";
 import { toWireItems } from "@/lib/api/normalize/wire";
-import { runSweep } from "@/lib/api/sweep";
+import { sweptMarket } from "@/lib/market/swept";
 import { TAGS, TTL } from "@/lib/api/ttl";
 import { newest, oldest, quoteAge, type Freshness } from "@/lib/market/freshness";
 import { breadthSample } from "@/lib/market/membership";
@@ -333,7 +333,7 @@ export const getHomeSnapshot = cache(async (): Promise<HomeSnapshot> => {
 
   const [sweepSettled, stripSettled, weekSettled, newsSettled, actionsSettled] =
     await Promise.allSettled([
-      runSweep(),
+      sweptMarket(),
       fetchQuotes(strip, TTL.indexEtf, [TAGS.indices]),
       weekChanges(),
       perTicker(WIRE_TICKERS, getFundamentals),

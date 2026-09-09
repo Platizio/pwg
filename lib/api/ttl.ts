@@ -33,6 +33,13 @@ export function quoteTtl(phase: SessionPhase): number {
 
 export const TTL = {
   sweep: 300,
+  /* How long a hot list stays trusted before a full sweep re-derives it.
+     Which names clear the liquidity floor is a fact about a company, not about
+     the minute — the floor reads a thirty-day average volume — so it barely
+     moves inside a session. An hour is twelve frequent sweeps per full one:
+     the frequent sweep quotes about 90 chunks instead of 432, and a name that
+     becomes newly liquid joins the boards within the hour. */
+  sweepFull: 3_600,
   indexEtf: 300,
   sectorEtf: 300,
   history1m: 1_800,

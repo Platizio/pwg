@@ -1,7 +1,8 @@
 import "server-only";
 import { cache } from "react";
 
-import { runSweep, type SweepRow } from "@/lib/api/sweep";
+import { type SweepRow } from "@/lib/api/sweep";
+import { sweptMarket } from "@/lib/market/swept";
 import { fetchHistory, fetchQuotes } from "@/lib/api/clients/quotes";
 import { changeOverSessions } from "@/lib/api/normalize/time";
 import { TAGS, TTL } from "@/lib/api/ttl";
@@ -14,7 +15,7 @@ import returnsFile from "@/lib/market/data/returns.json" with { type: "json" };
 /* One sector, in full.
 
    The dashboard shows four names per sector; this is the rest. It draws on the
-   same sweep the home page does — runSweep is cached at the fetch layer, so a
+   same sweep the home page does — sweptMarket is cached at the fetch layer, so a
    reader arriving here from a sector card pays for no additional quotes.
 
    The trailing-return columns are the exception. A one-year and five-year
@@ -125,7 +126,7 @@ export const getSectorSnapshot = cache(
     const fund = SECTOR_ETF[name];
 
     const [sweepSettled, fundSettled, weekSettled] = await Promise.allSettled([
-      runSweep(),
+      sweptMarket(),
       fetchQuotes([fund], TTL.sectorEtf, [TAGS.sectors]),
       fetchHistory(fund, "1m", TTL.history1m, [TAGS.history]),
     ]);
