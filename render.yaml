@@ -1,0 +1,110 @@
+# Render Blueprint.
+#
+# READ THIS BEFORE APPLYING IT — it will not work on the Free plan, and the
+# reason is not a mistake in this file.
+#
+# Render's Free plan supports web services, static sites, Postgres and Key
+# Value instances only; cron jobs are not one of them, and a cron job carries a
+# $1/month minimum. So the `platizio-sweep` service below cannot be created
+# while the account is on Free. Everything else here is accurate and ready.
+#
+# The second constraint matters more than the cron. A Free web service spins
+# down after fifteen minutes without inbound traffic and takes about a minute
+# to wake, showing Render's own loading page while it does. That is a plan
+# behaviour, not something the application can cache or optimise around: the
+# first visitor after any quiet period waits a minute. For a site quoting live
+# markets that is the single largest source of perceived lag, and the only
+# fix is an instance type that does not sleep.
+#
+# `plan: starter` is set on the web service deliberately, for that reason. Drop
+# it to `free` and the sweep cron must be deleted from this file for the
+# blueprint to apply at all.
+#
+# NO SECRETS IN THIS FILE. Every credential is `sync: false`, which tells
+# Render to expect the value in the dashboard and never to read one from the
+# repository.
+
+services:
+  # ---------------------------------------------------------------- the site
+  - type: web
+    name: platizio-global
+    runtime: node
+    plan: starter
+    region: singapore # nearest to both the audience and GIFT City
+    branch: main
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      # Next 16 needs 20.9+. Also pinned in package.json engines and .nvmrc;
+      # this is the one Render reads first.
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+
+      # The market gateway. Without these the site still builds and serves —
+      # verified — but every quote is empty.
+      - key: VIEWTRADE_API_KEY
+        sync: false
+      - key: VIEWTRADE_API_SECRET
+        sync: false
+      - key: VIEWTRADE_BASE_URL
+        sync: false
+
+      # Shared with the cron below. /api/sweep fails closed without it: no
+      # secret set means every sweep request is answered 401.
+      - key: CRON_SECRET
+        sync: false
+
+      # News. NEWS_ENABLED gates the calls entirely, so the key may be absent.
+      - key: NEWS_ENABLED
+        value: "true"
+      - key: NEWSAPI_AI_KEY
+        sync: false
+
+      # Support desk and the contact form. All optional: with none set the
+      # assistant drafts an email instead of filing a ticket.
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: NEXT_PUBLIC_TURNSTILE_SITE_KEY
+        sync: false
+      - key: NEWSLETTER_WEBHOOK_URL
+        sync: false
+
+  # ------------------------------------------------------- the cache warmer
+  #
+  # Assembling the terminal's home snapshot costs the chunked quote calls plus
+  # two reference calls per covered name. That is unremarkable on a timer and
+  # unacceptable inside a page render, which is exactly why this exists: the
+  # sweep pays it every five minutes and the terminal only ever reads the
+  # result it leaves behind.
+  #
+  # Five minutes because the feed is fifteen minutes delayed. Sweeping faster
+  # re-fetches bytes that cannot have changed.
+  #
+  # It is a curl, not a build of the app, so the build command is a no-op —
+  # Render requires one for a native runtime.
+  - type: cron
+    name: platizio-sweep
+    runtime: node
+    plan: starter
+    region: singapore
+    branch: main
+    schedule: "*/5 * * * *"
+    buildCommand: "echo 'nothing to build: this job calls the deployed site'"
+    startCommand: >-
+      curl --fail --silent --show-error --max-time 90
+      --header "Authorization: Bearer $CRON_SECRET"
+      "$SITE_URL/api/sweep"
+    envVars:
+      - key: CRON_SECRET
+        sync: false
+      # The deployed origin, e.g. https://platizio-global.onrender.com — no
+      # trailing slash. Kept as a variable so the job follows the service
+      # rather than hard-coding a hostname into the repository.
+      - key: SITE_URL
+        sync: false
