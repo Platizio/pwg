@@ -9,7 +9,10 @@ import { Reader } from "@/components/ui/reader";
 import { Badge, Card, Delta } from "@/components/ui/surface";
 import type { Tick } from "@/lib/api/stream/tick";
 import { money, signed } from "@/lib/market/format";
-import { SECTOR_ETF } from "@/lib/market/universe";
+/* From sectors.ts, NOT universe.ts. universe.ts imports a 2.4 MB symbol
+   master that no bundler can tree-shake, and this is a client component: the
+   one constant below was shipping all 30,809 tickers to the browser. */
+import { SECTOR_ETF } from "@/lib/market/sectors";
 import type { HomeSnapshot, Panel, SectorGroup, WireItem } from "@/lib/market/home";
 import { calendarDate, sectorSlug } from "@/lib/market/session";
 import type { CalendarEvent, Quote } from "@/lib/market/session";

@@ -1,4 +1,5 @@
 import master from "./data/symbol-master.json" with { type: "json" };
+import type { IndexId } from "./sectors.ts";
 
 /* The tradable universe and its presentation metadata.
 
@@ -13,22 +14,12 @@ import master from "./data/symbol-master.json" with { type: "json" };
    and a symbol missing from it still renders — it just gets a derived monogram
    and a colour picked deterministically from the ticker. */
 
-export const SECTOR_NAMES = [
-  "Information technology",
-  "Communication services",
-  "Energy",
-  "Consumer discretionary",
-  "Industrials",
-  "Financials",
-  "Materials",
-  "Health care",
-  "Consumer staples",
-  "Utilities",
-  "Real estate",
-] as const;
-
-export type SectorName = (typeof SECTOR_NAMES)[number];
-export type IndexId = "SPX" | "NDX" | "RUT";
+/* Re-exported from sectors.ts, which holds no data. Anything importing ANY
+   export from this file also loads the 2.4 MB symbol master above — a JSON
+   import cannot be tree-shaken — so a client component that only wants a
+   sector name must import from sectors.ts directly, not from here. */
+export { SECTOR_NAMES, SECTOR_ETF, SECTOR_BY_ETF } from "./sectors.ts";
+export type { SectorName, IndexId } from "./sectors.ts";
 
 type MasterFile = {
   builtAt: string;
@@ -107,26 +98,6 @@ export const INDEX_PROXY: Record<
 };
 
 export const INDEX_IDS: IndexId[] = ["SPX", "NDX", "RUT"];
-
-/** The eleven SPDR sector funds, one per GICS sector — the whole sector strip
-    in a single quote call. */
-export const SECTOR_ETF: Record<SectorName, string> = {
-  "Information technology": "XLK",
-  "Communication services": "XLC",
-  Energy: "XLE",
-  "Consumer discretionary": "XLY",
-  Industrials: "XLI",
-  Financials: "XLF",
-  Materials: "XLB",
-  "Health care": "XLV",
-  "Consumer staples": "XLP",
-  Utilities: "XLU",
-  "Real estate": "XLRE",
-};
-
-export const SECTOR_BY_ETF = new Map(
-  Object.entries(SECTOR_ETF).map(([sector, etf]) => [etf, sector as SectorName]),
-);
 
 /* ------------------------------------------------------------------ */
 /* Presentation metadata                                               */
