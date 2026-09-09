@@ -41,6 +41,12 @@
    paper that is a smudge rather than a shadow. */
 .hm-globe .globe-canvas {
   filter: drop-shadow(0 24px 48px rgba(26, 18, 7, 0.22));
+  /* The globe sits in the middle of the phone hero, so a thumb swiping the page
+     upward usually starts on it. Its pointermove handler spins the globe on any
+     drag, which on touch means the page fights the reader for the gesture.
+     pan-y hands vertical movement back to the browser as a scroll and keeps the
+     horizontal axis for the drag, so both work and neither is guessed at. */
+  touch-action: pan-y;
 }
 
 /* ================================================================ ticker */

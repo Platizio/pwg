@@ -56,30 +56,45 @@ const GlobeBase = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
       canvas.addEventListener('pointermove', onPointerMove)
 
       // ---------- cobe initialisation ----------
-      const globe = createGlobe(canvas, {
-        devicePixelRatio: dpr,
-        width: displaySize * dpr,
-        height: displaySize * dpr,
-        phi: DELHI_LON,
-        theta: DELHI_LAT,
-        dark: 1,
-        diffuse: 3.0,
-        mapSamples: 18000,
-        mapBrightness: 6.5,
-        baseColor: [0.55, 0.68, 0.82],  // continent dots — light steel-blue
-        markerColor: [0.73, 0.29, 0.07],
-        glowColor: [0.25, 0.42, 0.7],   // navy-blue atmosphere
-        markers: [],
-        onRender: (state) => {
-          state.phi = globeState.phi
-          state.theta = DELHI_LAT
-          state.width = displaySize * dpr
-          state.height = displaySize * dpr
-        },
-      })
+      // Guarded, because a WebGL context is not guaranteed. A phone with WebGL
+      // switched off, a low-memory device that refuses another context, or a
+      // browser in battery-saver all hand back null, and cobe then throws while
+      // enabling attributes on it. Thrown from inside an effect that takes the
+      // whole page down with it — the globe is decoration, so a device that
+      // cannot draw it must still get the site.
+      let globe: ReturnType<typeof createGlobe> | null = null
+      try {
+        globe = createGlobe(canvas, {
+          devicePixelRatio: dpr,
+          width: displaySize * dpr,
+          height: displaySize * dpr,
+          phi: DELHI_LON,
+          theta: DELHI_LAT,
+          dark: 1,
+          diffuse: 3.0,
+          // Half the dots on a phone. Every sample is drawn every frame, and a
+          // handset paints them into a canvas a third the width of a laptop's,
+          // where the missing nine thousand are literally sub-pixel. It reads
+          // identically and costs the battery half as much.
+          mapSamples: displaySize < 420 ? 9000 : 18000,
+          mapBrightness: 6.5,
+          baseColor: [0.55, 0.68, 0.82],  // continent dots — light steel-blue
+          markerColor: [0.73, 0.29, 0.07],
+          glowColor: [0.25, 0.42, 0.7],   // navy-blue atmosphere
+          markers: [],
+          onRender: (state) => {
+            state.phi = globeState.phi
+            state.theta = DELHI_LAT
+            state.width = displaySize * dpr
+            state.height = displaySize * dpr
+          },
+        })
+      } catch {
+        canvas.style.display = 'none'
+      }
 
       return () => {
-        globe.destroy()
+        globe?.destroy()
         canvas.removeEventListener('pointerdown', onPointerDown)
         canvas.removeEventListener('pointerup', onPointerUp)
         canvas.removeEventListener('pointerout', onPointerUp)
