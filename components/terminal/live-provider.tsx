@@ -12,6 +12,7 @@ import {
 } from "react";
 import type { Tick } from "@/lib/api/stream/tick";
 import { freshTicks } from "@/lib/market/fresh-map";
+import { reconnectDelay } from "@/lib/api/stream/backoff";
 
 /* One live connection for the whole page.
  *
@@ -82,7 +83,10 @@ export function LiveProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!key) return;
     const buffer = new Map<string, Tick>();
-    const source = new EventSource(`/api/stream?symbols=${encodeURIComponent(key)}`);
+    let source: EventSource | null = null;
+    let retry: ReturnType<typeof setTimeout> | null = null;
+    let attempt = 0;
+    let stopped = false;
     let frame = 0;
 
     /* Ticks arrive faster than the browser can usefully paint. One state update
@@ -93,6 +97,9 @@ export function LiveProvider({ children }: { children: ReactNode }) {
     };
 
     const absorb = (payload: string) => {
+      /* Anything arriving is proof the stream is healthy again, so the backoff
+         starts over. Same rule the server uses: a subscription, not a socket. */
+      attempt = 0;
       let data: { ticks?: Tick[] };
       try {
         data = JSON.parse(payload);
@@ -109,15 +116,42 @@ export function LiveProvider({ children }: { children: ReactNode }) {
       if (changed && frame === 0) frame = requestAnimationFrame(flush);
     };
 
-    source.addEventListener("snapshot", (e) => absorb((e as MessageEvent).data));
-    source.addEventListener("ticks", (e) => absorb((e as MessageEvent).data));
-    /* EventSource reconnects on its own. A drop is not data, so the page keeps
-       whatever the server rendered rather than blanking. */
-    source.addEventListener("error", () => {});
+    const connect = () => {
+      if (stopped) return;
+      const es = new EventSource(`/api/stream?symbols=${encodeURIComponent(key)}`);
+      source = es;
+
+      es.addEventListener("snapshot", (e) => absorb((e as MessageEvent).data));
+      es.addEventListener("ticks", (e) => absorb((e as MessageEvent).data));
+
+      es.addEventListener("error", () => {
+        /* EventSource retries a dropped CONNECTION by itself, and while it is
+           doing that readyState is CONNECTING — leave it alone.
+
+           It does NOT retry a failed RESPONSE. Per spec a non-200 or a wrong
+           content-type is fatal: readyState goes to CLOSED and the browser
+           never tries again. That is exactly what a deploy produces, because
+           the origin answers 502 for a few seconds while it swaps over — so
+           every tab open at that moment lost its feed permanently and sat
+           there showing a frozen page until someone reloaded it. This handler
+           used to be an empty function on the belief that EventSource
+           reconnects on its own, which is only half true. */
+        if (es.readyState !== EventSource.CLOSED) return;
+
+        es.close();
+        attempt += 1;
+        if (retry) clearTimeout(retry);
+        retry = setTimeout(connect, reconnectDelay(attempt));
+      });
+    };
+
+    connect();
 
     return () => {
+      stopped = true;
       if (frame) cancelAnimationFrame(frame);
-      source.close();
+      if (retry) clearTimeout(retry);
+      source?.close();
     };
   }, [key]);
 
