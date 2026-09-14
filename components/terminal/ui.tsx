@@ -284,23 +284,36 @@ export function GoldButton({
   onClick,
   className,
   type = "button",
+  disabled = false,
+  title,
 }: {
   children: ReactNode;
   onClick?: () => void;
   className?: string;
   type?: "button" | "submit";
+  /* An action that cannot be taken says so rather than being absent: a control
+     that vanishes reads as a bug, and one that does nothing when pressed reads
+     as a worse one. `title` carries the reason. */
+  disabled?: boolean;
+  title?: string;
 }) {
   return (
     <motion.button
       type={type}
       onClick={onClick}
-      whileHover={{ y: -2 }}
-      whileTap={{ scale: 0.985 }}
+      disabled={disabled}
+      title={title}
+      /* No lift and no press when there is nothing to press. Motion on a dead
+         control is the same lie as a pulsing dot over a frozen price. */
+      whileHover={disabled ? undefined : { y: -2 }}
+      whileTap={disabled ? undefined : { scale: 0.985 }}
       transition={{ duration: 0.2 }}
       className={cn(
         "cta-buy min-h-11 px-6 text-[11px] font-extrabold tracking-[0.16em] uppercase",
         "shadow-[0_10px_34px_rgba(217,189,139,0.22)] transition-shadow",
-        "hover:shadow-[0_16px_44px_rgba(217,189,139,0.36)]",
+        disabled
+          ? "cursor-not-allowed opacity-45 shadow-none hover:shadow-none"
+          : "hover:shadow-[0_16px_44px_rgba(217,189,139,0.36)]",
         className,
       )}
     >

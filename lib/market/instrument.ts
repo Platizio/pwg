@@ -35,7 +35,7 @@ import { TAGS, TTL } from "@/lib/api/ttl";
 import type { ApiResult } from "@/lib/api/errors";
 import { quoteVerdict } from "@/lib/market/quote-verdict";
 import { nowMs, nowSeconds } from "@/lib/market/clock";
-import { isQuotable, presentation } from "@/lib/market/universe";
+import { isPlaceholderInstrument, presentation } from "@/lib/market/universe";
 import { sessionAt, type Session } from "@/lib/market/session";
 import type { WireItem } from "@/lib/market/home";
 import sectorMap from "@/lib/market/data/sector-map.json" with { type: "json" };
@@ -269,15 +269,23 @@ export const getInstrumentSnapshot = cache(
     const quotes = dataOf<RawEquityQuote[]>(value(settled, undefined));
     const quote = quotes?.[0];
     if (!quote || quote.notFound || quote.notPermissioned) return null;
-    if (
-      !isQuotable({
-        symbol: quote.symbol,
-        name: quote.companyName,
-        price: quote.lastPrice ?? quote.closingPrice,
-      })
-    ) {
-      return null;
-    }
+
+    /* The last reason to refuse a page, and the only durable one left: the
+       symbol is an exchange placeholder rather than a company.
+
+       This used to be `isQuotable`, which also requires a price above zero.
+       That is the right rule for a movers board — a row needs a number to put
+       in it — and the wrong rule for a page. A halted stock, a name on its
+       first day, or any company quiet enough that the gateway sends no last or
+       closing price was told it did not exist. The price now flows through as
+       null and the header renders a dash: CompanyProfile.price is already
+       `number | null` and price-header.tsx already draws that case.
+
+       Note this must NOT go through quoteVerdict and the retry above it. A
+       priceless quote is deterministically priceless on a second ask, so
+       routing it there would turn a quiet company into a thrown render and,
+       during a build, into a failed deploy. */
+    if (isPlaceholderInstrument(quote.symbol, quote.companyName)) return null;
 
     const fundamentals = dataOf<Parameters<typeof toCompanyProfile>[0]["fundamentals"]>(
       value(fundamentalsS, undefined),

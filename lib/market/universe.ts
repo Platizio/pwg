@@ -45,6 +45,23 @@ const isTestTicker = (s: string) => TEST_SYMBOL.test(s);
 /** The gateway also names them plainly, which catches any pattern we missed. */
 export const isTestName = (n: string) => /\bTEST\s+(STOCK|SECURITY|ISSUE|SYMBOL)\b/i.test(n);
 
+/**
+ * An exchange placeholder rather than a company.
+ *
+ * This is the durable half of "does this instrument exist", and the only half
+ * that justifies a 404. It deliberately takes NO price.
+ *
+ * `isQuotable` below asks a different question — may this go on a price board —
+ * and answers no without a price above zero, which is correct there: a movers
+ * row needs a number to put in it. instrument.ts used that board rule to decide
+ * whether a PAGE exists, so a halted stock, a name on its first day of trading,
+ * or any company quiet enough that the gateway sent no last or closing price
+ * was told it did not exist. Two questions, one predicate; this separates them.
+ */
+export function isPlaceholderInstrument(symbol: string, name?: string | null): boolean {
+  return isTestTicker(symbol) || (!!name && isTestName(name));
+}
+
 export const MASTER_BUILT_AT = FILE.builtAt;
 
 export const TRADABLE = FILE.entries.filter(

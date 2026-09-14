@@ -93,7 +93,24 @@ export function InstrumentHeader({
             {following ? "Following" : "Follow"}
           </motion.button>
 
-          <GoldButton onClick={onTrade}>Trade</GoldButton>
+          {/* A company with no current price can be read about but not traded.
+              That state is newly reachable: the page used to 404 whenever the
+              gateway sent no last or closing price, which hid a halted stock
+              and a first trading day behind "Stock not found". Now the page
+              renders, so the ticket has to refuse instead — it takes
+              `price ?? 0`, and a ticket opened at $0.00 is a far worse answer
+              than a disabled button. */}
+          <GoldButton
+            onClick={onTrade}
+            disabled={profile.price === null}
+            title={
+              profile.price === null
+                ? "No current price for this stock, so it cannot be traded right now."
+                : undefined
+            }
+          >
+            Trade
+          </GoldButton>
         </div>
       </div>
     </>
