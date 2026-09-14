@@ -32,8 +32,21 @@
  * box. Five hundred covers the names people actually open.
  */
 
-/** Sized for a build budget, not for a market. Tunable per build; see the page. */
-export const PRERENDER_LIMIT = 500;
+/**
+ * Sized for a build budget, not for a market. Tunable per build; see the page.
+ *
+ * Started at 500. That builds cleanly here — 1m51s, zero timeouts, 502 pages —
+ * and did not ship: the Render deploy never landed, while every earlier deploy
+ * today took about three minutes. 500 pages take `.next` from 350 MB to 1.4 GB
+ * and Next generates them across nine parallel workers, so a build machine has
+ * both a disk and a memory reason to give up, and neither is visible from here.
+ *
+ * 200 is a thirty-three-fold increase on the six this replaced and covers the
+ * heavily traded names people actually open, at about 0.74 GB. The point is to
+ * ship the improvement rather than the maximum of it; PRERENDER_TICKERS raises
+ * it from the dashboard once a build is known to survive, with no code change.
+ */
+export const PRERENDER_LIMIT = 200;
 
 export type PrerenderInput = {
   /** Always built, whatever their turnover — the terminal leads with these. */
