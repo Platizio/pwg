@@ -90,10 +90,11 @@ test("an empty baseline still yields the covered names rather than nothing", () 
 });
 
 test("the default limit is sized for a build, not for a market", () => {
-  /* Each page is ~2.1 MB of build output. 500 built cleanly here and never
-     deployed; 13,900 would be 25 GB and could never be kept warm anyway. The
-     default has to be a number a build machine survives, not the largest one
-     that works on a laptop. */
+  /* Each page is ~2.1 MB of build output; 13,900 would be 25 GB and could never
+     be kept warm anyway. 500 builds in about two minutes with the concurrency
+     that next.config.ts pins — the one deploy that failed at this count did so
+     because the build machine ran 34 unbounded workers, not because of the
+     count, and that cap is what made a local build vouch for a deploy. */
   assert.ok(PRERENDER_LIMIT >= 100, "too few to change what a reader feels");
   assert.ok(PRERENDER_LIMIT <= 1_000, "too many for the build budget and the disk");
 });

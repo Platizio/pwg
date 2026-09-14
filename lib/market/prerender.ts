@@ -35,18 +35,23 @@
 /**
  * Sized for a build budget, not for a market. Tunable per build; see the page.
  *
- * Started at 500. That builds cleanly here — 1m51s, zero timeouts, 502 pages —
- * and did not ship: the Render deploy never landed, while every earlier deploy
- * today took about three minutes. 500 pages take `.next` from 350 MB to 1.4 GB
- * and Next generates them across nine parallel workers, so a build machine has
- * both a disk and a memory reason to give up, and neither is visible from here.
+ * This was briefly lowered to 200 on a wrong diagnosis, which is worth keeping
+ * on record. The first 500-page deploy never landed, and with no build log to
+ * hand the guess was disk or memory — 1.4 GB of output, nine workers. The log,
+ * when it arrived, said something else entirely: Render's build machine ran
+ * "34 workers", each generating eight pages at once, each page opening about
+ * thirteen upstream calls. Roughly 3,500 simultaneous requests to the gateway,
+ * which stopped answering, and every page timed out. Nothing about the count
+ * was the problem; the machine was too big for an unbounded fan-out.
  *
- * 200 is a thirty-three-fold increase on the six this replaced and covers the
- * heavily traded names people actually open, at about 0.74 GB. The point is to
- * ship the improvement rather than the maximum of it; PRERENDER_TICKERS raises
- * it from the dashboard once a build is known to survive, with no code change.
+ * next.config.ts now pins the build to eight workers and four pages each,
+ * everywhere. Under that cap 500 builds cleanly — 2m8s, zero timeouts, 502
+ * pages — and because the concurrency no longer depends on the hardware, a
+ * local build is finally evidence for a deploy. PRERENDER_TICKERS still tunes
+ * it per build; the whole universe is not an option at any setting, at ~2.1 MB
+ * a page and no way to keep 13,900 of them warm.
  */
-export const PRERENDER_LIMIT = 200;
+export const PRERENDER_LIMIT = 500;
 
 export type PrerenderInput = {
   /** Always built, whatever their turnover — the terminal leads with these. */
