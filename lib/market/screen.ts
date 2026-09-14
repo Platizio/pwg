@@ -203,6 +203,25 @@ export function popular(s: Snapshot, n = 12): SweepRow[] {
 
    An absent `chgKnown` reads as reported: a caller that predates the flag
    should not have its whole sample reclassified. */
+/**
+ * Whether a sweep can be believed at all.
+ *
+ * runSweep does not throw. fetchQuotesBatched runs its chunks with settled
+ * semantics — deliberately, so one bad chunk cannot lose the other 275 — which
+ * means a sweep against a dead gateway RESOLVES, carrying every chunk in
+ * `failedChunks` and no rows at all. Checking only that the promise fulfilled
+ * therefore reads a total outage as a success, which is how a sector page came
+ * to tell a reader "the 0 companies this terminal quotes": a confident claim
+ * about the market assembled out of our own failure to look.
+ *
+ * Zero rows is never a fact about the market. A real sweep returns thousands,
+ * and no market has nothing in it. So zero rows is always a fact about us, and
+ * the caller must say so rather than publish the count.
+ */
+export function sweepAnswered(s: { rows: readonly unknown[] } | null | undefined): boolean {
+  return s !== null && s !== undefined && s.rows.length > 0;
+}
+
 /* The display half of the fact `breadth` counts.
  *
  * breadth separates a name that reported no change from one that reported zero,

@@ -169,9 +169,27 @@ export function SectorView({ sector }: { sector: SectorSnapshot }) {
                 tracks this sector, so it covers the whole sector rather than only the names below.
               </>
             )}{" "}
-            The table lists the{" "}
-            <span className="text-ink-2">{COUNT_FMT.format(sector.stocks.length)} companies</span>{" "}
-            this terminal quotes and has classified here.
+            {/* Three outcomes, not two. A sweep that did not answer and a
+                sector with nothing in it both used to reach the same sentence,
+                which then asserted "the 0 companies this terminal quotes" — a
+                confident claim about the market built out of our own failure
+                to look. */}
+            {sector.sweepFailed ? (
+              <>
+                The market sweep has not answered, so the companies in this sector cannot be
+                listed right now.
+              </>
+            ) : sector.stocks.length === 0 ? (
+              <>No companies have been classified into this sector yet.</>
+            ) : (
+              <>
+                The table lists the{" "}
+                <span className="text-ink-2">
+                  {COUNT_FMT.format(sector.stocks.length)} companies
+                </span>{" "}
+                this terminal quotes and has classified here.
+              </>
+            )}
           </p>
         </Card>
 

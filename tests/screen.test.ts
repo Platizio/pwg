@@ -11,6 +11,7 @@ import {
   losers,
   mostActive,
   reportedChange,
+  sweepAnswered,
   popular,
 } from "../lib/market/screen.ts";
 import { POPULAR_TICKERS } from "../lib/market/universe.ts";
@@ -524,4 +525,29 @@ test("it agrees with breadth on every row, because they state one fact", () => {
   const b = breadth(rows);
   const shown = rows.filter((r) => reportedChange(r) !== null).length;
   assert.equal(shown, b.total - b.unreported, "every row breadth counts must be showable");
+});
+
+/* Whether a sweep can be believed at all.
+
+   runSweep does not throw. fetchQuotesBatched runs its chunks with settled
+   semantics so one bad chunk cannot lose the other 275, and a sweep against a
+   dead gateway therefore RESOLVES — with every chunk failed and no rows. The
+   sector page tested `sweepSettled.status === "fulfilled"` and concluded all
+   was well, then told the reader "the 0 companies this terminal quotes".
+
+   A real sweep returns thousands of rows. Zero is never a fact about the
+   market; it is always a fact about us. */
+
+test("a sweep that rejected outright is not an answer", () => {
+  assert.equal(sweepAnswered(null), false);
+});
+
+test("a sweep that resolved with nothing is not an answer either", () => {
+  /* The shape a dead gateway actually produces: fulfilled, every chunk failed,
+     no rows. This is the case the page missed. */
+  assert.equal(sweepAnswered({ rows: [] }), false);
+});
+
+test("a sweep with rows is an answer", () => {
+  assert.equal(sweepAnswered({ rows: [{ s: "AAPL" }] }), true);
 });

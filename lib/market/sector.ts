@@ -6,7 +6,7 @@ import { sweptMarket } from "@/lib/market/swept";
 import { fetchHistory, fetchQuotes } from "@/lib/api/clients/quotes";
 import { changeOverSessions } from "@/lib/api/normalize/time";
 import { TAGS, TTL } from "@/lib/api/ttl";
-import { eligible, reportedChange, typicalDollarVol } from "@/lib/market/screen";
+import { eligible, reportedChange, sweepAnswered, typicalDollarVol } from "@/lib/market/screen";
 import { isFund, presentation, SECTOR_ETF, SECTOR_NAMES, type SectorName } from "@/lib/market/universe";
 import { sectorSlug } from "@/lib/market/session";
 import sectorMap from "@/lib/market/data/sector-map.json" with { type: "json" };
@@ -78,8 +78,13 @@ export type SectorSnapshot = {
   funds: SectorRow[];
   up: number;
   down: number;
-  /** True when the sweep produced nothing and the page has no rows to show. */
-  down_: boolean;
+  /* True when the market sweep itself did not answer.
+     Deliberately NOT "there are no rows". A sector with no classified members
+     and a sector we could not look up are different facts, and the page must
+     not word them the same: one is something we know, the other is something
+     we failed to find out. This was `down_`, defined as rows.length === 0 and
+     read nowhere, so the page asserted a count of zero either way. */
+  sweepFailed: boolean;
   returnsBuiltAt: string;
   delayed: boolean;
 };
@@ -189,7 +194,10 @@ export const getSectorSnapshot = cache(
       funds,
       up,
       down,
-      down_: stocks.length === 0 && funds.length === 0,
+      /* Not `swept === null`. runSweep resolves even when every chunk
+         failed, so the rejected case is the rare one; the common outage is a
+         fulfilled promise carrying no rows. sweepAnswered covers both. */
+      sweepFailed: !sweepAnswered(swept),
       returnsBuiltAt: RETURNS.builtAt,
       delayed: Boolean(fundQuote?.delayed) || stocks.some(() => true),
     };
