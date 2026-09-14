@@ -2,11 +2,13 @@
 
 import { motion } from "motion/react";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_RANGE } from "@/lib/market/ranges";
 import type { RangeId, TabId } from "@/lib/market/types";
 import type { InstrumentSnapshot } from "@/lib/market/instrument";
 import { usePortfolio } from "@/lib/portfolio";
+import { liveTail } from "@/lib/market/chart-tail";
+import { useLiveQuote } from "./live-provider";
 import { EASE } from "@/lib/tokens";
 import { InstrumentHeader } from "./instrument-header";
 import { CompetitorsPanel } from "./panels/competitors-panel";
@@ -45,6 +47,21 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
 
   const { following, toggleFollow, openTrade, portfolio, sharesOf } = usePortfolio();
   const held = sharesOf(stock.id);
+
+  /* The day chart, carried up to the headline price.
+     The chart draws a series rendered on the server; the price above it comes
+     off the websocket seconds old. Raising this page's TTL to fifteen minutes
+     tripled the distance between them, and two numbers for one stock on one
+     screen is the failure this terminal keeps coming back to. liveTail folds
+     the tick onto the tail — and returns the very same array whenever it
+     refuses to, so a tick that changes nothing does not rebuild the chart. */
+  const tick = useLiveQuote(stock.id);
+  const chartHistory = useMemo(() => {
+    const intraday = liveTail(snapshot.history.intraday, tick);
+    return intraday === snapshot.history.intraday
+      ? snapshot.history
+      : { ...snapshot.history, intraday };
+  }, [snapshot.history, tick]);
 
   /* The quote the desk trades on is the one this page is showing, handed over
      whole. It used to pass an id, which the desk looked up in the six mock
@@ -205,7 +222,7 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
       />
 
       <div className="h-[240px] sm:h-[300px] lg:h-[340px]">
-        <PriceChart history={snapshot.history} range={range} />
+        <PriceChart history={chartHistory} range={range} />
       </div>
 
       {/* Keyed entrance rather than AnimatePresence: the outgoing panel has
