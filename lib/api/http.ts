@@ -2,12 +2,18 @@ import "server-only";
 import { env } from "./env.ts";
 import { authHeader, resetToken } from "./token.ts";
 import { type ApiResult, fail, ok, scrub } from "./errors.ts";
+import { isControlFlowError } from "./control-flow.ts";
 
 /* The only place fetch touches ViewTrade.
 
    Everything funnels through here so that authentication, timeouts, the 401
-   retry, cache tagging and error shaping exist once. This function does not
-   throw: a DNS failure, an abort and a 502 all come back as `ok: false`. */
+   retry, cache tagging and error shaping exist once.
+
+   It does not throw for anything the GATEWAY does: a DNS failure, an abort and
+   a 502 all come back as `ok: false`. It does re-throw what NEXT throws —
+   notFound(), redirect(), a dynamic bailout — because those are control flow
+   addressed to Next, and catching them cancels the thing being asked for while
+   reporting a network failure that never happened. See control-flow.ts. */
 
 export type GetOptions = {
   query?: Record<string, string | number | undefined>;
@@ -41,6 +47,15 @@ async function once<T>(url: string, o: GetOptions): Promise<ApiResult<T>> {
         : { next: { revalidate: o.revalidate, tags: o.tags } }),
     });
   } catch (e) {
+    /* Next signals control flow by throwing — notFound(), redirect(), and the
+       dynamic bailout that a `no-store` fetch triggers inside a static render.
+       Those throws belong to Next and have to reach it untouched. Converting
+       one into `fail(msg, 0, ms)` reports a dead socket for a request that was
+       never issued, which is exactly how a retry came to look as though it had
+       contacted the gateway when it never had: dynamic-rendering.js:238 threw,
+       this catch laundered it, and the caller blamed ViewTrade. */
+    if (isControlFlowError(e)) throw e;
+
     const msg = e instanceof Error && e.name === "TimeoutError" ? "timeout" : scrub(String(e));
     return fail(msg, 0, Date.now() - started);
   }
