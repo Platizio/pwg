@@ -3,7 +3,8 @@ import "server-only";
 import { env } from "../env.ts";
 import { getToken } from "../token.ts";
 import { scrub } from "../errors.ts";
-import { isFresh, toTick, type Tick } from "./tick.ts";
+import { carryBasis, isFresh, toTick, type Tick } from "./tick.ts";
+import { reconnectDelay } from "./backoff.ts";
 
 /* The single upstream connection to the market-data stream.
  *
@@ -50,8 +51,6 @@ const SUBSCRIBE_FRAME = JSON.stringify({ type: "querypolygonfmv", symbol: "*" })
 const PONG_FRAME = JSON.stringify({ type: "pong" });
 
 const IDLE_CLOSE_MS = 60_000;
-const RECONNECT_BASE_MS = 1_000;
-const RECONNECT_MAX_MS = 30_000;
 
 export type TickListener = (ticks: Tick[]) => void;
 
@@ -137,11 +136,24 @@ function handleMessage(data: unknown) {
   if (typeof parsed?.error === "string") {
     lastError = parsed.error;
     console.error(`[stream] gateway refused: ${parsed.error}`);
+    /* Close it. A refused socket stays readyState 1 and receives nothing for
+       ever, which is the worst of both: it looks connected to streamStatus and
+       it may still be occupying the single connection this account is allowed,
+       locking out the instance that could have used it. The close handler
+       schedules a reconnect, and the backoff above paces it. */
+    try {
+      socket?.close();
+    } catch {
+      /* Already closing; the close handler will still fire. */
+    }
     return;
   }
   if (typeof parsed?.status === "string") {
     lastStatus = parsed.status;
     lastError = null;
+    /* THIS is success for this feed, not the socket opening. See the note in
+       the open handler: a refused socket opens too. */
+    attempt = 0;
     return;
   }
 
@@ -156,9 +168,17 @@ function handleMessage(data: unknown) {
     if (!tick || !isFresh(tick, now)) continue;
     const prev = latest.get(tick.symbol);
     if (prev && prev.at > tick.at) continue; // never move a symbol backwards
-    latest.set(tick.symbol, tick);
+
+    /* The gateway sends a symbol's full record once and price-only deltas
+       afterwards, so the NEWEST tick — the one every surface reads — almost
+       never carries its own change basis. Measured against production: 3 of 14
+       ticks had one, and all three were a symbol's first. Filling it in here,
+       once, is what lets the whole page call these live; doing it per consumer
+       would be five copies of one rule. */
+    const merged = carryBasis(tick, prev);
+    latest.set(merged.symbol, merged);
     lastTickAt = now;
-    fresh.push(tick);
+    fresh.push(merged);
   }
   emit(fresh);
 }
@@ -166,10 +186,10 @@ function handleMessage(data: unknown) {
 function scheduleReconnect() {
   if (closedForGood || listeners.size === 0 || reconnectTimer) return;
   attempt += 1;
-  /* Exponential with jitter: a gateway blip must not turn every instance into
-     a synchronised retry storm against the same host. */
-  const backoff = Math.min(RECONNECT_BASE_MS * 2 ** (attempt - 1), RECONNECT_MAX_MS);
-  const delay = backoff / 2 + Math.random() * (backoff / 2);
+  /* Exponential with jitter, in backoff.ts so the growth is tested rather than
+     trusted: a gateway blip must not turn every instance into a synchronised
+     retry storm against the one connection this account is allowed. */
+  const delay = reconnectDelay(attempt);
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
     void ensureConnected();
@@ -191,8 +211,13 @@ async function open(): Promise<void> {
     socket = ws;
 
     ws.addEventListener("open", () => {
-      attempt = 0;
-      /* Once. A reconnect is a new socket and so a new subscription; within one
+      /* `attempt` is deliberately NOT reset here. A socket that the gateway is
+         about to refuse with connection_limit still opens first, so resetting
+         on open meant a refused client reconnected roughly every second for as
+         long as the refusal lasted. Only a subscription counts as success, and
+         handleMessage clears the counter when one arrives.
+
+         Once. A reconnect is a new socket and so a new subscription; within one
          socket this frame is never sent again. */
       ws.send(SUBSCRIBE_FRAME);
       if (!settled) {

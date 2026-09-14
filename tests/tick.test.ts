@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { toTick, isFresh, TICK_MAX_AGE_MS } from "../lib/api/stream/tick.ts";
+import { toTick, isFresh, carryBasis, TICK_MAX_AGE_MS, type Tick } from "../lib/api/stream/tick.ts";
 
 /* What the live stream actually sends, as observed against UAT rather than as
    documented. Two things in that sample decide this whole module:
@@ -82,4 +82,64 @@ test("a tick stamped slightly in the future is tolerated, not discarded", () => 
   // Clock skew between the gateway and this process is normal and small.
   const now = AT - 2000;
   assert.equal(isFresh({ symbol: "AAPL", price: 1, previousClose: null, change: null, changePercent: null, volume: null, at: AT }, now), true);
+});
+
+/* Carrying the change basis forward.
+ *
+ * The gateway sends a symbol's FULL record once and then price-only deltas.
+ * Measured against production during pre-market: of 14 ticks, 3 carried
+ * `pv` and 11 did not — and the ones that did were the FIRST for each symbol
+ * (MSFT first=495.63, NVDA first=218.29). So the newest tick for a symbol
+ * almost never carries a basis.
+ *
+ * That made the instrument header read "Delayed" over a price 3.7 seconds old,
+ * because the badge asks for a changePercent before it will call a tick live.
+ *
+ * previousClose is YESTERDAY'S CLOSE. It cannot change during a session, so
+ * reusing the one we were already given is not pairing a live price with a
+ * stale basis — it is the same basis, which is the only correct one.
+ */
+
+const base = (over: Partial<Tick> & { symbol: string; price: number; at: number }): Tick => ({
+  previousClose: null,
+  change: null,
+  changePercent: null,
+  volume: null,
+  ...over,
+});
+
+test("a price-only delta inherits the basis it was already given", () => {
+  const first = base({ symbol: "MSFT", price: 495.63, at: 1_000, previousClose: 495.63, change: 0, changePercent: 0 });
+  const delta = base({ symbol: "MSFT", price: 491.687, at: 2_000 });
+
+  const out = carryBasis(delta, first);
+  assert.equal(out.previousClose, 495.63);
+  /* Recomputed against the NEW price, never copied from the old tick. */
+  assert.ok(Math.abs(out.change! - (491.687 - 495.63)) < 1e-9);
+  assert.ok(Math.abs(out.changePercent! - ((491.687 - 495.63) / 495.63) * 100) < 1e-9);
+  assert.equal(out.price, 491.687, "the price is the new one");
+  assert.equal(out.at, 2_000, "the stamp is the new one");
+});
+
+test("a tick carrying its own basis is never overwritten by an older one", () => {
+  /* A new session's close must win. Copying the previous tick's basis over a
+     fresh one would pin the page to yesterday's yesterday. */
+  const prev = base({ symbol: "NVDA", price: 218.29, at: 1_000, previousClose: 200, change: 18.29, changePercent: 9.145 });
+  const fresh = base({ symbol: "NVDA", price: 212.25, at: 2_000, previousClose: 218.29, change: -6.04, changePercent: -2.766 });
+
+  assert.equal(carryBasis(fresh, prev).previousClose, 218.29);
+});
+
+test("with nothing known, nothing is invented", () => {
+  const delta = base({ symbol: "TSLA", price: 358.45, at: 2_000 });
+  assert.equal(carryBasis(delta, undefined).changePercent, null);
+  assert.equal(carryBasis(delta, null).previousClose, null);
+  assert.equal(carryBasis(delta, base({ symbol: "TSLA", price: 1, at: 1 })).changePercent, null);
+});
+
+test("a carried basis never produces a change from a zero close", () => {
+  /* toTick already refuses pv <= 0, but this must not be the one place that
+     reintroduces an Infinity wearing a percent sign. */
+  const prev = base({ symbol: "X", price: 5, at: 1, previousClose: 0 });
+  assert.equal(carryBasis(base({ symbol: "X", price: 5, at: 2 }), prev).changePercent, null);
 });

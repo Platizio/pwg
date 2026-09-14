@@ -82,6 +82,40 @@ export function toTick(raw: RawUpdate): Tick | null {
   };
 }
 
+/**
+ * Fill a price-only delta's change basis from what the symbol already gave us.
+ *
+ * The gateway sends a symbol's FULL record once and then price-only updates.
+ * Measured against production during pre-market: of 14 ticks, 3 carried `pv`
+ * and 11 did not — and the three that did were the FIRST for each symbol. So
+ * the NEWEST tick for a symbol almost never carries a basis, which is exactly
+ * the one every surface reads.
+ *
+ * Without this, `toTick` returns changePercent: null for 79% of updates, the
+ * instrument header refuses to call them live, and the page reads "Delayed"
+ * over a price 3.7 seconds old while the feed is working perfectly.
+ *
+ * Carrying it forward is not the thing price-header guards against. That guard
+ * exists so a live price is never shown beside a SNAPSHOT's change, pairing
+ * this second's number with an older reading. `previousClose` is yesterday's
+ * close: it does not move during a session, so reusing the one the gateway
+ * already sent is the same basis rather than an older one — and the change is
+ * recomputed against the new price, never copied.
+ */
+export function carryBasis(fresh: Tick, prev: Tick | null | undefined): Tick {
+  /* A tick that brought its own basis keeps it. A new session's close must win
+     over yesterday's, or the page stays pinned to the day before. */
+  if (fresh.previousClose !== null) return fresh;
+
+  const basis = prev?.previousClose ?? null;
+  /* The same guard toTick applies: a zero close cannot carry a change, and
+     dividing by it yields an Infinity that formats as a plausible number. */
+  if (basis === null || basis <= 0) return fresh;
+
+  const change = fresh.price - basis;
+  return { ...fresh, previousClose: basis, change, changePercent: (change / basis) * 100 };
+}
+
 /** Whether a tick is recent enough to override what the page already shows. */
 export function isFresh(tick: Tick, now: number, maxAgeMs: number = TICK_MAX_AGE_MS): boolean {
   const age = now - tick.at;
