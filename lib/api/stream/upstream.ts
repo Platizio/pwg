@@ -5,6 +5,8 @@ import { getToken } from "../token.ts";
 import { scrub } from "../errors.ts";
 import { basisOf, carryBasis, isFresh, toTick, type Basis, type Tick } from "./tick.ts";
 import { reconnectDelay } from "./backoff.ts";
+import { SILENCE_LIMIT_MS, shouldRecycle } from "./health.ts";
+import { pricesMove, sessionAt } from "../../market/session.ts";
 
 /* The single upstream connection to the market-data stream.
  *
@@ -52,6 +54,10 @@ const PONG_FRAME = JSON.stringify({ type: "pong" });
 
 const IDLE_CLOSE_MS = 60_000;
 
+/* How often to ask whether the connection has gone quiet. Four times inside the
+   silence limit, so a dead feed is noticed within ~15s of crossing it. */
+const WATCHDOG_TICK_MS = 15_000;
+
 export type TickListener = (ticks: Tick[]) => void;
 
 let socket: WebSocket | null = null;
@@ -68,6 +74,13 @@ const listeners = new Set<TickListener>();
    the floor, which is precisely why a failing subscription went unnoticed while
    the terminal quietly served REST snapshots and looked like a live page on a
    quiet day. Kept so streamStatus() — and therefore a human — can see it. */
+/* When ANY frame last arrived, ping included — the liveness signal, as opposed
+   to lastTickAt below which only advances on a usable tick and so cannot tell a
+   quiet market from a dead socket. */
+let lastFrameAt: number | null = null;
+let openedAt: number | null = null;
+let watchdog: ReturnType<typeof setInterval> | null = null;
+
 let lastError: string | null = null;
 let lastStatus: string | null = null;
 let lastTickAt: number | null = null;
@@ -101,6 +114,10 @@ export function streamStatus() {
     /* A socket that is connected but has never produced a usable tick is the
        exact state this feed has been in; "connected" alone hides it. */
     lastTickAt,
+    /* Exposed so a silent-but-open connection is diagnosable from outside,
+       which lastTickAt alone never made it. */
+    lastFrameAt,
+    openedAt,
     lastStatus,
     lastError,
   };
@@ -129,6 +146,12 @@ function emit(ticks: Tick[]) {
 }
 
 function handleMessage(data: unknown) {
+  /* Recorded before anything is parsed, and deliberately for EVERY frame. A
+     ping proves the connection is alive when nothing is trading; a usable tick
+     is a much narrower claim, and waiting for one would read a quiet market as
+     a dead socket. */
+  lastFrameAt = Date.now();
+
   let parsed: { type?: unknown; updates?: unknown; error?: unknown; status?: unknown };
   try {
     parsed = JSON.parse(String(data));
@@ -234,6 +257,8 @@ async function open(): Promise<void> {
     socket = ws;
 
     ws.addEventListener("open", () => {
+      openedAt = Date.now();
+      lastFrameAt = null;
       /* `attempt` is deliberately NOT reset here. A socket that the gateway is
          about to refuse with connection_limit still opens first, so resetting
          on open meant a refused client reconnected roughly every second for as
@@ -256,7 +281,10 @@ async function open(): Promise<void> {
       }
     });
     ws.addEventListener("close", () => {
-      if (socket === ws) socket = null;
+      if (socket === ws) {
+        socket = null;
+        openedAt = null;
+      }
       if (!settled) {
         settled = true;
         reject(new Error("market stream closed before opening"));
@@ -279,6 +307,53 @@ async function ensureConnected(): Promise<void> {
       connecting = null;
     });
   return connecting;
+}
+
+/* The watchdog, and the reason there has to be one.
+ *
+ * Every recovery path below is driven by the socket's close event, and
+ * ensureConnected short-circuits on readyState === 1 — so a connection the
+ * gateway accepts and then stops feeding is invisible to all of it. The ~2h
+ * token life, a gateway restart and a middlebox dropping the flow without a FIN
+ * all land there, and the ping handler then answers pong and keeps that dead
+ * connection alive. Against an account allowed ONE connection, the dead socket
+ * is also what locks out the healthy one.
+ *
+ * shouldRecycle carries the judgement, including the two gates that stop this
+ * from causing its own outage: nothing is recycled while the market is shut, or
+ * while nobody is reading. */
+function armWatchdog() {
+  if (watchdog) return;
+  watchdog = setInterval(() => {
+    if (listeners.size === 0) {
+      disarmWatchdog();
+      return;
+    }
+    const now = Date.now();
+    const quiet = shouldRecycle({
+      lastFrameAt,
+      openedAt,
+      now,
+      listeners: listeners.size,
+      pricesMove: pricesMove(sessionAt(now / 1000).phase),
+    });
+    if (!quiet) return;
+
+    console.error(`[stream] no frame in ${SILENCE_LIMIT_MS / 1000}s while prices move; recycling`);
+    lastError = "silent";
+    try {
+      socket?.close();
+    } catch {
+      /* Already closing; the close handler still fires and reconnects. */
+    }
+  }, WATCHDOG_TICK_MS);
+}
+
+function disarmWatchdog() {
+  if (watchdog) {
+    clearInterval(watchdog);
+    watchdog = null;
+  }
 }
 
 function armIdleClose() {
@@ -309,6 +384,7 @@ export function subscribe(fn: TickListener): () => void {
     idleTimer = null;
   }
   void ensureConnected();
+  armWatchdog();
 
   let done = false;
   return () => {
@@ -316,6 +392,9 @@ export function subscribe(fn: TickListener): () => void {
     if (done) return;
     done = true;
     listeners.delete(fn);
-    if (listeners.size === 0) armIdleClose();
+    if (listeners.size === 0) {
+      disarmWatchdog();
+      armIdleClose();
+    }
   };
 }
