@@ -82,38 +82,78 @@ export function toTick(raw: RawUpdate): Tick | null {
   };
 }
 
+/* The exchange's calendar day for a timestamp.
+ *
+ * Deliberately a local copy rather than an import from session.ts, which holds
+ * the same six lines privately. liveness.ts value-imports this module and is
+ * used by price-header.tsx, a client component — so importing session.ts here
+ * would pull its universe, calendar and month tables into the browser bundle.
+ * lib/market/sectors.ts exists for exactly that reason; six lines duplicated
+ * is the cheaper side of that trade. */
+const EASTERN_DAY = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/New_York",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const easternDay = (ms: number): string => EASTERN_DAY.format(ms);
+
+/** A previous close, and the trading day it belongs to. */
+export type Basis = { value: number; day: string };
+
 /**
- * Fill a price-only delta's change basis from what the symbol already gave us.
+ * The basis a row contributes, stamped with the ROW'S OWN trading day.
  *
- * The gateway sends a symbol's FULL record once and then price-only updates.
- * Measured against production during pre-market: of 14 ticks, 3 carried `pv`
- * and 11 did not — and the three that did were the FIRST for each symbol. So
- * the NEWEST tick for a symbol almost never carries a basis, which is exactly
- * the one every surface reads.
+ * The stamp comes from `tick.at` rather than from wall-clock now, and that is
+ * the whole safety of the mechanism. The note at the top of this module records
+ * that the wildcard feed sends "rows stamped seven days old alongside rows
+ * stamped this second"; stamping one of those with today's date would launder
+ * an ancient basis into a current one, which `carryBasis` would then happily
+ * apply. Stamped by its own time, an old row yields an old basis and is
+ * refused.
  *
- * Without this, `toTick` returns changePercent: null for 79% of updates, the
- * instrument header refuses to call them live, and the page reads "Delayed"
- * over a price 3.7 seconds old while the feed is working perfectly.
- *
- * Carrying it forward is not the thing price-header guards against. That guard
- * exists so a live price is never shown beside a SNAPSHOT's change, pairing
- * this second's number with an older reading. `previousClose` is yesterday's
- * close: it does not move during a session, so reusing the one the gateway
- * already sent is the same basis rather than an older one — and the change is
- * recomputed against the new price, never copied.
+ * That in turn is what lets a caller harvest a basis BEFORE the freshness gate.
+ * The row carrying a previous close is the symbol's full record, and for a
+ * quiet name it is stamped with that name's last print — often hours old. Run
+ * through isFresh first, it is dropped, and the symbol can never show a change
+ * at all.
  */
-export function carryBasis(fresh: Tick, prev: Tick | null | undefined): Tick {
-  /* A tick that brought its own basis keeps it. A new session's close must win
-     over yesterday's, or the page stays pinned to the day before. */
+export function basisOf(tick: Tick): Basis | null {
+  return tick.previousClose !== null && tick.previousClose > 0
+    ? { value: tick.previousClose, day: easternDay(tick.at) }
+    : null;
+}
+
+/**
+ * Fill a price-only delta's change basis from what the symbol already gave us,
+ * within the same trading day and never across one.
+ *
+ * WHY IT IS NEEDED. The gateway sends a symbol's full record once and price-only
+ * deltas after. Measured against production during pre-market: of 14 ticks, 3
+ * carried `pv` and all three were that symbol's first. So the NEWEST tick — the
+ * one every surface reads — almost never carries a basis, and the header read
+ * "Delayed" over a price 3.7 seconds old while the feed was working perfectly.
+ *
+ * WHY IT IS SAFE. This is not the thing price-header guards against. That guard
+ * exists so a live price is never shown beside a SNAPSHOT's change, pairing this
+ * second's number with an older reading. `previousClose` is yesterday's close: a
+ * constant for the session. Reusing the one the gateway already sent is the same
+ * basis, and the change is recomputed against the new price rather than copied.
+ *
+ * WHY THE DAY CHECK IS NOT OPTIONAL. This process stays up for days. A basis
+ * kept past its session is worse than no basis at all — a missing change renders
+ * a dash, a wrong change renders a number, frequently with the wrong sign, beside
+ * a price from this second. That is the one failure this layer exists to prevent.
+ */
+export function carryBasis(fresh: Tick, basis: Basis | null | undefined): Tick {
+  /* A tick that brought its own basis keeps it: a new session's close must win
+     over the one before, or the page stays pinned to the day before. */
   if (fresh.previousClose !== null) return fresh;
+  if (!basis || basis.value <= 0) return fresh;
+  if (basis.day !== easternDay(fresh.at)) return fresh;
 
-  const basis = prev?.previousClose ?? null;
-  /* The same guard toTick applies: a zero close cannot carry a change, and
-     dividing by it yields an Infinity that formats as a plausible number. */
-  if (basis === null || basis <= 0) return fresh;
-
-  const change = fresh.price - basis;
-  return { ...fresh, previousClose: basis, change, changePercent: (change / basis) * 100 };
+  const change = fresh.price - basis.value;
+  return { ...fresh, previousClose: basis.value, change, changePercent: (change / basis.value) * 100 };
 }
 
 /** Whether a tick is recent enough to override what the page already shows. */

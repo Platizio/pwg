@@ -3,7 +3,7 @@ import "server-only";
 import { env } from "../env.ts";
 import { getToken } from "../token.ts";
 import { scrub } from "../errors.ts";
-import { carryBasis, isFresh, toTick, type Tick } from "./tick.ts";
+import { basisOf, carryBasis, isFresh, toTick, type Basis, type Tick } from "./tick.ts";
 import { reconnectDelay } from "./backoff.ts";
 
 /* The single upstream connection to the market-data stream.
@@ -76,6 +76,19 @@ let lastTickAt: number | null = null;
    than waiting for the symbol it cares about to trade again — which, for a
    quiet name outside market hours, may be never. */
 const latest = new Map<string, Tick>();
+
+/* Previous closes, each stamped with the trading day it belongs to.
+
+   Separate from `latest` on purpose. A basis outlives the tick that carried it,
+   and it has to survive a gate that tick does not: the row carrying a previous
+   close is a symbol's FULL record, and for a quiet name it is stamped with that
+   name's last print — often hours old, which isFresh drops. Stored in `latest`
+   it would be thrown away, and that symbol could never show a change at all.
+
+   Unbounded, but bounded in practice by the tradable universe (~14k entries of
+   a number and a date string), and stale entries are refused by carryBasis on
+   the day check rather than needing eviction. */
+const basis = new Map<string, Basis>();
 
 /** Diagnostics only. Never includes the token. */
 export function streamStatus() {
@@ -163,9 +176,19 @@ function handleMessage(data: unknown) {
   const fresh: Tick[] = [];
   for (const raw of parsed.updates) {
     const tick = toTick(raw as Parameters<typeof toTick>[0]);
-    /* toTick drops rows with no usable price; isFresh drops the replays. Both
-       gates matter — the stream sends plenty of each. */
-    if (!tick || !isFresh(tick, now)) continue;
+    /* toTick drops rows with no usable price. */
+    if (!tick) continue;
+
+    /* Harvest the basis BEFORE the freshness gate, for the reason recorded on
+       the map above. Doing it in this order is safe only because basisOf stamps
+       by the ROW's own trading day: an ancient row yields an ancient basis, and
+       carryBasis refuses it. Stamping by wall-clock would launder a week-old
+       close into today's. */
+    const contributed = basisOf(tick);
+    if (contributed) basis.set(tick.symbol, contributed);
+
+    /* isFresh drops the replays; the stream sends plenty. */
+    if (!isFresh(tick, now)) continue;
     const prev = latest.get(tick.symbol);
     if (prev && prev.at > tick.at) continue; // never move a symbol backwards
 
@@ -175,7 +198,7 @@ function handleMessage(data: unknown) {
        ticks had one, and all three were a symbol's first. Filling it in here,
        once, is what lets the whole page call these live; doing it per consumer
        would be five copies of one rule. */
-    const merged = carryBasis(tick, prev);
+    const merged = carryBasis(tick, basis.get(tick.symbol));
     latest.set(merged.symbol, merged);
     lastTickAt = now;
     fresh.push(merged);

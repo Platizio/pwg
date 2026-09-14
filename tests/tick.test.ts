@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { toTick, isFresh, carryBasis, TICK_MAX_AGE_MS, type Tick } from "../lib/api/stream/tick.ts";
+import { toTick, isFresh, carryBasis, basisOf, TICK_MAX_AGE_MS, type Tick } from "../lib/api/stream/tick.ts";
 
 /* What the live stream actually sends, as observed against UAT rather than as
    documented. Two things in that sample decide this whole module:
@@ -84,62 +84,85 @@ test("a tick stamped slightly in the future is tolerated, not discarded", () => 
   assert.equal(isFresh({ symbol: "AAPL", price: 1, previousClose: null, change: null, changePercent: null, volume: null, at: AT }, now), true);
 });
 
-/* Carrying the change basis forward.
+/* Carrying the change basis forward, and refusing to carry it too far.
  *
- * The gateway sends a symbol's FULL record once and then price-only deltas.
- * Measured against production during pre-market: of 14 ticks, 3 carried
- * `pv` and 11 did not — and the ones that did were the FIRST for each symbol
- * (MSFT first=495.63, NVDA first=218.29). So the newest tick for a symbol
- * almost never carries a basis.
+ * The gateway sends a symbol's FULL record once and price-only deltas after.
+ * Measured against production during pre-market: of 14 ticks, 3 carried `pv`
+ * and all three were that symbol's FIRST. So the newest tick — the one every
+ * surface reads — almost never carries its own basis, and the header read
+ * "Delayed" over a price 3.7 seconds old.
  *
- * That made the instrument header read "Delayed" over a price 3.7 seconds old,
- * because the badge asks for a changePercent before it will call a tick live.
+ * previousClose is yesterday's close: a per-session constant. Reusing the one
+ * the gateway already sent is the same basis, not an older one.
  *
- * previousClose is YESTERDAY'S CLOSE. It cannot change during a session, so
- * reusing the one we were already given is not pairing a live price with a
- * stale basis — it is the same basis, which is the only correct one.
+ * THE PART THAT MATTERS MORE. A basis kept past its session is worse than no
+ * basis at all: a missing change renders a dash, a wrong change renders a
+ * number. This process stays up for days, so the stamp is the row's OWN
+ * Eastern trading day rather than wall-clock now — tick.ts already records
+ * that the wildcard feed sends "rows stamped seven days old alongside rows
+ * stamped this second", and stamping those with today's date would launder an
+ * ancient basis into a current one.
  */
 
-const base = (over: Partial<Tick> & { symbol: string; price: number; at: number }): Tick => ({
-  previousClose: null,
-  change: null,
-  changePercent: null,
-  volume: null,
-  ...over,
+const DAY_MS = 86_400_000;
+/* A Monday inside the US session, so +1 day stays inside the same week. */
+const MON = Date.UTC(2026, 8, 14, 14, 0, 0);
+
+const t = (over: Partial<Tick> & { symbol: string; price: number; at: number }): Tick => ({
+  previousClose: null, change: null, changePercent: null, volume: null, ...over,
 });
 
-test("a price-only delta inherits the basis it was already given", () => {
-  const first = base({ symbol: "MSFT", price: 495.63, at: 1_000, previousClose: 495.63, change: 0, changePercent: 0 });
-  const delta = base({ symbol: "MSFT", price: 491.687, at: 2_000 });
+test("a row carrying a previous close contributes a basis stamped with its own day", () => {
+  const b = basisOf(t({ symbol: "MSFT", price: 495, at: MON, previousClose: 495.63 }));
+  assert.equal(b?.value, 495.63);
+  assert.match(b!.day, /^\d{4}-\d{2}-\d{2}$/);
+});
 
-  const out = carryBasis(delta, first);
+test("a row with no previous close contributes nothing", () => {
+  assert.equal(basisOf(t({ symbol: "MSFT", price: 495, at: MON })), null);
+  assert.equal(basisOf(t({ symbol: "MSFT", price: 495, at: MON, previousClose: 0 })), null);
+});
+
+test("a same-day delta inherits the basis, recomputed against the new price", () => {
+  const b = basisOf(t({ symbol: "MSFT", price: 495.63, at: MON, previousClose: 495.63 }))!;
+  const out = carryBasis(t({ symbol: "MSFT", price: 491.687, at: MON + 60_000 }), b);
+
   assert.equal(out.previousClose, 495.63);
-  /* Recomputed against the NEW price, never copied from the old tick. */
-  assert.ok(Math.abs(out.change! - (491.687 - 495.63)) < 1e-9);
+  assert.ok(Math.abs(out.change! - (491.687 - 495.63)) < 1e-9, "recomputed, never copied");
   assert.ok(Math.abs(out.changePercent! - ((491.687 - 495.63) / 495.63) * 100) < 1e-9);
-  assert.equal(out.price, 491.687, "the price is the new one");
-  assert.equal(out.at, 2_000, "the stamp is the new one");
+  assert.equal(out.price, 491.687);
 });
 
-test("a tick carrying its own basis is never overwritten by an older one", () => {
-  /* A new session's close must win. Copying the previous tick's basis over a
-     fresh one would pin the page to yesterday's yesterday. */
-  const prev = base({ symbol: "NVDA", price: 218.29, at: 1_000, previousClose: 200, change: 18.29, changePercent: 9.145 });
-  const fresh = base({ symbol: "NVDA", price: 212.25, at: 2_000, previousClose: 218.29, change: -6.04, changePercent: -2.766 });
+test("a basis from another trading day is refused outright", () => {
+  /* The failure this exists to prevent: an always-on process hands Monday's
+     close to Wednesday's delta and prints a two-day move, often wrong-signed,
+     beside a price from this second. */
+  const monday = basisOf(t({ symbol: "AAPL", price: 330, at: MON, previousClose: 330 }))!;
+  const wednesday = t({ symbol: "AAPL", price: 336, at: MON + 2 * DAY_MS });
 
-  assert.equal(carryBasis(fresh, prev).previousClose, 218.29);
+  const out = carryBasis(wednesday, monday);
+  assert.equal(out.previousClose, null, "a stale basis must not be applied");
+  assert.equal(out.changePercent, null, "a dash is correct here; a number is not");
 });
 
-test("with nothing known, nothing is invented", () => {
-  const delta = base({ symbol: "TSLA", price: 358.45, at: 2_000 });
-  assert.equal(carryBasis(delta, undefined).changePercent, null);
-  assert.equal(carryBasis(delta, null).previousClose, null);
-  assert.equal(carryBasis(delta, base({ symbol: "TSLA", price: 1, at: 1 })).changePercent, null);
+test("an ancient row cannot launder its basis into today", () => {
+  /* The wildcard feed sends rows stamped a week old beside rows stamped this
+     second. Stamping by the ROW's own time is what makes it safe to harvest a
+     basis before the freshness gate — which is the only way a quiet name ever
+     gets one at all. */
+  const ancient = basisOf(t({ symbol: "QUIET", price: 10, at: MON - 7 * DAY_MS, previousClose: 9 }))!;
+  const today = t({ symbol: "QUIET", price: 11, at: MON });
+  assert.equal(carryBasis(today, ancient).changePercent, null);
 });
 
-test("a carried basis never produces a change from a zero close", () => {
-  /* toTick already refuses pv <= 0, but this must not be the one place that
-     reintroduces an Infinity wearing a percent sign. */
-  const prev = base({ symbol: "X", price: 5, at: 1, previousClose: 0 });
-  assert.equal(carryBasis(base({ symbol: "X", price: 5, at: 2 }), prev).changePercent, null);
+test("a tick carrying its own basis is never overwritten", () => {
+  const old = basisOf(t({ symbol: "NVDA", price: 200, at: MON, previousClose: 200 }))!;
+  const fresh = t({ symbol: "NVDA", price: 212.25, at: MON + 1000, previousClose: 218.29, change: -6.04, changePercent: -2.766 });
+  assert.equal(carryBasis(fresh, old).previousClose, 218.29);
+});
+
+test("with no basis known, nothing is invented", () => {
+  const d = t({ symbol: "TSLA", price: 358.45, at: MON });
+  assert.equal(carryBasis(d, null).changePercent, null);
+  assert.equal(carryBasis(d, undefined).previousClose, null);
 });

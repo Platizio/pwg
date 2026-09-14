@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import type { Tick } from "@/lib/api/stream/tick";
+import { freshTicks } from "@/lib/market/fresh-map";
 
 /* One live connection for the whole page.
  *
@@ -123,7 +124,19 @@ export function LiveProvider({ children }: { children: ReactNode }) {
   /* Ticks belong to the symbol set that was subscribed when they arrived. If
      the set has changed and the new one has not answered yet, show none rather
      than one page's prices under another page's symbols. */
-  const ticks = state.key === key ? state.ticks : EMPTY;
+  const held = state.key === key ? state.ticks : EMPTY;
+
+  /* Aged here, once, rather than in each of the seven surfaces that read this.
+     The buffer above never expires anything, and only price-header ever checked
+     — so a feed that died mid-session left the header honestly saying "Delayed"
+     over the server's price while the ticker tape beneath it went on printing
+     the frozen live one. Two prices for one symbol on one screen is worse than
+     either of them alone, and a rule seven consumers must remember is a rule
+     the eighth will not. freshTicks returns the SAME map when nothing has aged
+     out, so this clock does not re-render the terminal for its own sake. */
+  const now = useNow();
+  const ticks = useMemo(() => freshTicks(held, now), [held, now]);
+
   const value = useMemo<LiveValue>(() => ({ ticks, register, release }), [ticks, register, release]);
 
   return <LiveContext.Provider value={value}>{children}</LiveContext.Provider>;
