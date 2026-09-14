@@ -34,6 +34,7 @@ import { toWireItems } from "@/lib/api/normalize/wire";
 import { TAGS, TTL } from "@/lib/api/ttl";
 import type { ApiResult } from "@/lib/api/errors";
 import { quoteVerdict } from "@/lib/market/quote-verdict";
+import { reconnectDelay } from "@/lib/api/stream/backoff";
 import { nowMs, nowSeconds } from "@/lib/market/clock";
 import { isPlaceholderInstrument, presentation } from "@/lib/market/universe";
 import { sessionAt, type Session } from "@/lib/market/session";
@@ -59,10 +60,19 @@ import sectorMap from "@/lib/market/data/sector-map.json" with { type: "json" };
 type SectorMapFile = { sectors: Record<string, string> };
 const SECTORS = (sectorMap as SectorMapFile).sectors ?? {};
 
-/* How long to wait before re-asking for a quote that failed. Short enough that
-   a reader never notices, long enough that the re-ask is not simply the same
-   contention a moment later. */
-const RETRY_PAUSE_MS = 400;
+/* How many times to re-ask for a quote that failed, beyond the first attempt.
+ *
+ * It was one, after a flat 400ms, and that was sized for a six-page build. At
+ * five hundred it is not enough: nine build workers each fanning out thirteen
+ * concurrent calls is about 117 simultaneous requests, the gateway throttles
+ * briefly, and one unlucky ticker takes the whole build down — SPCX did exactly
+ * that, and answered normally when asked again a moment later.
+ *
+ * Three attempts on a curve of roughly 0.75s, 1.5s and 3s costs at most about
+ * seven seconds, and only on the failure path — well inside the sixty-second
+ * per-page budget. The throw is kept for a genuine outage, where failing loudly
+ * is still better than baking a 404 onto a real company. */
+const QUOTE_RETRIES = 3;
 
 export type PeerQuote = {
   id: string;
@@ -247,12 +257,14 @@ export const getInstrumentSnapshot = cache(
        always does. */
     let settled: PromiseSettledResult<ApiResult<RawEquityQuote[]>> = quoteS;
 
-    if (quoteVerdict(settled) === "unavailable") {
-      /* A beat before re-asking. The failure this absorbs is contention — nine
-         build workers fanning out at once — and an instant repeat re-enters the
-         same crowd it just lost to. */
-      await new Promise((resolve) => setTimeout(resolve, RETRY_PAUSE_MS));
-
+    /* Each re-ask waits longer than the last, because the failure being absorbed
+       is contention and an instant repeat re-enters the same crowd it just lost
+       to. reconnectDelay is the socket's curve, but the shape is generic: half
+       fixed so a retry can never become a hot loop, half jittered so parallel
+       build workers do not all come back at the same instant. */
+    for (let attempt = 1; attempt <= QUOTE_RETRIES; attempt += 1) {
+      if (quoteVerdict(settled) !== "unavailable") break;
+      await new Promise((resolve) => setTimeout(resolve, reconnectDelay(attempt)));
       settled = await fetchQuotes([ticker], TTL.sweep, [TAGS.quotes]).then(
         (v) => ({ status: "fulfilled", value: v }) as const,
         (reason: unknown) => ({ status: "rejected", reason }) as const,
@@ -261,7 +273,7 @@ export const getInstrumentSnapshot = cache(
 
     if (quoteVerdict(settled) === "unavailable") {
       throw new Error(
-        `Quote unavailable for ${ticker} after one retry. Refusing to answer 404 ` +
+        `Quote unavailable for ${ticker} after ${QUOTE_RETRIES} retries. Refusing to answer 404 ` +
           `for a gateway that never said the symbol is absent.`,
       );
     }
