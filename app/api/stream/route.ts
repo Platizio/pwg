@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { snapshotFor, subscribe } from "@/lib/api/stream/upstream";
 import type { Tick } from "@/lib/api/stream/tick";
+import { streamLifecycle } from "@/lib/api/stream/lifecycle";
 
 /* Live quotes, server-sent.
  *
@@ -63,51 +64,78 @@ export async function GET(request: NextRequest) {
 
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
-      let open = true;
-      const send = (event: string, data: unknown) => {
-        if (!open) return;
-        try {
-          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
-        } catch {
-          open = false;
-        }
-      };
+      /* Slots rather than consts: the snapshot frame below is written before
+         either of these exists, so teardown has to cope with them being unset.
+         See lib/api/stream/lifecycle.ts. */
+      let heartbeat: ReturnType<typeof setInterval> | null = null;
+      let unsubscribe: (() => void) | null = null;
+
+      const life = streamLifecycle({
+        stopHeartbeat: () => {
+          if (heartbeat !== null) {
+            clearInterval(heartbeat);
+            heartbeat = null;
+          }
+        },
+        /* The step that matters. A listener left in upstream's Set keeps
+           listeners.size above zero, so armIdleClose never runs and the one
+           connection this account is allowed stays pinned for the life of the
+           process. This used to be skipped entirely whenever a write had
+           already thrown. */
+        detach: () => {
+          if (unsubscribe !== null) {
+            unsubscribe();
+            unsubscribe = null;
+          }
+        },
+        closeStream: () => {
+          try {
+            controller.close();
+          } catch {
+            /* Already closed by the runtime. */
+          }
+        },
+      });
+
+      const send = (event: string, data: unknown) =>
+        life.write(() =>
+          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)),
+        );
+
+      /* The client going away is the normal end of this stream, not an error.
+         Registered before anything is acquired, so a reader that has already
+         gone never ends up subscribed to a feed nobody is reading. */
+      request.signal.addEventListener("abort", life.cleanup);
+      if (request.signal.aborted) {
+        life.cleanup();
+        return;
+      }
 
       /* What is already known, before waiting for the next trade. A quiet name
          outside market hours may not tick again for hours; the reader should
          still see the last real price rather than an empty cell. */
       send("snapshot", { ticks: snapshotFor(wanted), dropped });
+      if (life.cleaned) return;
 
-      const unsubscribe = subscribe((ticks: Tick[]) => {
+      unsubscribe = subscribe((ticks: Tick[]) => {
         const mine = ticks.filter((t) => want.has(t.symbol));
         if (mine.length > 0) send("ticks", { ticks: mine });
       });
 
-      const heartbeat = setInterval(() => {
-        if (!open) return;
-        try {
-          controller.enqueue(encoder.encode(": keep-alive\n\n"));
-        } catch {
-          open = false;
-        }
-      }, HEARTBEAT_MS);
-
-      const close = () => {
-        if (!open) return;
-        open = false;
-        clearInterval(heartbeat);
+      /* A tick can arrive synchronously inside subscribe(), and its write can
+         fail — so teardown may already have run at a moment when `unsubscribe`
+         was still unassigned and detach() had nothing to release. Release it
+         here rather than leak exactly the listener this is all about. */
+      if (life.cleaned) {
         unsubscribe();
-        try {
-          controller.close();
-        } catch {
-          /* Already closed by the runtime. */
-        }
-      };
+        unsubscribe = null;
+        return;
+      }
 
-      /* The client going away is the normal end of this stream, not an error.
-         Without this the listener and its interval outlive every disconnect and
-         the instance leaks one of each per reader. */
-      request.signal.addEventListener("abort", close);
+      heartbeat = setInterval(
+        () => life.write(() => controller.enqueue(encoder.encode(": keep-alive\n\n"))),
+        HEARTBEAT_MS,
+      );
     },
   });
 
