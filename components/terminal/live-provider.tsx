@@ -156,3 +156,29 @@ export function useLiveQuote(symbol: string | null | undefined): Tick | null {
   const ticks = useLive(list);
   return symbol ? (ticks.get(symbol.toUpperCase()) ?? null) : null;
 }
+
+/**
+ * A clock that advances on its own, for anything whose answer changes with time
+ * rather than with data.
+ *
+ * The buffer above never expires a tick — `buffer.set` and nothing else — so a
+ * feed that dies mid-session leaves its last tick sitting in the map, and any
+ * component asking "is this current?" would go on being told yes for as long as
+ * the tab stayed open. Nothing re-renders, because nothing arrived. Staleness
+ * has to be driven by the clock or it is never noticed at all.
+ *
+ * Thirty seconds against a fifteen-minute freshness window: the transition is
+ * caught promptly without the header re-rendering for its own sake. Safe for
+ * the price count-up, whose GSAP dependencies are the server profile rather
+ * than anything derived from this.
+ */
+export function useNow(intervalMs = 30_000): number {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(id);
+  }, [intervalMs]);
+
+  return now;
+}

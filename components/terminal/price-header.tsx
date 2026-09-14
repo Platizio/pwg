@@ -9,10 +9,15 @@ import { RANGES } from "@/lib/market/ranges";
 import type { RangeId } from "@/lib/market/types";
 import { chartPath } from "@/lib/market/paths";
 import type { CompanyProfile } from "@/lib/api/normalize/profile";
-import { pricesMove, type Session } from "@/lib/market/session";
+import { type Session } from "@/lib/market/session";
+import { liveness, livenessText } from "@/lib/market/liveness";
 import { C } from "@/lib/tokens";
 import { Segmented, SegmentedItem, cn } from "./ui";
-import { useLiveQuote } from "./live-provider";
+import { useLiveQuote, useNow } from "./live-provider";
+
+/** Tick age in words. Short, because it sits inside a tooltip. */
+const ago = (ms: number) =>
+  ms < 60_000 ? `${Math.max(1, Math.round(ms / 1000))}s ago` : `${Math.round(ms / 60_000)} min ago`;
 
 export function PriceHeader({
   profile,
@@ -35,13 +40,34 @@ export function PriceHeader({
      snapshot's change would pair this second's number with an older basis and
      quietly misstate the move. */
   const tick = useLiveQuote(profile.id);
-  const usable = tick !== null && tick.changePercent !== null;
+  /* A tick that cannot supply both halves is not a live price, so it is not
+     treated as one anywhere below — including by the badge. */
+  const priced = tick !== null && tick.changePercent !== null ? tick : null;
+
+  /* One predicate decides the badge AND the number, so the two can never
+     disagree. The clock is half of it: live-provider's buffer never expires a
+     tick, so a feed that dies mid-session leaves its last one sitting there and
+     nothing re-renders to notice. Without `now` this would read "Live" over a
+     frozen price for as long as the tab stayed open. */
+  const now = useNow();
+  const live = liveness(priced, session.phase, now);
+  const showing = priced !== null && live.state === "live";
 
   /* A company the feed will not price shows a dash rather than a zero: a zero
      in this position reads as a real quote. */
-  const price = usable ? tick.price : profile.price;
-  const chg = usable ? tick.changePercent : profile.chg;
+  const price = showing ? priced.price : profile.price;
+  const chg = showing ? priced.changePercent : profile.chg;
   const up = (chg ?? 0) >= 0;
+
+  const statusText = livenessText(live.state, session.phase, session.label);
+  const statusTitle =
+    live.state === "idle"
+      ? session.label
+      : live.ageMs === null
+        ? "Showing the last published snapshot — no live tick received"
+        : live.state === "live"
+          ? `Live price — last tick ${ago(live.ageMs)}`
+          : `Showing the last published snapshot — last live tick ${ago(live.ageMs)}`;
 
   /* Count the price into place on every instrument change. Written straight to
      the text node — routing 60 frames a second through React state would
@@ -113,20 +139,30 @@ export function PriceHeader({
             {chg === null ? "—" : pct(chg)}
           </span>
 
-          <span className="eyebrow flex items-center gap-2.5">
-            {/* The dot pulses while the figure beside it is moving, which is
-                a wider window than session.live: live is the regular session
-                alone, and pre-market and post-market quotes move too. Pairing
-                a "Pre-market" tag with a dead dot told the reader the number
-                they were looking at was frozen when it was not. */}
+          <span className="eyebrow flex items-center gap-2.5" title={statusTitle}>
+            {/* The dot follows the FEED, not the calendar.
+
+                It used to pulse on pricesMove(phase) alone, which asks whether
+                the market is trading — never whether we are receiving it. So
+                during market hours it pulsed identically over a tick from this
+                second and over a five-minute-old snapshot. That is the exact
+                mechanism upstream.ts has on record: the gateway refusing every
+                subscription while the terminal "looked exactly like a live page
+                on a quiet day". The server half of that was fixed and this is
+                the reader's half, so it now pulses only when the number beside
+                it actually came off the wire.
+
+                Pre-market and post-market still count as live — quotes move in
+                both, and the earlier note is right that pairing them with a
+                dead dot understated a number that was moving. */}
             <span
               aria-hidden="true"
               className={cn(
                 "h-[5px] w-[5px] rounded-full",
-                pricesMove(session.phase) ? "animate-gold-pulse bg-gold" : "bg-ink-4",
+                live.state === "live" ? "animate-gold-pulse bg-gold" : "bg-ink-4",
               )}
             />
-            {session.label}
+            {statusText}
           </span>
         </div>
       </div>
