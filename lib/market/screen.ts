@@ -203,6 +203,22 @@ export function popular(s: Snapshot, n = 12): SweepRow[] {
 
    An absent `chgKnown` reads as reported: a caller that predates the flag
    should not have its whole sample reclassified. */
+/* The display half of the fact `breadth` counts.
+ *
+ * breadth separates a name that reported no change from one that reported zero,
+ * because folding them together overstated how still the day was. A table has
+ * the same problem and a worse outcome: chg 0 renders as "+0.00%", which reads
+ * as a real quote that happens to be flat. It is not a quote at all.
+ *
+ * Returns null for a change that was never reported, so the cell can show a
+ * dash. Deliberately beside breadth and reading the same flag the same way —
+ * two predicates over one fact would eventually disagree, and the disagreement
+ * would be a table showing a dash next to a bar counting that row as up.
+ */
+export function reportedChange(r: { chg: number; chgKnown?: boolean }): number | null {
+  return r.chgKnown === false ? null : r.chg;
+}
+
 export function breadth(
   rows: readonly { chg: number; chgKnown?: boolean }[],
 ): { total: number; up: number; down: number; flat: number; unreported: number } {

@@ -6,7 +6,7 @@ import { sweptMarket } from "@/lib/market/swept";
 import { fetchHistory, fetchQuotes } from "@/lib/api/clients/quotes";
 import { changeOverSessions } from "@/lib/api/normalize/time";
 import { TAGS, TTL } from "@/lib/api/ttl";
-import { eligible, typicalDollarVol } from "@/lib/market/screen";
+import { eligible, reportedChange, typicalDollarVol } from "@/lib/market/screen";
 import { isFund, presentation, SECTOR_ETF, SECTOR_NAMES, type SectorName } from "@/lib/market/universe";
 import { sectorSlug } from "@/lib/market/session";
 import sectorMap from "@/lib/market/data/sector-map.json" with { type: "json" };
@@ -49,7 +49,12 @@ export type SectorRow = {
   color: string;
   logo: string | null;
   price: number;
-  chg: number;
+  /* Null when the gateway priced the name but reported no change for it.
+     toSweepRow lands those on 0, which renders as "+0.00%" — a real-looking
+     quote that happens to be flat, for a row that has no quote at all. The
+     `day` figure below already draws this distinction; so does week, and so
+     does index-proxy for the index strip. The table rows now match. */
+  chg: number | null;
   /** Dollars. Null when the gateway reported none. */
   mcap: number | null;
   pe: number | null;
@@ -89,7 +94,7 @@ function toRow(r: SweepRow): SectorRow {
     color: look.color,
     logo: LOGOS_REACHABLE ? (MAP.logos[r.s] ?? null) : null,
     price: r.px,
-    chg: r.chg,
+    chg: reportedChange(r),
     mcap: r.mcap,
     pe: r.pe !== null && r.pe > 0 ? r.pe : null,
     ret1y: trailing?.[0] ?? null,
@@ -156,8 +161,12 @@ export const getSectorSnapshot = cache(
         ? changeOverSessions(weekSettled.value.data, 5)
         : null;
 
-    const up = stocks.filter((r) => r.chg > 0).length;
-    const down = stocks.filter((r) => r.chg < 0).length;
+    /* A row with no reported change counts as neither, rather than being
+       folded into one side. screen.ts's breadth() records why at length: a bar
+       reporting 163 up and 311 down against a total of 500 left the reader to
+       notice those do not add up. */
+    const up = stocks.filter((r) => r.chg !== null && r.chg > 0).length;
+    const down = stocks.filter((r) => r.chg !== null && r.chg < 0).length;
 
     return {
       name,

@@ -10,6 +10,7 @@ import {
   gainers,
   losers,
   mostActive,
+  reportedChange,
   popular,
 } from "../lib/market/screen.ts";
 import { POPULAR_TICKERS } from "../lib/market/universe.ts";
@@ -476,4 +477,51 @@ test("the floor report accounts for the rows dropped as stale", () => {
   const r = floorReport(snapshot(rows));
   assert.equal(r.droppedStale, 1);
   assert.equal(r.eligible, 1);
+});
+
+/* The display half of what `breadth` counts.
+
+   breadth() was written because a bar reported 163 up and 311 down against a
+   total of 500 and left the reader to notice those do not add up: the
+   remainder was names the gateway priced but sent no change for, which land on
+   chg 0 — the same value a genuinely unmoved name carries.
+
+   The sector table renders that same 0 as "+0.00%", which reads as a real
+   quote that happens to be flat. It is not a quote at all. This is the
+   predicate that lets a table show a dash instead, and it must agree with
+   breadth about which rows are which. */
+
+test("a change the gateway never reported is not a number", () => {
+  assert.equal(reportedChange({ chg: 0, chgKnown: false }), null);
+  assert.equal(reportedChange({ chg: 1.4, chgKnown: false }), null);
+});
+
+test("a genuinely flat name keeps its zero, because that is a real reading", () => {
+  /* The whole point of the flag: 0 reported and 0 absent must not collapse. */
+  assert.equal(reportedChange({ chg: 0, chgKnown: true }), 0);
+  assert.equal(reportedChange({ chg: -2.5, chgKnown: true }), -2.5);
+});
+
+test("a row predating the flag reads as reported, matching breadth", () => {
+  /* breadth() says so in as many words: "An absent chgKnown reads as reported:
+     a caller that predates the flag should not have its whole sample
+     reclassified." The committed baseline.json is exactly such a caller. */
+  assert.equal(reportedChange({ chg: 3.1 }), 3.1);
+  assert.equal(reportedChange({ chg: 0 }), 0);
+});
+
+test("it agrees with breadth on every row, because they state one fact", () => {
+  /* Two predicates over the same flag would eventually disagree, and the
+     disagreement would be a table showing a dash beside a bar counting it as
+     up. Swept together so they cannot drift. */
+  const rows = [
+    { chg: 2, chgKnown: true },
+    { chg: -1, chgKnown: true },
+    { chg: 0, chgKnown: true },
+    { chg: 0, chgKnown: false },
+    { chg: 5 },
+  ];
+  const b = breadth(rows);
+  const shown = rows.filter((r) => reportedChange(r) !== null).length;
+  assert.equal(shown, b.total - b.unreported, "every row breadth counts must be showable");
 });

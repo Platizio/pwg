@@ -365,7 +365,10 @@ function Row({ row }: { row: SectorRow }) {
       <td className={cell}>
         <span className="block">{money(row.price)}</span>
         <span className="mt-0.5 flex justify-end">
-          <Delta value={row.chg} size="text-[11.5px]" />
+          {/* A dash, not "+0.00%", when the gateway priced the name but sent no
+              change for it. Same guard the two return columns below already
+              use, for the same reason. */}
+          {row.chg === null ? "—" : <Delta value={row.chg} size="text-[11.5px]" />}
         </span>
       </td>
       <td className={cell}>{marketCap(row.mcap)}</td>
