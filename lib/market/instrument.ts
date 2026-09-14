@@ -32,6 +32,8 @@ import { toPricePoints, type PricePoint } from "@/lib/api/normalize/series";
 import { toStockNews } from "@/lib/api/normalize/stock-news";
 import { toWireItems } from "@/lib/api/normalize/wire";
 import { TAGS, TTL } from "@/lib/api/ttl";
+import type { ApiResult } from "@/lib/api/errors";
+import { quoteVerdict } from "@/lib/market/quote-verdict";
 import { nowMs, nowSeconds } from "@/lib/market/clock";
 import { isQuotable, presentation } from "@/lib/market/universe";
 import { sessionAt, type Session } from "@/lib/market/session";
@@ -56,6 +58,11 @@ import sectorMap from "@/lib/market/data/sector-map.json" with { type: "json" };
 
 type SectorMapFile = { sectors: Record<string, string> };
 const SECTORS = (sectorMap as SectorMapFile).sectors ?? {};
+
+/* How long to wait before re-asking for a quote that failed. Short enough that
+   a reader never notices, long enough that the re-ask is not simply the same
+   contention a moment later. */
+const RETRY_PAUSE_MS = 400;
 
 export type PeerQuote = {
   id: string;
@@ -210,8 +217,56 @@ export const getInstrumentSnapshot = cache(
 
     /* The quote decides whether this page exists at all. A ticker the gateway
        does not know, or will not quote to this account, is a 404 rather than a
-       page of dashes wearing a name we cannot price. */
-    const quotes = dataOf<RawEquityQuote[]>(value(quoteS, undefined));
+       page of dashes wearing a name we cannot price.
+
+       But only a gateway that ANSWERED may send a reader to a 404 — the
+       reasoning is in quote-verdict.ts. A call that failed says nothing about
+       whether the company exists, and returning null for it turns "we were not
+       told" into a durable claim that it does not exist: the page calls
+       notFound() and Next bakes the 404 into the prerender. A clean build
+       shipped exactly that on all six covered tickers, and the same fault was
+       caught live in dev, where this route answered "Stock not found" and then
+       200 on the very next request.
+
+       So a failed call is retried once — the observed failure recovered
+       immediately, and one extra call on the failure path is cheap against
+       shipping a 404 for Apple. If it fails again this throws rather than
+       returning null. A thrown render is not cached, so the next request tries
+       again, which is the honest outcome for not knowing.
+
+       The re-ask deliberately carries the SAME cache options as the first.
+       Passing noStore here was a bug: `cache: "no-store"` inside a static
+       render reaches patch-fetch.js:854, and for a prerender-legacy store
+       dynamic-rendering.js:238 sets revalidate = 0 and throws
+       DynamicServerError before the request leaves the process — so the retry
+       contacted nothing, http.ts reported a dead socket, and a single blip
+       killed the build. A bit-identical repeat is genuinely a fresh call:
+       patch-fetch.js:664 writes the Data Cache only on `res.status === 200`,
+       so no failure is ever stored for it to re-read, and dedupe-fetch.js:88
+       opts out of deduplication whenever a signal is set, which http.ts:38
+       always does. */
+    let settled: PromiseSettledResult<ApiResult<RawEquityQuote[]>> = quoteS;
+
+    if (quoteVerdict(settled) === "unavailable") {
+      /* A beat before re-asking. The failure this absorbs is contention — nine
+         build workers fanning out at once — and an instant repeat re-enters the
+         same crowd it just lost to. */
+      await new Promise((resolve) => setTimeout(resolve, RETRY_PAUSE_MS));
+
+      settled = await fetchQuotes([ticker], TTL.sweep, [TAGS.quotes]).then(
+        (v) => ({ status: "fulfilled", value: v }) as const,
+        (reason: unknown) => ({ status: "rejected", reason }) as const,
+      );
+    }
+
+    if (quoteVerdict(settled) === "unavailable") {
+      throw new Error(
+        `Quote unavailable for ${ticker} after one retry. Refusing to answer 404 ` +
+          `for a gateway that never said the symbol is absent.`,
+      );
+    }
+
+    const quotes = dataOf<RawEquityQuote[]>(value(settled, undefined));
     const quote = quotes?.[0];
     if (!quote || quote.notFound || quote.notPermissioned) return null;
     if (
