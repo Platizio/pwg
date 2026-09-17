@@ -26,6 +26,12 @@ import {
   mostActive,
   popular,
 } from "../market/screen.ts";
+import { pricesMove, sessionAt } from "../market/session.ts";
+import { readStatus, storeConfigured } from "../market/store/client.ts";
+
+import type { ApiResult } from "./errors.ts";
+import type { SessionPhase } from "../market/session.ts";
+import type { StoreStatus } from "../market/store/types.ts";
 
 /* The endpoint probe.
 
@@ -49,6 +55,13 @@ export type CheckResult = {
   ms: number;
   /** True when this check passes by observing an expected failure. */
   negative: boolean;
+  /* True when nothing was asserted because an OPTIONAL dependency is absent.
+     A skipped check is neither passed nor failed: counting it as passed would
+     claim a store was healthy when there is no store, and counting it as
+     failed would make the report red on a deployment that is working as
+     configured. Both lies cost the same thing — an operator who stops reading
+     the report — which is the whole reason the column exists. */
+  skipped: boolean;
   assertions: Assertion[];
   detail: string;
   error?: string;
@@ -59,6 +72,7 @@ export type ProbeReport = {
   totalMs: number;
   passed: number;
   failed: number;
+  skipped: number;
   checks: CheckResult[];
 };
 
@@ -66,7 +80,13 @@ type Check = {
   id: string;
   group: string;
   negative?: boolean;
-  run: () => Promise<{ status: number; ms: number; assertions: Assertion[]; detail: string }>;
+  run: () => Promise<{
+    status: number;
+    ms: number;
+    assertions: Assertion[];
+    detail: string;
+    skipped?: boolean;
+  }>;
 };
 
 const a = (label: string, ok: boolean, detail: unknown = ""): Assertion => ({
@@ -87,6 +107,121 @@ async function sharedSweep(): Promise<Snapshot> {
 const money = (v: number) =>
   v >= 1e9 ? `$${(v / 1e9).toFixed(1)}B` : v >= 1e6 ? `$${(v / 1e6).toFixed(0)}M` : `$${v.toFixed(0)}`;
 const n = (v: number | null | undefined) => (v == null ? null : Number(v));
+
+/* ------------------------------------------------------- the market store */
+
+/* Six minutes while prices move. The refresher re-sweeps hot quotes every five,
+   so one missed cycle is forgiven and two are not — any tighter and ordinary
+   jitter between the sweep and the probe rings the bell. */
+const SWEEP_FRESH_MOVING_MS = 6 * 60_000;
+
+/* Ninety minutes once the market is shut, which is not a freshness bound at
+   all — and the reason is not the obvious one. The refresher does not stop at
+   the bell: ../market/refresh/plan.ts drops the hot sweep from five minutes to
+   thirty and runs the full one hourly whatever the market is doing. What stops
+   is the WRITING. A shut market reprints the last quote unchanged, and
+   `market_upsert_quotes` refuses a row whose price, volume, change and as_of
+   all match the stored one — the migration's closed-market clause — so
+   `max(swept_at)` simply stops advancing at the close while the sweeps carry
+   on. Which is the warning for whoever edits that where-clause: widen it and
+   every overnight sweep starts bumping swept_at, and this bound becomes a
+   no-op that fails nothing. What it catches meanwhile is the thing worth
+   catching, a worker that died BEFORE the close rather than after it.
+   pricesMove, not session.live: an 08:00 ET pre-market book is thin but it is
+   quoting, and holding it to the closed bound would hide ninety minutes of a
+   dead refresher every morning. */
+const SWEEP_FRESH_SHUT_MS = 90 * 60_000;
+
+const ageWord = (ms: number): string =>
+  ms < 90_000 ? `${Math.round(ms / 1000)}s` : `${Math.round(ms / 60_000)}m`;
+
+/**
+ * Read `public.market_status()` as assertions.
+ *
+ * Split out from the check below so the judgement can be tested without a
+ * database: every threshold here is a claim about how this system behaves, and
+ * the two that encode the market's own rhythm are the ones a plausible-looking
+ * edit would quietly get wrong. tests/probe-store.test.ts pins them.
+ *
+ * It takes the whole `ApiResult` rather than a `StoreStatus`, because "the
+ * store answered at all" is the first assertion and a caller that had already
+ * unwrapped the result could no longer make it.
+ */
+export function storeAssertions(
+  result: ApiResult<StoreStatus>,
+  phase: SessionPhase,
+  now: number,
+): Assertion[] {
+  if (!result.ok) return [a("store answers", false, result.error)];
+
+  /* A 200 carrying no bytes. client.ts reports that as ok(null) because
+     market_touch_visit genuinely returns void, so the shape is reachable here
+     and every field below would be read off null. One honest assertion beats
+     five derived from nothing. */
+  const s = result.data;
+  if (!s) return [a("store answers", false, `HTTP ${result.status} with an empty body`)];
+
+  const moving = pricesMove(phase);
+  const limit = moving ? SWEEP_FRESH_MOVING_MS : SWEEP_FRESH_SHUT_MS;
+  const age = s.quotesSweptAt === null ? null : now - s.quotesSweptAt;
+  const why = moving
+    ? `prices are moving (${phase}); limit ${limit / 60_000}m`
+    : `market ${phase} — the sweeps continue, but a shut market reprints the same ` +
+      `quote and an unchanged quote is never written, so swept_at stops advancing at ` +
+      `the close; limit ${limit / 60_000}m`;
+
+  return [
+    a("store answers", true, `market_status in ${result.ms}ms`),
+    a(
+      "quote sweep is recent",
+      age !== null && age <= limit,
+      age === null ? `never swept · ${why}` : `${ageWord(age)} old · ${why}`,
+    ),
+    /* One enrolled symbol, not a plausible number of them. The bootstrap fills
+       thousands and the site enrols a symbol on first visit, so any floor above
+       one would fail a store that is correct and merely young. Zero is the only
+       reading that means the refresher has never had anything to do. */
+    a("symbols are enrolled", s.enrolled >= 1, `${s.enrolled} enrolled`),
+    /* Sections against symbols, which is not a typo: `erroring` counts sections
+       that have failed three times or more, and a symbol stands behind six of
+       them — seven for a covered name, since news_gateway is the wire's alone
+       (../market/refresh/plan.ts) — so 1% of the SYMBOL count is a deliberately
+       tight budget. A handful of delisted tickers sits under it; a gateway
+       refusing one whole section class does not. */
+    a(
+      "few sections are erroring",
+      s.erroring === 0 || s.erroring * 100 < s.enrolled,
+      `${s.erroring} sections failed 3+ times against ${s.enrolled} enrolled symbols` +
+        (s.enrolled > 0 ? ` (${((s.erroring / s.enrolled) * 100).toFixed(2)}%, budget 1%)` : ""),
+    ),
+    /* `due` is a queue depth, and the healthy value is not zero — the cadence
+       table is always making something due. What it may not be is a queue that
+       nothing is draining.
+
+       Sections against symbols here too, and the factor is not one: plan.ts
+       enrols a covered name on all seven sections and every hot or visited one
+       on six, so `enrolled` symbols stand behind roughly six times as many
+       section rows, and a worker that has stopped claiming walks `due` towards
+       six times `enrolled` rather than towards it. A queue merely as long as
+       the symbol count is therefore already a whole section class overdue,
+       which is why that is the bound rather than the ceiling.
+
+       `claimed` is the escape hatch, and the bootstrap is what it is for.
+       Enrolment spreads next_check_at over twenty minutes, so twenty minutes
+       in, the entire queue is due at once and stays deep for hours while the
+       refresher works correctly through it — and those are the hours an
+       operator is most likely to be watching this line. A lease is the proof
+       that distinguishes the two: it expires in fifteen minutes and
+       market_status counts only the live ones, so a deep queue with rows
+       claimed is a refresher draining a backlog, and a deep queue with nothing
+       claimed is a refresher that has stopped. */
+    a(
+      "the refresher is keeping up",
+      s.due === 0 || s.due < s.enrolled || s.claimed > 0,
+      `${s.due} sections due, ${s.claimed} claimed, behind ${s.enrolled} enrolled symbols`,
+    ),
+  ];
+}
 
 /* ---------------------------------------------------------------- checks */
 
@@ -726,6 +861,65 @@ const CHECKS: Check[] = [
       };
     },
   },
+
+  {
+    id: "store",
+    group: "store",
+    async run() {
+      /* The store is optional and the probe treats it that way.
+         `storeConfig()` returns null rather than throwing precisely so the site
+         builds, prerenders and serves with no Supabase configuration at all,
+         falling back to the gateway fan-out it has always had. Failing here
+         would report a deployment choice as a fault, and a probe that is red on
+         a working deployment is one an operator learns to scroll past — which
+         costs them the checks that mean something. */
+      if (!storeConfigured()) {
+        return {
+          status: 0,
+          ms: 0,
+          skipped: true,
+          assertions: [],
+          detail:
+            "not configured (needs BOTH SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY — " +
+            "one without the other reads as absent here) — serving from the gateway fan-out",
+        };
+      }
+
+      /* The real clock, not session.ts's ANCHOR: the default argument dates the
+         synthetic marketing data, and reading a live store against a fixed
+         instant would judge every sweep against August. */
+      const now = Date.now();
+      const { phase } = sessionAt(now / 1000);
+      const r = await readStatus();
+      const assertions = storeAssertions(r, phase, now);
+
+      if (!r.ok || !r.data) {
+        return {
+          status: r.status,
+          ms: r.ms,
+          assertions,
+          detail: `market_status: ${r.ok ? "empty body" : r.error}`,
+        };
+      }
+
+      const s = r.data;
+      const age = s.quotesSweptAt === null ? "never" : `${ageWord(now - s.quotesSweptAt)} ago`;
+      /* Optional chaining on a field the migration always builds: if the RPC
+         shape ever drifts, a thrown TypeError in this one cosmetic line would
+         discard five assertions that had already been decided. */
+      const h = s.lastHour;
+      return {
+        status: r.status,
+        ms: r.ms,
+        assertions,
+        detail:
+          `${s.enrolled} enrolled · ${s.hotCount} hot · ${s.quotesCount} quotes swept ${age} · ` +
+          `${s.due} due, ${s.claimed} claimed, ${s.erroring} erroring · last hour ` +
+          `${h?.changed ?? "?"} changed / ${h?.unchanged ?? "?"} unchanged / ` +
+          `${h?.error ?? "?"} error / ${h?.absent ?? "?"} absent · ${phase}`,
+      };
+    },
+  },
 ];
 
 /** Fifty real large caps — enough to exercise the batch cap honestly. */
@@ -760,6 +954,7 @@ export async function runProbe(only?: string[]): Promise<ProbeReport> {
         group: c.group,
         ok: r.assertions.every((x) => x.ok),
         negative: Boolean(c.negative),
+        skipped: Boolean(r.skipped),
         status: r.status,
         ms: r.ms,
         assertions: r.assertions,
@@ -771,6 +966,7 @@ export async function runProbe(only?: string[]): Promise<ProbeReport> {
         group: c.group,
         ok: false,
         negative: Boolean(c.negative),
+        skipped: false,
         status: 0,
         ms: 0,
         assertions: [],
@@ -783,8 +979,12 @@ export async function runProbe(only?: string[]): Promise<ProbeReport> {
   return {
     startedAt,
     totalMs: Date.now() - t0,
-    passed: checks.filter((c) => c.ok).length,
+    /* A skipped check is counted in neither column. `process.exit(report.failed)`
+       in scripts/probe.mts therefore still exits 0 with the store unconfigured,
+       which is the whole point of the column. */
+    passed: checks.filter((c) => c.ok && !c.skipped).length,
     failed: checks.filter((c) => !c.ok).length,
+    skipped: checks.filter((c) => c.skipped).length,
     checks,
   };
 }
@@ -797,7 +997,7 @@ export function formatReport(r: ProbeReport): string {
   L.push("  ok     ms   check                    detail");
   L.push("  ────  ────  ───────────────────────  ────────────────────────────────────────");
   for (const c of r.checks) {
-    const mark = c.ok ? (c.negative ? "PASS*" : "PASS ") : "FAIL ";
+    const mark = c.skipped ? "SKIP " : c.ok ? (c.negative ? "PASS*" : "PASS ") : "FAIL ";
     const ms = c.ms ? String(c.ms) : "–";
     const detail = c.error ? `ERROR ${c.error}` : c.detail;
     L.push(`  ${mark} ${ms.padStart(5)}  ${c.id.padEnd(23)}  ${detail}`);
@@ -808,7 +1008,12 @@ export function formatReport(r: ProbeReport): string {
     }
   }
   L.push("");
-  L.push(`  ${r.passed} passed · ${r.failed} failed · ${(r.totalMs / 1000).toFixed(1)}s`);
+  L.push(
+    `  ${r.passed} passed · ${r.failed} failed` +
+      (r.skipped ? ` · ${r.skipped} skipped` : "") +
+      ` · ${(r.totalMs / 1000).toFixed(1)}s`,
+  );
   L.push(`  PASS* = passed by observing an EXPECTED failure (tripwire checks)`);
+  if (r.skipped) L.push(`  SKIP  = an optional dependency is not configured; nothing was asserted`);
   return L.join("\n");
 }

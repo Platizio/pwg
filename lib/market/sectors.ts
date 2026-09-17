@@ -5,7 +5,7 @@
  * universe.ts opens with `import master from "./data/symbol-master.json"`, and
  * that file is 2.4 MB of ticker records. A JSON import cannot be tree-shaken:
  * the module evaluates it, so anything that imports ANY export from universe.ts
- * pulls all 30,809 symbols along with it. The terminal dashboard is a client
+ * pulls all 33,440 symbols along with it. The terminal dashboard is a client
  * component and it wanted exactly one 400-byte constant from there — SECTOR_ETF
  * — which put the entire symbol master into the browser bundle. Measured: a
  * single 2.5 MB chunk, half of all the client JavaScript on the site, loaded by
