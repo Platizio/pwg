@@ -11,11 +11,5 @@
         }
       ]
     }
-  ],
-  "crons": [
-    {
-      "path": "/api/sweep",
-      "schedule": "*/5 * * * *"
-    }
   ]
 }

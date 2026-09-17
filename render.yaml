@@ -4,11 +4,13 @@
 # reason is not a mistake in this file.
 #
 # Render's Free plan supports web services, static sites, Postgres and Key
-# Value instances only; cron jobs are not one of them, and a cron job carries a
-# $1/month minimum. So the `platizio-sweep` service below cannot be created
-# while the account is on Free. Everything else here is accurate and ready.
+# Value instances only; a background worker is not one of them. So the
+# `platizio-refresh` service below cannot be created while the account is on
+# Free. The fallback is in this file too — REFRESH_IN_PROCESS=1 on the web
+# service runs the identical loop inside Next — and taking it means deleting
+# the worker from this blueprint rather than leaving it defined and unused.
 #
-# The second constraint matters more than the cron. A Free web service spins
+# The second constraint matters more than the worker. A Free web service spins
 # down after fifteen minutes without inbound traffic and takes about a minute
 # to wake, showing Render's own loading page while it does. That is a plan
 # behaviour, not something the application can cache or optimise around: the
@@ -16,9 +18,10 @@
 # markets that is the single largest source of perceived lag, and the only
 # fix is an instance type that does not sleep.
 #
-# `plan: starter` is set on the web service deliberately, for that reason. Drop
-# it to `free` and the sweep cron must be deleted from this file for the
-# blueprint to apply at all.
+# `plan: starter` is set on the web service deliberately, for that reason. It
+# is also what the refresher assumes: a sleeping web service stops answering
+# /api/revalidate, and the store then fills with fresh rows behind pages that
+# nobody has marked stale.
 #
 # NO SECRETS IN THIS FILE. Every credential is `sync: false`, which tells
 # Render to expect the value in the dashboard and never to read one from the
@@ -46,6 +49,17 @@ services:
 
       # The market gateway. Without these the site still builds and serves —
       # verified — but every quote is empty.
+      #
+      # VIEWTRADE_GATEWAY is the name lib/api/env.ts actually reads, and it is
+      # required. VIEWTRADE_BASE_URL is the older spelling, declared here since
+      # before the terminal existed and read by nothing in the terminal stack;
+      # it is kept so that anything else still set up against it does not break
+      # on an apply. Set both, to the same origin, until the older one is
+      # retired — a dashboard carrying only VIEWTRADE_BASE_URL gives a site
+      # whose every quote is empty and whose build logs say a required
+      # variable is missing.
+      - key: VIEWTRADE_GATEWAY
+        sync: false
       - key: VIEWTRADE_API_KEY
         sync: false
       - key: VIEWTRADE_API_SECRET
@@ -53,8 +67,53 @@ services:
       - key: VIEWTRADE_BASE_URL
         sync: false
 
-      # Shared with the cron below. /api/sweep fails closed without it: no
-      # secret set means every sweep request is answered 401.
+      # The market store. The web service only ever READS it — one RPC per
+      # regeneration, in place of the thirty gateway calls a page render used
+      # to make — but it reads through the service-role key, because the
+      # `market` schema has no anon grants: ViewTrade's licence does not permit
+      # anonymous scraping, so there is nothing for an anon key to reach.
+      #
+      # Both are optional in the sense that matters for a deploy: with neither
+      # set the terminal falls back to the gateway fan-out it has always had,
+      # slower but correct. Neither may ever gain a NEXT_PUBLIC_ prefix — that
+      # prefix is what inlines a value into the browser bundle, and this
+      # particular value owns the database.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+
+      # Runs the refresh loop INSIDE this service, from instrumentation.ts,
+      # instead of in the `platizio-refresh` worker below. Default off, and off
+      # is anything but "1".
+      #
+      # The two must never both be on. Two loops against one store is not a
+      # correctness problem — every claim is a lease taken with FOR UPDATE SKIP
+      # LOCKED, so they take disjoint rows — but it is two gateway logins and
+      # twice the request budget for exactly the same work, with each loop left
+      # holding half of every batch. Turn this on and the worker below comes
+      # out of the blueprint; leave it off and the worker owns the loop.
+      #
+      # Turning it on also makes SITE_URL below required. The loop invalidates
+      # over HTTP even when it is running inside the very service it is calling
+      # — it holds no Next cache handle of its own — and with no SITE_URL it
+      # says so once and posts nothing for the life of the process. The store
+      # then fills correctly behind pages nothing ever marks stale, which is
+      # the failure the header of this file warns about.
+      - key: REFRESH_IN_PROCESS
+        value: "0"
+
+      # This service's own origin, e.g. https://platizio-global.onrender.com —
+      # no trailing slash. Read only by the refresh loop, so it is optional
+      # while the worker below owns the loop and required the moment
+      # REFRESH_IN_PROCESS is "1".
+      - key: SITE_URL
+        sync: false
+
+      # Authenticates POST /api/revalidate, which is how the refresher tells
+      # this service that a page's data changed. It fails closed in production:
+      # no secret set means every call is answered 401, the store fills, and
+      # pages stay on their own fifteen-minute timers.
       - key: CRON_SECRET
         sync: false
 
@@ -75,36 +134,106 @@ services:
       - key: NEWSLETTER_WEBHOOK_URL
         sync: false
 
-  # ------------------------------------------------------- the cache warmer
+  # ---------------------------------------------------------- the refresher
   #
-  # Assembling the terminal's home snapshot costs the chunked quote calls plus
-  # two reference calls per covered name. That is unremarkable on a timer and
-  # unacceptable inside a page render, which is exactly why this exists: the
-  # sweep pays it every five minutes and the terminal only ever reads the
-  # result it leaves behind.
+  # There used to be a `platizio-sweep` cron here, curling /api/sweep every
+  # five minutes to warm the web service's cache. The sweep now runs inside the
+  # worker below — every five minutes while prices are moving and half-hourly
+  # when they are not, since a shut market returns the identical bytes — and
+  # its quotes are written to Postgres instead of into a cache.
   #
-  # Five minutes because the feed is fifteen minutes delayed. Sweeping faster
-  # re-fetches bytes that cannot have changed.
+  # Nothing schedules /api/sweep any more — this cron and the vercel.json one
+  # were its only two callers — and the route was kept rather than deleted
+  # because it had a better question to answer. It is now the `market_status`
+  # health read: one indexed query reporting whether the store behind the
+  # terminal is current, answering in milliseconds where the warmer took a
+  # minute, and 503 rather than 200 when something is fatal. Point an uptime
+  # checker at it with CRON_SECRET if you want to be told; nothing calls it on
+  # a schedule, which is worth knowing before somebody wonders what hits it.
   #
-  # It is a curl, not a build of the app, so the build command is a no-op —
-  # Render requires one for a native runtime.
-  - type: cron
-    name: platizio-sweep
+  # The cron was not removed for tidiness. What it warmed lived in the web
+  # service's own cache, so every deploy threw it away and the first visitor
+  # after one paid the full gateway fan-out — up to five minutes of cold
+  # renders, at exactly the moment somebody was watching a release. A curl
+  # cannot fix that from outside: it can only warm whatever a request touches,
+  # and only after the next tick. A store in Postgres survives the deploy, and
+  # the page that reads it is fast on its first render because the data was
+  # already there.
+  #
+  # The worker is the only thing in this system that writes market data. It
+  # holds SUPABASE_SERVICE_ROLE_KEY and logs into the gateway itself, which is
+  # why it carries the same credentials as the site rather than calling it.
+  - type: worker
+    name: platizio-refresh
     runtime: node
     plan: starter
-    region: singapore
+    region: singapore # beside the web service; the database is in Mumbai
     branch: main
-    schedule: "*/5 * * * *"
-    buildCommand: "echo 'nothing to build: this job calls the deployed site'"
-    startCommand: >-
-      curl --fail --silent --show-error --max-time 90
-      --header "Authorization: Bearer $CRON_SECRET"
-      "$SITE_URL/api/sweep"
+    # No `npm run build`: nothing here is a Next page. The worker runs the
+    # TypeScript directly under Node's type stripping, which is on by default
+    # from 22.18 — hence NODE_VERSION below, which resolves to the latest 22.x.
+    buildCommand: npm ci
+    # --conditions=react-server so `server-only` resolves to its empty shim.
+    # `npm run worker` is the same command with --env-file=.env.local for a
+    # laptop; here the environment comes from the dashboard.
+    startCommand: node --conditions=react-server scripts/refresh-worker.mts
     envVars:
+      - key: NODE_VERSION
+        value: "22"
+
+      # The same gateway account as the site. Two logins, deliberately: a
+      # worker that asked the web service for data would be reading the cache
+      # it exists to fill.
+      - key: VIEWTRADE_GATEWAY
+        sync: false
+      - key: VIEWTRADE_API_KEY
+        sync: false
+      - key: VIEWTRADE_API_SECRET
+        sync: false
+
+      # Not optional here, unlike on the web service. A worker with no store to
+      # write to says so and exits within the second; there is no degraded mode
+      # in which it does something useful.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+
+      # Presented as a bearer token to POST /api/revalidate. The same value as
+      # the web service's, and a mismatch is quiet by design: the worker logs
+      # the 401 and keeps refreshing, because data the store has already
+      # written is right whether or not a page has been told about it.
       - key: CRON_SECRET
         sync: false
       # The deployed origin, e.g. https://platizio-global.onrender.com — no
-      # trailing slash. Kept as a variable so the job follows the service
-      # rather than hard-coding a hostname into the repository.
+      # trailing slash. A separate process has no idea what host the site
+      # answers on. Unset, the worker refreshes the store and skips the
+      # revalidate call with one line saying so.
       - key: SITE_URL
+        sync: false
+
+      # The two throttles, and the only variables here that may simply be left
+      # blank. Both exist so that a gateway which starts refusing under load can
+      # be backed off without a deploy, and they govern different halves of the
+      # budget — which is the part worth knowing before either is touched.
+      #
+      # REFRESH_CONCURRENCY is the section jobs: the per-symbol profile,
+      # history, financials and short-interest fetches. Unset, the loop uses the
+      # ceiling lib/market/refresh/plan.ts sets. The loop already halves itself
+      # on a bad batch; this is the number it climbs back to afterwards, and the
+      # number it opens on. It can only lower — plan.ts's ceiling was measured
+      # against the gateway rather than chosen, and a larger value set here is
+      # clamped to it.
+      #
+      # SWEEP_CONCURRENCY is the quote sweep, and it is the larger spender of
+      # the two: 276 chunks of fifty symbols for the whole tradable universe,
+      # 64 of them in flight by default (lib/api/clients/quotes.ts). A pass
+      # sweeps to completion before it claims a single job, so the two never
+      # overlap inside the worker and neither number affects the other. Which
+      # also means the obvious move against a refusing gateway — lower
+      # REFRESH_CONCURRENCY — leaves the sweep bursting exactly as hard as it
+      # did before. Lower both, or lower this one first.
+      - key: REFRESH_CONCURRENCY
+        sync: false
+      - key: SWEEP_CONCURRENCY
         sync: false

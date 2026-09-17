@@ -19,7 +19,9 @@
     "build:baseline": "node --conditions=react-server --env-file=.env.local scripts/build-baseline.mts",
     "build:returns": "node --conditions=react-server --env-file=.env.local scripts/build-returns.mts",
     "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\"",
-    "probe:stream": "node --conditions=react-server --env-file=.env.local scripts/probe-stream.mts"
+    "probe:stream": "node --conditions=react-server --env-file=.env.local scripts/probe-stream.mts",
+    "worker": "node --conditions=react-server --env-file=.env.local scripts/refresh-worker.mts",
+    "worker:bootstrap": "node --conditions=react-server --env-file=.env.local scripts/refresh-worker.mts --bootstrap"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

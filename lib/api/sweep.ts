@@ -8,11 +8,13 @@ import { isTestName, NAME_BY_SYMBOL, TRADABLE_SYMBOLS } from "../market/universe
    endpoint, no trending endpoint. Asking "what moved today" is not possible.
    So we quote the entire tradable universe on a schedule and rank it here.
 
-   Six and a half thousand symbols at fifty per call is roughly a hundred and
-   thirty requests, which measured at about ten seconds eight-wide with no rate
-   limiting. That is far too slow to sit in a page render and completely
-   unremarkable as a background job, which is why the result is a snapshot the
-   page reads rather than work the page does.
+   The committed master lists 13,797 tradable symbols, which at the gateway's
+   fifty-per-call ceiling is 276 requests. That is far too slow to sit in a
+   page render and completely unremarkable as a background job, which is why
+   the result is a snapshot the page reads rather than work the page does.
+   (This comment said 21,600 symbols and 432 chunks until the master was
+   rebuilt and the test securities and OTC lines were filtered out of it; the
+   two figures above come from lib/market/universe.ts's own TRADABLE filter.)
 
    The cadence is five minutes because the feed is fifteen minutes delayed.
    Sweeping faster re-fetches bytes that cannot have changed. */
@@ -42,6 +44,17 @@ export type SweepRow = {
   /** Epoch ms of the quote's own updateTime, for staleness. */
   asOf: number | null;
   delayed: boolean;
+  /* The quote this row was reduced from, attached only when `runSweep` was
+     asked to keep it. The durable store needs both halves — the boards rank on
+     the row, while the index and sector strips and toCompanyProfile read
+     fields the row drops (52-week range, beta, dividend yield, ISIN) — and a
+     store that kept only the row could serve a board but not a page.
+
+     Optional so nothing else changes shape: every existing caller sweeps
+     without it and gets the same twelve fields it always did, and the typed
+     agreement with SweepRowJson in lib/market/store/types.ts still holds in
+     both directions because an optional key is assignable from its absence. */
+  raw?: RawEquityQuote;
 };
 
 export type Snapshot = {
@@ -109,7 +122,17 @@ export function toSweepRow(q: RawEquityQuote): SweepRow | null {
 }
 
 export async function runSweep(
-  opts: { symbols?: readonly string[]; concurrency?: number; noStore?: boolean } = {},
+  opts: {
+    symbols?: readonly string[];
+    concurrency?: number;
+    noStore?: boolean;
+    /* Keep the quote each row was reduced from. Off by default: the boards and
+       the baseline builder want twelve fields per name, and carrying the whole
+       quote for 13,797 of them through a page render would be tens of
+       megabytes nothing reads. The refresh worker asks for it because
+       market_upsert_quotes stores both. */
+    keepRaw?: boolean;
+  } = {},
 ): Promise<Snapshot> {
   const symbols = opts.symbols ?? TRADABLE_SYMBOLS;
   const started = Date.now();
@@ -126,7 +149,11 @@ export async function runSweep(
   const rows: SweepRow[] = [];
   for (const q of batch.quotes) {
     const row = toSweepRow(q);
-    if (row) rows.push(row);
+    if (!row) continue;
+    /* Attached rather than spread into a new object: at 13,797 rows a copy per
+       row is work for nothing, and `toSweepRow` has just built this one. */
+    if (opts.keepRaw) row.raw = q;
+    rows.push(row);
   }
 
   return {
