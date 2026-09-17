@@ -44,8 +44,11 @@ services:
       # this is the one Render reads first.
       - key: NODE_VERSION
         value: "22"
-      - key: NODE_ENV
-        value: production
+      # NODE_ENV is deliberately NOT declared. Render sets it to production for
+      # the running process itself, and declaring it here would also apply it to
+      # the BUILD — where npm reads it as --omit=dev and skips devDependencies.
+      # The build needs them: without @tailwindcss/postcss the CSS pipeline dies
+      # with "Cannot find module", which is exactly how this was discovered.
 
       # The market gateway. Without these the site still builds and serves —
       # verified — but every quote is empty.
