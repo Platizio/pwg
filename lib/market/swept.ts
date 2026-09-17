@@ -6,15 +6,26 @@ import { TAGS, TTL } from "@/lib/api/ttl";
 import { hotList } from "./hot-list";
 
 /**
- * The market sweep every surface reads, quoting only what the surfaces use.
+ * The market sweep the dashboard and the sector pages fall back to.
  *
- * WHY THIS EXISTS
+ * NO LONGER THE NORMAL PATH. The refresh worker owns the sweep now: it quotes
+ * the hot list on its own timer, writes the rows to the `market` schema, and
+ * both surfaces read them back through one `market_home` call. This module is
+ * what runs when that store cannot answer — it has not been configured, it did
+ * not answer, or it has not been filled yet — which is the state of every
+ * development machine, every CI run, and any deployment without Supabase
+ * credentials. It is kept for exactly that reason and should not be inlined
+ * into `runSweep()` at either call site: a fallback that quotes three times as
+ * many symbols as the path it replaces is a fallback that makes the bad day
+ * worse.
  *
- * `runSweep()` asks the gateway for every tradable symbol: 21,600 names, 432
+ * WHY IT QUOTES ONLY WHAT THE SURFACES USE
+ *
+ * `runSweep()` asks the gateway for every tradable symbol: 13,797 names, 276
  * chunks. About 4,400 of the rows that come back clear the liquidity floor, and
  * those are the only ones anything reads — the movers boards, the sector strip,
  * the breadth sample and the search corpus all filter to eligible rows first.
- * The other seventeen thousand are fetched, parsed, and thrown away.
+ * The other nine thousand are fetched, parsed, and thrown away.
  *
  * On the deployed instance that waste is what a reader feels. A regeneration
  * saturates the CPU and every other request queues behind it: measured on the
@@ -29,7 +40,7 @@ import { hotList } from "./hot-list";
  * sweep quotes that list. Twelve frequent sweeps per full one:
  *
  *   frequent   ~90 chunks   every TTL.sweep      (5 minutes)
- *   full       432 chunks   every TTL.sweepFull  (1 hour)
+ *   full       276 chunks   every TTL.sweepFull  (1 hour)
  *
  * WHAT IT COSTS
  *

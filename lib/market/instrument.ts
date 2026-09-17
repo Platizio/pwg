@@ -3,43 +3,42 @@ import { cache } from "react";
 
 import {
   fetchHistory,
-  fetchIntraday,
   fetchQuotes,
   type RawEquityQuote,
   type RawHistoryPoint,
-} from "@/lib/api/clients/quotes";
-import { fetchIndicator, fetchShortInterest } from "@/lib/api/clients/technicals";
+} from "../api/clients/quotes.ts";
 import {
-  getCorporateActions,
-  getFinancials,
-  getFundamentals,
-  getStockArticles,
-} from "@/lib/api/cache-layer";
-import { toFinancialYears, type FinancialYear } from "@/lib/api/normalize/financials";
-import { toCompanyProfile, type CompanyProfile } from "@/lib/api/normalize/profile";
-import { toTechnicalRead, type TechnicalRead } from "@/lib/api/normalize/technicals";
-import { fetchAnalystConsensus } from "@/lib/api/clients/analysts";
-import { toAnalystAvailability, type AnalystAvailability } from "@/lib/api/normalize/analyst";
-import { type Returns } from "@/lib/api/normalize/returns";
+  fetchIndicator,
+  fetchShortInterest,
+  type RawShortInterest,
+} from "../api/clients/technicals.ts";
+import type { RawCorporateActions, RawFundamentals } from "../api/clients/fundamentals.ts";
+import type { RawFinancials } from "../api/clients/financials.ts";
+import { fetchAnalystConsensus } from "../api/clients/analysts.ts";
+import { toPricePoints } from "../api/normalize/series.ts";
+import { repairAgainst, returnsAgainst, splitRecord, type ActionsRecord } from "./split-record.ts";
+import { TAGS, TTL } from "../api/ttl.ts";
+import type { ApiResult } from "../api/errors.ts";
+import { quoteVerdict } from "./quote-verdict.ts";
+import { reconnectDelay } from "../api/stream/backoff.ts";
+import { nowMs } from "./clock.ts";
+import { isPlaceholderInstrument, presentation } from "./universe.ts";
+import { storeConfigured, touchVisit } from "./store/client.ts";
+import { fromStored } from "./store/sections.ts";
+import { indicatorsFromDaily } from "./store/local-indicators.ts";
+import type { StoredInstrument } from "./store/types.ts";
 import {
-  repairAgainst,
-  returnsAgainst,
-  splitRecord,
-  type ActionsRecord,
-} from "@/lib/market/split-record";
-import { relativeAge } from "@/lib/api/normalize/time";
-import { toPricePoints, type PricePoint } from "@/lib/api/normalize/series";
-import { toStockNews } from "@/lib/api/normalize/stock-news";
-import { toWireItems } from "@/lib/api/normalize/wire";
-import { TAGS, TTL } from "@/lib/api/ttl";
-import type { ApiResult } from "@/lib/api/errors";
-import { quoteVerdict } from "@/lib/market/quote-verdict";
-import { reconnectDelay } from "@/lib/api/stream/backoff";
-import { nowMs, nowSeconds } from "@/lib/market/clock";
-import { isPlaceholderInstrument, presentation } from "@/lib/market/universe";
-import { sessionAt, type Session } from "@/lib/market/session";
-import type { WireItem } from "@/lib/market/home";
-import sectorMap from "@/lib/market/data/sector-map.json" with { type: "json" };
+  MARKET_PROXY,
+  MAX_PEERS,
+  assembleInstrument,
+  dataOf,
+  profileFrom,
+  value,
+  type InstrumentInputs,
+  type InstrumentSnapshot,
+  type PeerQuote,
+} from "./instrument-assemble.ts";
+import sectorMap from "./data/sector-map.json" with { type: "json" };
 
 /* One instrument, assembled once per request.
 
@@ -55,18 +54,72 @@ import sectorMap from "@/lib/market/data/sector-map.json" with { type: "json" };
    wonder whether the company simply has no analysts. Nothing here ever falls
    back to the authored figures in lib/market/instruments.ts: those were
    invented, and an invented number wearing a real company's name is the one
-   failure this whole layer exists to prevent. */
+   failure this whole layer exists to prevent.
+
+   What remains in this file is the I/O and the two rules that decide whether
+   the page exists at all — the fan-out, the quote retry, the placeholder
+   check, and the peers wave that cannot start until the company record has
+   named its peers. Everything downstream of "the documents have arrived" is
+   instrument-assemble.ts, which is pure and therefore testable, and which the
+   durable store calls with the same documents read out of Postgres.
+
+   ── TWO PATHS, AND WHY THE SLOW ONE IS NOT OPTIONAL ──────────────────────
+
+   A cold page on the slow path costs eleven concurrent gateway calls, then a
+   peers wave of up to seventeen more, and eight to thirty seconds of a reader's
+   time — ADBE 7.7s, CRM 15.0s, ORCL 30.7s, measured in production and recorded
+   in prerender.ts. Only 500 of 13,797 symbols are
+   prerendered, so somebody pays that on most names. The `market` schema exists
+   to end it: one RPC returns the quote, every stored section, the SPY
+   benchmark and the priced peers together, and the assembly cannot tell which
+   source handed it the documents.
+
+   The store path therefore runs first, and FALLS BACK RATHER THAN FAILING on
+   every way it can come up short. It is unconfigured in dev and in CI, it is
+   still being filled for most of the universe, a symbol nobody has opened yet
+   has no row at all, and a symbol somebody opened a minute ago has a profile
+   some time before it has five years of bars. None of those is an answer about
+   the company, so none of them may reach the reader: a miss drops straight
+   into the fan-out below and the page renders exactly as it always has,
+   slowly. The one thing a miss must never do is 404 — see the long note above
+   the quote retry for what it costs to turn "we were not told" into "this
+   company does not exist".
+
+   ── WHAT NO LONGER RIDES THE RENDER ──────────────────────────────────────
+
+   The session's one-minute bars are the only part of this page too fast-moving
+   to store, and they were also one of the calls the reader waited on. They now
+   load from app/api/intraday/[ticker] after hydration, through
+   components/terminal/use-intraday.ts, so `history.intraday` leaves here empty
+   on BOTH paths and `intradayNote` says so.
+
+   The wider news pool went the same way, and by the time it did it was the
+   largest thing left. With the store filled, a cold instrument page makes ZERO
+   gateway calls — the RPC alone answers in 0.23-0.34s — and the one remaining
+   third-party call in the render was `getStockArticles` against newsapi.ai, at
+   1 to 1.5 seconds: more than the database read and the React render put
+   together. It is now app/api/stock-news/[ticker], reached from
+   components/terminal/use-stock-news.ts, so `articles` is null on BOTH paths
+   here and the assembler builds `news` from the gateway's own three headlines
+   alone. Those cost nothing: they are already inside the fundamentals document
+   on the slow path and inside the `news_gateway` section on the fast one, so
+   the rail is drawn the moment the page is and only gets richer. */
 
 type SectorMapFile = { sectors: Record<string, string> };
 const SECTORS = (sectorMap as SectorMapFile).sectors ?? {};
 
+/* Re-exported from their new home. Nine components and two test files import
+   these two names from here, and where the type lives is not worth a rename
+   across all of them. */
+export type { InstrumentSnapshot, PeerQuote } from "./instrument-assemble.ts";
+
 /* How many times to re-ask for a quote that failed, beyond the first attempt.
  *
  * It was one, after a flat 400ms, and that was sized for a six-page build. At
- * five hundred it is not enough: nine build workers each fanning out thirteen
- * concurrent calls is about 117 simultaneous requests, the gateway throttles
- * briefly, and one unlucky ticker takes the whole build down — SPCX did exactly
- * that, and answered normally when asked again a moment later.
+ * five hundred it is not enough: nine build workers each fanning out a dozen
+ * concurrent calls is over a hundred simultaneous requests, the gateway
+ * throttles briefly, and one unlucky ticker takes the whole build down — SPCX
+ * did exactly that, and answered normally when asked again a moment later.
  *
  * Three attempts on a curve of roughly 0.75s, 1.5s and 3s costs at most about
  * seven seconds, and only on the failure path — well inside the sixty-second
@@ -74,109 +127,360 @@ const SECTORS = (sectorMap as SectorMapFile).sectors ?? {};
  * is still better than baking a 404 onto a real company. */
 const QUOTE_RETRIES = 3;
 
-export type PeerQuote = {
-  id: string;
-  name: string;
-  price: number | null;
-  /** Move since yesterday's close, percent. */
-  chg: number | null;
-  /* Trailing-year return, percent, measured the same way the subject's is.
-     The comparison table used to print `chg` under a "1Y return" header, so
-     the subject's year sat beside every peer's day in one column. Null when
-     the peer's history does not reach back a year — returnsFrom refuses to
-     extrapolate one, and the table must show a dash rather than fall back to
-     the day move to fill the cell. */
-  ret1y: number | null;
-  marketCap: number | null;
-  pe: number | null;
-};
+/* What the chart says while the session series is still in flight.
+ *
+ * price-chart.tsx draws `history.intradayNote` over an empty day view, so this
+ * is the sentence a reader sees for the few hundred milliseconds between
+ * hydration and the first answer from /api/intraday. It has to be true of a
+ * shut market too, because a reader with JavaScript off never gets the second
+ * sentence: "loading" would be a promise this page cannot keep for them, while
+ * this says only where the series comes from. */
+const SESSION_SERIES_NOTE = "This session's trades load with the chart.";
 
-export type InstrumentSnapshot = {
-  profile: CompanyProfile;
-  /* The exchange's own state. The header used to announce "Market open" as a
-     fixed string beside a pulsing dot, on a Sunday as readily as a Tuesday. */
-  session: Session;
-  financials: { annual: FinancialYear[]; note: string | null };
-  technical: TechnicalRead;
-  shortInterest: {
-    shortInterest: number | null;
-    daysToCover: number | null;
-    settlementDate: string | null;
+/* How long the store gets to answer before the page stops waiting for it.
+ *
+ * The client's own ceiling is eight seconds, and that is the right number for
+ * a worker and the wrong one for a render: a store that has stopped answering
+ * would add all eight to a page that then still has to make eleven gateway
+ * calls and a peers wave, turning a fifteen-second cold page into a
+ * twenty-three-second one. A read doing its job answers in tens of
+ * milliseconds — one indexed query — so this is generous by an order of
+ * magnitude, and it is still far cheaper than the fan-out it exists to avoid.
+ *
+ * The abandoned read is not cancelled. It carries on into the unstable_cache
+ * entry it was already going to fill, so the next reader of this symbol finds
+ * the answer this one gave up on. Nothing is wasted except the waiting. */
+const STORE_BUDGET_MS = 2_500;
+
+/**
+ * The snapshot, minus the series that no longer travels with it.
+ *
+ * `assembleInstrument` still owns the day view — it is handed `intraday: null`
+ * on both paths and reports the empty series and its own note — and this
+ * replaces that note with one that describes where the bars actually come from
+ * now. Done here rather than in the assembler because the assembler is the one
+ * piece of this page with no opinion about transport.
+ *
+ * Exported only so a test can hold it to that. It is the last thing both paths
+ * pass through, and a day view that crept back into the payload would
+ * otherwise show up as a cold page that had quietly gone slow again rather
+ * than as a failing assertion.
+ */
+export function sessionSeriesDeferred(snapshot: InstrumentSnapshot): InstrumentSnapshot {
+  return {
+    ...snapshot,
+    history: { ...snapshot.history, intraday: [], intradayNote: SESSION_SERIES_NOTE },
   };
-  returns: Returns;
-  history: {
-    /* Five years of daily bars, split-repaired. Every range but the day is a
-       slice of this one series rather than a call of its own. */
-    daily: PricePoint[];
-    /** The current session's one-minute bars. Empty when the market is shut. */
-    intraday: PricePoint[];
-    /** Why the intraday series is empty, when it is. */
-    intradayNote: string | null;
-  };
-  dividends: Array<{ exDate: string; amount: number; payDate: string | null }>;
-  news: WireItem[];
-  peers: PeerQuote[];
-  /* The tracking fund's own history, so a period return can be shown beside
-     the market's for the same window. No index instrument is entitled, so this
-     is SPY rather than the S&P 500 itself, and the panel says so. */
-  market: { symbol: string; daily: PricePoint[] } | null;
-  /** The largest single-session moves in the record. */
-  notableMoves: Array<{ date: string; chg: string; color: string }>;
-  /* Analyst coverage, as a state rather than a claim.
-     `unavailable.analystTargets` was hardcoded `true` — correct today, because
-     every analyst path answers 403/4031, but it is a fact about the account
-     rather than about the company, and it could not become false when the
-     entitlement lifts. This carries the live answer instead, and distinguishes
-     "the account cannot see this" from "nobody covers this company" from "the
-     call failed and we do not know". The panel renders whichever it gets, and
-     starts showing real consensus the day the door opens with no code change
-     here. */
-  analyst: AnalystAvailability;
-  /** What this account has no entitlement for, so a panel can say so. */
-  unavailable: { analystTargets: true; institutionalHolders: true; marketShare: true };
-  status: "live" | "stale" | "degraded" | "down";
-  note: string | null;
-};
-
-const STALE_AFTER_MS = 15 * 60 * 1000;
-const MAX_PEERS = 8;
-
-/* The S&P 500 tracking fund. Index instruments answer notPermissioned on this
-   account, so a market comparison has to be made against the fund. */
-const MARKET_PROXY = "SPY";
-
-const MOVE_DATE = new Intl.DateTimeFormat("en-US", {
-  timeZone: "UTC",
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-});
-
-/** The largest single-session moves in the record, most recent first. */
-function largestSessions(points: PricePoint[], count = 3) {
-  const moves: Array<{ at: number; chg: number }> = [];
-  for (let i = 1; i < points.length; i += 1) {
-    const prev = points[i - 1].price;
-    if (prev > 0) moves.push({ at: points[i].at, chg: (points[i].price / prev - 1) * 100 });
-  }
-  return moves
-    .sort((a, b) => Math.abs(b.chg) - Math.abs(a.chg))
-    .slice(0, count)
-    .sort((a, b) => b.at - a.at)
-    .map((m) => ({
-      date: MOVE_DATE.format(m.at),
-      chg: `${m.chg >= 0 ? "+" : "−"}${Math.abs(m.chg).toFixed(2)}%`,
-      color: m.chg >= 0 ? "#7dd3a0" : "#e0796b",
-    }));
 }
 
-const value = <T,>(s: PromiseSettledResult<T>, fallback: T): T =>
-  s.status === "fulfilled" ? s.value : fallback;
+/**
+ * What a stored record turns out to be worth, as three outcomes rather than
+ * two.
+ *
+ * Collapsing `gateway` and `absent` into a single null is the mistake this
+ * union exists to make impossible. "The store has nothing for this symbol" and
+ * "the store holds a quote saying this symbol is not a company" are opposite
+ * claims: the first must fall through to the fan-out, the second must 404, and
+ * a page that mixes them up either bakes a 404 onto Apple because a database
+ * was empty, or renders a page of dashes for Nasdaq's test ticker.
+ */
+export type StoredRead =
+  /** Nothing usable here. Fall back to the gateway; NEVER a 404. */
+  | { use: "gateway" }
+  /** The store's own quote says there is no page to draw. */
+  | { use: "absent" }
+  | { use: "store"; inputs: InstrumentInputs };
 
-/* Structural rather than tied to ApiResult, so one helper serves every client
-   in the fan-out without a cast per call site. */
-const dataOf = <T,>(r: { ok: true; data: T } | { ok: false } | undefined): T | null =>
-  r !== undefined && r.ok ? r.data : null;
+/**
+ * One stored record, turned into the documents the assembly takes.
+ *
+ * Pure, and exported for that reason: this is the whole of the fast path's
+ * judgement — which fields come from where, which absences are failures the
+ * reader is owed a sentence about, and which of them mean there is no page —
+ * and none of it should be reachable only by pointing a render at Postgres.
+ * tests/instrument-store-path.test.ts is the caller that checks it against an
+ * equivalent set of gateway documents.
+ *
+ * `articles` is left null, and it now stays null all the way into the
+ * assembler on both paths — the wider pool is fetched by the browser, from
+ * app/api/stock-news/[ticker]. The field survives because the assembler is
+ * still the one thing that knows how to merge the two feeds, and the route
+ * calls the same normaliser with both halves filled.
+ */
+export function inputsFromStored(
+  record: StoredInstrument | null | undefined,
+  ticker: string,
+): StoredRead {
+  /* Three gates on whether the record says anything at all, and every one of
+     them means "fall back", not "no such company". `enrolled` is false for a
+     symbol nobody has opened yet; the quote and the profile are what every
+     panel on the page is measured against, and a record without them is a page
+     of dashes wearing a real company's name. */
+  if (!record || record.enrolled !== true) return { use: "gateway" };
+  const quote = record.quote;
+  if (!quote) return { use: "gateway" };
+
+  const sections = record.sections ?? {};
+  const profileDoc = fromStored("profile", sections.profile);
+  if (!profileDoc) return { use: "gateway" };
+
+  /* The same two durable refusals the gateway path makes, in the same order
+     and for the same reasons — see the notes on them below. They are read off
+     the stored quote because the stored quote IS the gateway's answer, kept
+     verbatim in market.quotes.raw.
+
+     Settled BEFORE the last gate, because they are about identity and it is
+     about quality. A placeholder has no five years of bars and never will, so
+     asking about the bars first would drop every one of them into the fan-out
+     to be refused a second time, thirty seconds later. Which is the right
+     order in general: what a record says about whether the company exists is
+     worth more than how much of the company it has. */
+  if (quote.notFound || quote.notPermissioned) return { use: "absent" };
+  if (isPlaceholderInstrument(quote.symbol, quote.companyName)) return { use: "absent" };
+
+  /* The last gate, and the only one that is about the QUALITY of the answer
+     rather than about whether there is one.
+
+     An enrolled symbol fills section by section, so there is a window — short
+     for a name somebody has just opened, long for as long as the store is
+     being filled for the first time — where the profile has landed and the
+     five years of bars have not. Every rule above admits that record, and
+     serving it is still the wrong answer: no chart, no returns, no notable
+     moves, no technicals, and a degraded note across a company the slow path
+     would have drawn whole. The bars are what the chart, the returns, the
+     moves and the three local indicators are all measured from, which makes
+     them the one section whose absence costs more than it saves.
+
+     So a record without bars pays for the fan-out, once. The visit stamp the
+     caller fires on the way past keeps the symbol enrolled, the refresher
+     fills the gap behind this reader, and the next one gets the fast page.
+     Empty counts as absent: a stored series of no bars draws the same nothing
+     as no series at all. */
+  const history = fromStored("history_daily", sections.history_daily);
+  if (!history || history.length === 0) return { use: "gateway" };
+
+  /* The news travels in its own section on its own six-hour cadence, because
+     leaving it inside the company record would make a company look revised
+     every time a wire moved. The assembly reads it back off `ticker_news`,
+     where the gateway puts it, so it is put back here. */
+  const news = fromStored("news_gateway", sections.news_gateway);
+  const fundamentals: RawFundamentals = news ? { ...profileDoc, ticker_news: news } : profileDoc;
+
+  const actions = fromStored("corporate_actions", sections.corporate_actions);
+  const financials = fromStored("financials_annual", sections.financials_annual);
+  const shortInterest = fromStored("short_interest", sections.short_interest);
+  const market = fromStored("history_daily", record.market?.history_daily);
+
+  /* RSI, the fifty-day average and the twenty-day average, computed here
+     rather than fetched — three of the gateway path's eleven calls, and every
+     one of them arithmetic over a series already in hand. The repair is
+     deliberately redone rather than borrowed: the assembly repairs the same
+     bars against the same record a moment later, and an indicator measured off
+     the raw series while the chart above it is measured off the repaired one
+     would disagree with the chart by a whole split.
+
+     Withheld entirely when the repair leaves nothing to measure. The gate
+     above means there were bars; `toPricePoints` can still discard every one
+     of them. An indicator document carrying no readings is a truthful shape,
+     but nulls are what the gateway path hands `toTechnicalRead` for a call
+     that did not answer, and the panel already draws that case. */
+  const daily = toPricePoints(repairAgainst(history, splitRecord(actions)));
+  const indicators =
+    daily.length > 0 ? indicatorsFromDaily(daily) : { rsi: null, sma: null, ema: null };
+
+  /* The whole second wave, already done. market_instrument joins the peers to
+     their stored quotes and to the trailing-year figure the history job
+     derived, so one batched quote call and up to sixteen per-peer calls
+     collapse into rows that arrived with the record. */
+  const peers: PeerQuote[] = (Array.isArray(record.peers) ? record.peers : [])
+    .slice(0, MAX_PEERS)
+    .map((p) => ({
+      id: p.s,
+      name: presentation(p.s, p.name).name,
+      price: p.px,
+      /* Passed through as the store holds it, which is one honest figure short
+         of the gateway path: market.quotes keeps a `chg_known` flag for the
+         names the gateway prices but sends no change for, and market_instrument
+         does not select it onto a peer row. Such a peer reads as flat rather
+         than as a dash. The fix is a column in the RPC, not a guess here. */
+      chg: p.chg,
+      ret1y: p.ret1y,
+      /* Already in dollars: toSweepRow multiplies the quotes feed's millions
+         out before the row is stored, where the gateway path has to do it
+         itself. */
+      marketCap: p.mcap,
+      pe: p.pe !== null && p.pe > 0 ? p.pe : null,
+    }));
+
+  /* Failures the store can see and the assembly cannot.
+   *
+   * The assembly finds its own — no company record, no filings, an unreadable
+   * corporate-actions document, no price history — from the nulls above, so
+   * those are not repeated here. Short interest is the one absence it has no
+   * name for, and on this path an absence is a fact worth reporting: a section
+   * with no stored payload has never been fetched successfully, and the panel
+   * that would have drawn it is empty because of that rather than because the
+   * company has no filing. */
+  const failures: string[] = [];
+  if (!shortInterest) failures.push("short interest");
+
+  const inputs: InstrumentInputs = {
+    ticker,
+    quote,
+    sector: SECTORS[ticker] ?? null,
+    fundamentals,
+    financials,
+    actions,
+    history,
+    indicators,
+    shortInterest,
+    /* The day view loads in the browser now, on both paths. */
+    intraday: null,
+    market,
+    /* The store observes whether the analyst door is open, not what is behind
+       it — its whole payload is an HTTP status. A shut door is reported as the
+       failure it is, so the panel says "not available on this account" exactly
+       as it does on the gateway path. An OPEN door is reported as nothing at
+       all: the entitlement would have landed and the store has no consensus to
+       hand over, and "we could not find out" is the honest answer to that,
+       where synthesising an empty record would print "no analyst coverage"
+       about a company the street may cover heavily. */
+    analyst: analystFrom(sections.analyst),
+    articles: null,
+    peers,
+    failures,
+    /* Epoch milliseconds throughout the `market_*` surface — see the note at
+       the top of store/types.ts. Handing the raw number to a field declared
+       `string | null` type-checks all the way to a freshness badge reading
+       fifty thousand years. */
+    storedAt: isoFrom(record.meta?.profile?.fetchedAt),
+  };
+
+  /* Same rule as the gateway path: peers the company named but nothing could
+     price are a degraded panel, not an empty one. profileFrom is a field read
+     over two documents already in memory. */
+  if (peers.length === 0 && profileFrom(inputs).peers.length > 0) failures.push("peers");
+
+  return { use: "store", inputs };
+}
+
+function analystFrom(payload: unknown): InstrumentInputs["analyst"] {
+  const observed = fromStored("analyst", payload);
+  if (!observed || observed.ok) return undefined;
+  return {
+    ok: false,
+    error: `analyst paths answer ${observed.status}`,
+    status: observed.status,
+    ms: 0,
+  };
+}
+
+function isoFrom(epochMs: number | null | undefined): string | null {
+  if (typeof epochMs !== "number" || !Number.isFinite(epochMs)) return null;
+  return new Date(epochMs).toISOString();
+}
+
+/**
+ * The fetch this file writes with, which must never be the one Next patched.
+ *
+ * Next replaces `globalThis.fetch` during a build and inside the server, and
+ * the replacement reads the render's own work-unit store: a `cache: "no-store"`
+ * request — which is every RPC in store/client.ts — reaches
+ * patch-fetch.js:854, falls through that switch for a `prerender-legacy` store,
+ * and lands in dynamic-rendering.js:238, which sets `revalidate = 0` on the
+ * render and throws DynamicServerError. That is the correct behaviour for a
+ * page reading live data. It is catastrophic for a stamp nobody is waiting on:
+ * `revalidate = 0` is collected at app-render.js:4258 and turned into a cache
+ * control of zero, and export/routes/app-page.js:60 then writes no static
+ * output at all. The throw itself is swallowed by `rpc`, so the page still
+ * renders and nothing says a word — the only symptom is that /terminal/[ticker]
+ * silently stops being prerendered and stops filling its ISR entry, and every
+ * request pays the eight-to-thirty-second fan-out this whole layer exists to
+ * remove. It would have shown up only in production, because the stamp is
+ * guarded on a store configuration that dev and CI do not have.
+ *
+ * So the stamp goes around the patch, to the original fetch Next keeps a
+ * handle on. `_nextOriginalFetch` is the dedupe wrapper, and dedupe-fetch.js:88
+ * opts out of deduplication whenever a signal is set, which `rpc` always sets —
+ * so this is the plain platform fetch, with nothing between it and the socket
+ * that has an opinion about the render it happens to be inside.
+ *
+ * Null when fetch is patched and the handle is not there, which is a shape
+ * only a future version of Next can produce. A lost visit stamp costs one
+ * refresh cycle of priority; a lost prerender costs every reader of the symbol
+ * thirty seconds. Given the choice this drops the stamp.
+ *
+ * Exported for tests/instrument-store-path.test.ts, which is the only way this
+ * can fail loudly: the bug it prevents is silent in production and invisible
+ * in dev, so the guarantee has to be an assertion rather than a comment.
+ */
+type MaybePatchedFetch = typeof fetch & {
+  __nextPatched?: boolean;
+  _nextOriginalFetch?: typeof fetch;
+};
+
+export function unpatchedFetch(): typeof fetch | null {
+  const current = globalThis.fetch as MaybePatchedFetch | undefined;
+  if (typeof current !== "function") return null;
+  // Not in a render at all — the worker, the probe, `node --test`.
+  if (current.__nextPatched !== true) return current;
+  return typeof current._nextOriginalFetch === "function" ? current._nextOriginalFetch : null;
+}
+
+/**
+ * Mark this symbol as visited, and never let it cost the reader anything.
+ *
+ * The refresher enrols on visits: a name somebody opened is worth keeping warm
+ * and rises to priority 2 in the cadence table, which is how the store fills
+ * itself along the paths readers actually walk. It is fired on the store path
+ * too, because a hit is exactly the evidence that this name deserves to stay
+ * warm.
+ *
+ * Called only once the symbol has been shown to be a company — after the
+ * stored record survives its own refusals, or after the gateway quote survives
+ * the same ones. market_touch_visit INSERTs a `market.symbols` row for whatever
+ * string it is handed and enrols it on six sections, so firing it on the way in
+ * would let any anonymous request to /terminal/<sixteen characters of nonsense>
+ * write a row and queue six refresh jobs for a name that can only ever error
+ * and back off. The page is public; the write has to be earned.
+ *
+ * Deliberately not awaited. The stamp is worth a round trip to Mumbai only if
+ * that round trip is somebody else's; a visit lost to a process that finished
+ * first costs one refresh cycle of priority and nothing else. Guarded on
+ * `storeConfigured` so a dev machine with no Supabase does not open a socket
+ * per page view, given a fetch of its own so it cannot bail the page out of
+ * static generation (see above), and caught unconditionally so an unhandled
+ * rejection can never take down a render that had already succeeded.
+ */
+function markVisited(ticker: string): void {
+  if (!storeConfigured()) return;
+  const fetchImpl = unpatchedFetch();
+  if (!fetchImpl) return;
+  /* client.ts calls `fetchImpl` a test seam. This is the second caller and the
+     reason it has to stay: there is no other handle on a fetch that Next has
+     not wrapped. */
+  void touchVisit(ticker, { fetchImpl }).catch(() => {});
+}
+
+/**
+ * A promise flattened into the shape `Promise.allSettled` produces.
+ *
+ * The one caller left is the quote retry, and the shape is the point there:
+ * `quoteVerdict` reads a settled result, so a re-ask has to arrive wearing the
+ * same clothes as the element of the fan-out it replaces.
+ *
+ * It was also what let a call be started before anything awaited it — a
+ * promise that can reject with nobody listening, which Node has thrown on by
+ * default since v15 — and attaching both handlers at the moment the call is
+ * made is what made that safe. Nothing does that any more: the news pool was
+ * the one call worth starting early, and it has left the render entirely.
+ */
+function asSettled<T>(pending: Promise<T>): Promise<PromiseSettledResult<T>> {
+  return pending.then(
+    (v) => ({ status: "fulfilled", value: v }) as const,
+    (reason: unknown) => ({ status: "rejected", reason }) as const,
+  );
+}
 
 export const getInstrumentSnapshot = cache(
   async (rawTicker: string): Promise<InstrumentSnapshot | null> => {
@@ -184,8 +488,39 @@ export const getInstrumentSnapshot = cache(
     if (!ticker) return null;
 
     const now = nowMs();
-    const failures: string[] = [];
 
+    /* The two modules in this file's graph that reach next/cache, imported at
+       the point they are called rather than at the top.
+
+       `next/cache` does not resolve in a plain Node process — that is the rule
+       the whole of lib/api and lib/market/store is written to, so the refresh
+       worker and the probe can share the real client code — and a static
+       import of either module would make this file unloadable outside a Next
+       render. `inputsFromStored` below would go with it, and it is the one
+       part of the fast path with any judgement in it. Loaded here, the module
+       registry hands back the same instance on every call after the first, and
+       the pure half is reachable by `node --test`. The same trade is what
+       bought instrument-assemble.ts its tests. */
+    const { getCorporateActions, getFinancials, getFundamentals } =
+      await import("../api/cache-layer.ts");
+
+    /* ---- the fast path ---- */
+    const stored = await readStored(ticker);
+
+    if (stored.use === "absent") return null;
+
+    if (stored.use === "store") {
+      /* The record answered, which means the quote in it said this is a
+         company. That is the evidence the stamp needs, and a hit is exactly
+         the name worth keeping warm. */
+      markVisited(ticker);
+      /* One RPC and nothing else. `inputs.articles` is already null and stays
+         that way: this used to await the news provider here, which was the
+         whole of what a filled-store page still cost a reader. */
+      return sessionSeriesDeferred(assembleInstrument(stored.inputs, now));
+    }
+
+    /* ---- the gateway fan-out, unchanged ---- */
     const [
       quoteS,
       fundamentalsS,
@@ -196,10 +531,8 @@ export const getInstrumentSnapshot = cache(
       smaS,
       emaS,
       shortS,
-      intradayS,
       marketS,
       analystS,
-      articlesS,
     ] = await Promise.allSettled([
       fetchQuotes([ticker], TTL.sweep, [TAGS.quotes]),
       getFundamentals(ticker),
@@ -210,19 +543,12 @@ export const getInstrumentSnapshot = cache(
       fetchIndicator("sma", ticker, { window: 50, timespan: "day" }, TTL.history1m, [TAGS.history]),
       fetchIndicator("ema", ticker, { window: 20, timespan: "day" }, TTL.history1m, [TAGS.history]),
       fetchShortInterest(ticker, TTL.fundamentals, [TAGS.fundamentals]),
-      fetchIntraday(ticker, TTL.sweep, [TAGS.history]),
       fetchHistory(MARKET_PROXY, "5y", TTL.history1m, [TAGS.history]),
       /* 403 today on every analyst path. It rides the fan-out anyway so the
          refusal is observed per request rather than assumed, and so the panel
          fills itself the day the entitlement arrives. allSettled means the
          refusal cannot take the page down. */
       fetchAnalystConsensus(ticker, TTL.fundamentals, [TAGS.fundamentals]),
-      /* The wider news pool. The gateway bundles three articles per ticker and
-         about two are filler, so three relevant stories cannot come from it —
-         this is the second source, cached a day and budget-guarded. It rides
-         allSettled like everything else: an exhausted allowance or a dead
-         provider costs the page its extra headlines, never the page. */
-      getStockArticles(presentation(ticker).name, ticker),
     ]);
 
     /* The quote decides whether this page exists at all. A ticker the gateway
@@ -236,7 +562,8 @@ export const getInstrumentSnapshot = cache(
        notFound() and Next bakes the 404 into the prerender. A clean build
        shipped exactly that on all six covered tickers, and the same fault was
        caught live in dev, where this route answered "Stock not found" and then
-       200 on the very next request.
+       200 on the very next request. It is also why a store MISS lands here
+       rather than returning null a few lines above.
 
        So a failed call is retried once — the observed failure recovered
        immediately, and one extra call on the failure path is cheap against
@@ -265,10 +592,7 @@ export const getInstrumentSnapshot = cache(
     for (let attempt = 1; attempt <= QUOTE_RETRIES; attempt += 1) {
       if (quoteVerdict(settled) !== "unavailable") break;
       await new Promise((resolve) => setTimeout(resolve, reconnectDelay(attempt)));
-      settled = await fetchQuotes([ticker], TTL.sweep, [TAGS.quotes]).then(
-        (v) => ({ status: "fulfilled", value: v }) as const,
-        (reason: unknown) => ({ status: "rejected", reason }) as const,
-      );
+      settled = await asSettled(fetchQuotes([ticker], TTL.sweep, [TAGS.quotes]));
     }
 
     if (quoteVerdict(settled) === "unavailable") {
@@ -299,58 +623,51 @@ export const getInstrumentSnapshot = cache(
        during a build, into a failed deploy. */
     if (isPlaceholderInstrument(quote.symbol, quote.companyName)) return null;
 
-    const fundamentals = dataOf<Parameters<typeof toCompanyProfile>[0]["fundamentals"]>(
-      value(fundamentalsS, undefined),
-    );
-    if (!fundamentals) failures.push("company record");
+    /* Past every refusal, so this is a real listing with a real page. Now the
+       store may hear about it: the fan-out below is the cost this stamp exists
+       to stop the next reader paying. */
+    markVisited(ticker);
 
-    const profile = toCompanyProfile({
+    const inputs: InstrumentInputs = {
       ticker,
       quote,
-      fundamentals: fundamentals ?? undefined,
       sector: SECTORS[ticker] ?? null,
-    });
-
-    /* ---- filings ---- */
-    const rawFinancials = dataOf<Parameters<typeof toFinancialYears>[0]>(value(financialsS, undefined));
-    const annual = rawFinancials ? toFinancialYears(rawFinancials) : [];
-    if (annual.length === 0) failures.push("filings");
-
-    /* ---- history, split-repaired before anything is measured ---- */
-    const actions = dataOf<
-      ActionsRecord & {
-        dividends?: Array<{
-          ex_dividend_date: string;
-          cash_amount: number;
-          pay_date: string | null;
-        }> | null;
-      }
-    >(value(actionsS, undefined));
-
-    /* A company with no splits and a corporate-actions call that failed used
-       to be the same value here, and they are opposites: the first says the
-       raw series needs no repair, the second says we cannot know whether it
-       does. See lib/market/split-record.ts — Netflix shipped a −93.3% year
-       off an unapplied ten-for-one split on the strength of that conflation. */
-    const record = splitRecord(actions);
-    if (!record.readable) failures.push("corporate actions");
-
-    const rawHistory = dataOf<RawHistoryPoint[]>(value(historyS, undefined));
-    const series = rawHistory ? repairAgainst(rawHistory, record) : [];
-    if (series.length === 0) failures.push("price history");
-
-    const daily = toPricePoints(series);
-
-    const rawIntraday = dataOf<Parameters<typeof toPricePoints>[0]>(value(intradayS, undefined));
-    const intraday = rawIntraday ? toPricePoints(rawIntraday) : [];
-
-    const rawMarket = dataOf<Parameters<typeof toPricePoints>[0]>(value(marketS, undefined));
-    const marketDaily = rawMarket ? toPricePoints(rawMarket) : [];
+      fundamentals: dataOf<RawFundamentals>(value(fundamentalsS, undefined)),
+      financials: dataOf<RawFinancials>(value(financialsS, undefined)),
+      actions: dataOf<RawCorporateActions>(value(actionsS, undefined)),
+      history: dataOf<RawHistoryPoint[]>(value(historyS, undefined)),
+      indicators: {
+        rsi: dataOf(value(rsiS, undefined)),
+        sma: dataOf(value(smaS, undefined)),
+        ema: dataOf(value(emaS, undefined)),
+      },
+      shortInterest: dataOf<RawShortInterest>(value(shortS, undefined)),
+      /* The day view is fetched by the browser now, not here. It was the one
+         call on this page with a horizon under half an hour, and the reader
+         waited on it along with the other twelve. */
+      intraday: null,
+      market: dataOf<RawHistoryPoint[]>(value(marketS, undefined)),
+      analyst: value(analystS, undefined),
+      /* The wider news pool is the browser's call now, on both paths. It was
+         the last third-party call in the render and the most expensive one
+         left — see the note at the top of this file. The gateway's own three
+         headlines are already inside the fundamentals document above, so the
+         rail still renders with the page. */
+      articles: null,
+      /* Both filled by the wave below, which cannot start until the company
+         record has named the peers. */
+      peers: [],
+      failures: [],
+      /* The gateway path has no stored row behind it, so there is no date to
+         show a reader. */
+      storedAt: null,
+    };
 
     /* ---- peers, in one batched call ---- */
+    const profile = profileFrom(inputs);
     const peerIds = profile.peers.slice(0, MAX_PEERS);
-    let peers: PeerQuote[] = [];
     if (peerIds.length > 0) {
+      let peers: PeerQuote[] = [];
       const peerQuotes = await fetchQuotes(peerIds, TTL.sweep, [TAGS.quotes]).catch(() => null);
       if (peerQuotes?.ok) {
         peers = peerQuotes.data
@@ -368,17 +685,19 @@ export const getInstrumentSnapshot = cache(
             pe: q.priceEarningRatio !== null && q.priceEarningRatio > 0 ? q.priceEarningRatio : null,
           }));
       } else {
-        failures.push("peers");
+        inputs.failures.push("peers");
       }
 
       /* One trailing year per peer, so every row of the comparison measures
          the same window. Two cached calls per peer, fanned out rather than
-         chained; warm page cost was unchanged at ~0.34s.
+         chained; warm page cost was unchanged at ~0.34s. This is the wave the
+         store path does not have to run at all — market_instrument joins the
+         same figure out of each peer's stored history.
 
          The corporate actions are not optional. Measuring the raw series
          alone put Netflix at −93.3% off a $80.58 price — a ten-for-one split
          the vendor had not applied, read as a collapse. The subject's series
-         is repaired the same way a few lines above, and a peer column that
+         is repaired the same way in the assembler, and a peer column that
          skipped it would be quoting a different, wronger number than the one
          it replaced.
 
@@ -397,99 +716,52 @@ export const getInstrumentSnapshot = cache(
           Promise.allSettled(peers.map((c) => getCorporateActions(c.id))),
         ]);
         peers = peers.map((c, i) => {
-          const settled = histories[i];
+          const settledHistory = histories[i];
           const raw =
-            settled.status === "fulfilled" && settled.value.ok ? settled.value.data : null;
+            settledHistory.status === "fulfilled" && settledHistory.value.ok
+              ? settledHistory.value.data
+              : null;
           if (!raw) return { ...c, ret1y: null };
           const peerRecord = splitRecord(dataOf<ActionsRecord>(value(actionsList[i], undefined)));
           return { ...c, ret1y: returnsAgainst(raw, peerRecord).ret1y };
         });
       }
+
+      inputs.peers = peers;
     }
 
-    /* ---- the rest ---- */
-    const short = dataOf<{
-      results?: Array<{
-        short_interest: number;
-        days_to_cover: number;
-        settlement_date: string;
-      }>;
-    }>(value(shortS, undefined))?.results?.[0];
-
-    /* Both feeds, ranked as one list. toWireItems has already dropped anything
-       the gateway's own reasoning marks as a mention, and toStockNews scores
-       the second source on its concepts, dedupes the syndicated copies the two
-       share, caps any one publisher and takes the best three. */
-    const gatewayNews = toWireItems(
-      fundamentals?.ticker_news?.length ? [{ ticker, news: fundamentals.ticker_news }] : [],
-      now,
-      8,
-    );
-    const articles = dataOf(value(articlesS, undefined)) ?? [];
-    const news = toStockNews(gatewayNews, articles, ticker, now, 3);
-
-    const dividends = (actions?.dividends ?? [])
-      .filter((d) => d.cash_amount > 0 && d.ex_dividend_date)
-      .slice(0, 6)
-      .map((d) => ({ exDate: d.ex_dividend_date, amount: d.cash_amount, payDate: d.pay_date }));
-
-    const aged = profile.asOf !== null && now - profile.asOf > STALE_AFTER_MS;
-    const status: InstrumentSnapshot["status"] =
-      failures.length >= 3 ? "degraded" : profile.delayed || aged ? "stale" : "live";
-
-    const note =
-      status === "degraded"
-        ? `Some of this company's record is unavailable: ${failures.join(", ")}.`
-        : status === "stale"
-          ? `Quotes run fifteen minutes behind${
-              profile.asOf === null ? "" : `; the last tick arrived ${relativeAge(profile.asOf, now)}`
-            }.`
-          : null;
-
-    return {
-      profile,
-      session: sessionAt(nowSeconds()),
-      financials: {
-        annual,
-        note: annual.length === 0 ? "No filings are available for this company." : null,
-      },
-      technical: toTechnicalRead({
-        rsi: dataOf(value(rsiS, undefined)),
-        sma: dataOf(value(smaS, undefined)),
-        ema: dataOf(value(emaS, undefined)),
-        price: profile.price,
-        low52: profile.low52,
-        high52: profile.high52,
-      }),
-      shortInterest: {
-        shortInterest: short?.short_interest ?? null,
-        daysToCover: short?.days_to_cover ?? null,
-        settlementDate: short?.settlement_date ?? null,
-      },
-      /* Measured from the raw series rather than the repaired one, so the
-         repair and the measurement cannot come apart: returnsAgainst does
-         both, or neither. The chart below keeps its bars either way. */
-      returns: returnsAgainst(rawHistory ?? [], record),
-      history: {
-        daily,
-        intraday,
-        intradayNote:
-          intraday.length > 0
-            ? null
-            : "No trades yet this session. The day view fills when the market opens.",
-      },
-      dividends,
-      news,
-      peers,
-      market: marketDaily.length ? { symbol: MARKET_PROXY, daily: marketDaily } : null,
-      /* An unapplied ten-for-one split is a −90% session, and it would top
-         this list every time — the one figure on the page most likely to be
-         a split break is the one this picks out. Withheld with the returns. */
-      notableMoves: record.readable ? largestSessions(daily) : [],
-      analyst: toAnalystAvailability(value(analystS, undefined), profile.price),
-      unavailable: { analystTargets: true, institutionalHolders: true, marketShare: true },
-      status,
-      note,
-    };
+    return sessionSeriesDeferred(assembleInstrument(inputs, now));
   },
 );
+
+/**
+ * The store read, with every way it can go wrong flattened to "fall back".
+ *
+ * `readInstrument` already returns rather than throws — an unconfigured store
+ * is `ok: false`, not an exception — so the catch is for the import itself and
+ * for anything next/cache decides to throw inside a render it does not like.
+ * Whatever the reason, the answer is the same one, and it is the answer this
+ * whole layer is built to guarantee: the reader gets the slow page, not a
+ * blank one.
+ */
+async function readStored(ticker: string): Promise<StoredRead> {
+  if (!storeConfigured()) return { use: "gateway" };
+  try {
+    const { readInstrument } = await import("./store/reads.ts");
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const budget = new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), STORE_BUDGET_MS);
+    });
+
+    try {
+      const result = await Promise.race([readInstrument(ticker), budget]);
+      if (!result || !result.ok) return { use: "gateway" };
+      return inputsFromStored(result.data, ticker);
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch {
+    return { use: "gateway" };
+  }
+}

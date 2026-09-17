@@ -20,8 +20,25 @@ import { WIRE_PATH } from "@/lib/market/paths";
  * nothing more to show — the About paragraph is complete and `notableMoves(snapshot)`
  * already returns its whole list — and inventing a destination for them would
  * have been the same lie in a longer form.
+ *
+ * `news` is passed rather than read off the snapshot because it is the one
+ * thing on this page that arrives after it. The snapshot carries the gateway's
+ * own headlines, which the store already holds; the wider pool is fetched by
+ * the browser, and instrument-view.tsx owns that hook so the rail's two copies
+ * do not each make the call. Everything else here is drawn once and stands.
+ *
+ * `newsSettled` says whether that second feed has answered yet. It is not a
+ * spinner and nothing draws it — it decides one sentence, below.
  */
-export function RightRail({ snapshot }: { snapshot: InstrumentSnapshot }) {
+export function RightRail({
+  snapshot,
+  news,
+  newsSettled,
+}: {
+  snapshot: InstrumentSnapshot;
+  news: WireItem[];
+  newsSettled: boolean;
+}) {
   const moves = notableMoves(snapshot);
   const [story, setStory] = useState<WireItem | null>(null);
 
@@ -53,16 +70,54 @@ export function RightRail({ snapshot }: { snapshot: InstrumentSnapshot }) {
             ETF comparison in which the company is a 6% holding. Those are
             filtered out upstream, which means a quiet name legitimately shows
             nothing. Backfilling with the roundups we just rejected would undo
-            the filter, so this says why instead. */}
-        {snapshot.news.length === 0 && (
-          <p className="max-w-[42ch] text-[13px] leading-[1.7] text-ink-3">
-            Nothing published about {snapshot.profile.id} in the last two weeks. The feed
-            carried other stories naming it — index roundups, fund holdings lists — but
-            none of them were about the company.
-          </p>
-        )}
+            the filter, so this says why instead.
+
+            AND IT WAITS FOR BOTH FEEDS, which is why `newsSettled` exists.
+            Read the sentence: it is a claim about the feed, not about one
+            source in it. The wider pool now lands after the page does, so
+            without the gate this would be printed by a render that had
+            consulted the gateway's three bundled articles and nothing else —
+            and stock-news.ts is explicit that roughly two of every three of
+            those are filler, which puts all three being filler at about one
+            name in three. On those the paragraph would appear, assert
+            something the page had not earned, and be contradicted by real
+            headlines a second later. A heading over one row of held space for
+            that second is the honest version of the same wait. */}
+        {news.length === 0 &&
+          (newsSettled ? (
+            <p className="max-w-[42ch] text-[13px] leading-[1.7] text-ink-3">
+              Nothing published about {snapshot.profile.id} in the last two weeks. The feed
+              carried other stories naming it — index roundups, fund holdings lists — but
+              none of them were about the company.
+            </p>
+          ) : (
+            /* One row of held height, and nothing in it — no shimmer, no
+               skeleton, nothing that would read as a promise about what is
+               coming. It is not the fixed-height element DESIGN.md reserves
+               for the chart; it is a floor under a section that is briefly
+               empty, sized so that whichever of the two outcomes lands —
+               three wrapped lines of the paragraph above, or the first
+               headline row below — arrives without stepping the rail. */
+            <div aria-hidden="true" className="min-h-[66px]" />
+          ))}
+        {/* Nothing is reserved for the LIST's growth, and that is deliberate —
+            the single row above is a floor under an empty section, not a box
+            sized for this.
+
+            DESIGN.md is explicit that the chart is the ONE fixed-height element
+            on this page, so a second reserved box here would make that sentence
+            false to buy something the layout already gives. At xl the rail is
+            its own scroll container (see WorkColumn), so a row appearing in it
+            cannot move a pixel of the working column. Below xl the rail IS the
+            last section of the page and the newswire is its first block, so the
+            only thing a new row can push down is the rest of the rail — About
+            and Notable moves, thousands of pixels below the fold and reached
+            long after this has settled. A min-height guessed at three unwrapped
+            headlines would not be right at any breakpoint anyway: these titles
+            wrap to two and three lines. One row can be guessed at; three
+            wrapped ones cannot. */}
         <ul className="m-0 flex list-none flex-col p-0">
-          {snapshot.news.map((n: WireItem) => (
+          {news.map((n: WireItem) => (
             <li key={n.id} className="border-t border-rule-list first:border-t-0">
               <button
                 type="button"

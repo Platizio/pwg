@@ -11,6 +11,9 @@ import { changeOverSessions, relativeAge } from "@/lib/api/normalize/time";
 import { toWireItems } from "@/lib/api/normalize/wire";
 import { sweptMarket } from "@/lib/market/swept";
 import { TAGS, TTL } from "@/lib/api/ttl";
+import { homeInputsFrom } from "./home-inputs.ts";
+import { storeConfigured } from "./store/client.ts";
+import { readHome } from "./store/reads.ts";
 import { newest, oldest, quoteAge, type Freshness } from "@/lib/market/freshness";
 import { breadthSample } from "@/lib/market/membership";
 import { baselineSnapshot, describeBaseline } from "@/lib/market/baseline";
@@ -28,6 +31,7 @@ import {
 } from "@/lib/market/universe";
 import sectorMap from "@/lib/market/data/sector-map.json" with { type: "json" };
 
+import type { RawCorporateActions, RawTickerNews } from "@/lib/api/clients/fundamentals";
 import type { RawEquityQuote } from "@/lib/api/clients/quotes";
 import type { ApiResult } from "@/lib/api/errors";
 import type { Snapshot, SweepRow } from "@/lib/api/sweep";
@@ -48,7 +52,16 @@ import type { SectorName } from "@/lib/market/universe";
    The other rule is that this function does not throw. Every upstream is
    awaited through allSettled, and a panel whose source died renders as an
    empty card with an honest line in it. It never falls back to the seeded
-   mock: a plausible wrong price is worse than a blank one. */
+   mock: a plausible wrong price is worse than a blank one.
+
+   Where the data comes from is a separate question from what the page does
+   with it, and the two are kept apart on purpose. `Sources` below is the whole
+   interface: the durable store fills it in one query, the gateway fan-out fills
+   it in about three hundred, and everything from the panels down was written
+   against it and cannot tell which it got. The store is tried first and simply
+   declines — by returning null — when it is unconfigured, unreachable or not
+   yet filled, which is why a deployment with no Supabase credentials renders
+   exactly the page it rendered before any of this existed. */
 
 export type PanelStatus = "live" | "stale" | "degraded" | "down";
 
@@ -319,6 +332,134 @@ async function weekChanges(): Promise<{ byEtf: Map<string, number | null>; faile
 }
 
 /* ------------------------------------------------------------------ */
+/* Where the page's data comes from                                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The five things the assembler reads, whichever source produced them.
+ *
+ * The store and the gateway answer the same questions in different numbers of
+ * requests — one against about three hundred — and the whole point of the
+ * durable store is that nothing below this type can tell which it got. So the
+ * seam is here, and it is deliberately narrow: two functions fill this shape,
+ * the assembler reads it, and every judgement the page makes about what to show
+ * and what to admit is made once, downstream of both.
+ */
+type Sources = {
+  swept: Snapshot | null;
+  strip: RawEquityQuote[];
+  /** Why the strip is empty, when the call itself is what failed. */
+  stripError: string | null;
+  weekByEtf: Map<string, number | null>;
+  weekFailed: number;
+  wire: Array<{ ticker: string; news: RawTickerNews[] }>;
+  wireFailed: number;
+  calendar: Array<{ ticker: string; actions: RawCorporateActions }>;
+  calendarFailed: number;
+  /** True when these are the store's quotes and it could not date its sweep. */
+  undated: boolean;
+};
+
+/**
+ * One query, or nothing.
+ *
+ * `market_home` answers the hot rows, both strips, a week of bars per sector
+ * fund, the wire and the calendar together, so the cold dashboard costs one RPC
+ * where it used to cost the sweep's chunks plus a hundred and fifty-six
+ * reference calls. Returning null is how this says "ask the gateway instead",
+ * and it says it for all three ways the store can decline to answer: it has not
+ * been configured, it did not answer, or it has no rows yet.
+ *
+ * That last one is the case that matters while the refresher is still filling.
+ * Zero rows is never a fact about the market — screen.ts's `sweepAnswered` sets
+ * out why at length — so an empty store is a store that cannot answer, not a
+ * market with nothing in it, and the page falls through to what it always did.
+ *
+ * A PARTIALLY filled store is a different matter and is deliberately NOT a
+ * reason to fall back. The quotes arrive in one sweep and the reference
+ * sections trickle in behind them over hours, so a store with rows but no news
+ * yet is the normal state on the first afternoon. The wire panel already knows
+ * how to say it is empty and why; re-running the whole gateway fan-out to fill
+ * one rail would give up the entire saving for the sake of eight headlines.
+ */
+async function fromStore(now: number): Promise<Sources | null> {
+  /* Asked before the read, so an unconfigured deployment costs nothing at all.
+     readHome would answer `ok: false` on its own, but only after building a
+     cache entry and throwing a TransientFailure through it once per render. */
+  if (!storeConfigured()) return null;
+
+  const result = await readHome();
+  if (!result.ok) return null;
+
+  const inputs = homeInputsFrom(result.data, SECTOR_ETF_SYMBOLS, now);
+  if (inputs.snapshot.rows.length === 0) return null;
+
+  /* Clamped because these are differences between what the page asked for and
+     what came back, and a negative shortfall would read as a fault. */
+  const missed = (asked: number, answered: number) => Math.max(0, asked - answered);
+
+  return {
+    swept: inputs.snapshot,
+    strip: inputs.strip,
+    stripError: null,
+    weekByEtf: inputs.weekByEtf,
+    weekFailed: inputs.weekFailed,
+    wire: inputs.wire,
+    wireFailed: missed(WIRE_TICKERS.length, inputs.wireAnswered),
+    calendar: inputs.calendar,
+    calendarFailed: missed(CALENDAR_TICKERS.length, inputs.calendarAnswered),
+    undated: inputs.undated,
+  };
+}
+
+/**
+ * The fan-out this page has always made, unchanged.
+ *
+ * Still five-way and still `allSettled`, because the reason for both survives
+ * the store: these are five independent upstreams and a panel whose source died
+ * should render empty with an honest line in it rather than take the page down.
+ * This is now the fallback rather than the normal path, and it has to keep
+ * working exactly as it did — it is what a reader gets in development, in CI,
+ * and anywhere the store has not been pointed at.
+ */
+async function fromGateway(strip: string[]): Promise<Sources> {
+  const [sweepSettled, stripSettled, weekSettled, newsSettled, actionsSettled] =
+    await Promise.allSettled([
+      sweptMarket(),
+      fetchQuotes(strip, TTL.indexEtf, [TAGS.indices]),
+      weekChanges(),
+      perTicker(WIRE_TICKERS, getFundamentals),
+      perTicker(CALENDAR_TICKERS, getCorporateActions),
+    ]);
+
+  const stripResult = settledOr(stripSettled, null);
+  const week = settledOr(weekSettled, {
+    byEtf: new Map<string, number | null>(),
+    failed: SECTOR_ETF_SYMBOLS.length,
+  });
+  const news = settledOr(newsSettled, { rows: [], failed: WIRE_TICKERS.length });
+  const actions = settledOr(actionsSettled, { rows: [], failed: CALENDAR_TICKERS.length });
+
+  return {
+    swept: settledOr(sweepSettled, null),
+    strip: stripResult !== null && stripResult.ok ? stripResult.data : [],
+    stripError: stripResult !== null && !stripResult.ok ? stripResult.error : null,
+    weekByEtf: week.byEtf,
+    weekFailed: week.failed,
+    /* A fundamentals document that carries no news is a successful answer about
+       a quiet company rather than a failure, so it leaves the wire without
+       touching the count of who answered. */
+    wire: news.rows
+      .filter((r) => r.data.ticker_news !== null)
+      .map((r) => ({ ticker: r.ticker, news: r.data.ticker_news ?? [] })),
+    wireFailed: news.failed,
+    calendar: actions.rows.map((r) => ({ ticker: r.ticker, actions: r.data })),
+    calendarFailed: actions.failed,
+    undated: false,
+  };
+}
+
+/* ------------------------------------------------------------------ */
 /* The assembler                                                       */
 /* ------------------------------------------------------------------ */
 
@@ -331,17 +472,16 @@ export const getHomeSnapshot = cache(async (): Promise<HomeSnapshot> => {
      the gateway's fifty-symbol cap, so both strips cost one request. */
   const strip = [...INDEX_ETF_SYMBOLS, ...SECTOR_ETF_SYMBOLS];
 
-  const [sweepSettled, stripSettled, weekSettled, newsSettled, actionsSettled] =
-    await Promise.allSettled([
-      sweptMarket(),
-      fetchQuotes(strip, TTL.indexEtf, [TAGS.indices]),
-      weekChanges(),
-      perTicker(WIRE_TICKERS, getFundamentals),
-      perTicker(CALENDAR_TICKERS, getCorporateActions),
-    ]);
+  /* The store, then the gateway, then the committed baseline, in that order.
+     Each step down costs more and knows less, and no step may leave a reader
+     with an invented figure: the last of the three is real data that was once
+     true, dated and flagged, which is a different thing from the seeded mock. */
+  const stored = await fromStore(now);
+  const viaStore = stored !== null;
+  const sources = stored ?? (await fromGateway(strip));
 
   /* ---- the sweep, which every board is drawn from ---- */
-  const swept = settledOr(sweepSettled, null);
+  const swept = sources.swept;
   if (swept === null) faults.push({ severity: "fatal", message: "sweep: no snapshot returned" });
   else {
     const chunks = shortfall("sweep chunks", swept.failedChunks, swept.calls);
@@ -371,6 +511,22 @@ export const getHomeSnapshot = cache(async (): Promise<HomeSnapshot> => {
         ms: 0,
       });
 
+  /* How old the store's quotes are, which only the store can be wrong about:
+     a gateway sweep is by definition the one that just ran, while a stored row
+     is however old the refresher last left it. `degraded` rather than `fatal`
+     because these are real readings that have simply aged past the fifteen
+     minutes the feed is delayed by — health() ranks that below a page serving
+     the baseline, which is the distinction health.ts was written to keep. */
+  if (viaStore) {
+    if (sources.undated)
+      faults.push({ severity: "degraded", message: "store: the quote sweep is undated" });
+    else if (now - s.sweptAt > STALE_AFTER_MS)
+      faults.push({
+        severity: "degraded",
+        message: `store: quotes last swept ${relativeAge(s.sweptAt, now)}`,
+      });
+  }
+
   const fromBaseline = fallback !== null && s.rows.length > 0;
   const dead = s.rows.length === 0;
   const sweepNote = fromBaseline
@@ -387,11 +543,9 @@ export const getHomeSnapshot = cache(async (): Promise<HomeSnapshot> => {
   const exchangeOf = new Map(s.rows.map((r) => [r.s, r.ex]));
 
   /* ---- the strip ---- */
-  const stripResult = settledOr(stripSettled, null);
-  const stripQuotes: RawEquityQuote[] =
-    stripResult !== null && stripResult.ok ? stripResult.data : [];
+  const stripQuotes: RawEquityQuote[] = sources.strip;
   if (stripQuotes.length === 0) {
-    const why = stripResult !== null && !stripResult.ok ? `: ${stripResult.error}` : "";
+    const why = sources.stripError === null ? "" : `: ${sources.stripError}`;
     /* Fatal: the index strip and every sector card lose their quote. */
     faults.push({ severity: "fatal", message: `index and sector fund quotes failed${why}` });
   }
@@ -418,11 +572,7 @@ export const getHomeSnapshot = cache(async (): Promise<HomeSnapshot> => {
   }
 
   /* ---- sectors ---- */
-  const week = settledOr(weekSettled, {
-    byEtf: new Map<string, number | null>(),
-    failed: SECTOR_ETF_SYMBOLS.length,
-  });
-  const weekFault = shortfall("week history", week.failed, SECTOR_ETF_SYMBOLS.length);
+  const weekFault = shortfall("week history", sources.weekFailed, SECTOR_ETF_SYMBOLS.length);
   if (weekFault) faults.push(weekFault);
 
   /* Eleven passes over the eligible list, which is cheaper than it looks and
@@ -446,7 +596,7 @@ export const getHomeSnapshot = cache(async (): Promise<HomeSnapshot> => {
   const SECTOR_MEMBERS_SENT = 8;
   const sectors = toSectorGroups({
     etfQuotes: sectorQuotes,
-    weekByEtf: week.byEtf,
+    weekByEtf: sources.weekByEtf,
     membersBySector,
   }).map((group) => ({ ...group, members: group.members.slice(0, SECTOR_MEMBERS_SENT) }));
 
@@ -488,28 +638,20 @@ export const getHomeSnapshot = cache(async (): Promise<HomeSnapshot> => {
     faults.push({ severity: "fatal", message: "sector map is empty" });
 
   /* ---- the wire ---- */
-  const news = settledOr(newsSettled, { rows: [], failed: WIRE_TICKERS.length });
-  const newsFault = shortfall("ticker news", news.failed, WIRE_TICKERS.length);
+  const newsFault = shortfall("ticker news", sources.wireFailed, WIRE_TICKERS.length);
   if (newsFault) faults.push(newsFault);
 
-  const wire = toWireItems(
-    news.rows
-      .filter((r) => r.data.ticker_news !== null)
-      .map((r) => ({ ticker: r.ticker, news: r.data.ticker_news ?? [] })),
-    now,
-    8,
-  );
+  const wire = toWireItems(sources.wire, now, 8);
 
   /* ---- dated corporate actions ---- */
-  const actions = settledOr(actionsSettled, { rows: [], failed: CALENDAR_TICKERS.length });
-  const actionsFault = shortfall("corporate actions", actions.failed, CALENDAR_TICKERS.length);
+  const actionsFault = shortfall(
+    "corporate actions",
+    sources.calendarFailed,
+    CALENDAR_TICKERS.length,
+  );
   if (actionsFault) faults.push(actionsFault);
 
-  const events = toCalendarEvents(
-    actions.rows.map((r) => ({ ticker: r.ticker, actions: r.data })),
-    now,
-    5,
-  );
+  const events = toCalendarEvents(sources.calendar, now, 5);
 
   /* ---- the tape ---- */
   /* The most traded names by dollar volume, which is what a real tape shows.
@@ -625,8 +767,8 @@ export const getHomeSnapshot = cache(async (): Promise<HomeSnapshot> => {
       now,
       fresh: recordAge(null),
       degraded:
-        actions.failed > 0
-          ? `${actions.failed} of ${CALENDAR_TICKERS.length} companies did not answer.`
+        sources.calendarFailed > 0
+          ? `${sources.calendarFailed} of ${CALENDAR_TICKERS.length} companies did not answer.`
           : null,
       downNote: "No dated corporate actions are available.",
     }),
@@ -639,17 +781,30 @@ export const getHomeSnapshot = cache(async (): Promise<HomeSnapshot> => {
          published time is arrived at backwards. */
       fresh: recordAge(newest(wire.map((item) => now - item.age * HOUR_MS))),
       degraded:
-        news.failed > 0 ? `${news.failed} of ${WIRE_TICKERS.length} newsfeeds did not answer.` : null,
+        sources.wireFailed > 0
+          ? `${sources.wireFailed} of ${WIRE_TICKERS.length} newsfeeds did not answer.`
+          : null,
       downNote: "The wire is quiet — no headlines could be retrieved.",
     }),
 
     universe: searchUniverse,
 
     diagnostics: {
-      /* What this render costs upstream with a cold cache: the sweep's chunks,
-         the one strip call, a month of history per sector fund, and two
-         reference calls for each covered name. */
-      calls: s.calls + 1 + SECTOR_ETF_SYMBOLS.length + WIRE_TICKERS.length + CALENDAR_TICKERS.length,
+      /* What this render costs upstream with a cold cache, and the two paths
+         differ by two orders of magnitude.
+
+         On the store path it is ONE: market_home answers the hot rows, both
+         strips, a week of bars per sector fund, the wire and the calendar in a
+         single query. It is not zero even though the read is cached — this
+         number is what a cold render costs, and a warm one costs nothing on
+         either path.
+
+         On the gateway path it is what it always was: the sweep's chunks, the
+         one strip call, a month of history per sector fund, and a reference
+         call for every wire and calendar ticker. */
+      calls: viaStore
+        ? 1
+        : s.calls + 1 + SECTOR_ETF_SYMBOLS.length + WIRE_TICKERS.length + CALENDAR_TICKERS.length,
       ms: Date.now() - startedAt,
       sweptAt: new Date(s.sweptAt).toISOString(),
       rows: s.rows.length,

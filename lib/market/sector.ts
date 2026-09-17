@@ -3,20 +3,29 @@ import { cache } from "react";
 
 import { type SweepRow } from "@/lib/api/sweep";
 import { sweptMarket } from "@/lib/market/swept";
-import { fetchHistory, fetchQuotes } from "@/lib/api/clients/quotes";
+import { fetchHistory, fetchQuotes, type RawEquityQuote } from "@/lib/api/clients/quotes";
 import { changeOverSessions } from "@/lib/api/normalize/time";
 import { TAGS, TTL } from "@/lib/api/ttl";
 import { eligible, reportedChange, sweepAnswered, typicalDollarVol } from "@/lib/market/screen";
 import { isFund, presentation, SECTOR_ETF, SECTOR_NAMES, type SectorName } from "@/lib/market/universe";
 import { sectorSlug } from "@/lib/market/session";
+import { nowMs } from "./clock.ts";
+import { homeInputsFrom } from "./home-inputs.ts";
+import { storeConfigured } from "./store/client.ts";
+import { readHome } from "./store/reads.ts";
 import sectorMap from "@/lib/market/data/sector-map.json" with { type: "json" };
 import returnsFile from "@/lib/market/data/returns.json" with { type: "json" };
 
 /* One sector, in full.
 
-   The dashboard shows four names per sector; this is the rest. It draws on the
-   same sweep the home page does — sweptMarket is cached at the fetch layer, so a
-   reader arriving here from a sector card pays for no additional quotes.
+   The dashboard shows four names per sector; this is the rest, and it reads
+   exactly what the dashboard read. A sector page needs three things — the
+   swept rows, the tracking fund's quote, and that fund's move over five
+   sessions — and `market_home` already answers all three for every sector at
+   once, under the same cached read the dashboard holds. So a reader arriving
+   here from a sector card costs nothing: same tags, same entry, no second
+   query. When the store cannot answer, the old three-way fan-out runs instead,
+   and `sweptMarket` is cached at the fetch layer for the same reason.
 
    The trailing-return columns are the exception. A one-year and five-year
    figure is a history call per symbol, which for four hundred names is not
@@ -128,6 +137,66 @@ const FUND_KEYWORDS: Record<SectorName, RegExp> = {
   "Real estate": /\b(REAL ESTATE|REIT|PROPERTY|HOUSING)\b/i,
 };
 
+/** The three things a sector page reads, whichever source answered. */
+type Sources = {
+  /* Nullable, and the null is the point. `sweepAnswered` below separates a
+     sector with no classified members from one we failed to look up, and the
+     page words those two differently; collapsing this to a bare array would
+     erase the distinction before it could be drawn. */
+  swept: { rows: SweepRow[] } | null;
+  fund: RawEquityQuote | undefined;
+  week: number | null;
+};
+
+/**
+ * One query for all three, or nothing.
+ *
+ * Every sector fund is in the strip `readHome` asks for, so this is the same
+ * cached RPC the dashboard already made and the same rows it already ranked.
+ * Returning null means the store cannot answer — unconfigured, unreachable, or
+ * not yet filled — and the gateway fan-out runs in its place.
+ */
+async function fromStore(fund: string): Promise<Sources | null> {
+  if (!storeConfigured()) return null;
+
+  const result = await readHome();
+  if (!result.ok) return null;
+
+  /* Only this sector's own fund is measured out of the week bars. The rest of
+     the strip is in the payload and belongs to the dashboard and to the other
+     sector pages, and measuring it here would be work nothing on this page
+     reads. */
+  const inputs = homeInputsFrom(result.data, [fund], nowMs());
+  if (inputs.snapshot.rows.length === 0) return null;
+
+  return {
+    swept: inputs.snapshot,
+    fund: inputs.strip.find((q) => q.symbol === fund),
+    week: inputs.weekByEtf.get(fund) ?? null,
+  };
+}
+
+/** The three-way fan-out this page has always made, unchanged. */
+async function fromGateway(fund: string): Promise<Sources> {
+  const [sweepSettled, fundSettled, weekSettled] = await Promise.allSettled([
+    sweptMarket(),
+    fetchQuotes([fund], TTL.sectorEtf, [TAGS.sectors]),
+    fetchHistory(fund, "1m", TTL.history1m, [TAGS.history]),
+  ]);
+
+  return {
+    swept: sweepSettled.status === "fulfilled" ? sweepSettled.value : null,
+    fund:
+      fundSettled.status === "fulfilled" && fundSettled.value.ok
+        ? fundSettled.value.data[0]
+        : undefined,
+    week:
+      weekSettled.status === "fulfilled" && weekSettled.value.ok
+        ? changeOverSessions(weekSettled.value.data, 5)
+        : null,
+  };
+}
+
 export const getSectorSnapshot = cache(
   async (slug: string): Promise<SectorSnapshot | null> => {
     const name = SECTOR_NAMES.find((n) => sectorSlug(n) === slug);
@@ -135,13 +204,9 @@ export const getSectorSnapshot = cache(
 
     const fund = SECTOR_ETF[name];
 
-    const [sweepSettled, fundSettled, weekSettled] = await Promise.allSettled([
-      sweptMarket(),
-      fetchQuotes([fund], TTL.sectorEtf, [TAGS.sectors]),
-      fetchHistory(fund, "1m", TTL.history1m, [TAGS.history]),
-    ]);
+    const sources = (await fromStore(fund)) ?? (await fromGateway(fund));
 
-    const swept = sweepSettled.status === "fulfilled" ? sweepSettled.value : null;
+    const swept = sources.swept;
     const rows = swept?.rows.filter(eligible) ?? [];
 
     const mine = rows.filter((r) => MAP.sectors[r.s] === name);
@@ -156,15 +221,8 @@ export const getSectorSnapshot = cache(
       .sort((a, b) => (a.s === fund ? -1 : b.s === fund ? 1 : typicalDollarVol(b) - typicalDollarVol(a)))
       .map(toRow);
 
-    const fundQuote =
-      fundSettled.status === "fulfilled" && fundSettled.value.ok
-        ? fundSettled.value.data[0]
-        : undefined;
-
-    const week =
-      weekSettled.status === "fulfilled" && weekSettled.value.ok
-        ? changeOverSessions(weekSettled.value.data, 5)
-        : null;
+    const fundQuote = sources.fund;
+    const week = sources.week;
 
     /* A row with no reported change counts as neither, rather than being
        folded into one side. screen.ts's breadth() records why at length: a bar

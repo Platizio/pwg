@@ -9,6 +9,8 @@ import type { InstrumentSnapshot } from "@/lib/market/instrument";
 import { usePortfolio } from "@/lib/portfolio";
 import { liveTail } from "@/lib/market/chart-tail";
 import { useLiveQuote } from "./live-provider";
+import { useIntraday } from "./use-intraday";
+import { useStockNews } from "./use-stock-news";
 import { EASE } from "@/lib/tokens";
 import { InstrumentHeader } from "./instrument-header";
 import { CompetitorsPanel } from "./panels/competitors-panel";
@@ -49,19 +51,59 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
   const held = sharesOf(stock.id);
 
   /* The day chart, carried up to the headline price.
-     The chart draws a series rendered on the server; the price above it comes
-     off the websocket seconds old. Raising this page's TTL to fifteen minutes
-     tripled the distance between them, and two numbers for one stock on one
-     screen is the failure this terminal keeps coming back to. liveTail folds
-     the tick onto the tail — and returns the very same array whenever it
-     refuses to, so a tick that changes nothing does not rebuild the chart. */
+
+     The session's bars no longer travel with the snapshot — they were one of
+     the calls a cold page made the reader wait on, and they are the only part
+     of this page too fast-moving to keep in the store, so they are fetched
+     here instead. Everything else about this arrangement is unchanged: the
+     price above the chart comes off the websocket seconds old, the series
+     underneath it is minutes old, and two numbers for one stock on one screen
+     is the failure this terminal keeps coming back to. liveTail folds the tick
+     onto the tail.
+
+     Two memos rather than one, and the split is what keeps the old identity
+     guarantee: liveTail returns the very same array whenever it refuses a
+     tick, so the first memo's value does not change, so the second hands back
+     the object it handed back last time and the chart does not rebuild its
+     series for a tick that said nothing.
+
+     The note follows the series. Until the first answer lands the snapshot's
+     own note stands, which says where the bars are coming from; after it, the
+     route's note says whether the market has simply not opened.
+
+     The phase handed over is only an opening bid. It was read by whichever
+     clock drew this page — the build machine's, for the five hundred prerendered
+     ahead of time — so the hook keeps it just long enough to swap in the
+     reader's own. */
   const tick = useLiveQuote(stock.id);
-  const chartHistory = useMemo(() => {
-    const intraday = liveTail(snapshot.history.intraday, tick);
-    return intraday === snapshot.history.intraday
-      ? snapshot.history
-      : { ...snapshot.history, intraday };
-  }, [snapshot.history, tick]);
+  const session = useIntraday(stock.id, snapshot.session.phase);
+  const intraday = useMemo(() => liveTail(session.intraday, tick), [session.intraday, tick]);
+  const chartHistory = useMemo(
+    () => ({
+      ...snapshot.history,
+      intraday,
+      intradayNote: session.note ?? snapshot.history.intradayNote,
+    }),
+    [snapshot.history, intraday, session.note],
+  );
+
+  /* The newswire, widened after the page has appeared.
+
+     The rail is already drawn from the gateway's own headlines, which ride the
+     snapshot and cost nothing. The second source did not: it was the last
+     third-party call left in the render and about a second and a half of a
+     cold page. It is fetched here instead and the rail swaps its whole list
+     for the richer one — see use-stock-news.ts for why the swap can only ever
+     improve it, and why this hook, unlike useIntraday above, has no timer.
+
+     Called here rather than inside RightRail because WorkColumn renders the
+     rail TWICE — once as a real column at xl and once appended to the bottom
+     of the working column below it, with the other display:none — and both
+     copies mount. A hook inside the rail would be two fetches for one page.
+
+     `settled` travels with the list because the rail has a sentence it may
+     only say once both feeds have spoken — see use-stock-news.ts. */
+  const newswire = useStockNews(stock.id, snapshot.news);
 
   /* The quote the desk trades on is the one this page is showing, handed over
      whole. It used to pass an id, which the desk looked up in the six mock
@@ -164,7 +206,11 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
   };
 
   return (
-    <WorkColumn aside={<RightRail snapshot={snapshot} />}>
+    <WorkColumn
+      aside={
+        <RightRail snapshot={snapshot} news={newswire.news} newsSettled={newswire.settled} />
+      }
+    >
       <div ref={sentinelRef} aria-hidden="true" className="h-px" />
 
       {/* The name and the tabs stay; everything under them scrolls.
