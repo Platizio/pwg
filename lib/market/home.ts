@@ -13,7 +13,8 @@ import { sweptMarket } from "@/lib/market/swept";
 import { TAGS, TTL } from "@/lib/api/ttl";
 import { homeInputsFrom } from "./home-inputs.ts";
 import { storeConfigured } from "./store/client.ts";
-import { readHome } from "./store/reads.ts";
+import { readHome, readSections } from "./store/reads.ts";
+import { fromStored } from "./store/sections.ts";
 import { newest, oldest, quoteAge, type Freshness } from "@/lib/market/freshness";
 import { breadthSample } from "@/lib/market/membership";
 import { baselineSnapshot, describeBaseline } from "@/lib/market/baseline";
@@ -34,6 +35,7 @@ import sectorMap from "@/lib/market/data/sector-map.json" with { type: "json" };
 import type { RawCorporateActions, RawTickerNews } from "@/lib/api/clients/fundamentals";
 import type { RawEquityQuote } from "@/lib/api/clients/quotes";
 import type { ApiResult } from "@/lib/api/errors";
+import type { StoredSectionRow } from "./store/types.ts";
 import type { Snapshot, SweepRow } from "@/lib/api/sweep";
 import type { CalendarEvent, MarketIndex, Quote, Sector, Session } from "@/lib/market/session";
 import type { SectorName } from "@/lib/market/universe";
@@ -56,10 +58,10 @@ import type { SectorName } from "@/lib/market/universe";
 
    Where the data comes from is a separate question from what the page does
    with it, and the two are kept apart on purpose. `Sources` below is the whole
-   interface: the durable store fills it in one query, the gateway fan-out fills
-   it in about three hundred, and everything from the panels down was written
-   against it and cannot tell which it got. The store is tried first and simply
-   declines — by returning null — when it is unconfigured, unreachable or not
+   interface: the durable store fills it in three queries, the gateway fan-out
+   fills it in about three hundred, and everything from the panels down was
+   written against it and cannot tell which it got. The store is tried first and
+   simply declines — by returning null — when it is unconfigured, unreachable or not
    yet filled, which is why a deployment with no Supabase credentials renders
    exactly the page it rendered before any of this existed. */
 
@@ -360,14 +362,58 @@ type Sources = {
   undated: boolean;
 };
 
+/* The readable documents out of one `market_sections` batch, and how many of
+   the tickers asked for the store had heard from at all.
+
+   `stored` counts ROWS, before anything has been read out of one, because
+   market_sections joins on `payload is not null` (migration:891): a row is the
+   store having something for that company, which is the question the shortfall
+   line on the page asks. Whether a document it then cannot read still counts as
+   an answer differs between the two rails, and the two call sites below say so
+   where they decide it.
+
+   A failed read yields nothing stored, which is the honest reading: the count
+   is of companies that answered, and none did. */
+function readableRows<T>(
+  result: ApiResult<StoredSectionRow[]>,
+  read: (payload: unknown) => T | null,
+): { rows: Array<{ ticker: string; value: T }>; stored: number } {
+  if (!result.ok) return { rows: [], stored: 0 };
+
+  const rows: Array<{ ticker: string; value: T }> = [];
+  for (const row of result.data) {
+    const value = read(row.payload);
+    if (value === null) continue;
+    rows.push({ ticker: row.symbol, value });
+  }
+  return { rows, stored: result.data.length };
+}
+
 /**
- * One query, or nothing.
+ * Three queries, or nothing.
  *
- * `market_home` answers the hot rows, both strips, a week of bars per sector
- * fund, the wire and the calendar together, so the cold dashboard costs one RPC
- * where it used to cost the sweep's chunks plus a hundred and fifty-six
- * reference calls. Returning null is how this says "ask the gateway instead",
- * and it says it for all three ways the store can decline to answer: it has not
+ * It was one, and one was too big. `market_home` can answer the hot rows, both
+ * strips, a week of bars per sector fund, the wire and the calendar together,
+ * and that answer measured 2,153,236 bytes — past the two megabytes Next will
+ * keep in a cache entry. Over that ceiling Next stores NOTHING
+ * (node_modules/next/dist/server/lib/incremental-cache/index.js:509-524), so
+ * the `market:home` tag and the five-minute revalidate on it meant nothing and
+ * every single render re-queried and re-parsed the whole payload; in
+ * development the refusal is thrown rather than logged, which is what a reader
+ * met as a half-rendered page.
+ *
+ * So the read is split along a seam the store already had. The rows, the strips
+ * and the bars stay in `market_home`, which is now asked for those and nothing
+ * else. The wire and the calendar come from `market_sections` — the same batch
+ * read lib/market/feeds.ts already makes for exactly these documents, with
+ * exactly these ticker lists, so the dashboard and the two feed pages now share
+ * two cache entries instead of asking the database for the same documents
+ * twice. Three reads, concurrently, because they are independent; the wall
+ * clock is the slowest of the three rather than their sum.
+ *
+ * Returning null is how this says "ask the gateway instead", and only the home
+ * read can say it: it carries every board, so without it there is no dashboard.
+ * It says it for the three ways the store can decline that call — it has not
  * been configured, it did not answer, or it has no rows yet.
  *
  * That last one is the case that matters while the refresher is still filling.
@@ -376,23 +422,38 @@ type Sources = {
  * market with nothing in it, and the page falls through to what it always did.
  *
  * A PARTIALLY filled store is a different matter and is deliberately NOT a
- * reason to fall back. The quotes arrive in one sweep and the reference
- * sections trickle in behind them over hours, so a store with rows but no news
- * yet is the normal state on the first afternoon. The wire panel already knows
- * how to say it is empty and why; re-running the whole gateway fan-out to fill
- * one rail would give up the entire saving for the sake of eight headlines.
+ * reason to fall back, and that now covers a section read that failed outright
+ * as well as one the refresher has not reached. The quotes arrive in one sweep
+ * and the reference sections trickle in behind them over hours, so a store with
+ * rows but no news yet is the normal state on the first afternoon. The wire
+ * panel already knows how to say it is empty and why; re-running the whole
+ * gateway fan-out to fill one rail would give up the entire saving for the sake
+ * of eight headlines.
  */
 async function fromStore(now: number): Promise<Sources | null> {
-  /* Asked before the read, so an unconfigured deployment costs nothing at all.
-     readHome would answer `ok: false` on its own, but only after building a
-     cache entry and throwing a TransientFailure through it once per render. */
+  /* Asked before the reads, so an unconfigured deployment costs nothing at all.
+     They would answer `ok: false` on their own, but only after building three
+     cache entries and throwing a TransientFailure through each once per
+     render. */
   if (!storeConfigured()) return null;
 
-  const result = await readHome();
-  if (!result.ok) return null;
+  const [home, news, actions] = await Promise.all([
+    readHome(),
+    readSections([...WIRE_TICKERS], "news_gateway"),
+    readSections([...CALENDAR_TICKERS], "corporate_actions"),
+  ]);
 
-  const inputs = homeInputsFrom(result.data, SECTOR_ETF_SYMBOLS, now);
+  if (!home.ok) return null;
+
+  /* `homeInputsFrom` still translates a wire and a calendar out of the payload,
+     and they are still right — they are simply both empty now, because this is
+     the read that no longer asks for them. The two rails are filled from the
+     section reads below instead. */
+  const inputs = homeInputsFrom(home.data, SECTOR_ETF_SYMBOLS, now);
   if (inputs.snapshot.rows.length === 0) return null;
+
+  const wire = readableRows(news, (p) => fromStored("news_gateway", p));
+  const calendar = readableRows(actions, (p) => fromStored("corporate_actions", p));
 
   /* Clamped because these are differences between what the page asked for and
      what came back, and a negative shortfall would read as a fault. */
@@ -404,10 +465,17 @@ async function fromStore(now: number): Promise<Sources | null> {
     stripError: null,
     weekByEtf: inputs.weekByEtf,
     weekFailed: inputs.weekFailed,
-    wire: inputs.wire,
-    wireFailed: missed(WIRE_TICKERS.length, inputs.wireAnswered),
-    calendar: inputs.calendar,
-    calendarFailed: missed(CALENDAR_TICKERS.length, inputs.calendarAnswered),
+    /* Counted on rows stored, not on documents read: a news document carrying
+       no headlines is a quiet company rather than a newsfeed that failed, which
+       is the distinction the gateway path draws too. */
+    wire: wire.rows.map((r) => ({ ticker: r.ticker, news: r.value })),
+    wireFailed: missed(WIRE_TICKERS.length, wire.stored),
+    /* And the calendar the other way round, which is not an oversight.
+       `toCalendarEvents` reads `dividends` and `splits` off the document, so a
+       corporate-actions payload that will not parse contributes nothing at all
+       and is counted as a company that did not answer. */
+    calendar: calendar.rows.map((r) => ({ ticker: r.ticker, actions: r.value })),
+    calendarFailed: missed(CALENDAR_TICKERS.length, calendar.rows.length),
     undated: inputs.undated,
   };
 }
@@ -793,17 +861,20 @@ export const getHomeSnapshot = cache(async (): Promise<HomeSnapshot> => {
       /* What this render costs upstream with a cold cache, and the two paths
          differ by two orders of magnitude.
 
-         On the store path it is ONE: market_home answers the hot rows, both
-         strips, a week of bars per sector fund, the wire and the calendar in a
-         single query. It is not zero even though the read is cached — this
-         number is what a cold render costs, and a warm one costs nothing on
-         either path.
+         On the store path it is THREE: market_home for the hot rows, both
+         strips and a week of bars per sector fund, then one market_sections
+         batch each for the wire and the calendar. It was one until that answer
+         outgrew what Next will cache — see `fromStore` — and two of the three
+         are entries the feed pages were already paying for, so the true cost of
+         the split across the terminal is nearer nothing than two. It is not
+         zero even though the reads are cached: this number is what a cold
+         render costs, and a warm one costs nothing on either path.
 
          On the gateway path it is what it always was: the sweep's chunks, the
          one strip call, a month of history per sector fund, and a reference
          call for every wire and calendar ticker. */
       calls: viaStore
-        ? 1
+        ? 3
         : s.calls + 1 + SECTOR_ETF_SYMBOLS.length + WIRE_TICKERS.length + CALENDAR_TICKERS.length,
       ms: Date.now() - startedAt,
       sweptAt: new Date(s.sweptAt).toISOString(),

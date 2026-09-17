@@ -4,7 +4,6 @@ import { unstable_cache } from "next/cache";
 import { settle, TransientFailure } from "../../api/cache-policy.ts";
 import { INDEX_ETF_SYMBOLS } from "../../api/normalize/index-proxy.ts";
 import { SECTOR_ETF_SYMBOLS } from "../../api/normalize/sector.ts";
-import { CALENDAR_TICKERS, WIRE_TICKERS } from "../universe.ts";
 import { readHomeRaw, readInstrumentRaw, readSectionsRaw } from "./client.ts";
 import {
   HOME_TAG,
@@ -19,7 +18,8 @@ import type { ApiResult } from "../../api/errors.ts";
 
 /* The cached read path.
  *
- * One RPC per page regeneration, and the tags are what make that affordable:
+ * A handful of RPCs per page regeneration — one for an instrument, three for
+ * the dashboard — and the tags are what make that affordable:
  * the worker POSTs to /api/revalidate only when a hash actually changed, so a
  * symbol whose profile has not moved in nine days is served from the ISR entry
  * without the database being asked at all. The `revalidate` seconds below are a
@@ -75,6 +75,84 @@ function guardStore<T>(result: ApiResult<T>): ApiResult<T> {
   return result;
 }
 
+/** Next's own hard ceiling for one cached entry, two megabytes
+    (node_modules/next/dist/server/lib/incremental-cache/index.js:509-524). */
+const CACHE_CEILING = 2 * 1024 * 1024;
+
+/** Where this file starts saying so, about half a megabyte short of the cliff.
+    Room enough that the sentence lands in a log while there is still something
+    to do about it, high enough that no healthy read here trips it. */
+const CACHE_ALARM = 1_500_000;
+
+/**
+ * What Next will measure this entry as, without serialising it a second time.
+ *
+ * `unstable_cache` stores the callback's value as a STRING inside the entry
+ * (`body: JSON.stringify(result)`, node_modules/next/dist/server/web/
+ * spec-extension/unstable-cache.js:23), and the size check runs over the entry
+ * (`itemSize = JSON.stringify(data).length`, .../server/lib/incremental-cache/
+ * index.js:509). So every `"` and `\` in the JSON is escaped a SECOND time, and
+ * the figure in Next's error runs a tenth or so above the JSON's own length —
+ * measured 2,155,773 against 1,936,280 for the payload that prompted this.
+ * Measure the value alone and something that has already fallen off the ceiling
+ * reports as comfortably inside it.
+ *
+ * That second escape is the only difference, and it is countable in one pass
+ * over a string that already exists: the first `JSON.stringify` has turned
+ * every control character into `\uXXXX`, so nothing left in it escapes to more
+ * than two characters. The envelope around the body — the kind, the status, the
+ * revalidate — is under a hundred characters and is ignored; at this scale it
+ * is noise, and leaving it out keeps the number an understatement rather than
+ * an overstatement, which is the safe direction for a ceiling.
+ *
+ * `.length`, not a byte count, because `.length` is what Next compares. The two
+ * agree for the ASCII these payloads are almost entirely made of, and where
+ * they differ it is Next's arithmetic that decides, not ours.
+ */
+function entrySize(value: unknown): number {
+  const body = JSON.stringify(value);
+  let size = body.length;
+  for (let i = 0; i < body.length; i += 1) {
+    const c = body.charCodeAt(i);
+    if (c === 0x22 || c === 0x5c) size += 1;
+  }
+  return size;
+}
+
+/**
+ * Say so, out loud and once, when a read comes back near the cache ceiling.
+ *
+ * THIS EXISTS BECAUSE THE CLIFF IS SILENT IN PRODUCTION. Over two megabytes
+ * Next stores nothing and returns from `set` (incremental-cache/index.js:515-524)
+ * — one `console.warn` in the server log, and in development a thrown error that
+ * a reader meets as a half-rendered page. Everything else keeps working, which
+ * is the trap: the read still answers, so the page still renders, and the only
+ * symptom is that `revalidate` and the tag on that entry have quietly stopped
+ * meaning anything and every render pays the database again. `market_home` shipped
+ * like that at 2,153,236 bytes until someone read the console.
+ *
+ * So the measurement is taken here, where the payload is already in hand, and it
+ * only ever warns. Throwing would turn a read that works into a page that does
+ * not, which is strictly worse than the thing being warned about, and this
+ * module's whole contract is that a store problem degrades rather than breaks.
+ *
+ * It costs one serialisation, and only on a cache MISS — a hit never enters the
+ * callback at all, so the warm path is untouched. On a miss Next is about to
+ * serialise the same value anyway.
+ */
+function measured<T>(read: string, result: ApiResult<T>): ApiResult<T> {
+  const size = entrySize(result);
+  if (size >= CACHE_ALARM) {
+    console.warn(
+      `market store: the ${read} cache entry measures ${size} bytes against Next's ` +
+        `${CACHE_CEILING}-byte per-entry ceiling. Past the ceiling Next stores nothing: ` +
+        `the entry's tags and revalidate stop meaning anything and every render ` +
+        `re-queries the store. Split the read before it gets there.`,
+    );
+  }
+  return result;
+}
+
 /** Fifteen minutes. The worker revalidates on change; this only covers a worker
     that has stopped, which is a page an hour stale rather than a page frozen. */
 const INSTRUMENT_TTL = 900;
@@ -118,7 +196,7 @@ export function readInstrument(symbol: string): Promise<ApiResult<StoredInstrume
      invalidation path, which is the failure this whole file is built around. */
   const sym = symbol.trim().toUpperCase();
   const cached = unstable_cache(
-    async (s: string) => guardStore(await readInstrumentRaw(s)),
+    async (s: string) => measured(`instrument ${s}`, guardStore(await readInstrumentRaw(s))),
     ["market", "instrument"],
     {
       revalidate: INSTRUMENT_TTL,
@@ -131,14 +209,38 @@ export function readInstrument(symbol: string): Promise<ApiResult<StoredInstrume
   return settle(cached(sym));
 }
 
-/* The home read takes no arguments and one fixed tag, so it is wrapped once at
-   module scope — the ordinary case, and the shape everything in cache-layer.ts
-   already has. The ticker lists are spread out of their `as const` tuples
-   because the client's signature is a plain string[]; they are constants, so
-   this happens once per process rather than per read. */
+/**
+ * The boards, the strips and the sparklines. NOT the wire and NOT the calendar.
+ *
+ * This read asked `market_home` for all six things it can answer, and the
+ * answer measured 2,153,236 bytes — over the ceiling `measured` above is named
+ * after. So the entry was refused on every render: `market:home` and the
+ * five-minute revalidate were inert, and the dashboard re-queried and re-parsed
+ * two megabytes each time a reader arrived.
+ *
+ * The 4,410 hot quote rows are about half of that and they are the half that
+ * cannot move — every board on the page ranks from them. The wire's 51 news
+ * documents and the calendar's 93 corporate-actions documents are the other
+ * half, and they were already being read a second way: `readSections` below
+ * fetches exactly those two batches for /terminal/wire and /terminal/calendar.
+ * So they leave this entry and the dashboard joins those reads instead, which
+ * makes three cache entries of about a megabyte, half a megabyte and a quarter
+ * — and makes the dashboard and the two feed pages share the documents rather
+ * than fetch them twice.
+ *
+ * EMPTY ARRAYS, NOT A NEW FUNCTION. `market_home` builds the wire and the
+ * calendar by unnesting the ticker arrays it is handed and joining against the
+ * stored sections (migration:845-859); `unnest` of an empty array produces no
+ * rows and the surrounding `coalesce(jsonb_agg(…), '[]')` returns an empty
+ * list. Asking for none is therefore already a supported question, and the
+ * migration is applied to a live database, so it stays exactly as it is.
+ *
+ * Wrapped once at module scope, because the read takes no arguments and carries
+ * one fixed tag — the ordinary case, and the shape everything in cache-layer.ts
+ * already has.
+ */
 const cachedHome = unstable_cache(
-  async () =>
-    guardStore(await readHomeRaw(STRIP_SYMBOLS, [...WIRE_TICKERS], [...CALENDAR_TICKERS])),
+  async () => measured("home", guardStore(await readHomeRaw(STRIP_SYMBOLS, [], []))),
   ["market", "home"],
   { revalidate: HOME_TTL, tags: [HOME_TAG] },
 );
@@ -148,7 +250,14 @@ export function readHome(): Promise<ApiResult<StoredHome>> {
 }
 
 /**
- * One section for a batch of symbols — the sector pages and the feeds.
+ * One section for a batch of symbols — the sector pages, the feeds, and the
+ * dashboard's wire and calendar rails.
+ *
+ * The dashboard asks for the same two batches the feed pages ask for, with the
+ * same ticker lists, so the three pages share two entries rather than three
+ * paying for six. That is not luck: the key is the callback's source plus the
+ * arguments (unstable-cache.js:55 and :82), and the sort below is what makes
+ * two callers spelling the same list in a different order land on it.
  *
  * Tagged with every symbol in the batch, for the same reason and by the same
  * mechanism as readInstrument: the tag list is fixed when the wrapper is built,
@@ -181,7 +290,11 @@ export function readSections(
      relying on the order it asked in. */
   const syms = Array.from(new Set(symbols.map((s) => s.trim().toUpperCase()))).sort();
   const cached = unstable_cache(
-    async (list: string[], sec: Section) => guardStore(await readSectionsRaw(list, sec)),
+    async (list: string[], sec: Section) =>
+      measured(
+        `${sec} sections for ${list.length} symbols`,
+        guardStore(await readSectionsRaw(list, sec)),
+      ),
     ["market", "sections"],
     { revalidate: INSTRUMENT_TTL, tags: syms.map(symbolTag) },
   );
