@@ -339,6 +339,17 @@ export function SectorView({ sector }: { sector: SectorSnapshot }) {
 
 function Row({ row }: { row: SectorRow }) {
   const [logoFailed, setLogoFailed] = useState(false);
+  /* Prefetch on intent rather than on sight.
+     A sector page prints fifty of these at a time, and a <Link> prefetches
+     itself the moment it enters the viewport — so scrolling this table once
+     would queue fifty instrument routes to satisfy the one the reader is
+     going to open. The Next prefetching guide's answer for exactly this case
+     ("Preventing too many prefetches", node_modules/next/dist/docs/01-app/
+     02-guides/prefetching.md) is to start at `false` and hand the link back
+     its default the moment the reader hovers: `null` means "auto", so a
+     prerendered name is then fetched whole and an unbuilt one down to its
+     loading boundary, which is the skeleton this route now ships. */
+  const [wanted, setWanted] = useState(false);
   const cell = "px-3 py-3 text-right font-mono text-[13.5px] text-ink-2";
 
   const identity = (
@@ -374,9 +385,19 @@ function Row({ row }: { row: SectorRow }) {
   );
 
   return (
-    <tr className="border-b border-rule/60 transition-colors hover:bg-[rgba(217,189,139,0.04)]">
+    /* The whole row is the hover target, not just the name cell: the row
+       already warms on hover, and a reader crossing it anywhere is as good a
+       signal as one landing on the link itself. */
+    <tr
+      onMouseEnter={() => setWanted(true)}
+      className="border-b border-rule/60 transition-colors hover:bg-[rgba(217,189,139,0.04)]"
+    >
       <td className="px-3 py-3">
-        <Link href={instrumentPath(row.id)} className="block">
+        <Link
+          href={instrumentPath(row.id)}
+          prefetch={wanted ? null : false}
+          className="block"
+        >
           {identity}
         </Link>
       </td>

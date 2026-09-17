@@ -207,6 +207,48 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
       ?.scrollIntoView({ block: "nearest" });
   }, [active, open]);
 
+  /* Warming the row the reader is pointing at.
+     Nothing in this panel is a <Link>, so nothing is prefetched by entering
+     the viewport: the combobox pattern requires each result to be a
+     `<button role="option">` that hands off to router.push, and that leaves
+     the route cold until the click — on an instrument that can take eight
+     seconds to assemble. So the warming is done by hand, against the one row
+     the reader has actually singled out.
+
+     The guard is a single ref rather than a set, because what it is there to
+     stop is the same row being announced twice in a row — the pointer that
+     highlights it and the mouse that enters it are two events on one target —
+     not to keep a history. Next's own prefetch queue already de-duplicates,
+     drops links scrolled out of view, and lets newer requests displace older
+     ones; a second cache in front of it would only go stale. */
+  const lastPrefetched = useRef<string | null>(null);
+
+  /* Both sources hand their path to the same state rather than calling the
+     router themselves, because the guard has to read a ref and a function that
+     closes over a ref cannot be handed to a JSX callback — the same constraint
+     `go` below is written around. An effect is where a ref may be read, so the
+     asking happens there and the handlers only say which row is wanted. */
+  const [wanted, setWanted] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (wanted === null || lastPrefetched.current === wanted) return;
+    lastPrefetched.current = wanted;
+    router.prefetch(wanted);
+  }, [wanted, router]);
+
+  /* The keyboard's highlight reaches it through a hundred milliseconds of
+     delay, because that highlight moves on every arrow key: held ArrowDown
+     walks the whole list, and warming each row on the way past would spend ten
+     requests to arrive at the one the reader wanted. Long enough to mean
+     "stopped here", short enough that stopping and pressing Enter still finds
+     the route already fetched. */
+  const activeId = open ? rows[active]?.quote.id : undefined;
+  useEffect(() => {
+    if (activeId === undefined) return;
+    const timer = setTimeout(() => setWanted(instrumentPath(activeId)), 100);
+    return () => clearTimeout(timer);
+  }, [activeId]);
+
   /* Clicking anywhere else closes the list. */
   useEffect(() => {
     if (!open) return;
@@ -439,6 +481,12 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
                              require the element to be tabbable. */
                           tabIndex={-1}
                           onPointerEnter={() => setActive(index)}
+                          /* A mouse arriving on a row is the clearest
+                             statement of intent this widget gets, so it does
+                             not wait out the keyboard's debounce — the
+                             highlight it also sets will name the same path a
+                             moment later and find it already asked for. */
+                          onMouseEnter={() => setWanted(instrumentPath(row.quote.id))}
                           onClick={() => go(row.quote)}
                           className={cn(
                             "flex w-full min-h-12 items-center gap-3 rounded-[10px] px-3 text-left transition-colors",
