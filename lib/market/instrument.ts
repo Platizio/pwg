@@ -508,21 +508,6 @@ export const getInstrumentSnapshot = cache(
     const now = nowMs();
     const startedAt = Date.now();
 
-    /* The two modules in this file's graph that reach next/cache, imported at
-       the point they are called rather than at the top.
-
-       `next/cache` does not resolve in a plain Node process — that is the rule
-       the whole of lib/api and lib/market/store is written to, so the refresh
-       worker and the probe can share the real client code — and a static
-       import of either module would make this file unloadable outside a Next
-       render. `inputsFromStored` below would go with it, and it is the one
-       part of the fast path with any judgement in it. Loaded here, the module
-       registry hands back the same instance on every call after the first, and
-       the pure half is reachable by `node --test`. The same trade is what
-       bought instrument-assemble.ts its tests. */
-    const { getCorporateActions, getFinancials, getFundamentals } =
-      await import("../api/cache-layer.ts");
-
     /* ---- the fast path ---- */
     const stored = await readStored(ticker);
 
@@ -540,6 +525,35 @@ export const getInstrumentSnapshot = cache(
     }
 
     /* ---- the gateway fan-out, unchanged ---- */
+
+    /* Loaded HERE, not above the store read, and the move is the fix.
+     *
+     * These three are the only things this file takes from cache-layer.ts and
+     * every one of them is called below, on this path. Imported before the
+     * store read they were pulled into every instrument render — including the
+     * ones the store answers in under a second and returns from without ever
+     * calling them — and a dynamic import is not free: it is the first time a
+     * build worker or a cold instance resolves, reads and evaluates that
+     * module's whole graph, which reaches next/cache and the news clients.
+     * Unmeasured, on the critical path, for a module the fast path does not
+     * use. A deployed build put three pages past Next's sixty-second limit
+     * having reached the store read about sixty-one seconds in, with the store
+     * itself answering those symbols in under half a second when asked
+     * directly; this import is what sat in front of it.
+     *
+     * The reason it is dynamic at all is unchanged: `next/cache` does not
+     * resolve in a plain Node process — the rule the whole of lib/api and
+     * lib/market/store is written to, so the refresh worker and the probe can
+     * share the real client code — and a static import would make this file
+     * unloadable outside a Next render, taking `inputsFromStored` with it. The
+     * module registry still hands back the same instance on every call after
+     * the first; the difference is which renders pay for the first. */
+    const importedAt = Date.now();
+    const { getCorporateActions, getFinancials, getFundamentals } =
+      await import("../api/cache-layer.ts");
+    const importMs = Date.now() - importedAt;
+    if (importMs > 100) console.info(`instrument ${ticker}: cache-layer import ms=${importMs}`);
+
     const [
       quoteS,
       fundamentalsS,

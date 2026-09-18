@@ -49,9 +49,16 @@ select is(
 -- The property the worker depends on: what set_hot wrote is what comes back,
 -- including the demotion. A symbol dropped from the set must not linger here,
 -- or a worker restarting would keep re-quoting names the last sweep retired.
-select ok(
-  public.market_set_hot(array['ZTSTA']) is not null
-    and public.market_hot_symbols() = '["ZTSTA"]'::jsonb,
+-- Two statements, deliberately. market_hot_symbols is STABLE, so inside a
+-- single statement it is entitled to the snapshot that statement began with —
+-- the one taken before market_set_hot's update in the same expression. Written
+-- as one `ok(... and ...)` it read the PREVIOUS set and failed, which looks
+-- like a broken function and is really a broken test.
+select public.market_set_hot(array['ZTSTA']);
+
+select is(
+  public.market_hot_symbols(),
+  '["ZTSTA"]'::jsonb,
   'and follows market_set_hot exactly, demotions included'
 );
 
