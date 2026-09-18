@@ -41,6 +41,24 @@ const nextConfig: NextConfig = {
    * four pages is 32 in flight, ~400 upstream calls: comfortably under the
    * ~900 that is proven to work, and an order of magnitude under what failed.
    * Build time barely moves - the gateway, not the CPU, is the bottleneck. */
+  /* Sixty seconds is Next's default and it is a ceiling on the QUEUE, not on a
+   * page. Thirty-two renders are in flight at once against a build container's
+   * share of CPU, so the last few pages of a wave sit waiting while the ones
+   * ahead of them finish — and the timer is already running. Three deploys in a
+   * row failed exactly that way: a handful of pages reported "took more than 60
+   * seconds", and the log then showed each of them reaching its store read
+   * about sixty-one seconds in, with the store answering those same symbols in
+   * 0.18-0.43s when asked directly. Nothing was slow; a few things were last.
+   *
+   * The symbols were different every build, which is what says it is position
+   * in the queue rather than anything about a company. At runtime these pages
+   * serve in half a second.
+   *
+   * Raised rather than cutting the concurrency above, because the concurrency
+   * is what keeps the build near twenty minutes on a gateway-bound workload,
+   * and a page that needs ninety seconds of wall clock on a loaded build box
+   * still needs half a second in front of a reader. */
+  staticPageGenerationTimeout: 180,
   experimental: {
     cpus: 8,
     staticGenerationMaxConcurrency: 4,
