@@ -3,6 +3,7 @@ import { nowMs } from "@/lib/market/clock";
 import { health, type Fault } from "@/lib/market/health";
 import { pricesMove, sessionAt } from "@/lib/market/session";
 import { readStatus, storeConfigured } from "@/lib/market/store/client";
+import { gateStats } from "@/lib/market/store/gate";
 
 import type { StoreStatus } from "@/lib/market/store/types";
 import type { NextRequest } from "next/server";
@@ -187,6 +188,10 @@ export async function GET(request: NextRequest) {
       claimed: store?.claimed ?? null,
       erroring: store?.erroring ?? null,
       lastHour: store?.lastHour ?? null,
+      /* What this process's store gate is doing right now. `waiting` above
+         zero on a quiet box is the signature of a read stampede or a permit
+         that never came back, and nothing else reports it. */
+      gate: gateStats(),
       fatal: faults.filter((f) => f.severity === "fatal").map((f) => f.message),
       degraded: faults.filter((f) => f.severity === "degraded").map((f) => f.message),
     },

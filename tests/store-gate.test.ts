@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { STORE_READ_LIMIT, gated, resetStoreGate } from "../lib/market/store/gate.ts";
+import { STORE_READ_LIMIT, gateStats, gated, resetStoreGate } from "../lib/market/store/gate.ts";
 import { readInstrumentRaw, readSectionsRaw } from "../lib/market/store/client.ts";
 
 /* What the gate is for, and what would happen without it.
@@ -207,4 +207,28 @@ test("the same section batch is one read however many pages ask", async () => {
   await all;
 
   assert.equal(posts, 1);
+});
+
+/* ---------- observability ---------- */
+
+/* An operator reading a deployed log has to be able to tell a gate that is
+   queueing from a store that is slow, and the only place that distinction
+   lives is inside this module. The stats are read at the moment a read gives
+   up, so they have to be cheap and they have to be right while reads are in
+   flight — not only after everything has settled. */
+test("gateStats reports permits in use and callers queued while reads are in flight", async () => {
+  const gates = Array.from({ length: STORE_READ_LIMIT + 2 }, () => deferred<string>());
+  const flights = gates.map((g, i) => gated(`read ${i}`, () => g.promise));
+
+  /* Every permit taken, two callers behind them. */
+  assert.deepEqual(gateStats(), { active: STORE_READ_LIMIT, waiting: 2, limit: STORE_READ_LIMIT });
+
+  gates[0].resolve("done");
+  await flights[0];
+  /* One permit handed straight to the first waiter: still full, one queued. */
+  assert.deepEqual(gateStats(), { active: STORE_READ_LIMIT, waiting: 1, limit: STORE_READ_LIMIT });
+
+  for (const g of gates.slice(1)) g.resolve("done");
+  await Promise.all(flights);
+  assert.deepEqual(gateStats(), { active: 0, waiting: 0, limit: STORE_READ_LIMIT });
 });

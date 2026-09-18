@@ -131,6 +131,19 @@ export function gated<T>(key: string, read: () => Promise<T>): Promise<T> {
 }
 
 /**
+ * What the gate is doing at this instant, for the line a read writes when it
+ * gives up and for the health route.
+ *
+ * This is the one number that tells two failures apart in a deployed log. A
+ * read that timed out with `active` below the limit waited on the store; a
+ * read that gave up with `waiting` above zero never reached the store at all,
+ * and the box is queueing on itself. Without it the two are the same line.
+ */
+export function gateStats(): { active: number; waiting: number; limit: number } {
+  return { active, waiting: waiting.length, limit: STORE_READ_LIMIT };
+}
+
+/**
  * Test seam, like `resetStoreConfig` next door.
  *
  * Only ever called between tests, where there is nothing in flight. Calling it

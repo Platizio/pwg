@@ -500,6 +500,7 @@ export const getInstrumentSnapshot = cache(
     if (!ticker) return null;
 
     const now = nowMs();
+    const startedAt = Date.now();
 
     /* The two modules in this file's graph that reach next/cache, imported at
        the point they are called rather than at the top.
@@ -639,6 +640,7 @@ export const getInstrumentSnapshot = cache(
        store may hear about it: the fan-out below is the cost this stamp exists
        to stop the next reader paying. */
     markVisited(ticker);
+    console.info(`instrument ${ticker}: gateway fan-out ms=${Date.now() - startedAt}`);
 
     const inputs: InstrumentInputs = {
       ticker,
@@ -758,8 +760,10 @@ export const getInstrumentSnapshot = cache(
  */
 async function readStored(ticker: string): Promise<StoredRead> {
   if (!storeConfigured()) return { use: "gateway" };
+  const started = Date.now();
   try {
     const { readInstrument } = await import("./store/reads.ts");
+    const { gateStats } = await import("./store/gate.ts");
 
     let timer: ReturnType<typeof setTimeout> | undefined;
     const budget = new Promise<null>((resolve) => {
@@ -768,12 +772,43 @@ async function readStored(ticker: string): Promise<StoredRead> {
 
     try {
       const result = await Promise.race([readInstrument(ticker), budget]);
-      if (!result || !result.ok) return { use: "gateway" };
-      return inputsFromStored(result.data, ticker);
+      const ms = Date.now() - started;
+
+      /* EVERY way off the fast path writes one line, because the one that did
+         not is how a ninety-second page went undiagnosed: the budget expired
+         in silence, the fan-out below ran in silence, and the log for the
+         whole incident was empty. The gate figures are what separate "the
+         store was slow" from "this process was queueing on itself". */
+      if (!result) {
+        const g = gateStats();
+        console.warn(
+          `market store: instrument ${ticker} gave up after ${ms}ms ` +
+            `(gate active=${g.active}/${g.limit} waiting=${g.waiting}); falling back to the gateway`,
+        );
+        return { use: "gateway" };
+      }
+      /* A failure has already been logged where it was seen (guardStore); an
+         unconfigured store is not worth a line. */
+      if (!result.ok) return { use: "gateway" };
+
+      const read = inputsFromStored(result.data, ticker);
+      if (read.use === "gateway") {
+        console.warn(
+          `market store: instrument ${ticker} record not usable after ${ms}ms ` +
+            `(enrolled=${result.data.enrolled}); falling back to the gateway`,
+        );
+      } else {
+        console.info(`market store: instrument ${ticker} ${read.use} ms=${ms}`);
+      }
+      return read;
     } finally {
       clearTimeout(timer);
     }
-  } catch {
+  } catch (e) {
+    console.warn(
+      `market store: instrument ${ticker} read threw after ${Date.now() - started}ms: ` +
+        `${e instanceof Error ? e.message : String(e)}; falling back to the gateway`,
+    );
     return { use: "gateway" };
   }
 }
