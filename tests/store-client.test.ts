@@ -22,7 +22,6 @@ import {
   HOME_TAG,
   MAX_TAGS,
   parseTagBatch,
-  QUOTES_TAG,
   symbolTag,
   TAG_PATTERN,
 } from "../lib/market/store/types.ts";
@@ -591,7 +590,6 @@ test("every tag the store can issue is a tag the revalidate route accepts", () =
     assert.ok(TAG_PATTERN.test(symbolTag(sym)), `${sym} must survive the round trip`);
   }
   assert.ok(TAG_PATTERN.test(HOME_TAG));
-  assert.ok(TAG_PATTERN.test(QUOTES_TAG));
 
   /* And the boundary the pattern exists for. A tag is a key to the cache, so
      anything outside the market namespace must not be nameable by a caller who
@@ -651,10 +649,10 @@ test("the revalidate route's body check is a pure function, so plain Node can ho
      the route returns is ENTRIES MARKED, which is why it can be lower than the
      length of what was sent. */
   const ok = parseTagBatch({
-    tags: [symbolTag("AAPL"), QUOTES_TAG, symbolTag("aapl"), HOME_TAG],
+    tags: [symbolTag("AAPL"), symbolTag("MSFT"), symbolTag("aapl"), HOME_TAG],
   });
   assert.equal(ok.ok, true);
-  assert.deepEqual(ok.ok && ok.tags, ["market:AAPL", QUOTES_TAG, HOME_TAG]);
+  assert.deepEqual(ok.ok && ok.tags, ["market:AAPL", "market:MSFT", HOME_TAG]);
 
   /* Passed through verbatim, never normalised. revalidateTag is case-sensitive
      (node_modules/next/dist/docs/01-app/03-api-reference/04-functions/revalidateTag.md,

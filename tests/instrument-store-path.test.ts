@@ -676,3 +676,35 @@ test("the visit stamp never rides the fetch Next patched", () => {
     globalThis.fetch = real;
   }
 });
+
+/* The benchmark is a SEPARATE READ now, and separate reads fail separately.
+ *
+ * market_instrument used to join SPY's history into every answer, so this field
+ * was as present as the company's own quote. 0033 takes it out and readInstrument
+ * composes it from a shared `market_sections(['SPY'],'history_daily')` — one
+ * entry for the whole site instead of 86KB inside each of ~500 — which means it
+ * can now be absent on its own: the store may not have SPY yet, or that one read
+ * may have timed out while this company's record arrived perfectly.
+ *
+ * When it does, the page keeps everything else. One comparison line is not worth
+ * sending a reader to a thirty-second gateway fan-out for a company whose record
+ * is sitting right here, and the assembler has always drawn this case — it is
+ * what a symbol with no stored SPY row looked like before.
+ */
+test("a missing benchmark costs the comparison and nothing else", () => {
+  const withoutBenchmark = inputsFromStored(
+    stored({ market: { symbol: "SPY", history_daily: null } }),
+    "NFLX",
+  );
+  assert.equal(withoutBenchmark.use, "store");
+  if (withoutBenchmark.use !== "store") return;
+
+  const snapshot = assembleInstrument(withoutBenchmark.inputs, NOW);
+  const whole = assembleInstrument(storeInputs(stored()), NOW);
+
+  assert.equal(snapshot.market, null, "the panel is left out, not filled with a guess");
+  assert.equal(snapshot.status, whole.status, "and the page does not call itself degraded for it");
+  assert.deepEqual(snapshot.history.daily, whole.history.daily);
+  assert.deepEqual(snapshot.returns, whole.returns);
+  assert.deepEqual(snapshot.peers, whole.peers);
+});
