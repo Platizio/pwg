@@ -15,9 +15,13 @@
 #                       so a page that throws while rendering fails here rather
 #                       than at request time in production
 #
-# The repo's `npm test` suite is not wired into this workflow yet, so this build
-# is still close to the whole safety net. Treat a failure here as a real failure
-# rather than something to re-run.
+# `npm test` and `npm run lint` now run here too. They did not, and that gap is
+# how a market-store change shipped four times with the database suite red: the
+# only job that could see it was the pgTAP one, nobody reads a job that has been
+# failing since before their change, and the unit suite — 981 tests, the thing
+# that actually pins the read path — was never consulted at all.
+#
+# Treat a failure here as a real failure rather than something to re-run.
 
 name: CI
 
@@ -50,6 +54,15 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      # Before the build, because it is thirty seconds against three minutes and
+      # it fails on exactly the mistakes a build cannot see: the store read path,
+      # the cadence arithmetic, the gate, the tag contract. `--conditions=react-server`
+      # is not optional — lib/api and lib/market/store are written to be loadable
+      # outside a Next render, and the suite is what holds them to it.
+      - run: npm test
+
+      - run: npm run lint
 
       - run: npm run build
 

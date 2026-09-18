@@ -145,7 +145,11 @@ select ok(
 
 select is(
   (select (public.market_home(array['ZTSTB'], '{}', '{}') -> 'rows' -> 0 ->> 'px')::numeric),
-  200,
+  -- 200::numeric, not 200. pgTAP resolves is() per argument type, and
+  -- is(numeric, integer, text) does not exist: an integer literal here aborts
+  -- the whole file with "function is(numeric, integer, unknown) does not
+  -- exist", which reads as a broken suite rather than a typing slip.
+  200::numeric,
   'and the new price is what the page gets'
 );
 

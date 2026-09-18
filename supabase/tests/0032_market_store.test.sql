@@ -308,15 +308,22 @@ select public.market_complete(
 
 create temp table instrument_probe as select public.market_instrument('ZTSTA') as j;
 
-select is(
-  (select j -> 'market' ->> 'symbol' from instrument_probe),
-  'SPY',
-  'market_instrument carries the SPY benchmark on every read'
+-- These two asserted the opposite until 0033, which took the benchmark out of
+-- this answer: SPY's five years of bars are identical on every instrument page,
+-- so shipping them inside all ~500 of them cost 86KB of the 213KB each returned.
+-- The series is read once through market_sections and joined by the caller
+-- (lib/market/store/reads.ts). Asserting the ABSENCE is what stops it coming
+-- back: a future edit that re-adds the join would otherwise pass every test
+-- here and quietly restore the payload that timed the deployed reads out.
+select ok(
+  (select not (j ? 'market') from instrument_probe),
+  'market_instrument does not carry the SPY benchmark — 0033 moved it to a shared read'
 );
 
-select ok(
-  (select jsonb_typeof(j -> 'market' -> 'history_daily') = 'object' from instrument_probe),
-  'and the benchmark series with it'
+select is(
+  (select public.market_sections(array['SPY'], 'history_daily') -> 0 ->> 'symbol'),
+  'SPY',
+  'and market_sections is where the benchmark series comes from instead'
 );
 
 select is(
