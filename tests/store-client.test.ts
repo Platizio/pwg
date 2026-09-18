@@ -264,6 +264,23 @@ test("a body that is not JSON fails rather than throwing", async () => {
   assert.equal(res.status, 200);
 });
 
+/* Hold the event loop open across the abort.
+ *
+ * `AbortSignal.timeout` arms an UNREF'D timer — it is designed not to keep a
+ * process alive on its own — and neither a stalled ReadableStream nor a promise
+ * that never settles is a handle either. On Node 22 the loop therefore drains
+ * before the twenty milliseconds elapse and node:test reports "Promise
+ * resolution is still pending but the event loop has already resolved"; on Node
+ * 24 it happens to survive. That is the whole of the difference between this
+ * file passing on a laptop and failing in CI.
+ *
+ * One ref'd timer for the duration is the fix. It asserts nothing; it just
+ * means the runtime cannot decide there is nothing left to wait for. */
+function keepLoopAlive(ms: number): () => void {
+  const handle = setTimeout(() => {}, ms);
+  return () => clearTimeout(handle);
+}
+
 test("a 2xx whose body never finishes arriving is a failure, not an empty success", async () => {
   /* The most expensive bug this module can have, because it is invisible.
      Headers and body are two separate arrivals — a 200 only means the status
@@ -294,7 +311,9 @@ test("a 2xx whose body never finishes arriving is a failure, not an empty succes
     return Promise.resolve(new Response(body, { status: 200 }));
   }) as unknown as typeof fetch;
 
+  const release = keepLoopAlive(200);
   const cut = await rpc("market_home", {}, { fetchImpl: stalling, config: CONFIG, timeoutMs: 20 });
+  release();
 
   assert.equal(cut.ok, false, "a half-arrived body is not a successful read");
   if (!cut.ok) {
@@ -332,7 +351,9 @@ test("a request that hangs is abandoned at the timeout", async () => {
     })) as unknown as typeof fetch;
 
   const started = Date.now();
+  const release = keepLoopAlive(200);
   const res = await rpc("market_home", {}, { fetchImpl, config: CONFIG, timeoutMs: 20 });
+  release();
 
   assert.equal(res.ok, false);
   assert.equal(res.status, 0);
