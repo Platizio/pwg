@@ -62,10 +62,10 @@ const DEFAULT_TIMEOUT_MS = 8_000;
 /* Four seconds for the three reads a RENDER waits on, and the difference from
  * the number above is the point.
  *
- * Eight was never a budget a page could spend. instrument.ts stops waiting for
- * the store at 2,500ms and falls back to the gateway (STORE_BUDGET_MS), so the
- * `ms: 8165` in the failure log is time the client spent on an answer the
- * reader had already been served without. That was free when a read cost
+ * Eight was never a budget a page could spend. A read that has not answered
+ * in four seconds is not answering inside a page render, so the `ms: 8165` in
+ * the failure log was time the client spent on an answer nothing was going to
+ * use. That was free when a read cost
  * nothing but a socket. It is not free now: under the gate next door a read
  * that runs to the ceiling holds one of four permits for the whole of it, and
  * the pages queued behind it pay for every second twice.

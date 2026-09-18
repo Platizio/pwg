@@ -139,18 +139,30 @@ const SESSION_SERIES_NOTE = "This session's trades load with the chart.";
 
 /* How long the store gets to answer before the page stops waiting for it.
  *
- * The client's own ceiling is eight seconds, and that is the right number for
- * a worker and the wrong one for a render: a store that has stopped answering
- * would add all eight to a page that then still has to make eleven gateway
- * calls and a peers wave, turning a fifteen-second cold page into a
- * twenty-three-second one. A read doing its job answers in tens of
- * milliseconds — one indexed query — so this is generous by an order of
- * magnitude, and it is still far cheaper than the fan-out it exists to avoid.
+ * This is the ceiling on a read PLUS its wait behind the gate, and it has to
+ * be far above the cost of one read because of what sits on the other side of
+ * it. A single read is already bounded at four seconds by the client
+ * (READ_TIMEOUT_MS in store/client.ts); the only time this budget adds
+ * anything is when the read is queued behind others, and queueing is the
+ * cheap, correct outcome. Giving up is the expensive one: it sends this render
+ * to the gateway fan-out — eleven calls and a peers wave — which is exactly
+ * the load the store exists to keep off the box.
+ *
+ * It was 2,500ms, and that number was measured wrong. On the deployed build
+ * every worker renders four pages at once and each page makes two gated reads,
+ * so eight reads share four permits and the second wave waits a full read
+ * before it starts. Whole pages tripped the budget with the store answering
+ * perfectly — the build log shows zero store failures beside twenty-two
+ * gateway timeouts and nine pages that took over sixty seconds and had to be
+ * retried, all of them pages that had silently gone to the gateway. Twenty
+ * seconds is five reads' worth of queue: nothing a build or a stampede of
+ * background revalidations can reach, and still short of Next's sixty-second
+ * page generation limit with room for the fallback to finish.
  *
  * The abandoned read is not cancelled. It carries on into the unstable_cache
  * entry it was already going to fill, so the next reader of this symbol finds
  * the answer this one gave up on. Nothing is wasted except the waiting. */
-const STORE_BUDGET_MS = 2_500;
+const STORE_BUDGET_MS = 20_000;
 
 /**
  * The snapshot, minus the series that no longer travels with it.
