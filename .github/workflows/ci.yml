@@ -53,19 +53,20 @@ jobs:
           node-version: '22'
           cache: npm
 
-      # Pinned, because `npm ci` is only as reproducible as the npm that wrote
-      # the lock file. Node 22 ships npm 10, which expects a handful of wasm
-      # optional dependencies (@emnapi/core, @emnapi/runtime) to be hoisted as
-      # top-level lock entries; npm 11 — what this repo's lock was written with,
-      # and what Render's build uses — records them nested and prunes the
-      # duplicates. The mismatch is not a missing package: it fails EUSAGE
-      # before a single byte is installed, which is why this job never once ran
-      # the build it is named for. Match the lock rather than rewriting it: a
-      # lock regenerated under npm 10 drops 769 lines the deploy currently
-      # installs from.
-      - run: npm i -g npm@11
-
-      - run: npm ci
+      # `npm install`, not `npm ci`, and the reason is a platform split rather
+      # than sloppiness. The lock file is written on darwin-arm64, where npm
+      # prunes the wasm fallback's dependencies as unreachable; on linux it
+      # resolves @tailwindcss/oxide-wasm32-wasi and demands @emnapi/core and
+      # @emnapi/runtime as top-level entries the lock does not carry. `npm ci`
+      # refuses EUSAGE before installing anything — under npm 10 AND npm 11 —
+      # so this job has never once run the build it is named for, and neither
+      # the unit suite nor lint has ever gated a commit.
+      #
+      # `npm install` still resolves from the lock for everything the lock
+      # covers; it adds the two platform entries instead of refusing. The strict
+      # form belongs here the day the lock is regenerated on linux, which is a
+      # change to what the deploy installs and not one to make blind.
+      - run: npm install --no-audit --no-fund
 
       # Before the build, because it is thirty seconds against three minutes and
       # it fails on exactly the mistakes a build cannot see: the store read path,
