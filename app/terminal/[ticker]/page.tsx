@@ -25,6 +25,27 @@ type Params = { params: Promise<{ ticker: string }> };
  * any setting: ~1.8 MB of output each puts 13,900 pages at about 25 GB, and
  * they could never be kept warm anyway. */
 export function generateStaticParams() {
+  /* Nothing to prerender without the feed that fills a page.
+   *
+   * A build is the only place this matters and it is not a corner case: CI has
+   * no ViewTrade credentials, so every instrument render falls through the
+   * store to a gateway that is not there, and the fan-out ends in the refusal
+   * below — "Quote unavailable for NOK after 3 retries" — which fails the whole
+   * export. That refusal is right: a build must not bake a 404 onto a real
+   * company because a credential was missing (the reasoning is at
+   * getInstrumentSnapshot's quote retry). What is wrong is asking for the pages
+   * at all.
+   *
+   * So a build without credentials prerenders none of them and serves every
+   * ticker on demand — which is what an uncredentialed deployment could do
+   * anyway. The deploy that does have them is unaffected, and typechecking,
+   * linting and the rest of the export still run, which is the whole point of
+   * building in CI.
+   *
+   * Read directly rather than through env(): that helper throws on the first
+   * missing name, and this is a question, not a demand. */
+  if (!process.env.VIEWTRADE_API_KEY || !process.env.VIEWTRADE_API_SECRET) return [];
+
   const baseline = baselineSnapshot();
   return prerenderTickers({
     covered: COVERED,
