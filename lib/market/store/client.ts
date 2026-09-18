@@ -76,6 +76,22 @@ const DEFAULT_TIMEOUT_MS = 8_000;
  * inside a page render, and the caller has a correct page to fall back to. */
 const READ_TIMEOUT_MS = 4_000;
 
+/* Twelve seconds for the dashboard's one read, and the exception is measured
+ * rather than guessed. market_home answers with ~1.2MB — every hot row plus
+ * the strip, the week bars and whatever wire and calendar it was asked for —
+ * and from a laptop on a quiet database that takes 1.0-1.3s; when the refresh
+ * worker is clearing a backlog the database is CPU-throttled and the same
+ * aggregate alone was measured at 2.4-5.7s. Under the four-second ceiling the
+ * deployed build logged seventeen consecutive `home failed ms=4000` lines and
+ * rendered the dashboard from an entry five minutes stale, which is exactly
+ * the answer a longer wait would have made unnecessary.
+ *
+ * The cost of waiting is one permit, once: this read is single-flighted and
+ * cached for five minutes, so however many renders want it they wait on the
+ * same request. That is a different trade from the instrument read, which is
+ * asked hundreds of times over and stays at four. */
+const HOME_READ_TIMEOUT_MS = 12_000;
+
 let memo: StoreConfig | null = null;
 let read = false;
 
@@ -299,7 +315,7 @@ export const readHomeRaw = (
   pageRead<StoredHome>(
     "market_home",
     { p_strip: strip, p_wire: wire, p_calendar: calendar },
-    opts,
+    { timeoutMs: HOME_READ_TIMEOUT_MS, ...opts },
   );
 
 export const readSectionsRaw = (symbols: string[], section: Section, opts?: RpcOptions) =>
