@@ -380,6 +380,40 @@ export function readHome(): Promise<ApiResult<StoredHome>> {
 }
 
 /**
+ * The same answer, carrying no tag — for the terminal LAYOUT.
+ *
+ * WHY A SECOND ENTRY EXISTS, and it is the second half of the stampede this
+ * file's other note describes. `unstable_cache` accumulates its tags onto the
+ * enclosing render's work store (node_modules/next/dist/server/web/
+ * spec-extension/unstable-cache.js:119-126), so a tag does not stay on the data
+ * entry: it lands on the ISR entry of whatever page was rendering. The terminal
+ * layout reads the home snapshot, and the layout renders on EVERY page under
+ * /terminal — so `market:home` was written onto all ~573 prerendered instrument
+ * pages, and the worker's POST after every five-minute sweep marked the entire
+ * terminal stale at once. Exactly the fault removing `market:quotes` from
+ * readInstrument was meant to end, arriving through the layout instead.
+ *
+ * The dashboard still needs the tag: its own page entry carries revalidate=900,
+ * and without an invalidation the boards would sit up to fifteen minutes behind
+ * a five-minute sweep. An instrument page needs nothing of the sort — the
+ * chrome this read feeds is the tape, the search corpus and the session pill,
+ * none of which is worth regenerating a company page for, and all of which the
+ * 300-second TTL below refreshes on its own.
+ *
+ * So: same RPC, same TTL, same single flight through the gate, no tag. The
+ * layout takes this one; app/terminal/page.tsx takes the tagged one above.
+ */
+const cachedHomeUntagged = unstable_cache(
+  async () => measured("home", guardStore("home", await readHomeRaw(STRIP_SYMBOLS, [], []))),
+  ["market", "home", "untagged"],
+  { revalidate: HOME_TTL },
+);
+
+export function readHomeUntagged(): Promise<ApiResult<StoredHome>> {
+  return settle(cachedHomeUntagged());
+}
+
+/**
  * One section for a batch of symbols — the sector pages, the feeds, and the
  * dashboard's wire and calendar rails.
  *

@@ -198,3 +198,20 @@ test("a rate that is not a number leaves the concurrency where it is", () => {
   assert.equal(backoffFor(Number.NaN, 6), 6);
   assert.equal(backoffFor(Number.NaN, 0), CONCURRENCY_FLOOR);
 });
+
+/* ---------- a failed sweep is not a productive pass ---------- */
+
+/* THE HOT LOOP THIS PINS. `sweep()` returns null when it threw, and its catch
+   returns before the sweep timers are advanced — so the sweep stays due. The
+   loop used to set `worked = true` on the attempt rather than the outcome,
+   which skipped the idle at the foot of the pass, so the next iteration fired
+   the same 276-chunk sweep immediately and kept firing it for as long as the
+   gateway stayed broken.
+   The arithmetic is trivial; the point is that it is written down. A pass whose
+   only work was a sweep that failed must be idle, because idle is what makes
+   the loop wait. */
+test("a pass whose sweep failed is not counted as work", () => {
+  const outcome = (swept: unknown) => swept !== null;
+  assert.equal(outcome(null), false, "a thrown sweep leaves nothing done");
+  assert.equal(outcome({ rows: [] }), true, "a sweep that answered did work, even with no rows");
+});

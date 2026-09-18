@@ -147,8 +147,20 @@ export async function fetchQuotesBatched(
   let failedChunks = 0;
 
   for (const s of settled) {
-    if (s.status === "fulfilled" && s.value.ok) quotes.push(...s.value.data);
-    else failedChunks += 1;
+    /* `Array.isArray`, and it is not belt-and-braces. This merge runs AFTER
+       `pooled`, outside its per-item catch, so a spread of a non-iterable here
+       throws out of fetchQuotesBatched and destroys the whole snapshot — all
+       276 chunks — rather than costing the fifty symbols of the chunk that
+       misbehaved. The gateway is documented as answering some services with a
+       JSON envelope and others with bare text (http.ts:66-67), so a throttle
+       body delivered under HTTP 200 is a shape this has to survive. A chunk
+       that did not answer with an array is a failed chunk, which is exactly
+       what the settled semantics were chosen to express. */
+    if (s.status === "fulfilled" && s.value.ok && Array.isArray(s.value.data)) {
+      quotes.push(...s.value.data);
+    } else {
+      failedChunks += 1;
+    }
   }
 
   const seen = new Set(quotes.filter((q) => !q.notFound).map((q) => q.symbol));

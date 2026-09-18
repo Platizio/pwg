@@ -29,7 +29,11 @@ import { LiveProvider } from "@/components/terminal/live-provider";
  */
 export default async function TerminalLayout({ children }: { children: ReactNode }) {
   const { session, indices, tape, universe, mostActive, gainers, losers } =
-    await getHomeSnapshot();
+    /* `false` — untagged. This layout renders on every page under /terminal, and
+       a tagged read would write `market:home` onto each of their ISR entries,
+       so one sweep would mark the whole terminal stale. The dashboard page asks
+       for the tagged one. */
+    await getHomeSnapshot(false);
   const lead = indices.data[0]?.index;
 
   /* The rail lists the covered names with their day change, and the tape is

@@ -768,12 +768,16 @@ export function startRefresher(opts: RefresherOptions = {}): Refresher {
     /* Full before hot: a full sweep covers everything a hot one would and
        clears both timers, so running both when both are due quotes the liquid
        names twice for nothing. */
+    /* `worked` follows the OUTCOME, not the attempt. `sweep` returns null when
+       it threw, and its catch returns before `last.hot`/`last.full` are
+       advanced — so the sweep stays due. Marking the pass productive anyway
+       skipped the idle at the foot of the loop, and the next iteration fired
+       the same 276-chunk sweep immediately: a hot loop against the gateway,
+       with no cooldown, for as long as the fault lasted. */
     if (due.full) {
-      await sweep("full");
-      worked = true;
+      worked = (await sweep("full")) !== null;
     } else if (due.hot) {
-      await sweep("hot");
-      worked = true;
+      worked = (await sweep("hot")) !== null;
     }
     if (stopping) return worked;
 

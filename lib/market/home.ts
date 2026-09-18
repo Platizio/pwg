@@ -13,7 +13,7 @@ import { sweptMarket } from "@/lib/market/swept";
 import { TAGS, TTL } from "@/lib/api/ttl";
 import { homeInputsFrom } from "./home-inputs.ts";
 import { storeConfigured } from "./store/client.ts";
-import { readHome, readSections } from "./store/reads.ts";
+import { readHome, readHomeUntagged, readSections } from "./store/reads.ts";
 import { fromStored } from "./store/sections.ts";
 import { newest, oldest, quoteAge, type Freshness } from "@/lib/market/freshness";
 import { breadthSample } from "@/lib/market/membership";
@@ -430,7 +430,7 @@ function readableRows<T>(
  * gateway fan-out to fill one rail would give up the entire saving for the sake
  * of eight headlines.
  */
-async function fromStore(now: number): Promise<Sources | null> {
+async function fromStore(now: number, tagged: boolean): Promise<Sources | null> {
   /* Asked before the reads, so an unconfigured deployment costs nothing at all.
      They would answer `ok: false` on their own, but only after building three
      cache entries and throwing a TransientFailure through each once per
@@ -438,7 +438,7 @@ async function fromStore(now: number): Promise<Sources | null> {
   if (!storeConfigured()) return null;
 
   const [home, news, actions] = await Promise.all([
-    readHome(),
+    tagged ? readHome() : readHomeUntagged(),
     readSections([...WIRE_TICKERS], "news_gateway"),
     readSections([...CALENDAR_TICKERS], "corporate_actions"),
   ]);
@@ -531,7 +531,23 @@ async function fromGateway(strip: string[]): Promise<Sources> {
 /* The assembler                                                       */
 /* ------------------------------------------------------------------ */
 
-export const getHomeSnapshot = cache(async (): Promise<HomeSnapshot> => {
+/**
+ * The terminal's shared snapshot.
+ *
+ * `tagged` decides whether reading it marks the CALLING PAGE stale when the
+ * sweep lands, and it is a property of the caller rather than of the data:
+ * Next puts an unstable_cache entry's tags on the ISR entry of whatever page is
+ * rendering. The dashboard wants that (it is the page the boards are on); the
+ * layout must not have it, because the layout renders on every instrument page
+ * and would hand all ~573 of them a five-minute invalidation. See
+ * readHomeUntagged in ./store/reads.ts.
+ *
+ * `cache` keys on the argument, so the two callers on the dashboard — layout
+ * and page — build the snapshot twice there. That costs one extra derivation on
+ * one page, against every instrument page in the site regenerating twelve times
+ * an hour; the RPC itself is single-flighted by the store gate either way.
+ */
+export const getHomeSnapshot = cache(async (tagged = true): Promise<HomeSnapshot> => {
   const startedAt = Date.now();
   const now = nowMs();
   const faults: Fault[] = [];
@@ -544,7 +560,7 @@ export const getHomeSnapshot = cache(async (): Promise<HomeSnapshot> => {
      Each step down costs more and knows less, and no step may leave a reader
      with an invented figure: the last of the three is real data that was once
      true, dated and flagged, which is a different thing from the seeded mock. */
-  const stored = await fromStore(now);
+  const stored = await fromStore(now, tagged);
   const viaStore = stored !== null;
   const sources = stored ?? (await fromGateway(strip));
 
