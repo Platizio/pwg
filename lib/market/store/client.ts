@@ -1,5 +1,6 @@
 import "server-only";
 import { type ApiResult, fail, ok, scrub } from "../../api/errors.ts";
+import { gated } from "./gate.ts";
 import type {
   ClaimedJob,
   CompleteArgs,
@@ -8,7 +9,7 @@ import type {
   SeedSymbolRow,
   StoreStatus,
   StoredHome,
-  StoredInstrument,
+  StoredInstrumentRecord,
   StoredSectionRow,
 } from "./types.ts";
 
@@ -50,12 +51,30 @@ export type RpcOptions = {
   config?: StoreConfig;
 };
 
-/* Eight seconds. Every one of these is a single indexed query or a bounded
-   upsert against a database in the same region as nothing in particular — the
-   web service is in Singapore and the project is in Mumbai — so the ceiling is
-   set by the round trip and the JSON, not by the work. A read that has not
-   answered in eight seconds is not going to answer inside a page render. */
+/* Eight seconds, for the writes and the health read. Each of those is a bounded
+   upsert or a handful of aggregate counts against a database in the same region
+   as nothing in particular — the web service is in Singapore and the project is
+   in Mumbai — so the ceiling is set by the round trip and the JSON, not by the
+   work. A 500-row quote upsert or a 2,000-row seed chunk genuinely takes
+   seconds, and nothing is waiting on a page for either. */
 const DEFAULT_TIMEOUT_MS = 8_000;
+
+/* Four seconds for the three reads a RENDER waits on, and the difference from
+ * the number above is the point.
+ *
+ * Eight was never a budget a page could spend. instrument.ts stops waiting for
+ * the store at 2,500ms and falls back to the gateway (STORE_BUDGET_MS), so the
+ * `ms: 8165` in the failure log is time the client spent on an answer the
+ * reader had already been served without. That was free when a read cost
+ * nothing but a socket. It is not free now: under the gate next door a read
+ * that runs to the ceiling holds one of four permits for the whole of it, and
+ * the pages queued behind it pay for every second twice.
+ *
+ * Four is still generous by an order of magnitude. One of these is a single
+ * indexed query returning ~127KB, measured at 0.27-0.72s against this
+ * database. A read that has not answered in four seconds is not answering
+ * inside a page render, and the caller has a correct page to fall back to. */
+const READ_TIMEOUT_MS = 4_000;
 
 let memo: StoreConfig | null = null;
 let read = false;
@@ -242,20 +261,55 @@ export async function rpc<T>(
 
 /* ---- reads ------------------------------------------------------------ */
 
+/**
+ * One page read: behind the gate, and on the render's ceiling rather than the
+ * worker's.
+ *
+ * Both are here rather than inside `rpc` because both are wrong for a write.
+ * Single-flight would collapse two identical upserts into one — which is a
+ * LOST WRITE, not a saving — and the worker already bounds its own concurrency
+ * with `pooled`, so a second bound around it would only fight the first. The
+ * stampede in the log is a read stampede; this is the path it travels.
+ *
+ * The key is the question, spelled the way the wire spells it. `opts` is not in
+ * it: a `fetchImpl` or a `config` is a test seam, and in a running process
+ * there is exactly one store to ask.
+ */
+function pageRead<T>(
+  fn: string,
+  args: Record<string, unknown>,
+  opts?: RpcOptions,
+): Promise<ApiResult<T>> {
+  /* Spread second, so a caller that names its own timeout still gets it — the
+     tests do, at 20ms, to watch an abort without waiting four seconds. */
+  return gated(`${fn} ${JSON.stringify(args)}`, () =>
+    rpc<T>(fn, args, { timeoutMs: READ_TIMEOUT_MS, ...opts }),
+  );
+}
+
 export const readInstrumentRaw = (symbol: string, opts?: RpcOptions) =>
-  rpc<StoredInstrument>("market_instrument", { p_symbol: symbol }, opts);
+  pageRead<StoredInstrumentRecord>("market_instrument", { p_symbol: symbol }, opts);
 
 export const readHomeRaw = (
   strip: string[],
   wire: string[],
   calendar: string[],
   opts?: RpcOptions,
-) => rpc<StoredHome>("market_home", { p_strip: strip, p_wire: wire, p_calendar: calendar }, opts);
+) =>
+  pageRead<StoredHome>(
+    "market_home",
+    { p_strip: strip, p_wire: wire, p_calendar: calendar },
+    opts,
+  );
 
 export const readSectionsRaw = (symbols: string[], section: Section, opts?: RpcOptions) =>
-  rpc<StoredSectionRow[]>("market_sections", { p_symbols: symbols, p_section: section }, opts);
+  pageRead<StoredSectionRow[]>("market_sections", { p_symbols: symbols, p_section: section }, opts);
 
-export const readStatus = (opts?: RpcOptions) => rpc<StoreStatus>("market_status", {}, opts);
+/* Gated like the others — two probes arriving together should ask once — but on
+   the eight-second ceiling, because market_status counts across the whole
+   universe and nobody's page is waiting for the answer. */
+export const readStatus = (opts?: RpcOptions) =>
+  gated("market_status", () => rpc<StoreStatus>("market_status", {}, opts));
 
 /* ---- writes, called by the refresh worker ----------------------------- */
 

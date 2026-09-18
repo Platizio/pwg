@@ -30,7 +30,6 @@ import type { Section } from "../store/sections.ts";
 import {
   HOME_TAG,
   MAX_TAGS,
-  QUOTES_TAG,
   symbolTag,
   type ClaimedJob,
   type QuoteUpsertRow,
@@ -523,7 +522,14 @@ export function startRefresher(opts: RefresherOptions = {}): Refresher {
            of hot-list.ts's own rule; the next full sweep decides again. */
         log(`refresh hot list=short rows=${snap.rows.length} kept=previous`);
       }
-      tags.push(QUOTES_TAG);
+      /* `market:quotes` is NOT sent any more, and the absence is the fix.
+         readInstrument used to attach that tag to every instrument entry, so
+         this one line marked all ~500 prerendered pages stale at the same
+         instant and they regenerated together against a database with 60
+         connections — see the note on readInstrument in ../store/reads.ts.
+         Nothing carries the tag now, so posting it would mark nothing; the
+         per-symbol tags this worker already sends when a section changes are
+         what keep those pages current, one page at a time. */
     }
 
     /* A sweep that came back with nothing — every chunk refused, or a gateway

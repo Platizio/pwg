@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { inspect } from "node:util";
 
 import { TransientFailure, guard, settle, stableAnswer } from "../lib/api/cache-policy.ts";
 import { fail, ok } from "../lib/api/errors.ts";
@@ -124,4 +125,36 @@ test("settle does not swallow an unrelated error", async () => {
     settle(Promise.reject(new TypeError("cannot read properties of undefined"))),
     TypeError,
   );
+});
+
+/* ---------- what the throw looks like in a log ---------- */
+
+/* Next's unstable_cache catches a failed background revalidation and prints
+   what was thrown: `console.error("revalidating cache with key: …", err)`
+   (node_modules/next/dist/server/web/spec-extension/unstable-cache.js:176-181).
+   So this class's inspected form IS a production log line, printed once per
+   symbol. Carrying a stack through Next's internals and an inspected copy of
+   the failure turned one store timeout into a dozen lines of nothing anybody
+   can act on. */
+test("a transient failure prints as one line", () => {
+  const e = new TransientFailure(fail("TimeoutError: the operation was aborted", 0, 8_165));
+  /* The brackets are Node's own: an error whose stack carries no frames is
+     inspected as `[name: message]` rather than printed as a stack. That is the
+     shape we want — the whole line, and nothing under it. */
+  assert.equal(
+    inspect(e),
+    "[TransientFailure: TimeoutError: the operation was aborted]",
+    "no stack, and no second copy of the failure beside it",
+  );
+  assert.ok(!inspect(e).includes("\n"), "one line, not thirteen");
+});
+
+/* Hidden from the inspector, not from the code: `settle` reads it on every
+   cached read in the app. */
+test("the failure is still there to be read", () => {
+  const r = fail("timeout", 0, 8_165);
+  const e = new TransientFailure(r);
+  assert.deepEqual(e.failure, r);
+  assert.equal(e.message, "timeout");
+  assert.ok(e instanceof Error);
 });

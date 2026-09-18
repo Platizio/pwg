@@ -7,14 +7,15 @@ import { SECTOR_ETF_SYMBOLS } from "../../api/normalize/sector.ts";
 import { readHomeRaw, readInstrumentRaw, readSectionsRaw } from "./client.ts";
 import {
   HOME_TAG,
-  QUOTES_TAG,
+  MARKET_PROXY_SYMBOL,
   symbolTag,
   type Section,
   type StoredHome,
   type StoredInstrument,
+  type StoredInstrumentRecord,
   type StoredSectionRow,
 } from "./types.ts";
-import type { ApiResult } from "../../api/errors.ts";
+import type { ApiOk, ApiResult } from "../../api/errors.ts";
 
 /* The cached read path.
  *
@@ -65,13 +66,33 @@ import type { ApiResult } from "../../api/errors.ts";
  * which is the exact shape of the bug cache-policy.ts was written to kill.
  *
  * Refusing to keep any failure costs one RPC per render while the store is
- * down, each bounded by the client's eight-second timeout, and the page still
- * renders because every caller falls back. That is the cheap side of the trade:
- * a store failure here is global and rare, where a gateway 404 is per-record,
- * common and permanent.
+ * down, each bounded by the client's four-second read ceiling and by the gate
+ * that keeps four of them in flight at a time, and the page still renders
+ * because every caller falls back. That is the cheap side of the trade: a store
+ * failure here is global and rare, where a gateway 404 is per-record, common
+ * and permanent.
  */
-function guardStore<T>(result: ApiResult<T>): ApiResult<T> {
-  if (!result.ok) throw new TransientFailure(result);
+function guardStore<T>(read: string, result: ApiResult<T>): ApiOk<T> {
+  if (!result.ok) {
+    /* THE ONE LINE, and it is here because this is the only place that knows
+     * both which read failed and that the failure is about to stop being a
+     * value anybody can look at.
+     *
+     * A store read that times out is not an error the site has to report — the
+     * caller falls back to the gateway and renders a correct page — but it is
+     * something an operator has to be able to see, and the throw below is
+     * about to turn it into either nothing at all (a miss, caught by `settle`)
+     * or Next's own `revalidating cache with key: …` (a stale entry). Neither
+     * carries the elapsed time, which is the number that tells a timeout apart
+     * from a refusal.
+     *
+     * `warn`, not `error`: this degrades, and a line that reads like an outage
+     * for something the reader never noticed is how a log stops being read. */
+    console.warn(`market store: ${read} failed ms=${result.ms} error=${result.error}`);
+    throw new TransientFailure(result);
+  }
+  /* ApiOk rather than ApiResult, because the line above means a failure never
+     leaves this function. Callers get the narrowing for free. */
   return result;
 }
 
@@ -167,7 +188,40 @@ const HOME_TTL = 300;
 const STRIP_SYMBOLS = Array.from(new Set([...INDEX_ETF_SYMBOLS, ...SECTOR_ETF_SYMBOLS]));
 
 /**
- * One instrument, tagged so the worker can invalidate exactly this symbol.
+ * One instrument, tagged so the worker can invalidate exactly this symbol —
+ * and ONLY this symbol.
+ *
+ * ONE TAG, NOT TWO, and the second one is what took the site down. This entry
+ * used to carry `market:quotes` as well, which the refresher sends after every
+ * full sweep. A tag is not a hint: one POST therefore marked all ~500
+ * prerendered instrument pages stale at the same instant, they all began
+ * regenerating together, and each one asked a database with 60 connections for
+ * its own 213KB. Every read in that log timed out at the client ceiling —
+ * 8,165ms for a query measured at 0.27-0.72s when it is the only one asking.
+ * The store was never slow. It was asked five hundred times at once, on a
+ * schedule, by design.
+ *
+ * Dropping it is safe for two independent reasons, and either alone would do.
+ *
+ * The route already carries `export const revalidate = 900`
+ * (app/terminal/[ticker]/page.tsx:61), so a page regenerates on its own timer
+ * regardless of any tag — the tag only ever bought a fresher stored quote
+ * sooner, and now it does not, so the worst case is a stored figure up to
+ * fifteen minutes old on a page that already says its quotes are fifteen
+ * minutes delayed.
+ *
+ * And the price a reader actually looks at is not in this entry at all. It
+ * arrives over the websocket and the header updates from it live; the stored
+ * quote is the delayed feed's, fifteen minutes behind BY DEFINITION, and it is
+ * there to be computed from — the boards' rankings, the peers table — not to
+ * be read as the price. Invalidating five hundred pages to refresh a number
+ * the page overwrites in the browser is the definition of a stampede bought
+ * for nothing.
+ *
+ * `market:<SYMBOL>` stays, and it is the one that was always doing the work:
+ * the refresher already sends it per changed symbol, so the reference data
+ * this entry is actually made of still invalidates the moment it moves, one
+ * page at a time.
  *
  * WHY THE CACHE IS BUILT PER CALL. `unstable_cache` reads `options.tags` ONCE,
  * when it wraps the function (node_modules/next/dist/server/web/spec-extension/
@@ -185,7 +239,7 @@ const STRIP_SYMBOLS = Array.from(new Set([...INDEX_ETF_SYMBOLS, ...SECTOR_ETF_SY
  * doc for keyParts says as much. Uppercased first so /terminal/aapl and
  * /terminal/AAPL are one cache entry and one tag, not two of each.
  */
-export function readInstrument(symbol: string): Promise<ApiResult<StoredInstrument>> {
+export async function readInstrument(symbol: string): Promise<ApiResult<StoredInstrument>> {
   /* Trimmed as well as uppercased, matching `upper(nullif(trim(p_symbol), ''))`
      in the RPC (migration:650) and the reader one file over
      (lib/market/instrument.ts:92). Without it a route param that arrived as
@@ -196,17 +250,91 @@ export function readInstrument(symbol: string): Promise<ApiResult<StoredInstrume
      invalidation path, which is the failure this whole file is built around. */
   const sym = symbol.trim().toUpperCase();
   const cached = unstable_cache(
-    async (s: string) => measured(`instrument ${s}`, guardStore(await readInstrumentRaw(s))),
-    ["market", "instrument"],
-    {
-      revalidate: INSTRUMENT_TTL,
-      /* Two tags: the worker clears the first when this symbol's own reference
-         data changes, and the second after a full sweep, when every stored
-         quote has moved at once. */
-      tags: [symbolTag(sym), QUOTES_TAG],
+    async (s: string) => {
+      const read = `instrument ${s}`;
+      const record = guardStore(read, await readInstrumentRaw(s));
+      return measured(read, { ...record, data: withoutProxy(record.data) });
     },
+    ["market", "instrument"],
+    /* One tag. The worker clears it when this symbol's own reference data
+       changes; nothing else may mark this entry stale. */
+    { revalidate: INSTRUMENT_TTL, tags: [symbolTag(sym)] },
   );
-  return settle(cached(sym));
+
+  /* allSettled, not all, and it is not defensiveness for its own sake. Both of
+     these are `settle`d already, so neither rejects for a store failure — but
+     both run inside a Next render, and the things next/cache throws when it
+     dislikes the context it is called in (a missing incrementalCache, say) are
+     not TransientFailures and `settle` rightly refuses to launder them. With
+     `Promise.all`, the first of those to arrive discards the other, whose
+     rejection then has no handler: an unhandled rejection, which is the exact
+     noise this change set out to remove. */
+  const [record, proxy] = await Promise.allSettled([settle(cached(sym)), proxyHistory()]);
+
+  /* The record's throw is the caller's to see. readStored in instrument.ts
+     catches everything and falls back to the gateway, which is the right
+     answer for a page that cannot read its own company. */
+  if (record.status === "rejected") throw record.reason;
+  if (!record.value.ok) return record.value;
+
+  /* The benchmark does not get that power. A missing SPY series is a panel the
+     assembler already knows how to leave out — `market: null` in the snapshot,
+     exactly as it looked when the RPC had no SPY row to join — and losing one
+     comparison chart is not a reason to send a reader to a thirty-second
+     gateway fan-out for a company whose record is sitting right here. */
+  const history = proxy.status === "fulfilled" ? proxy.value : null;
+
+  return {
+    ...record.value,
+    data: { ...record.value.data, market: { symbol: MARKET_PROXY_SYMBOL, history_daily: history } },
+  };
+}
+
+/**
+ * SPY's five years of daily bars: fetched once, shared by every instrument page.
+ *
+ * This is the other half of the payload problem. `market_instrument` used to
+ * return the benchmark series inside every answer — 86KB of the 213KB, the same
+ * bytes for AAPL as for NVO — so each of ~500 instrument pages downloaded it,
+ * parsed it and kept its own copy in its own cache entry. Forty-three megabytes
+ * of identical benchmark, on an instance with 512MB.
+ *
+ * It is one read now, through `readSections`, which means it is one CACHE ENTRY
+ * for the whole site and one flight for however many pages are regenerating at
+ * once (see gate.ts). The entry is tagged `market:SPY` and revalidates on the
+ * same 900s as the instrument entries, so the refresher's per-symbol POST for
+ * SPY's history clears this and SPY's own page together — which is precisely
+ * the invalidation that used to require marking every page on the site.
+ *
+ * `null` for anything that is not a usable row, and the caller treats that as
+ * the store simply not having SPY yet. `fromStored` is not called here: this
+ * layer moves stored payloads, and the one place that knows how to read a
+ * history payload back into bars is the reader in instrument.ts, which already
+ * does it to exactly this value.
+ */
+async function proxyHistory(): Promise<unknown | null> {
+  const rows = await readSections([MARKET_PROXY_SYMBOL], "history_daily");
+  if (!rows.ok) return null;
+  return rows.data.find((r) => r.symbol === MARKET_PROXY_SYMBOL)?.payload ?? null;
+}
+
+/**
+ * Drop the benchmark block an older `market_instrument` may still be sending.
+ *
+ * This code has to be right against two definitions of the function. The
+ * migration that removes the block is applied by hand after review, so there is
+ * a window — and a rollback — in which the answer still carries SPY's history,
+ * and an entry written during it would hold the 86KB this change exists to stop
+ * holding, for the full fifteen minutes, on every symbol. The value is never
+ * read either way: `proxyHistory` above is the only source of the series.
+ *
+ * Six top-level keys, copied once per cache MISS. A hit never enters the
+ * callback at all.
+ */
+function withoutProxy(record: StoredInstrumentRecord): StoredInstrumentRecord {
+  if (record === null || typeof record !== "object" || !("market" in record)) return record;
+  const { market: _proxy, ...rest } = record as StoredInstrumentRecord & { market?: unknown };
+  return rest;
 }
 
 /**
@@ -240,7 +368,7 @@ export function readInstrument(symbol: string): Promise<ApiResult<StoredInstrume
  * already has.
  */
 const cachedHome = unstable_cache(
-  async () => measured("home", guardStore(await readHomeRaw(STRIP_SYMBOLS, [], []))),
+  async () => measured("home", guardStore("home", await readHomeRaw(STRIP_SYMBOLS, [], []))),
   ["market", "home"],
   { revalidate: HOME_TTL, tags: [HOME_TAG] },
 );
@@ -290,11 +418,10 @@ export function readSections(
      relying on the order it asked in. */
   const syms = Array.from(new Set(symbols.map((s) => s.trim().toUpperCase()))).sort();
   const cached = unstable_cache(
-    async (list: string[], sec: Section) =>
-      measured(
-        `${sec} sections for ${list.length} symbols`,
-        guardStore(await readSectionsRaw(list, sec)),
-      ),
+    async (list: string[], sec: Section) => {
+      const read = `${sec} sections for ${list.length} symbols`;
+      return measured(read, guardStore(read, await readSectionsRaw(list, sec)));
+    },
     ["market", "sections"],
     { revalidate: INSTRUMENT_TTL, tags: syms.map(symbolTag) },
   );

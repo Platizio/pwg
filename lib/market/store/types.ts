@@ -62,8 +62,22 @@ export type { Section };
  * regex in app/api/revalidate/route.ts is the third party to the same
  * agreement and has to keep accepting what these produce. */
 export const HOME_TAG = "market:home";
-export const QUOTES_TAG = "market:quotes";
 export const symbolTag = (symbol: string): string => `market:${symbol.toUpperCase()}`;
+
+/* THERE WAS A THIRD, `market:quotes`, and it is gone rather than merely unused.
+ *
+ * readInstrument attached it to every instrument entry and the worker posted it
+ * after every full sweep, which meant one POST marked all ~500 prerendered
+ * instrument pages stale at the same instant — the stampede that timed every
+ * store read out at the client ceiling. Both sides are removed (see the note on
+ * readInstrument in reads.ts for why that is safe), and with nothing attaching
+ * it there is nothing left for a sender to mark: revalidateTag on a tag no
+ * entry carries is a no-op that reads, in a log, exactly like work.
+ *
+ * Said here because a name that survived its last caller is how it comes back.
+ * The route's pattern still accepts anything in the `market:` namespace, so an
+ * operator may still send it by hand; it will clear nothing, and that is now
+ * the honest answer rather than an accident. */
 
 /**
  * What /api/revalidate will accept — next to the thing that produces it.
@@ -213,8 +227,29 @@ export type StoredPeer = {
   ret1y: number | null;
 };
 
-/** Everything one instrument page needs, in one answer. */
-export type StoredInstrument = {
+/**
+ * The benchmark every instrument page is drawn against.
+ *
+ * Index instruments answer notPermissioned on this account, so the comparison
+ * is made against the tracking fund and the panel says so — see MARKET_PROXY in
+ * ../instrument-assemble.ts, which is the same choice made for the gateway
+ * path. The literal lives here because this is the layer that now ASKS for it:
+ * 0033 took the series out of market_instrument and reads.ts fetches it with
+ * `market_sections(['SPY'], 'history_daily')` instead, so the SQL no longer
+ * names a proxy at all and the one place to change it is this line.
+ */
+export const MARKET_PROXY_SYMBOL = "SPY";
+
+/**
+ * What `market_instrument` itself answers.
+ *
+ * Everything one instrument page needs EXCEPT the benchmark series. Until 0033
+ * the RPC put SPY's five-year history in every answer, so 86KB of the 213KB it
+ * returned was the same bytes on all ~500 instrument pages, downloaded and
+ * cached once per symbol. That block is now a separate shared read and this
+ * type is what is left — the part that is genuinely about this company.
+ */
+export type StoredInstrumentRecord = {
   /* False for a symbol nobody has opened yet. The page then falls back to the
      gateway fan-out and calls market_touch_visit so the next visit is cheap. */
   enrolled: boolean;
@@ -222,13 +257,22 @@ export type StoredInstrument = {
   row: SweepRowJson | null;
   sections: Partial<Record<Section, unknown>>;
   meta: Partial<Record<Section, SectionMeta>>;
-  /* The market's own daily history, for the relative-performance chart. Pinned
-     to the literal the RPC pins: market_instrument selects SPY by name, so a
-     read path comparing against it should get the comparison checked rather
-     than wave a bare string through. If the SQL ever names a different proxy,
-     this literal is the one place the change has to be repeated. */
-  market: { symbol: "SPY"; history_daily: unknown | null };
   peers: StoredPeer[];
+};
+
+/**
+ * Everything one instrument page needs, as `readInstrument` assembles it.
+ *
+ * The record above plus the benchmark, joined outside the database. Readers see
+ * exactly the shape they saw when one RPC returned both, which is the whole
+ * point: `inputsFromStored` and the assembler behind it are unchanged, and the
+ * snapshot they build is identical.
+ */
+export type StoredInstrument = StoredInstrumentRecord & {
+  /* The market's own daily history, for the relative-performance chart. The
+     literal is pinned so a read path comparing against it gets the comparison
+     type-checked rather than waving a bare string through. */
+  market: { symbol: typeof MARKET_PROXY_SYMBOL; history_daily: unknown | null };
 };
 
 /** Everything the terminal's home screen needs, in one answer. */

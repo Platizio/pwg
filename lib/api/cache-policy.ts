@@ -40,14 +40,42 @@ import { type ApiFailure, type ApiResult } from "./errors.ts";
  * Thrown rather than returned for one reason only: a memoiser stores what a
  * function returns and stores nothing when it throws. It carries the original
  * result so `settle` can hand callers the exact ApiFailure they expect.
+ *
+ * WHAT IT LOOKS LIKE WHEN PRINTED IS PART OF THE DESIGN, because one caller of
+ * this class prints it and we do not control that caller. `unstable_cache`
+ * catches a failed background revalidation and logs what was thrown —
+ * `console.error("revalidating cache with key: …", err)`,
+ * node_modules/next/dist/server/web/spec-extension/unstable-cache.js:176-181 —
+ * so every throw that happens on a stale entry is a log line in production,
+ * once per symbol. When ~500 instrument pages revalidated together against a
+ * store that had stopped answering, each of those lines carried a stack
+ * through Next's internals and a second, inspected copy of the failure
+ * underneath it. None of it was actionable: the failure's own `error` says
+ * what went wrong, the read that failed says so in its own line, and the stack
+ * is the same seven frames of async plumbing every time.
+ *
+ * So the two things Node's inspector would add are taken away. `stack` is
+ * assigned the one-line form rather than captured — `Error` fills it in the
+ * constructor, so this overwrites it — and `failure` is defined
+ * non-enumerably, which hides it from `util.inspect` while leaving
+ * `e.failure` exactly where `settle` reads it.
+ *
+ * This is deliberately narrow. A real defect still arrives as whatever it was
+ * thrown as, with its stack intact, and `settle` rethrows anything that is not
+ * this class — laundering a TypeError is the mistake this file's last function
+ * exists to refuse.
  */
 export class TransientFailure extends Error {
-  readonly failure: ApiFailure;
+  /* `declare`, so nothing is emitted for it here: the property is created by
+     the defineProperty below, and a class field would be re-declared over it
+     as an ordinary enumerable one. */
+  declare readonly failure: ApiFailure;
 
   constructor(failure: ApiFailure) {
     super(failure.error);
     this.name = "TransientFailure";
-    this.failure = failure;
+    Object.defineProperty(this, "failure", { value: failure, enumerable: false });
+    this.stack = `TransientFailure: ${failure.error}`;
   }
 }
 
