@@ -43,7 +43,32 @@ export const MIN_HOT = 500;
  * The symbols from `full` that clear the floor, or `null` if there are too few
  * to trust — which means: sweep everything.
  */
-export function hotList(full: Snapshot): string[] | null {
+/**
+ * The most of the universe a sweep may have missed and still be allowed to
+ * decide who is liquid.
+ *
+ * Two percent of 276 chunks is five, and a chunk is fifty symbols, so this
+ * tolerates roughly 250 names going unseen. That is not a comfortable number
+ * and it is not meant to be: it is the point at which refusing outright would
+ * start rejecting ordinary sweeps — the gateway fails a chunk now and then —
+ * against the cost of a demotion, which lasts an hour and is invisible on the
+ * page. Above it the sweep is not a reading of the market, and a list drawn
+ * from it would remove names for having been unreachable rather than illiquid.
+ */
+const MAX_MISSED_SHARE = 0.02;
+
+/**
+ * How much smaller than the set it replaces a new hot list may be.
+ *
+ * The share above catches a sweep that admits it failed. This catches one that
+ * does not: chunks that answered 200 with nothing, a gateway quietly serving a
+ * subset, an entitlement that lapsed overnight. The universe's liquid tail
+ * moves by a few percent a day, so a list that has lost a tenth of its names in
+ * one hour did not lose them to the market.
+ */
+const MIN_RETAINED_SHARE = 0.9;
+
+export function hotList(full: Snapshot, previous?: readonly string[] | null): string[] | null {
   /* `eligibleRows`, not `eligible`. The boards apply two filters — clears the
      liquidity floor AND carries a quote recent enough to describe today — and
      the hot list must be exactly what the boards can show. Filtering on the
@@ -51,6 +76,27 @@ export function hotList(full: Snapshot): string[] | null {
      last quote is days dead: at the gateway's fifty per call that is 160 chunks
      a sweep instead of 90, for rows that are dropped again before anything
      renders. */
+  /* WHAT THE SWEEP SAW COMES BEFORE WHAT IT RANKED, because this function's
+     answer does not merely add names — market_set_hot rewrites the flag for
+     every symbol in one pass, so a name absent from this list is demoted. A
+     sweep that lost eighty of its 276 chunks still yields thousands of
+     eligible rows, comfortably past the floor below, and every one of the
+     ~4,000 symbols it never reached would be dropped from the boards and from
+     the next eleven five-minute sweeps. The floor cannot catch that: it asks
+     whether the list is big enough to be a market, not whether it is a reading
+     of the whole one. */
+  if (full.calls > 0 && full.failedChunks / full.calls > MAX_MISSED_SHARE) return null;
+
   const symbols = eligibleRows(full).map((r) => r.s);
-  return symbols.length >= MIN_HOT ? symbols : null;
+  if (symbols.length < MIN_HOT) return null;
+
+  /* And the sweep that does not admit it failed. `previous` is what the last
+     accepted sweep left; absent — a worker that has just started and not yet
+     read the stored set — there is nothing to compare against and nothing to
+     lose by accepting. */
+  if (previous && previous.length > 0 && symbols.length < previous.length * MIN_RETAINED_SHARE) {
+    return null;
+  }
+
+  return symbols;
 }

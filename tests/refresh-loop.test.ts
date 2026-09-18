@@ -73,6 +73,9 @@ function stubNetwork(): Stub {
       /* market_complete returns void, which PostgREST answers with 204 and no
          body — the shape lib/market/store/client.ts reads as ok(null). */
       if (fn === "market_complete") return new Response(null, { status: 204 });
+      /* A stored hot set, so the startup read exercises the branch that keeps
+         one rather than the one that shrugs at a non-array. */
+      if (fn === "market_hot_symbols") return json(["AAPL"]);
       return json(0);
     }
 
@@ -167,11 +170,18 @@ test("a --once run sweeps and then claims, rather than going down between the tw
   assert.equal(stub.calls.market_complete, 1, "the claimed job must be completed, not abandoned");
   assert.match(log, /refresh batch claimed=1/);
 
-  /* The order is load-bearing twice over: it is why the drain flag cannot be
-     what `--once` runs on, and it is what lets the two concurrency knobs be
-     independent — the sweep's fan-out is finished before a job is claimed. */
+  /* The order is load-bearing three times over: the hot set is read back
+     before any sweep can be refused for shrinking it, the sweep's fan-out is
+     finished before a job is claimed (which is why the drain flag cannot be
+     what `--once` runs on, and what lets the two concurrency knobs be
+     independent). */
+  assert.equal(
+    stub.order[0],
+    "market_hot_symbols",
+    "the stored hot set is read before the first sweep, or a refused sweep has nothing to keep",
+  );
   assert.deepEqual(
-    stub.order.slice(0, 2),
+    stub.order.slice(1, 3),
     ["login", "quotes"],
     "a fresh worker owes a full sweep before it claims anything",
   );

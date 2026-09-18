@@ -787,6 +787,21 @@ export const getHomeSnapshot = cache(async (tagged = true): Promise<HomeSnapshot
   const activeRows = mostActive(s, 5).map(asQuote);
   const popularRows = popular(s, 12).map(asQuote);
 
+  /* WHAT A COLD PAGE ACTUALLY PAYS, and it is not measurable anywhere else.
+   *
+   * This snapshot is built by the terminal LAYOUT, which renders on every page
+   * under /terminal — so on a cold instance the first company page a reader
+   * opens waits for all of it: a 1.2MB store read, its parse, and the ranking
+   * of ~4,400 rows, on a tenth of a CPU. The instrument read next to it logs
+   * its own milliseconds; this one logged nothing, so a slow cold page could
+   * not be attributed between the two.
+   *
+   * `viaStore` is in the line because the two paths differ by two orders of
+   * magnitude upstream, and a fallback to the gateway is the single most
+   * expensive thing this process can do. */
+  const homeMs = Date.now() - startedAt;
+  console.info(`home snapshot ms=${homeMs} via=${viaStore ? "store" : "gateway"} rows=${s.rows.length}`);
+
   return {
     session,
 
@@ -892,7 +907,7 @@ export const getHomeSnapshot = cache(async (tagged = true): Promise<HomeSnapshot
       calls: viaStore
         ? 3
         : s.calls + 1 + SECTOR_ETF_SYMBOLS.length + WIRE_TICKERS.length + CALENDAR_TICKERS.length,
-      ms: Date.now() - startedAt,
+      ms: homeMs,
       sweptAt: new Date(s.sweptAt).toISOString(),
       rows: s.rows.length,
       eligible: eligible.length,

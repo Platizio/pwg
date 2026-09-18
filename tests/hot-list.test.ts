@@ -101,3 +101,54 @@ test("symbols come back verbatim and unique, because they are re-quoted by name"
   assert.ok(hot?.includes("BRK.B"), "a dotted ticker must survive unchanged");
   assert.equal(new Set(hot).size, hot?.length, "a duplicate would waste a slot in every sweep");
 });
+
+/* ---------- a sweep that did not see the market may not judge it ---------- */
+
+/* WHY REFUSING MATTERS MORE THAN RANKING. market_set_hot rewrites the flag for
+   every symbol in one pass, so a name absent from this list is demoted — and
+   the landing page's boards rank strictly from that flag. A sweep that lost a
+   third of its chunks still yields thousands of eligible rows, comfortably past
+   MIN_HOT, and every symbol it never reached would be dropped from the boards
+   and from the next eleven five-minute sweeps. The floor cannot catch that: it
+   asks whether the list is big enough to be a market, not whether it is a
+   reading of the whole one. */
+test("a sweep that lost a material share of its chunks does not get to set the hot list", () => {
+  const partial: Snapshot = {
+    ...padded([row({ s: "GOOD" })]),
+    calls: 276,
+    failedChunks: 110,
+  };
+  assert.equal(hotList(partial), null, "a third of the universe unseen is not a market reading");
+});
+
+test("a chunk or two lost out of hundreds is still a market reading", () => {
+  const nearlyWhole: Snapshot = {
+    ...padded([row({ s: "GOOD" })]),
+    calls: 276,
+    failedChunks: 2,
+  };
+  assert.ok(hotList(nearlyWhole)?.includes("GOOD"), "the gateway drops a chunk now and then");
+});
+
+/* The sweep that does NOT admit it failed: every chunk answered, and answered
+   with less. The liquid tail moves by a few percent a day, so a list that has
+   lost a tenth of its names in one hour did not lose them to the market. */
+test("a list that has lost a tenth of the previous set is refused", () => {
+  const previous = Array.from({ length: MIN_HOT + 200 }, (_, i) => `PAD${i}`);
+  assert.equal(hotList(padded(), previous), null);
+});
+
+test("and normal churn against the previous set is accepted", () => {
+  const previous = Array.from({ length: MIN_HOT }, (_, i) => `PAD${i}`);
+  const list = hotList(padded([row({ s: "NEW" })]), previous);
+  assert.ok(list?.includes("NEW"));
+});
+
+/* A worker that has just started has no previous set to compare against — the
+   store read that supplies one may itself have failed. Nothing to lose by
+   accepting, and refusing would leave it with no hot list at all, which makes
+   every five-minute sweep a full-universe sweep. */
+test("no previous set is not a reason to refuse", () => {
+  assert.ok(hotList(padded([row({ s: "GOOD" })]), null)?.includes("GOOD"));
+  assert.ok(hotList(padded([row({ s: "GOOD" })]), [])?.includes("GOOD"));
+});

@@ -342,6 +342,12 @@ export const upsertQuotes = (rows: QuoteUpsertRow[], sweptAt?: string, opts?: Rp
 export const setHot = (symbols: string[], opts?: RpcOptions) =>
   rpc<number>("market_set_hot", { p_symbols: symbols }, opts);
 
+/* The set market_set_hot last wrote (migration 0035). Read once at worker
+   startup, so that refusing to write a hot list drawn from an incomplete sweep
+   still leaves the worker with a usable one. */
+export const readHotSymbols = (opts?: RpcOptions) =>
+  rpc<string[]>("market_hot_symbols", {}, opts);
+
 /* The landing page's core, built once per sweep (migration 0034). Thirty
    seconds rather than eight: this is the very aggregate market_home used to
    run on every page read — 1.0-1.5s on a quiet instance, up to six while this

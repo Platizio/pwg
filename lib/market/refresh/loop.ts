@@ -23,6 +23,7 @@ import {
   seedSymbols,
   setHot,
   buildHome,
+  readHotSymbols,
   storeConfigured,
   upsertQuotes,
 } from "../store/client.ts";
@@ -513,16 +514,28 @@ export function startRefresher(opts: RefresherOptions = {}): Refresher {
 
     if (kind === "full") {
       last.full = last.hot;
-      const list = hotList(snap);
+      /* `hot` is passed so the list can be refused for shrinking as well as for
+         being drawn from a sweep that lost chunks — see hot-list.ts. */
+      const list = hotList(snap, hot);
       if (list) {
         hot = list;
         const res = await setHot(list);
         if (!res.ok) log(`refresh hot error=${res.error}`);
       } else {
-        /* Too few names cleared the floor to be a real answer — a gateway blip
-           rather than a market. Keeping the previous hot set is the safe half
-           of hot-list.ts's own rule; the next full sweep decides again. */
-        log(`refresh hot list=short rows=${snap.rows.length} kept=previous`);
+        /* The sweep was not a reading of the market — it lost chunks, or came
+           back materially smaller than the set it would replace, or too few
+           names cleared the floor. Keeping the previous set is the safe half of
+           hot-list.ts's rule; the next full sweep decides again.
+
+           The counts are in the line because "kept=previous" on its own cannot
+           be acted on: failedChunks says the gateway refused, a rows count near
+           the previous says the market moved, and one near zero says something
+           else entirely. */
+        log(
+          `refresh hot list=rejected rows=${snap.rows.length} ` +
+            `failedChunks=${snap.failedChunks}/${snap.calls} ` +
+            `previous=${hot?.length ?? 0} kept=${hot ? "previous" : "none"}`,
+        );
       }
       /* `market:quotes` is NOT sent any more, and the absence is the fix.
          readInstrument used to attach that tag to every instrument entry, so
@@ -800,6 +813,25 @@ export function startRefresher(opts: RefresherOptions = {}): Refresher {
         `concurrency=${concurrency} phase=${sessionAt(Math.floor(Date.now() / 1000)).phase} ` +
         `pricesMove=${pricesMove(sessionAt(Math.floor(Date.now() / 1000)).phase)}`,
     );
+
+    /* The hot set as the last accepted sweep left it, before any sweep of this
+       run can be refused.
+     *
+     * `hot` lives in memory and starts null, and null means "sweep everything"
+       (see the sweep call). That was harmless while every sweep was accepted;
+       it is not now that hotList can refuse one, because a fresh worker whose
+       first full sweep is refused would have nothing to fall back to and would
+       run a 276-chunk sweep every five minutes instead of a 90-chunk one.
+       Reading the stored set costs one indexed query, once. */
+    const stored = await readHotSymbols();
+    if (stored.ok && Array.isArray(stored.data) && stored.data.length > 0) {
+      hot = stored.data;
+      log(`refresh hot loaded=${hot.length} source=store`);
+    } else if (!stored.ok) {
+      /* Not fatal: a worker that cannot read the set simply starts with none,
+         which is exactly where it was before this call existed. */
+      log(`refresh hot load error=${stored.error}`);
+    }
 
     if (opts.bootstrap) await bootstrap();
 
