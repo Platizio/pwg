@@ -87,7 +87,22 @@ function stubNetwork(): Stub {
       }
       if (url.includes("/quotes/")) {
         saw("quotes");
-        return json([]);
+        /* One priced name, so the sweep has rows to write and the home blob
+           has something to be built from. Below the hot-list floor on purpose:
+           the "list=short" branch keeps the previous hot set, which is the
+           cheapest way through a full sweep that still writes. */
+        return json([
+          {
+            symbol: "AAPL",
+            companyName: "Apple Inc.",
+            lastPrice: 100,
+            changePercent: 0.01,
+            volume: 10,
+            averageVolume30: 10,
+            exchange: "NASDAQ",
+            delayed: true,
+          },
+        ]);
       }
       /* Every reference document refused, so the one claimed job completes as
          an error without this file having to imitate a fundamentals payload. */
@@ -164,6 +179,19 @@ test("a --once run sweeps and then claims, rather than going down between the tw
     stub.order.indexOf("quotes") < stub.order.indexOf("market_claim_due"),
     "the sweep must finish before the claim, not run beside it",
   );
+
+  /* The landing page's blob is built by the sweep, after the rows it is built
+     from are written and before the claim that would otherwise delay it. A
+     rewrite that built it from the page, or skipped it, or built it before the
+     upsert, would pass every other assertion here. */
+  assert.equal(stub.calls.market_upsert_quotes, 1, "one priced chunk is written once");
+  assert.equal(stub.calls.market_build_home, 1, "and the home blob is rebuilt exactly once");
+  assert.ok(
+    stub.order.indexOf("market_upsert_quotes") < stub.order.indexOf("market_build_home") &&
+      stub.order.indexOf("market_build_home") < stub.order.indexOf("market_claim_due"),
+    `upsert, then build, then claim; the order was ${stub.order.join(" > ")}`,
+  );
+  assert.match(log, /refresh home built rows=/);
 
   /* The batch failed its only job, so `backoffFor` halves the pool — and the
      minute of quiet that normally follows is for a next batch this run will

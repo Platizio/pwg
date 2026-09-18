@@ -34,7 +34,7 @@ the page regeneration behind it are not.
 That work is cheap in a worker and ruinous in a page render, which is what the
 terminal used to do — thirty gateway calls inside one request. So the fetching
 lives in a refresher and the answers land in the Postgres `market` schema
-(`supabase/migrations/20260915090000_0031_market_store.sql`), so that a page can
+(`supabase/migrations/20260917044709_0032_market_store.sql`), so that a page can
 read one RPC. Seven sections exist — profile, gateway news, corporate actions,
 annual financials, daily history, short interest, analyst — each on its own
 cadence (`lib/market/store/cadence.ts`); a symbol carries six, gateway news
@@ -55,6 +55,14 @@ the gateway fan-out the terminal has always had, while the worker fills the
 store behind it. Switching the pages over is its own piece of work. That same
 fan-out is also what the store degrades to afterwards, wherever Supabase is not
 configured: slower, but correct.
+
+The landing page's core answer (`sweptAt`, `rows`, `strip`, `weekBars`) is not
+computed on read. The worker builds it once after every sweep with
+`market_build_home` (`0034_market_home_blob.sql`) and `market_home` returns the
+stored row, adding wire and calendar live; with no row, or a strip list that
+differs from `lib/market/store/strip.ts`, it computes live as it always did. A
+`refresh home built rows=… bytes=…` line follows every `refresh sweep` line in
+the worker log; its absence means the page is paying the aggregate itself.
 
 ## The refresher
 

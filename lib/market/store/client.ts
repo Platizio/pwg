@@ -342,6 +342,18 @@ export const upsertQuotes = (rows: QuoteUpsertRow[], sweptAt?: string, opts?: Rp
 export const setHot = (symbols: string[], opts?: RpcOptions) =>
   rpc<number>("market_set_hot", { p_symbols: symbols }, opts);
 
+/* The landing page's core, built once per sweep (migration 0034). Thirty
+   seconds rather than eight: this is the very aggregate market_home used to
+   run on every page read — 1.0-1.5s on a quiet instance, up to six while this
+   same worker is writing — and nothing is waiting on a page for it. A build
+   that times out simply leaves the previous blob in place. */
+export const buildHome = (strip: readonly string[], opts?: RpcOptions) =>
+  rpc<{ builtAt: number; bytes: number; rows: number }>(
+    "market_build_home",
+    { p_strip: [...strip] },
+    { timeoutMs: 30_000, ...opts },
+  );
+
 export const enrol = (
   symbols: string[],
   sections: Section[],

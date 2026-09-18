@@ -2,8 +2,7 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 
 import { settle, TransientFailure } from "../../api/cache-policy.ts";
-import { INDEX_ETF_SYMBOLS } from "../../api/normalize/index-proxy.ts";
-import { SECTOR_ETF_SYMBOLS } from "../../api/normalize/sector.ts";
+import { HOME_STRIP_SYMBOLS } from "./strip.ts";
 import { readHomeRaw, readInstrumentRaw, readSectionsRaw } from "./client.ts";
 import {
   HOME_TAG,
@@ -185,7 +184,9 @@ const HOME_TTL = 300;
 /* The strip the home RPC prices: three index proxies and eleven sector ETFs.
    Through a Set because a proxy and a sector ETF naming the same fund would
    otherwise be priced twice and drawn twice. */
-const STRIP_SYMBOLS = Array.from(new Set([...INDEX_ETF_SYMBOLS, ...SECTOR_ETF_SYMBOLS]));
+/* Shared with the refresh worker, which builds the stored blob market_home
+   answers from; see strip.ts for why the two must be the same array. */
+const STRIP_SYMBOLS = [...HOME_STRIP_SYMBOLS];
 
 /**
  * One instrument, tagged so the worker can invalidate exactly this symbol —
@@ -333,7 +334,8 @@ async function proxyHistory(): Promise<unknown | null> {
  */
 function withoutProxy(record: StoredInstrumentRecord): StoredInstrumentRecord {
   if (record === null || typeof record !== "object" || !("market" in record)) return record;
-  const { market: _proxy, ...rest } = record as StoredInstrumentRecord & { market?: unknown };
+  const rest: StoredInstrumentRecord & { market?: unknown } = { ...record };
+  delete rest.market;
   return rest;
 }
 

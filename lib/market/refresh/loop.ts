@@ -10,6 +10,7 @@ import { fetchShortInterest } from "../../api/clients/technicals.ts";
 import { scrub, type ApiResult } from "../../api/errors.ts";
 import { INDEX_ETF_SYMBOLS } from "../../api/normalize/index-proxy.ts";
 import { SECTOR_ETF_SYMBOLS } from "../../api/normalize/sector.ts";
+import { HOME_STRIP_SYMBOLS } from "../store/strip.ts";
 import { pooled } from "../../api/pool.ts";
 import { runSweep, type Snapshot, type SweepRow } from "../../api/sweep.ts";
 import { TAGS, TTL } from "../../api/ttl.ts";
@@ -21,6 +22,7 @@ import {
   enrol,
   seedSymbols,
   setHot,
+  buildHome,
   storeConfigured,
   upsertQuotes,
 } from "../store/client.ts";
@@ -536,7 +538,27 @@ export function startRefresher(opts: RefresherOptions = {}): Refresher {
        answering an empty universe — has no news to announce, and marking the
        home page stale anyway would regenerate it against the rows it already
        holds. The same discipline the hash compare keeps for a section. */
-    if (snap.rows.length > 0 || upserted > 0) revalidator.add(tags);
+    if (snap.rows.length > 0 || upserted > 0) {
+      /* The landing page's answer is built HERE, once, and not by whichever
+         process next renders the page. market_home used to run its 4,000-row
+         aggregate on every read — 1.0-1.5s quiet, 2.4-5.7s while this worker
+         was writing — for a document that cannot change between sweeps,
+         because the sweep is the only writer of what it reads. Built before
+         the revalidate is posted, so the page that regenerates finds the new
+         rows rather than the old blob. A failed build is one line and the
+         previous blob stays; the page never sees an empty answer. */
+      const buildStarted = Date.now();
+      const built = await buildHome(HOME_STRIP_SYMBOLS);
+      if (built.ok) {
+        log(
+          `refresh home built rows=${built.data.rows} bytes=${built.data.bytes} ` +
+            `ms=${Date.now() - buildStarted}`,
+        );
+      } else {
+        log(`refresh home error=${built.error} ms=${Date.now() - buildStarted}`);
+      }
+      revalidator.add(tags);
+    }
     log(
       `refresh sweep kind=${kind} requested=${snap.requested} rows=${snap.rows.length} ` +
         `calls=${snap.calls} failedChunks=${snap.failedChunks} upserted=${upserted} ` +
