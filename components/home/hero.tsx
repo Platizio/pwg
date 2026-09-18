@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { TRADING_PLATFORM_URL, SCREENER_URL } from "@/src/constants";
 import Globe from "@/src/components/Globe";
 import { COPY } from "@/lib/home/copy";
@@ -44,23 +43,22 @@ export function Hero() {
               {COPY.cta.primary}
               <span className="sr-only"> (opens in a new tab)</span>
             </a>
-            {/* The terminal is inside this application, so this one is a route
-                change rather than a page load — and a plain <a> threw away
-                every part of that: a full document request, the shell rebuilt,
-                and nothing fetched until the click.
+            {/* The same anchor the products page uses, deliberately — not a
+                Next <Link>.
 
-                `prefetch` is stated rather than left to the default. The
-                default ("auto") prefetches a static route in full but a
-                dynamic one only down to its nearest loading boundary, and
-                /terminal now has one; `true` is the value that means the whole
-                route either way. It fires when the link enters the viewport,
-                which for a hero action is immediately — the terminal is the
-                heaviest thing this page links to and the likeliest thing a
-                reader here clicks. (node_modules/next/dist/docs/01-app/
-                03-api-reference/02-components/link.md, "prefetch".) */}
-            <Link className="ft-ghost" href={SCREENER_URL} prefetch={true}>
+                Both pages carry a button named for the same destination, and
+                two buttons that read alike must behave alike; this one did
+                not. It was a client transition, which on a marketing page
+                means the reader waits on the whole terminal payload with
+                nothing moving, and `prefetch` pulled that payload for every
+                visitor who never clicked. The products page has always used a
+                plain document load into a new tab
+                (Platizio_Global_Revamp/pages/Products.tsx:233), the marketing
+                site stays open behind it, and the terminal arrives
+                server-rendered. That is the behaviour, so this is the form. */}
+            <a className="ft-ghost" href={SCREENER_URL} target="_blank" rel="noopener noreferrer">
               {COPY.cta.ghost}
-            </Link>
+            </a>
           </div>
 
           <dl className="hm-hero-facts">
