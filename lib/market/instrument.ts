@@ -155,14 +155,20 @@ const SESSION_SERIES_NOTE = "This session's trades load with the chart.";
  * perfectly — the build log shows zero store failures beside twenty-two
  * gateway timeouts and nine pages that took over sixty seconds and had to be
  * retried, all of them pages that had silently gone to the gateway. Twenty
- * seconds is five reads' worth of queue: nothing a build or a stampede of
- * background revalidations can reach, and still short of Next's sixty-second
- * page generation limit with room for the fallback to finish.
+ * Eight, not twenty. Twenty was picked to cover five reads' worth of queue and
+ * it did not survive contact with a build: Next gives a page sixty seconds and
+ * retries it three times, so a budget that can be spent in full three times
+ * over is a build failure rather than a fallback. A deployed build spent
+ * exactly that — 20,020ms per attempt, three attempts, `/terminal/SHW after 3
+ * attempts` — while the gate sat idle at one permit of four, which is what
+ * says the wait was never queueing in the first place. Eight covers one read's
+ * four-second ceiling plus one full read ahead of it in the queue, and three of
+ * them still leave half the page's minute for the fan-out that follows.
  *
  * The abandoned read is not cancelled. It carries on into the unstable_cache
  * entry it was already going to fill, so the next reader of this symbol finds
  * the answer this one gave up on. Nothing is wasted except the waiting. */
-const STORE_BUDGET_MS = 20_000;
+const STORE_BUDGET_MS = 8_000;
 
 /**
  * The snapshot, minus the series that no longer travels with it.

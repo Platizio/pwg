@@ -181,6 +181,10 @@ const INSTRUMENT_TTL = 900;
     screen cannot be fresher than the sweep that wrote them. */
 const HOME_TTL = 300;
 
+/* How long an instrument page will wait for the benchmark series before
+   drawing itself without the comparison. See proxyHistory. */
+const PROXY_BUDGET_MS = 2_000;
+
 /* The strip the home RPC prices: three index proxies and eleven sector ETFs.
    Through a Set because a proxy and a sector ETF naming the same fund would
    otherwise be priced twice and drawn twice. */
@@ -314,8 +318,30 @@ export async function readInstrument(symbol: string): Promise<ApiResult<StoredIn
  * does it to exactly this value.
  */
 async function proxyHistory(): Promise<unknown | null> {
-  const rows = await readSections([MARKET_PROXY_SYMBOL], "history_daily");
-  if (!rows.ok) return null;
+  /* ITS OWN CEILING, and the absence of one is a fault this code shipped with.
+   *
+   * The note below promises that a missing benchmark costs the comparison and
+   * nothing else. The code did not keep that promise: `Promise.allSettled` in
+   * readInstrument waits for BOTH reads, so a benchmark read that was slow —
+   * queued behind other permits, or served from a cache entry being written by
+   * another build worker — held the company's page for as long as it took. A
+   * deployed build showed exactly that: `instrument SHW gave up after 20020ms
+   * (gate active=1/4 waiting=0)`, the gate idle, one read simply not coming
+   * back, three attempts, and a page-generation limit of sixty seconds passed.
+   *
+   * Two seconds is deliberately far below the read's own four-second abort.
+   * This is a chart line on a page whose every other figure has already
+   * arrived; waiting even one full read for it is the wrong trade, and the
+   * abandoned read still fills its cache entry for whoever asks next. */
+  const budget = new Promise<null>((resolve) => {
+    const timer = setTimeout(() => resolve(null), PROXY_BUDGET_MS);
+    /* Unref'd so a pending benchmark cannot hold a build worker or a script
+       open after the page it was for has been written. */
+    timer.unref?.();
+  });
+
+  const rows = await Promise.race([readSections([MARKET_PROXY_SYMBOL], "history_daily"), budget]);
+  if (!rows || !rows.ok) return null;
   return rows.data.find((r) => r.symbol === MARKET_PROXY_SYMBOL)?.payload ?? null;
 }
 
