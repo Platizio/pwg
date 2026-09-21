@@ -19,7 +19,7 @@ import {
 import { motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatStamp, money } from "@/lib/market/format";
-import { rangeCaption } from "@/lib/market/ranges";
+import { rangeCaption, readerZone } from "@/lib/market/ranges";
 import { getRange } from "@/lib/market/ranges";
 import type { RangeId } from "@/lib/market/types";
 import type { PricePoint } from "@/lib/api/normalize/series";
@@ -97,20 +97,27 @@ export function PriceChart({
      the boundary.
 
      Fixed en-US to match every other formatter in the terminal. */
+  /* Resolved once. The chart is client-only, so this is the browser's zone. */
+  const zone = useMemo(() => readerZone(), []);
+
   const tickMarkFormatter = useCallback(
     (time: UTCTimestamp, tickMarkType: TickMarkType) => {
       const ms = (time as number) * 1000;
-      /* America/New_York, not UTC. The axis used to open a US session at 13:30
-         with nothing saying which zone that was; the caption under the chart
-         now states ET and the ticks agree with it. */
+      /* The READER's zone, and the caption under the chart names it so the
+         hour is never ambiguous. This axis was UTC once — a US session opening
+         at 13:30 with nothing saying which clock that was — and then New York,
+         which is the market's clock but not the clock of the person looking at
+         it. Someone in India watches this session between 7pm and 1:30am; an
+         axis reading 09:30 while they sit down at 19:00 makes them do the
+         conversion on every glance. */
       const fmt = (opts: Intl.DateTimeFormatOptions) =>
-        new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", ...opts }).format(ms);
+        new Intl.DateTimeFormat("en-US", { timeZone: zone, ...opts }).format(ms);
 
       if (intraday) return fmt({ hour: "2-digit", minute: "2-digit", hour12: false });
       if (tickMarkType === TickMarkType.Year) return fmt({ year: "numeric" });
       return fmt({ month: "short" });
     },
-    [intraday],
+    [intraday, zone],
   );
 
 

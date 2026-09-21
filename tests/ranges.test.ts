@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_RANGE, RANGES, getRange, rangeCaption } from "../lib/market/ranges.ts";
+import { DEFAULT_RANGE, RANGES, getRange, rangeCaption, zoneLabel } from "../lib/market/ranges.ts";
 
 /* The range table decides which feed answers each button. It was briefly cut
    to three entries on the belief that the gateway served only 1m, 1y and 5y —
@@ -83,24 +83,30 @@ test("an unknown id falls back to a real range rather than undefined", () => {
      short feed plots fewer, and claiming 252 while drawing 200 is the same
      class of lie. */
 
-const ET = "ET";
 /* 16:00 EDT on each date, so the UTC instant and the ET calendar day agree. */
 const AUG_4 = Date.UTC(2026, 7, 4, 20, 0);
 const SEP_1 = Date.UTC(2026, 8, 1, 20, 0);
 const SEP_1_2025 = Date.UTC(2025, 8, 1, 20, 0);
 
 test("a daily range names its interval, its real count and its real span", () => {
-  const c = rangeCaption(getRange("1M"), AUG_4, SEP_1, 21);
+  /* The zone is stated rather than inherited. This assertion is about the
+     interval, the count and the span; leaving the zone to the machine made it
+     say one thing on a laptop in Kolkata and another on a CI runner in UTC,
+     and the dates either side of it can shift with it. */
+  const c = rangeCaption(getRange("1M"), AUG_4, SEP_1, 21, "America/New_York");
   assert.match(c, /^1M/);
   assert.match(c, /21 daily closes/);
   assert.match(c, /Aug 4/);
   assert.match(c, /Sep 1/);
   assert.match(c, /2026/);
-  assert.ok(c.endsWith(ET), `should be stamped with a timezone: ${c}`);
+  assert.ok(
+    c.endsWith(zoneLabel("America/New_York", SEP_1)),
+    `should be stamped with the zone its times are in: ${c}`,
+  );
 });
 
 test("the day range says it is minutes, not closes", () => {
-  const c = rangeCaption(getRange("1D"), SEP_1, SEP_1, 391);
+  const c = rangeCaption(getRange("1D"), SEP_1, SEP_1, 391, "America/New_York");
   assert.match(c, /minute/);
   assert.ok(!/daily closes/.test(c), `the day is not daily closes: ${c}`);
 });
@@ -148,4 +154,59 @@ test("every range declares an interval, so no caption has to guess", () => {
   for (const r of RANGES) {
     assert.ok(r.interval && r.interval.length > 0, `${r.id} has no interval`);
   }
+});
+
+/* ---------- whose clock the chart is on ---------- */
+
+/* THE COMPLAINT THIS ANSWERS, in the reader's own words: "the chart timings
+ * are off — in India it should be from 7 pm to 1:30 am". They are right, and
+ * the arithmetic is exact: the US regular session is 09:30-16:00 in New York,
+ * which is 19:00-01:30 in Kolkata. The axis was labelled in New York's hours,
+ * so a reader sitting down at 7pm saw a chart that said 09:30.
+ *
+ * The axis is the reader's zone now. What makes that safe rather than a
+ * different flavour of the same bug is the LABEL: the original fault was never
+ * which zone, it was that the caption said nothing at all, so 13:30 could have
+ * been anyone's afternoon.
+ */
+
+const SESSION_OPEN = Date.UTC(2026, 8, 21, 13, 30); // 09:30 New York
+const SESSION_CLOSE = Date.UTC(2026, 8, 21, 20, 0); // 16:00 New York
+
+test("a session reads 7pm to 1:30am for a reader in India", () => {
+  const at = (ms: number) =>
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Kolkata",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(ms);
+
+  assert.equal(at(SESSION_OPEN), "19:00", "the open, on an Indian clock");
+  assert.equal(at(SESSION_CLOSE), "01:30", "and the close, after midnight");
+});
+
+test("the caption names the zone it is stating times in", () => {
+  const day = getRange("1Y");
+  const caption = rangeCaption(day, SESSION_OPEN, SESSION_CLOSE, 2, "Asia/Kolkata");
+
+  assert.ok(
+    caption.includes(zoneLabel("Asia/Kolkata", SESSION_CLOSE)),
+    `the zone must be named, got ${caption}`,
+  );
+  assert.ok(!caption.includes(" ET"), "and it is no longer claiming New York");
+});
+
+test("a caption with nothing plotted does not label an empty chart with a zone", () => {
+  const caption = rangeCaption(getRange("1Y"), null, null, 0, "Asia/Kolkata");
+  assert.ok(!caption.includes(zoneLabel("Asia/Kolkata")), "no dates, so nothing to stamp");
+});
+
+test("the dates a caption states are the reader's dates, not New York's", () => {
+  /* 00:30 on the 22nd in Kolkata is still the 21st in New York, and a reader
+     whose clock says Tuesday should not be told Monday. */
+  const afterMidnightIST = Date.UTC(2026, 8, 21, 19, 0);
+  const ist = rangeCaption(getRange("1Y"), afterMidnightIST, afterMidnightIST, 1, "Asia/Kolkata");
+  const et = rangeCaption(getRange("1Y"), afterMidnightIST, afterMidnightIST, 1, "America/New_York");
+  assert.notEqual(ist, et, "the two clocks disagree about the day, and the caption follows one");
 });
