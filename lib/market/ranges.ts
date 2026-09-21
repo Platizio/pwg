@@ -109,6 +109,29 @@ function formattersFor(zone: string): Intl.DateTimeFormat[] {
    know from the number beside it. */
 const OFFSET_ONLY = /^(GMT|UTC)[+-]/;
 
+/* Held, because this is on the chart's hot path and CONSTRUCTING an
+   Intl.DateTimeFormat is the expensive part of using one — measured on this
+   machine at 24-29us to build-and-use against 0.4-2.1us to reuse, a factor of
+   thirty. `formatStamp` calls zoneLabel on every crosshair move, and asking for
+   two names doubled that cost the day it was added. The INSTANCE is cached, not
+   the answer: `formatToParts(at)` still runs per call, so EDT still becomes EST
+   at the moment it should. */
+const NAMERS = new Map<string, Intl.DateTimeFormat | null>();
+
+function zoneNamer(zone: string, timeZoneName: "short" | "shortGeneric"): Intl.DateTimeFormat | null {
+  const key = `${zone}|${timeZoneName}`;
+  const held = NAMERS.get(key);
+  if (held !== undefined) return held;
+  let made: Intl.DateTimeFormat | null = null;
+  try {
+    made = new Intl.DateTimeFormat(undefined, { timeZone: zone, timeZoneName });
+  } catch {
+    made = null;
+  }
+  NAMERS.set(key, made);
+  return made;
+}
+
 /**
  * What to call the zone in the caption and on a stamp.
  *
@@ -131,8 +154,8 @@ const OFFSET_ONLY = /^(GMT|UTC)[+-]/;
 export function zoneLabel(zone: string = readerZone(), at: number = Date.now()): string {
   const read = (timeZoneName: "short" | "shortGeneric"): string | null => {
     try {
-      const parts = new Intl.DateTimeFormat(undefined, { timeZone: zone, timeZoneName }).formatToParts(at);
-      return parts.find((p) => p.type === "timeZoneName")?.value ?? null;
+      const parts = zoneNamer(zone, timeZoneName)?.formatToParts(at);
+      return parts?.find((p) => p.type === "timeZoneName")?.value ?? null;
     } catch {
       return null;
     }

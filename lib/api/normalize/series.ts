@@ -4,10 +4,20 @@ import type { RawHistoryPoint } from "../clients/quotes.ts";
 /* Price rows into chart points, from either feed.
 
    The two history endpoints disagree about dates. The daily one writes
-   "08/21/2026 16:00:00 EDT"; the intraday one writes ISO-8601 with an offset.
-   parseFeedDate deliberately refuses the second rather than guessing at it —
-   a lenient parser here would fall back to the server's own timezone and shift
-   every point by however many hours the host happens to be from New York.
+   "08/21/2026 00:00:00 EDT" — EASTERN MIDNIGHT, not the closing bell; the
+   intraday one writes ISO-8601 with an offset. parseFeedDate deliberately
+   refuses the second rather than guessing at it — a lenient parser here would
+   fall back to the server's own timezone and shift every point by however many
+   hours the host happens to be from New York.
+
+   The midnight is load-bearing and was wrong in this comment until 21 Sep 2026,
+   where it read "16:00:00 EDT". That is not a harmless typo: a bar stamped at
+   the bell is 01:30 IST the NEXT day, so anything rendering a daily stamp in
+   the reader's zone would label Friday's close as Saturday — a day the market
+   is shut. An audit of every clock in the app duly reported exactly that bug,
+   twice and independently, on the strength of this sentence alone. Checked
+   against the live feed and all 600 sampled stored series: every daily row is
+   00:00:00, so ET and IST agree on the day and no bar shifts.
 
    Both feeds do carry full OHLC. The chart used to keep only the close and
    synthesise candles where open, high and low were all equal to it, which drew
