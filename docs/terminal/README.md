@@ -73,12 +73,50 @@ leases and double the gateway traffic.
   arrangement — Render's Free plan has no workers, so read that file first.
 - `REFRESH_IN_PROCESS=1` on the web service, which starts the same loop inside
   Next from `instrumentation.ts`. Default off; useful on a single box.
+- A laptop, under launchd, which is what is actually running today — see
+  below, because a laptop is the one of the three that stops on its own.
 
 On change — and only on change — the worker POSTs the affected cache tags to
 `/api/revalidate`, bearing `CRON_SECRET`. Unchanged sections invalidate nothing.
 
 Filling an empty store is a one-time job, run from a laptop while the site is
 still serving from the gateway — `npm run worker:bootstrap`.
+
+### Keeping the laptop worker alive
+
+While the web service is on Render's Free plan there is no worker to deploy to,
+so the refresher runs on a developer's laptop — and a laptop reboots. It has
+stopped after a Friday close twice and stayed stopped until somebody read the
+health route on Monday, by which point the backlog was large enough that
+claiming jobs timed out and it could not catch up on its own.
+
+So it runs under launchd rather than from a shell:
+`~/Library/LaunchAgents/com.platizio.refresh-worker.plist`, `RunAtLoad` with
+`KeepAlive`, logging to `~/Library/Logs/platizio/refresh-worker.log`.
+
+```bash
+launchctl list | grep platizio                 # pid and last exit status
+launchctl kickstart -k gui/$(id -u)/com.platizio.refresh-worker   # restart now
+tail -f ~/Library/Logs/platizio/refresh-worker.log
+```
+
+Two details in that plist are load-bearing and neither is obvious.
+
+It execs `node` directly rather than a shell wrapper. The checkout is under
+`~/Desktop`, which macOS protects, and a launchd agent does not inherit the
+Terminal's access to it; whatever launchd execs needs that access in its own
+right. Because the grant follows the image across an `exec`, a wrapper script
+would have needed the permission twice — once for the shell, once for node. A
+wrapper was written first and failed exactly that way, with
+`/bin/bash: …/worker-daemon.sh: Operation not permitted`.
+
+And `--conditions=react-server` is not decoration: `lib/api` and
+`lib/market/store` are written to be loadable outside a Next render, and that
+flag selects those exports. Without it the worker fails at import.
+
+Nothing rotates the log. In steady state the worker writes a few lines a
+minute, so this is slow; it is chatty only while draining a backlog, which is
+when you want the detail. Truncate it if it ever matters.
 
 ## Reading the health
 
