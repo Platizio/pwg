@@ -45,8 +45,12 @@ test("and the closing bell has already rolled over to the next date there", () =
    checkable, and its absence was the original fault here — not the zone. */
 test("an intraday stamp always names the zone it is counting in", () => {
   const ist = formatStamp(OPEN, true, IST);
-  assert.ok(/IST|GMT\+5:30/.test(ist), `expected a zone name, got "${ist}"`);
-  assert.match(formatStamp(OPEN, true, ET), /EDT|EST|GMT-[45]/);
+  assert.ok(/India|IST/i.test(ist), `expected the reader's zone to be named, got "${ist}"`);
+  assert.ok(
+    !/\d\s+(GMT|UTC)[+-]/.test(ist),
+    `a bare offset tells the reader nothing the number did not: "${ist}"`,
+  );
+  assert.ok(/EDT|EST|Eastern|New York/i.test(formatStamp(OPEN, true, ET)));
 });
 
 /* ET is still available and still correct — it is the market's clock, and the

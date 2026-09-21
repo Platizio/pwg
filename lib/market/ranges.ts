@@ -105,24 +105,42 @@ function formattersFor(zone: string): Intl.DateTimeFormat[] {
   return made;
 }
 
+/* A label that is a bare offset tells the reader nothing they did not already
+   know from the number beside it. */
+const OFFSET_ONLY = /^(GMT|UTC)[+-]/;
+
 /**
- * What to call the zone in the caption.
+ * What to call the zone in the caption and on a stamp.
  *
- * The reader's own locale, not the fixed en-US the dates use: an Indian
- * browser says "IST" where en-US says "GMT+5:30", and the point of this label
- * is to be recognised at a glance by the person reading it. Falls back to the
- * offset form, which is unambiguous even when it is ugly.
+ * The reader's own locale, not the fixed en-US the dates use: the point of this
+ * label is to be recognised at a glance by the person reading it.
+ *
+ * TWO ATTEMPTS, because one is not enough for the reader this app actually has.
+ * `short` is the right answer when the locale has an abbreviation for the zone
+ * — an en-IN browser says "IST", an en-US browser in New York says "EDT". But
+ * a locale with no abbreviation for that zone falls back to a bare offset, and
+ * the two cases where that bites are exactly ours: an en-US browser in India
+ * gets "GMT+5:30", and an en-IN browser looking at New York gets "GMT-4". A
+ * reader who has just asked why the chart is not in Indian time is not helped
+ * by "GMT+5:30".
+ *
+ * So when `short` comes back as nothing but an offset, ask again for the
+ * generic name — "India Time", "New York Time" — which every locale has. The
+ * offset survives as the last resort, unambiguous even when it is ugly.
  */
 export function zoneLabel(zone: string = readerZone(), at: number = Date.now()): string {
-  try {
-    const parts = new Intl.DateTimeFormat(undefined, {
-      timeZone: zone,
-      timeZoneName: "short",
-    }).formatToParts(at);
-    return parts.find((p) => p.type === "timeZoneName")?.value ?? zone;
-  } catch {
-    return zone;
-  }
+  const read = (timeZoneName: "short" | "shortGeneric"): string | null => {
+    try {
+      const parts = new Intl.DateTimeFormat(undefined, { timeZone: zone, timeZoneName }).formatToParts(at);
+      return parts.find((p) => p.type === "timeZoneName")?.value ?? null;
+    } catch {
+      return null;
+    }
+  };
+
+  const short = read("short");
+  if (short !== null && !OFFSET_ONLY.test(short)) return short;
+  return read("shortGeneric") ?? short ?? zone;
 }
 
 const COUNT = new Intl.NumberFormat("en-US");

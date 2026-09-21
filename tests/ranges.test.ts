@@ -210,3 +210,39 @@ test("the dates a caption states are the reader's dates, not New York's", () => 
   const et = rangeCaption(getRange("1Y"), afterMidnightIST, afterMidnightIST, 1, "America/New_York");
   assert.notEqual(ist, et, "the two clocks disagree about the day, and the caption follows one");
 });
+
+/* ---------- what the zone is called ---------- */
+
+/* A reader who has just asked why the chart is not in Indian time is not
+ * helped by a label reading "GMT+5:30". That is what an en-US browser sitting
+ * in India got, because `timeZoneName: "short"` falls back to a bare offset
+ * for any zone the locale has no abbreviation for — and the two cases where
+ * that bites are exactly this app's: en-US looking at India, and en-IN looking
+ * at New York.
+ *
+ * Asserted as a contract rather than against literal strings, because the
+ * abbreviation a locale offers is the locale's business and CI does not run in
+ * Mumbai. The rule is only: never nothing but an offset when a name exists. */
+const BARE_OFFSET = /^(GMT|UTC)[+-]/;
+
+test("a zone is named, not reduced to its offset", () => {
+  for (const zone of ["Asia/Calcutta", "Asia/Kolkata", "America/New_York", "Europe/London"]) {
+    const label = zoneLabel(zone, SEP_1);
+    assert.ok(!BARE_OFFSET.test(label), `${zone} came back as a bare offset: "${label}"`);
+    assert.ok(label.length > 0, `${zone} came back empty`);
+  }
+});
+
+test("and India is recognisably India", () => {
+  const label = zoneLabel("Asia/Calcutta", SEP_1);
+  assert.ok(
+    /India|IST/i.test(label),
+    `an Indian reader should see their own zone named, got "${label}"`,
+  );
+});
+
+/* A zone that genuinely has no name but its offset keeps it — unambiguous
+   beats empty. */
+test("UTC keeps the only name it has", () => {
+  assert.ok(zoneLabel("UTC", SEP_1).length > 0);
+});
