@@ -127,6 +127,27 @@ export function PriceChart({
     [intraday, zone],
   );
 
+  /* The crosshair's own time label, which the axis formatter above does NOT
+     cover.
+   *
+   * `tickMarkFormatter` styles the ticks printed along the axis; the label that
+   * follows the crosshair is a separate setting, `localization.timeFormatter`,
+   * and it was never set. Its default renders the UTCTimestamp as UTC — so on
+   * an intraday chart a reader in India saw 19:00 on the axis, 13:30 under the
+   * crosshair and 13:30 again in the tooltip: three numbers for one instant,
+   * none of them their own clock. Same zone as everything else here. */
+  const timeFormatter = useCallback(
+    (time: UTCTimestamp) => {
+      const ms = (time as number) * 1000;
+      const fmt = (opts: Intl.DateTimeFormatOptions) =>
+        new Intl.DateTimeFormat("en-US", { timeZone: zone, ...opts }).format(ms);
+      return intraday
+        ? fmt({ month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })
+        : fmt({ month: "short", day: "numeric", year: "numeric" });
+    },
+    [intraday, zone],
+  );
+
 
   const data = useMemo(() => {
     const source = rangeDef.source === "intraday" ? history.intraday : history.daily;
@@ -240,6 +261,7 @@ export function PriceChart({
         entireTextOnly: true,
       },
       rightPriceScale: { visible: false },
+      localization: { timeFormatter },
       timeScale: {
         borderVisible: false,
         timeVisible: rangeDef.intraday,
@@ -330,11 +352,16 @@ export function PriceChart({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* Both formatters, together. The chart is created once, so a range switch
+     between a session and a year has to push BOTH the axis formatter and the
+     crosshair's — leaving `localization` behind would pin the crosshair to
+     whichever range happened to be showing when the chart was built. */
   useEffect(() => {
     chartRef.current?.applyOptions({
+      localization: { timeFormatter },
       timeScale: { timeVisible: intraday, secondsVisible: false, tickMarkFormatter },
     });
-  }, [intraday, tickMarkFormatter]);
+  }, [intraday, tickMarkFormatter, timeFormatter]);
 
   /* The family is read from a computed custom property, so on the first paint of
      a server render it is the fallback. Re-applying once the webfont has settled
