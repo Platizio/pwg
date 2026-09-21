@@ -397,6 +397,27 @@ export function fromStored(section: "short_interest", payload: unknown): RawShor
 export function fromStored(section: "analyst", payload: unknown): AnalystObservation | null;
 export function fromStored(section: Section, payload: unknown): unknown;
 export function fromStored(section: Section, payload: unknown): unknown {
+  /* THE ABSENT MARKER STOPS HERE, before any section gets to interpret it.
+   *
+   * When the gateway answers definitely that it has nothing for a symbol — a
+   * 404, or the `Invalid ticker` 400 the preferred classes get — the worker
+   * records that fact so it stops asking, and the only column it has to record
+   * it in is the payload: `{absent: true, status}`.
+   *
+   * Nothing on this side knew that, so the marker came back looking like a
+   * document. A profile marker passed the "do we have a profile" gate and drew
+   * a company page of blanks. Worse, because it is silent, a corporate_actions
+   * marker reached splitRecord as a readable record of NO splits, and the
+   * returns published off it were confidently unadjusted — a stock that split
+   * ten-for-one reads about -93% for the year that way, with no dash and no
+   * warning anywhere on the page.
+   *
+   * `null` is what "we have nothing stored" already means to every caller
+   * here, and every caller already handles it. Keyed on the marker's shape
+   * rather than on the word, so a real document carrying an `absent` field of
+   * its own is untouched. */
+  if (isRecord(payload) && payload.absent === true) return null;
+
   switch (section) {
     case "profile": {
       if (!isRecord(payload)) return null;

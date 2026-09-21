@@ -299,3 +299,39 @@ test("a malformed payload reads as nothing rather than throwing into a render", 
   assert.equal(derivedOf({ date: [], price: [] }), null);
   assert.equal(derivedOf(null), null);
 });
+
+/* ---------- the absent marker is not a document ---------- */
+
+/* WHAT THE MARKER IS. When the gateway answers definitely that it has nothing
+ * for a symbol — a 404, or the `Invalid ticker` 400 the preferred classes get
+ * — the worker records that fact so it stops asking. It records it by writing
+ * `{absent: true, status}` into the section's payload, because the payload is
+ * the only column there is.
+ *
+ * WHAT IT IS NOT is a document. Nothing on the read path knew about it, so a
+ * marker came back through fromStored looking like a real answer: a profile
+ * that passed the "do we have a profile" gate and rendered a company page of
+ * blanks, and — worse, because it is silent — a corporate_actions marker that
+ * splitRecord read as `readable: true, splits: []`, publishing a confidently
+ * unadjusted five-year return. A stock that split 10-for-1 reads about -93%
+ * that way, with no dash and no warning anywhere.
+ *
+ * So the marker stops here. `null` is what "we have nothing stored" already
+ * means to every caller, and every caller already handles it. */
+test("an absent marker reads back as nothing, not as an empty document", () => {
+  const marker = { absent: true, status: 404 };
+  for (const section of SECTIONS) {
+    assert.equal(
+      fromStored(section, marker),
+      null,
+      `${section} must not hand an absent marker to the page`,
+    );
+  }
+});
+
+test("and a real payload that merely mentions absence is still a document", () => {
+  /* The guard keys on the marker's exact shape rather than on the word, so a
+     genuine profile carrying an `absent` field of its own is untouched. */
+  const profile = fromStored("profile", { ticker: "AAPL", absent: false });
+  assert.notEqual(profile, null);
+});

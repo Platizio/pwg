@@ -94,9 +94,35 @@ export class TransientFailure extends Error {
    day while somebody rotates the secret. */
 const STABLE = new Set([404, 410, 422]);
 
-/** Did the upstream answer about this record, or merely fail to answer? */
-export function stableAnswer(status: number): boolean {
-  return STABLE.has(status);
+/* The one 400 that is an answer rather than a complaint.
+ *
+ * 400 is deliberately NOT in the set above, because the commonest reason to
+ * receive one is that WE sent something malformed — and freezing our own bug
+ * into the cache for twelve hours, or retiring a symbol over it, is exactly
+ * the failure the set exists to avoid.
+ *
+ * This gateway also uses 400 for a second, opposite thing: a symbol it does
+ * not cover. Preferred classes get it — ARES-B, JPM-M, NEE-S, WFC-L and eleven
+ * more sat at eight attempts apiece, re-asked every six hours, each one held
+ * open by a refusal that could never turn into an answer. The body is what
+ * separates the two cases, and it says so in as many words:
+ *
+ *   {"errors":[{"code":6000,"description":"Invalid request:  bad status with
+ *    code '400': message 'Invalid ticker: ARES-B'"}]}
+ *
+ * Matched on the gateway's own phrase rather than on the code, because 6000 is
+ * its generic "invalid request" and covers the malformed case too. */
+const TICKER_REFUSED = /invalid ticker/i;
+
+/**
+ * Did the upstream answer about this record, or merely fail to answer?
+ *
+ * `error` is optional and only consulted for a 400, where the status alone
+ * cannot tell a statement about the symbol from a statement about the request.
+ */
+export function stableAnswer(status: number, error?: string | null): boolean {
+  if (STABLE.has(status)) return true;
+  return status === 400 && typeof error === "string" && TICKER_REFUSED.test(error);
 }
 
 /**
@@ -107,7 +133,7 @@ export function stableAnswer(status: number): boolean {
  * nothing.
  */
 export function guard<T>(result: ApiResult<T>): ApiResult<T> {
-  if (!result.ok && !stableAnswer(result.status)) throw new TransientFailure(result);
+  if (!result.ok && !stableAnswer(result.status, result.error)) throw new TransientFailure(result);
   return result;
 }
 

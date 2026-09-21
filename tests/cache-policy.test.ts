@@ -158,3 +158,47 @@ test("the failure is still there to be read", () => {
   assert.equal(e.message, "timeout");
   assert.ok(e instanceof Error);
 });
+
+/* ---------- a refusal about the symbol, not about the gateway ---------- */
+
+/* THE FIFTEEN THAT NEVER STOPPED RETRYING.
+ *
+ * Fifteen preferred-share tickers — ARES-B, JPM-M, NEE-S, WFC-L and the rest —
+ * sat in the store at eight attempts apiece, each re-asked every six hours,
+ * each holding the deployment's health check degraded. The gateway's answer to
+ * every one of them is HTTP 400 with `Invalid ticker` in the body: it does not
+ * cover preferred classes and never will.
+ *
+ * That is the same KIND of answer as a 404 — the upstream saying something
+ * definite about this symbol — and the opposite of a 500, which says something
+ * about the gateway at one instant. Retrying it forever costs a call every six
+ * hours per ticker and can never succeed.
+ *
+ * The status alone cannot decide it, which is why this takes the body too: a
+ * bare 400 is just as likely to mean WE sent a malformed request, and freezing
+ * that for twelve hours would hide a real defect in our own code. The gateway's
+ * own words are what separate the two. */
+test("a 400 that names the ticker as invalid is a stable answer", () => {
+  assert.equal(
+    stableAnswer(400, `{"errors":[{"code":6000,"description":"Invalid request:  bad status with code '400': message 'Invalid ticker: ARES-B'"}]}`),
+    true,
+  );
+});
+
+test("a 400 that says nothing about the ticker stays transient", () => {
+  assert.equal(stableAnswer(400, "Bad Request"), false, "this may be our own malformed request");
+  assert.equal(stableAnswer(400), false, "and with no body there is nothing to go on");
+});
+
+test("the statuses that were already stable still are, body or no body", () => {
+  for (const status of [404, 410, 422]) {
+    assert.equal(stableAnswer(status), true);
+    assert.equal(stableAnswer(status, "whatever"), true);
+  }
+});
+
+test("a gateway that is merely unwell is never frozen", () => {
+  for (const status of [0, 408, 429, 500, 502, 503]) {
+    assert.equal(stableAnswer(status, "Invalid ticker"), false, `${status} is about the gateway`);
+  }
+});

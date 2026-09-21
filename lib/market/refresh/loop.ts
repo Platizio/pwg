@@ -606,7 +606,7 @@ export function startRefresher(opts: RefresherOptions = {}): Refresher {
       stored = toStored("analyst", { ok: res.ok, status: res.status });
     } else if (res.ok) {
       stored = toStored(job.section, res.data, { actions });
-    } else if (stableAnswer(res.status)) {
+    } else if (stableAnswer(res.status, res.error)) {
       /* 404, 410 and 422: the gateway answered ABOUT the record and said there
          isn't one. That is a fact worth storing — it stops the section being
          retried on a five-minute error backoff forever — and market_complete
