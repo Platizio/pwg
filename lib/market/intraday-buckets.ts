@@ -120,3 +120,46 @@ export function bucketIntraday(
   }
   return out;
 }
+
+/** Which Eastern calendar day a bar belongs to. */
+export function easternDay(iso: string): string {
+  /* The session runs 04:00-20:00 Eastern and straddles midnight UTC, so a UTC
+     date would split one session across two days. */
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(iso));
+}
+
+/**
+ * The most recent stored session out of the five.
+ *
+ * What the 1D chart falls back to when the market is shut. The live gateway
+ * has nothing then — it keeps a session's minute bars only while that session
+ * runs — so without this the day view is simply blank, which is what it has
+ * been outside trading hours all along.
+ *
+ * Coarser than the live view: ten-minute buckets rather than one-minute, about
+ * ninety points rather than several hundred. Keeping a one-minute copy of the
+ * last session for every hot symbol would cost ~216MB against a database with
+ * ~200MB of headroom, and ninety points of the last real session is a great
+ * deal more than nothing.
+ */
+export function lastSession(series: IntradayColumns): IntradayColumns {
+  const out: IntradayColumns = { date: [], price: [], opening: [], high: [], low: [], volume: [] };
+  if (series.date.length === 0) return out;
+
+  const newest = easternDay(series.date[series.date.length - 1]);
+  for (let i = 0; i < series.date.length; i += 1) {
+    if (easternDay(series.date[i]) !== newest) continue;
+    out.date.push(series.date[i]);
+    out.price.push(series.price[i]);
+    out.opening.push(series.opening[i]);
+    out.high.push(series.high[i]);
+    out.low.push(series.low[i]);
+    out.volume.push(series.volume[i]);
+  }
+  return out;
+}

@@ -108,3 +108,42 @@ export function rangeCaption(
 
   return parts.join(" \u00b7 ");
 }
+
+/* ------------------------------------------------------------------ */
+/* Which ranges the page does not carry                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The ranges fetched on demand rather than shipped with the page.
+ *
+ * The instrument page carries the range it OPENS with — a year of daily bars —
+ * and 1M and 3M are slices of that same year, so they need no request and stay
+ * instant. What is left is the three it genuinely does not hold: the week and
+ * the day, which are drawn from stored intraday sessions, and five years,
+ * which is thirteen hundred bars nobody should download to look at a one-year
+ * chart.
+ *
+ * The page used to ship all of them at once — the company's five years and the
+ * benchmark's, 2,549 bars, 234KB of a 438KB payload, on every click — and on a
+ * 512MB instance three such renders were enough to kill the process.
+ */
+export const FETCHED_RANGES = ["1D", "1W", "5Y"] as const;
+
+export type FetchedRange = (typeof FETCHED_RANGES)[number];
+
+/**
+ * The range a caller asked for, or null.
+ *
+ * 1M, 3M and 1Y are refused rather than merely absent from the list, and the
+ * difference is worth stating: they are valid ranges that this path must not
+ * answer for, because answering would spend a request on bars the reader is
+ * already holding.
+ *
+ * Nothing is defaulted. A typo that silently fetched something would have that
+ * something charted as though it were what was asked for.
+ */
+export function parseFetchedRange(value: string | null | undefined): FetchedRange | null {
+  return typeof value === "string" && (FETCHED_RANGES as readonly string[]).includes(value)
+    ? (value as FetchedRange)
+    : null;
+}
