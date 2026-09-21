@@ -30,6 +30,11 @@ import { WorkColumn } from "./work-column";
    delays hydration. The skeleton reserves the exact height so nothing shifts. */
 /* Said plainly, because a stale session presented as today's is worse than an
    empty chart: the reader is looking at the last day that traded, not this one. */
+/* A trading week, for the fallback below. Not in the range table, because
+   price-chart slices its source to whatever `sessions` says and a five there
+   would cut the fetched 480-bucket week down to its last fifty minutes. */
+const WEEK_CLOSES = 5;
+
 const LAST_SESSION_NOTE = "The market is closed. Showing the last completed session.";
 
 const PriceChart = dynamic(
@@ -114,13 +119,37 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
         : { ...base, intraday: fetched.points, intradayNote: LAST_SESSION_NOTE };
     }
 
-    /* A fetched range draws its OWN series or nothing — never the shipped
-       year. Falling back would label a whole year "1W", or five years' worth
-       of axis "5Y" while showing one, and neither looks wrong enough for a
-       reader to catch. The chart already draws an empty range honestly. */
     const wanted = parseFetchedRange(range);
-    return wanted ? { ...base, daily: fetched.points } : base;
+    if (!wanted) return base;
+    if (fetched.points.length > 0) return { ...base, daily: fetched.points };
+
+    /* Nothing fetched. What that means depends on the range, and getting it
+       wrong either way is a lie.
+     *
+     * A WEEK still has something to draw. The store has five years of daily
+     * closes, and the last five of them ARE the week — coarser than the
+     * ten-minute buckets the capture will supply, and exactly what this range
+     * showed before it existed. Drawing nothing because the better series has
+     * not accumulated yet would be worse than the crude line it replaced.
+     *
+     * FIVE YEARS has not. The page ships one year, and five years of axis over
+     * one year of bars is the mislabelling this guard was written for — a
+     * reader cannot see that it is wrong.
+     *
+     * The caption is told which of the two it got, so "5 daily closes" is
+     * never printed as "10-minute bars". */
+    if (range === "1W") return { ...base, daily: base.daily.slice(-WEEK_CLOSES) };
+    return { ...base, daily: fetched.points };
   }, [snapshot.history, intraday, session.note, range, fetched.points]);
+
+  /* What the caption should call the bars it is drawing. Only the week is ever
+     two things — ten-minute buckets once the store has sessions, five daily
+     closes until then — and a caption saying "10-minute bars" over five closes
+     is exactly the sort of small invented fact this codebase refuses. */
+  const chartInterval = useMemo(
+    () => (range === "1W" && fetched.points.length === 0 ? "daily closes" : undefined),
+    [range, fetched.points.length],
+  );
 
   /* The newswire, widened after the page has appeared.
 
@@ -303,7 +332,7 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
       />
 
       <div className="h-[240px] sm:h-[300px] lg:h-[340px]">
-        <PriceChart history={chartHistory} range={range} />
+        <PriceChart history={chartHistory} range={range} intervalLabel={chartInterval} />
       </div>
 
       {/* Keyed entrance rather than AnimatePresence: the outgoing panel has

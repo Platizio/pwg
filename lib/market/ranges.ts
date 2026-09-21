@@ -18,6 +18,12 @@ export const RANGES: RangeDef[] = [
      now, fetched from the stored sessions: no `sessions` slice, because the
      fetched series IS the week and slicing five rows off it would draw the
      last fifty minutes. */
+  /* No `sessions`, deliberately, and the omission is load-bearing: price-chart
+     slices its source to `sessions` rows, so a five here would cut the fetched
+     week — 480 ten-minute buckets — down to its last fifty minutes while still
+     calling itself 1W. The week arrives already being exactly a week.
+     The five-close fallback, for before the store has intraday sessions to
+     draw from, is sized in instrument-view.tsx where the choice is made. */
   { id: "1W", label: "1W", source: "daily", intraday: false, interval: "10-minute bars" },
   { id: "1M", label: "1M", source: "daily", sessions: 21, intraday: false, interval: "daily closes" },
   { id: "3M", label: "3M", source: "daily", sessions: 64, intraday: false, interval: "daily closes" },

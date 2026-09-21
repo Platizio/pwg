@@ -63,12 +63,19 @@ function useChartPalette(): ChartPalette {
 export function PriceChart({
   history,
   range,
+  intervalLabel,
 }: {
   /* Both series, so the control can switch between them without a refetch:
      the day comes from minute bars, everything else is a slice of the daily
      pull the snapshot already holds. */
   history: { daily: PricePoint[]; intraday: PricePoint[]; intradayNote: string | null };
   range: RangeId;
+  /* What the caption should call these bars, when it is not what the range
+     nominally holds. A week is ten-minute buckets once the store has sessions
+     to draw them from, and five daily closes until it does; saying "10-minute
+     bars" over five closes would be the kind of small invented fact the rest
+     of this file refuses. */
+  intervalLabel?: string;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
@@ -187,8 +194,14 @@ export function PriceChart({
      1D through 5Y and nothing distinguishing five daily closes from a week of
      minutes. */
   const caption = useMemo(
-    () => rangeCaption(rangeDef, data.firstAt, data.lastAt, data.values.length),
-    [rangeDef, data.firstAt, data.lastAt, data.values.length],
+    () =>
+      rangeCaption(
+        intervalLabel ? { ...rangeDef, interval: intervalLabel } : rangeDef,
+        data.firstAt,
+        data.lastAt,
+        data.values.length,
+      ),
+    [rangeDef, intervalLabel, data.firstAt, data.lastAt, data.values.length],
   );
 
   const last = data.values.at(-1) ?? 0;
