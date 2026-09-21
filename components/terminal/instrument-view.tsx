@@ -3,12 +3,13 @@
 import { motion } from "motion/react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DEFAULT_RANGE } from "@/lib/market/ranges";
+import { DEFAULT_RANGE, parseFetchedRange } from "@/lib/market/ranges";
 import type { RangeId, TabId } from "@/lib/market/types";
 import type { InstrumentSnapshot } from "@/lib/market/instrument";
 import { usePortfolio } from "@/lib/portfolio";
 import { liveTail } from "@/lib/market/chart-tail";
 import { useLiveQuote } from "./live-provider";
+import { useHistory } from "./use-history";
 import { useIntraday } from "./use-intraday";
 import { useStockNews } from "./use-stock-news";
 import { EASE } from "@/lib/tokens";
@@ -27,6 +28,10 @@ import { WorkColumn } from "./work-column";
 
 /* The canvas has nothing to render on the server, and shipping it there only
    delays hydration. The skeleton reserves the exact height so nothing shifts. */
+/* Said plainly, because a stale session presented as today's is worse than an
+   empty chart: the reader is looking at the last day that traded, not this one. */
+const LAST_SESSION_NOTE = "The market is closed. Showing the last completed session.";
+
 const PriceChart = dynamic(
   () => import("./price-chart").then((m) => m.PriceChart),
   {
@@ -78,14 +83,44 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
   const tick = useLiveQuote(stock.id);
   const session = useIntraday(stock.id, snapshot.session.phase);
   const intraday = useMemo(() => liveTail(session.intraday, tick), [session.intraday, tick]);
-  const chartHistory = useMemo(
-    () => ({
+  /* The ranges the page does not carry.
+   *
+   * It ships the year it opens with — 1M and 3M are slices of that same year
+   * and cost nothing — and this fetches the rest on press. Before, every click
+   * downloaded all of them: 2,549 bars, 234KB of a 438KB payload, on a 512MB
+   * box where three such renders were enough to kill the process.
+   *
+   * `parseFetchedRange` answers null for the ranges already in hand, and the
+   * hook then fetches nothing at all. */
+  const fetched = useHistory(stock.id, parseFetchedRange(range));
+
+  /* A fetched range replaces the DAILY series the chart slices, because that
+     is the series price-chart reads for every non-intraday range. The stored
+     intraday ranges come back as points of the same shape, so the chart needs
+     to know nothing about where they came from. */
+  const chartHistory = useMemo(() => {
+    const base = {
       ...snapshot.history,
       intraday,
       intradayNote: session.note ?? snapshot.history.intradayNote,
-    }),
-    [snapshot.history, intraday, session.note],
-  );
+    };
+
+    /* The day range is the live session, and it only falls back to the stored
+       one when the gateway has nothing — which is every hour the market is
+       shut, and the reason this chart has always been blank overnight. */
+    if (range === "1D") {
+      return intraday.length > 0 || fetched.points.length === 0
+        ? base
+        : { ...base, intraday: fetched.points, intradayNote: LAST_SESSION_NOTE };
+    }
+
+    /* A fetched range draws its OWN series or nothing — never the shipped
+       year. Falling back would label a whole year "1W", or five years' worth
+       of axis "5Y" while showing one, and neither looks wrong enough for a
+       reader to catch. The chart already draws an empty range honestly. */
+    const wanted = parseFetchedRange(range);
+    return wanted ? { ...base, daily: fetched.points } : base;
+  }, [snapshot.history, intraday, session.note, range, fetched.points]);
 
   /* The newswire, widened after the page has appeared.
 

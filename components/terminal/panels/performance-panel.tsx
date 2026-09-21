@@ -1,5 +1,7 @@
 "use client";
 
+import { useHistory } from "../use-history";
+import { MARKET_PROXY_SYMBOL as MARKET_PROXY } from "@/lib/market/store/types";
 import { money, pct } from "@/lib/market/format";
 import {
   analystView,
@@ -394,8 +396,33 @@ function AnalystSection({ view, ticker }: { view: AnalystView; ticker: string })
 /* ── the panel ─────────────────────────────────────────────────────────── */
 
 export function PerformancePanel({ snapshot }: { snapshot: InstrumentSnapshot }) {
-  const { profile, market } = snapshot;
-  const points = snapshot.history.daily;
+  const { profile } = snapshot;
+
+  /* THE FULL SERIES, FETCHED — and this is a correctness requirement, not an
+   * optimisation.
+   *
+   * Everything on this tab is measured over five years: the CAGR, the maximum
+   * drawdown, the volatility, the year-by-year table. The page no longer ships
+   * five years — it carries the year the chart opens with, because shipping
+   * both this series and the benchmark's put 234KB of bars in every click and
+   * killed a 512MB instance on the third one. Measuring five-year figures over
+   * the shipped year would not fail; it would quietly print different numbers
+   * under the same labels, which is the worst way for this to go wrong.
+   *
+   * So the panel asks for what it measures. Until it arrives there is nothing
+   * to measure and the panel says so, which is the state it already draws for
+   * a company with no price record.
+   *
+   * The benchmark is fetched for the same reason and is separately optional: a
+   * comparison line is worth one request, and worth nothing if it fails. */
+  const full = useHistory(profile.id, "5Y");
+  const benchmark = useHistory(MARKET_PROXY, "5Y");
+
+  const points = full.points.length > 0 ? full.points : snapshot.history.daily;
+  const market =
+    benchmark.points.length > 0
+      ? { symbol: MARKET_PROXY, daily: benchmark.points }
+      : snapshot.market;
 
   const analyst = analystView(snapshot);
 

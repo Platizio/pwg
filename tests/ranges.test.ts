@@ -21,12 +21,29 @@ test("only the day comes from the intraday feed", () => {
   assert.ok(RANGES.filter((r) => r.source === "daily").every((r) => r.id !== "1D"));
 });
 
-test("windows grow with the range, and the longest is unbounded", () => {
+test("windows grow with the range, and the fetched ones are unbounded", () => {
   const daily = RANGES.filter((r) => r.source === "daily");
   const sessions = daily.map((r) => r.sessions);
-  assert.deepEqual(sessions, [5, 21, 64, 252, undefined], "1W 1M 3M 1Y then the whole series");
-  const bounded = sessions.filter((n): n is number => n !== undefined);
-  assert.deepEqual([...bounded].sort((a, b) => a - b), bounded, "windows must ascend");
+
+  /* 1W and 5Y have no window, and for the same reason: their series is FETCHED
+     rather than sliced out of the year the page ships, so what arrives is
+     already exactly the range asked for. Slicing 1W to five rows would draw
+     the last fifty minutes of a week of ten-minute buckets — which is how the
+     old five-daily-closes week looked, and the fault this replaced. */
+  assert.deepEqual(sessions, [undefined, 21, 64, 252, undefined], "1W 1M 3M 1Y 5Y");
+
+  const shipped = sessions.filter((n): n is number => n !== undefined);
+  assert.deepEqual([...shipped].sort((a, b) => a - b), shipped, "windows must ascend");
+
+  /* Every windowed range is a slice of the year the page carries, which is
+     what lets 1M and 3M cost nothing. A window longer than that would slice
+     bars the page never shipped and quietly draw a shorter range than it
+     names. */
+  const shippedYear = getRange(DEFAULT_RANGE).sessions;
+  assert.equal(typeof shippedYear, "number");
+  for (const n of shipped) {
+    assert.ok(n <= (shippedYear as number), `a ${n}-session window exceeds the shipped year`);
+  }
 });
 
 test("the clock only shows on the range measured in minutes", () => {

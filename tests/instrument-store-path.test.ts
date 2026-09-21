@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   inputsFromStored,
-  sessionSeriesDeferred,
+  shippedWithPage,
   unpatchedFetch,
 } from "../lib/market/instrument.ts";
 import { assembleInstrument, type InstrumentInputs } from "../lib/market/instrument-assemble.ts";
@@ -619,7 +619,7 @@ test("the session series leaves on both paths, and takes its note with it", () =
     history: { ...base.history, intraday: bars, intradayNote: "drawn on the server" },
   };
 
-  const out = sessionSeriesDeferred(withDay);
+  const out = shippedWithPage(withDay);
   assert.deepEqual(out.history.intraday, [], "the day view does not ride the snapshot");
   assert.ok(
     typeof out.history.intradayNote === "string" && out.history.intradayNote.length > 0,
@@ -627,9 +627,17 @@ test("the session series leaves on both paths, and takes its note with it", () =
   );
   assert.notEqual(out.history.intradayNote, "drawn on the server");
 
-  // Everything else is the page the assembler built, untouched.
+  /* Everything the reader reads is the page the assembler built. The daily
+     series is the one deliberate exception: the page carries the year it opens
+     with, so this is the TAIL of what the assembler measured against, and the
+     figures beside it are unchanged because they were computed from the whole
+     of it before the trim. */
   assert.equal(out.profile.price, base.profile.price);
-  assert.deepEqual(out.history.daily, base.history.daily);
+  assert.deepEqual(
+    out.history.daily,
+    base.history.daily.slice(-out.history.daily.length),
+    "the bars shipped are the most recent ones, unaltered",
+  );
   assert.deepEqual(out.returns, base.returns);
   assert.equal(out.status, base.status);
 
@@ -707,4 +715,78 @@ test("a missing benchmark costs the comparison and nothing else", () => {
   assert.deepEqual(snapshot.history.daily, whole.history.daily);
   assert.deepEqual(snapshot.returns, whole.returns);
   assert.deepEqual(snapshot.peers, whole.peers);
+});
+
+/* ---------- what the page is allowed to ship ---------- */
+
+/* THE 234KB, AND THE INSTANCE IT KILLED.
+ *
+ * A board click used to download the company's five years of bars AND SPY's
+ * five years — 2,549 of them, 53% of a 438KB payload — on every stock. On a
+ * 512MB box each on-demand render held 40-60MB and did not give it back: a
+ * fresh instance measured 81MB, then 200, then 212, and the next render
+ * returned 502. After that every never-prerendered stock hung for as long as
+ * anyone waited while the prerendered ones kept serving, which is exactly what
+ * a reader experiences as clicking a gainer and nothing happening.
+ *
+ * The page now ships the range it OPENS with and nothing else. 1M and 3M are
+ * slices of that same year so they stay instant; 1W, 1D and 5Y fetch their own
+ * series, and the benchmark belongs to the one panel that draws it.
+ *
+ * Both assertions are about bytes rather than behaviour, which is why they are
+ * worth pinning: nothing on the page looks wrong when they regress. */
+test("the page ships one range of bars and no benchmark", () => {
+  const long = stored({
+    sections: { ...sections(), history_daily: toStored("history_daily", series(400, null)) },
+  });
+
+  const read = inputsFromStored(long, "NFLX");
+  assert.equal(read.use, "store");
+  if (read.use !== "store") return;
+
+  const snapshot = shippedWithPage(assembleInstrument(read.inputs, NOW));
+
+  assert.equal(
+    snapshot.market,
+    null,
+    "the benchmark is fetched by the panel that draws it, not carried by every page",
+  );
+  assert.ok(
+    snapshot.history.daily.length <= 252,
+    `the default range is a year, not five — got ${snapshot.history.daily.length} bars`,
+  );
+  assert.ok(snapshot.history.daily.length > 0, "and it is a year, not nothing");
+});
+
+/* The figures must not move when the bars do. They are computed by the refresh
+   worker and stored, so trimming the series the page carries cannot change a
+   number the reader sees — if it can, the trim took something the page needed. */
+test("trimming the shipped series does not change a single reported return", () => {
+  const long = stored({
+    sections: { ...sections(), history_daily: toStored("history_daily", series(400, null)) },
+  });
+  const read = inputsFromStored(long, "NFLX");
+  if (read.use !== "store") throw new Error("expected the store path");
+
+  const trimmed = shippedWithPage(assembleInstrument(read.inputs, NOW));
+  const whole = assembleInstrument(read.inputs, NOW);
+  assert.deepEqual(trimmed.returns, whole.returns);
+});
+
+/* The newest bars, not the oldest. A trim that kept the first 252 would draw a
+   year-old chart under today's price and nothing would look wrong. */
+test("the year it keeps is the most recent one", () => {
+  const long = stored({
+    sections: { ...sections(), history_daily: toStored("history_daily", series(400, null)) },
+  });
+  const read = inputsFromStored(long, "NFLX");
+  if (read.use !== "store") throw new Error("expected the store path");
+
+  const whole = assembleInstrument(read.inputs, NOW);
+  const trimmed = shippedWithPage(whole);
+  assert.equal(
+    trimmed.history.daily.at(-1)?.at,
+    whole.history.daily.at(-1)?.at,
+    "the last bar is the same bar",
+  );
 });

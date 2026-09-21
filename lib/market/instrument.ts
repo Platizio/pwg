@@ -23,6 +23,7 @@ import { quoteVerdict } from "./quote-verdict.ts";
 import { reconnectDelay } from "../api/stream/backoff.ts";
 import { nowMs } from "./clock.ts";
 import { isPlaceholderInstrument, presentation } from "./universe.ts";
+import { DEFAULT_RANGE, getRange } from "./ranges.ts";
 import { storeConfigured, touchVisit } from "./store/client.ts";
 import { fromStored } from "./store/sections.ts";
 import { indicatorsFromDaily } from "./store/local-indicators.ts";
@@ -171,7 +172,7 @@ const SESSION_SERIES_NOTE = "This session's trades load with the chart.";
 const STORE_BUDGET_MS = 8_000;
 
 /**
- * The snapshot, minus the series that no longer travels with it.
+ * The snapshot, minus everything that no longer travels with the page.
  *
  * `assembleInstrument` still owns the day view — it is handed `intraday: null`
  * on both paths and reports the empty series and its own note — and this
@@ -180,14 +181,45 @@ const STORE_BUDGET_MS = 8_000;
  * piece of this page with no opinion about transport.
  *
  * Exported only so a test can hold it to that. It is the last thing both paths
- * pass through, and a day view that crept back into the payload would
- * otherwise show up as a cold page that had quietly gone slow again rather
- * than as a failing assertion.
+ * pass through, and anything that crept back into the payload — a day view, a
+ * second year of bars, the benchmark — would otherwise show up as a cold page
+ * that had quietly gone slow again, or as an instance that died on the third
+ * click, rather than as a failing assertion.
  */
-export function sessionSeriesDeferred(snapshot: InstrumentSnapshot): InstrumentSnapshot {
+export function shippedWithPage(snapshot: InstrumentSnapshot): InstrumentSnapshot {
+  /* The day view, which arrives after hydration from /api/intraday. */
+  const history = { ...snapshot.history, intraday: [], intradayNote: SESSION_SERIES_NOTE };
+
+  /* THE BARS, and this is the line that stopped a board click killing the box.
+   *
+   * The assembler is handed five years because it MEASURES against five years
+   * — the returns, the drawdowns, the notable moves are all computed here and
+   * arrive as numbers. What the page then has to CARRY is only what the chart
+   * draws on opening, which is one year; 1M and 3M are slices of that same
+   * year, so they cost nothing and stay instant, and 1W, 1D and 5Y fetch their
+   * own series from /api/history when a button is pressed.
+   *
+   * Measured before: 438KB a click, 234KB of it bars, 2,549 of them — the
+   * company's five years and SPY's. On a 512MB instance each on-demand render
+   * held 40-60MB and did not give it back; a fresh box went 81MB, 200MB,
+   * 212MB, and the next render returned 502. Every never-prerendered stock
+   * then hung for as long as anyone waited.
+   *
+   * `slice(-n)` and not `slice(0, n)`: the most recent year. Keeping the
+   * OLDEST year would draw a year-old chart under today's price, and nothing
+   * about the page would look wrong. */
+  const year = getRange(DEFAULT_RANGE).sessions;
+  if (typeof year === "number" && history.daily.length > year) {
+    history.daily = history.daily.slice(-year);
+  }
+
   return {
     ...snapshot,
-    history: { ...snapshot.history, intraday: [], intradayNote: SESSION_SERIES_NOTE },
+    history,
+    /* The benchmark belongs to the panel that draws it. It is the same 86KB of
+       SPY on every company's page — identical bytes, one comparison line — and
+       only the performance tab reads it. It fetches its own now. */
+    market: null,
   };
 }
 
@@ -521,7 +553,7 @@ export const getInstrumentSnapshot = cache(
       /* One RPC and nothing else. `inputs.articles` is already null and stays
          that way: this used to await the news provider here, which was the
          whole of what a filled-store page still cost a reader. */
-      return sessionSeriesDeferred(assembleInstrument(stored.inputs, now));
+      return shippedWithPage(assembleInstrument(stored.inputs, now));
     }
 
     /* ---- the gateway fan-out, unchanged ---- */
@@ -764,7 +796,7 @@ export const getInstrumentSnapshot = cache(
       inputs.peers = peers;
     }
 
-    return sessionSeriesDeferred(assembleInstrument(inputs, now));
+    return shippedWithPage(assembleInstrument(inputs, now));
   },
 );
 

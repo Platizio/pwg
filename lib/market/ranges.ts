@@ -13,7 +13,12 @@ import type { RangeDef, RangeId } from "./types";
    come from a different endpoint. */
 export const RANGES: RangeDef[] = [
   { id: "1D", label: "1D", source: "intraday", intraday: true, interval: "1-minute bars" },
-  { id: "1W", label: "1W", source: "daily", sessions: 5, intraday: false, interval: "daily closes" },
+  /* Five daily closes until 2026-09-21 — five points for a week, which is the
+     straight line readers kept reporting. It is a week of ten-minute buckets
+     now, fetched from the stored sessions: no `sessions` slice, because the
+     fetched series IS the week and slicing five rows off it would draw the
+     last fifty minutes. */
+  { id: "1W", label: "1W", source: "daily", intraday: false, interval: "10-minute bars" },
   { id: "1M", label: "1M", source: "daily", sessions: 21, intraday: false, interval: "daily closes" },
   { id: "3M", label: "3M", source: "daily", sessions: 64, intraday: false, interval: "daily closes" },
   { id: "1Y", label: "1Y", source: "daily", sessions: 252, intraday: false, interval: "daily closes" },
