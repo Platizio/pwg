@@ -359,37 +359,46 @@ function LanguagePicker({ collapsed }: { collapsed: boolean }) {
         </div>
       )}
 
-      <ThemeToggle collapsed={collapsed} />
+      {/* One box around both controls, so they are one column rather than two
+          pills that happen to be stacked.
+          A grid whose track is `w-fit` takes the width of its widest child and
+          stretches the other to match; sized individually they came out 102px
+          and 123px, sharing a left edge and missing each other's right one by
+          twenty-one. Collapsed they are both 44px squares and there is nothing
+          to reconcile, so the stretch only applies open. */}
+      <div className={cn("grid", collapsed ? "w-11" : "w-fit")}>
+        <ThemeToggle collapsed={collapsed} />
 
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        aria-controls={open ? menuId : undefined}
-        aria-label={collapsed ? "Language, English" : undefined}
-        title={collapsed ? "Language · English" : undefined}
-        className={cn(
-          "flex min-h-11 items-center gap-2.5 rounded-full border text-[13px] font-medium transition-colors",
-          collapsed ? "w-11 justify-center px-0" : "w-fit px-4",
-          open
-            ? "border-[rgba(var(--c-gold-rgb),0.34)] text-ink"
-            : "border-rule-control text-ink-2 hover:border-gold hover:text-ink",
-        )}
-      >
-        <IconGlobe className="h-4 w-4 flex-none text-gold" />
-        {!collapsed && (
-          <>
-            English
-            <IconChevron
-              aria-hidden="true"
-              className={cn(
-                "h-3 w-3 flex-none transition-transform duration-300",
-                open ? "-rotate-90" : "rotate-0",
-              )}
-            />
-          </>
-        )}
-      </button>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-controls={open ? menuId : undefined}
+          aria-label={collapsed ? "Language, English" : undefined}
+          title={collapsed ? "Language · English" : undefined}
+          className={cn(
+            "flex min-h-11 items-center gap-2.5 rounded-full border text-[13px] font-medium transition-colors",
+            collapsed ? "w-11 justify-center px-0" : "w-full px-4",
+            open
+              ? "border-[rgba(var(--c-gold-rgb),0.34)] text-ink"
+              : "border-rule-control text-ink-2 hover:border-gold hover:text-ink",
+          )}
+        >
+          <IconGlobe className="h-4 w-4 flex-none text-gold" />
+          {!collapsed && (
+            <>
+              English
+              <IconChevron
+                aria-hidden="true"
+                className={cn(
+                  "h-3 w-3 flex-none transition-transform duration-300",
+                  open ? "-rotate-90" : "rotate-0",
+                )}
+              />
+            </>
+          )}
+        </button>
+      </div>
     </div>
   );
 }

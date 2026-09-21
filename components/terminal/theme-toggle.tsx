@@ -83,7 +83,11 @@ export default function ThemeToggle({ collapsed = false }: { collapsed?: boolean
       className={cn(
         "flex min-h-11 items-center gap-2.5 rounded-full border text-[13px] font-medium transition-colors",
         "border-rule-control text-ink-2 hover:border-gold hover:text-ink",
-        collapsed ? "w-11 justify-center px-0" : "w-fit px-4",
+        /* w-full, not w-fit: the sidebar footer stacks this with the language
+           control and sizes both to the wider of the two, so their edges line
+           up. Sized to its own content they were 102px and 123px — same left
+           edge, right edges twenty-one pixels apart. */
+        collapsed ? "w-11 justify-center px-0" : "w-full px-4",
       )}
     >
       {isLight ? (
@@ -91,7 +95,13 @@ export default function ThemeToggle({ collapsed = false }: { collapsed?: boolean
       ) : (
         <IconMoon aria-hidden="true" className="h-4 w-4 flex-none text-gold" />
       )}
-      {!collapsed && <span className="min-w-[2.6rem] text-left">{label}</span>}
+      {/* Wide enough for the longest label this can ever hold, which is the
+          SERVER's: before hydration the theme is unknowable, so it renders
+          "Lighting" — 48px at this size, against a reservation that was 41.6px.
+          The button therefore shrank by six pixels the moment the page came
+          alive, taking the control out from under a pointer already on its way
+          to it. "Light" and "Dark" are 30px and sit inside the same box. */}
+      {!collapsed && <span className="min-w-[3.1rem] text-left">{label}</span>}
     </button>
   );
 }
