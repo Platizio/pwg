@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { bucketIntraday } from "../lib/market/intraday-buckets.ts";
+import { bucketIntraday, SESSIONS_KEPT } from "../lib/market/intraday-buckets.ts";
+import { mergeIntradaySessions } from "../lib/market/store/sections.ts";
 
 /* Minute bars reduced to the grid a chart can draw.
  *
@@ -100,4 +101,56 @@ test("a row with no usable price is dropped rather than charted", () => {
     10,
   );
   assert.deepEqual(out.price, [100]);
+});
+
+/* ---------- five sessions, merged ---------- */
+
+
+/* The store keeps five sessions and the gateway hands over one, so every
+   capture is a merge. Each rule below is a way of not losing bars that exist
+   nowhere else — once a session ends there is no endpoint to fetch it back
+   from. */
+const session = (day: string, prices: number[]) => ({
+  /* 18:00Z is 14:00 Eastern: inside the session, and on the same Eastern day
+     as the UTC one, so these fixtures say what they look like they say. */
+  date: prices.map((_, i) => `${day}T${String(18 + i).padStart(2, "0")}:00:00.000Z`),
+  price: prices,
+  opening: prices,
+  high: prices,
+  low: prices,
+  volume: prices.map(() => 100),
+});
+
+test("a captured session is added to the ones already stored", () => {
+  const out = mergeIntradaySessions(session("2026-09-16", [1, 2]), session("2026-09-17", [3, 4]));
+  assert.deepEqual(out.price, [1, 2, 3, 4]);
+});
+
+test("an empty capture leaves what is stored alone", () => {
+  /* The gateway answers an empty array outside a session. Writing it over a
+     real day would erase bars nothing can fetch back. */
+  const stored = session("2026-09-17", [3, 4]);
+  const out = mergeIntradaySessions(stored, {
+    date: [], price: [], opening: [], high: [], low: [], volume: [],
+  });
+  assert.deepEqual(out.price, [3, 4]);
+});
+
+test("re-capturing a day replaces it rather than doubling it", () => {
+  /* Captures overlap: 15:55 and a retry at 15:58 are the same session. */
+  const out = mergeIntradaySessions(session("2026-09-17", [3, 4]), session("2026-09-17", [3, 4, 5]));
+  assert.deepEqual(out.price, [3, 4, 5]);
+});
+
+test("only the most recent sessions survive", () => {
+  let stored = mergeIntradaySessions(null, session("2026-09-01", [99]));
+  for (let d = 2; d <= 2 + SESSIONS_KEPT; d += 1) {
+    stored = mergeIntradaySessions(stored, session(`2026-09-${String(d).padStart(2, "0")}`, [d]));
+  }
+  assert.equal(new Set(stored.date.map((d) => d.slice(0, 10))).size, SESSIONS_KEPT);
+  assert.ok(!stored.price.includes(99), "the oldest session is evicted");
+});
+
+test("nothing stored yet is not a reason to refuse the first capture", () => {
+  assert.deepEqual(mergeIntradaySessions(null, session("2026-09-17", [7])).price, [7]);
 });

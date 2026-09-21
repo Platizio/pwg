@@ -5,7 +5,7 @@ import {
   fetchCorporateActionsUncached,
   fetchFundamentalsUncached,
 } from "../../api/clients/fundamentals.ts";
-import { chunk, fetchHistory } from "../../api/clients/quotes.ts";
+import { chunk, fetchHistory, fetchIntraday } from "../../api/clients/quotes.ts";
 import { fetchShortInterest } from "../../api/clients/technicals.ts";
 import { scrub, type ApiResult } from "../../api/errors.ts";
 import { INDEX_ETF_SYMBOLS } from "../../api/normalize/index-proxy.ts";
@@ -290,6 +290,11 @@ function fetchSection(job: ClaimedJob): Promise<ApiResult<unknown>> {
       return fetchShortInterest(s, TTL.fundamentals, [TAGS.fundamentals], true);
     case "analyst":
       return fetchAnalystConsensus(s, TTL.fundamentals, [TAGS.fundamentals], true);
+    /* The whole session so far in one response, which is why capture is one
+       call a day rather than a poll. It is also the only chance to take it:
+       the gateway discards these bars when the session ends. */
+    case "history_intraday":
+      return fetchIntraday(s, TTL.sweep, [TAGS.history], true);
   }
 }
 
@@ -605,7 +610,11 @@ export function startRefresher(opts: RefresherOptions = {}): Refresher {
          becomes a 200 the hash changes and the row is written. */
       stored = toStored("analyst", { ok: res.ok, status: res.status });
     } else if (res.ok) {
-      stored = toStored(job.section, res.data, { actions });
+      /* `previous` is this section's own stored payload, which market_claim_due
+         hands over for history_intraday alone. That section accumulates — the
+         gateway gives one session and the store keeps five — so it is the only
+         one that has to see what it already holds. */
+      stored = toStored(job.section, res.data, { actions, previous: job.context });
     } else if (stableAnswer(res.status, res.error)) {
       /* 404, 410 and 422: the gateway answered ABOUT the record and said there
          isn't one. That is a fact worth storing — it stops the section being

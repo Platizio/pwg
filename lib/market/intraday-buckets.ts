@@ -29,6 +29,16 @@ export type IntradayColumns = {
   volume: number[];
 };
 
+/* Ten minutes, and the number is a storage decision measured rather than
+   preferred: a real full session is ~49KB per symbol at one minute and ~5KB at
+   ten, against a database already at 288MB of a 500MB ceiling. Across the hot
+   set for five sessions that is ~1GB versus ~110MB. */
+export const BUCKET_MINUTES = 10;
+
+/* A trading week. Enough for the 1W range with nothing spare: every extra
+   session is ~5KB x the hot set, or another 22MB. */
+export const SESSIONS_KEPT = 5;
+
 const empty = (): IntradayColumns => ({
   date: [],
   price: [],

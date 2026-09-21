@@ -6,6 +6,7 @@ import type {
   RawTickerNews,
 } from "../../api/clients/fundamentals.ts";
 import type { RawFinancials } from "../../api/clients/financials.ts";
+import { BUCKET_MINUTES, bucketIntraday, SESSIONS_KEPT, type IntradayColumns } from "../intraday-buckets.ts";
 import type { RawHistoryPoint } from "../../api/clients/quotes.ts";
 import type { RawShortInterest } from "../../api/clients/technicals.ts";
 import { parseFeedDate } from "../../api/normalize/time.ts";
@@ -73,6 +74,7 @@ export const SECTIONS = [
   "corporate_actions",
   "financials_annual",
   "history_daily",
+  "history_intraday",
   "short_interest",
   "analyst",
 ] as const;
@@ -117,7 +119,14 @@ export type HistoryColumns = {
 export type StoredHistory = HistoryColumns & { derived: Returns };
 
 /** What `toStored` needs beyond the document itself. */
-export type StoredContext = { actions?: RawCorporateActions | null };
+export type StoredContext = {
+  actions?: RawCorporateActions | null;
+  /* What this section already holds, for a document that ACCUMULATES rather
+     than being replaced. Only history_intraday does: the gateway hands back
+     one session and the store keeps five, so the new one has to be merged with
+     what is there. Every other section is whole on arrival. */
+  previous?: unknown;
+};
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
@@ -335,6 +344,16 @@ export function toStored(section: Section, raw: unknown, context?: StoredContext
     }
     case "history_daily":
       return storedHistory(rowsOf(raw), context);
+    /* Already columnar when it arrives. `bucketIntraday` built these six
+       parallel arrays out of the gateway's minute bars, so there is nothing
+       left to reshape — storing it as given is what keeps one representation
+       one representation. Contrast history_daily, which is handed raw rows and
+       has to build its columns here. */
+    case "history_intraday":
+      return mergeIntradaySessions(
+        intradayColumns(context?.previous),
+        bucketIntraday(rowsOf(raw) as RawHistoryPoint[], BUCKET_MINUTES),
+      );
   }
 }
 
@@ -393,6 +412,7 @@ export function fromStored(section: "news_gateway", payload: unknown): RawTicker
 export function fromStored(section: "corporate_actions", payload: unknown): RawCorporateActions | null;
 export function fromStored(section: "financials_annual", payload: unknown): RawFinancials | null;
 export function fromStored(section: "history_daily", payload: unknown): RawHistoryPoint[] | null;
+export function fromStored(section: "history_intraday", payload: unknown): IntradayColumns | null;
 export function fromStored(section: "short_interest", payload: unknown): RawShortInterest | null;
 export function fromStored(section: "analyst", payload: unknown): AnalystObservation | null;
 export function fromStored(section: Section, payload: unknown): unknown;
@@ -441,7 +461,111 @@ export function fromStored(section: Section, payload: unknown): unknown {
     }
     case "history_daily":
       return historyRows(payload);
+    case "history_intraday":
+      return intradayColumns(payload);
   }
+}
+
+/* The stored shape, checked rather than trusted.
+ *
+ * A payload read back out of the database is the one input to this module that
+ * nothing in this process wrote during this process's lifetime: a partial
+ * write, a hand-edited row or a shape from an older version all arrive looking
+ * like an object. The six arrays have to be PARALLEL because every consumer
+ * indexes them together, and a short `price` against a long `date` draws a
+ * chart against the wrong days without erroring anywhere. */
+function intradayColumns(payload: unknown): IntradayColumns | null {
+  if (!isRecord(payload)) return null;
+  const { date, price, opening, high, low, volume } = payload;
+  if (!Array.isArray(date) || !Array.isArray(price) || price.length !== date.length) return null;
+  const n = date.length;
+  const col = (v: unknown): number[] | null =>
+    Array.isArray(v) && v.length === n ? (v as number[]) : null;
+  const o = col(opening);
+  const h = col(high);
+  const l = col(low);
+  const vol = col(volume);
+  if (!o || !h || !l || !vol) return null;
+  return {
+    date: date as string[],
+    price: price as number[],
+    opening: o,
+    high: h,
+    low: l,
+    volume: vol,
+  };
+}
+
+/** Which Eastern calendar day a bar belongs to. */
+function easternDay(iso: string): string {
+  /* The session runs 04:00-20:00 Eastern, which straddles midnight UTC. Group
+     by the UTC date and one session splits across two days, so half of it is
+     evicted a day early — the bug is silent, because what is left still draws. */
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(iso));
+}
+
+/**
+ * Add a freshly captured session to the ones already stored, keeping the last
+ * `SESSIONS_KEPT`.
+ *
+ * Three rules, and each of them is a way of not losing data:
+ *
+ *   An EMPTY capture changes nothing. The gateway answers an empty array
+ *   outside a session, and writing that over a real day would erase bars that
+ *   exist nowhere else — there is no endpoint to fetch them back from.
+ *
+ *   A RE-CAPTURE of a day already held replaces that day rather than appending
+ *   to it. Runs overlap: a capture at 15:55 and a retry at 15:58 are the same
+ *   session, and concatenating them would draw every bar twice.
+ *
+ *   Retention counts SESSIONS, not bars. A halted stock's day may be twenty
+ *   buckets and a busy one's ninety; keeping a fixed number of bars would hold
+ *   a month of one and half a day of the other.
+ */
+export function mergeIntradaySessions(
+  stored: IntradayColumns | null,
+  incoming: IntradayColumns,
+): IntradayColumns {
+  const base = stored ?? { date: [], price: [], opening: [], high: [], low: [], volume: [] };
+  if (incoming.date.length === 0) return base;
+
+  const replacing = new Set(incoming.date.map(easternDay));
+  const rows: Array<{ d: string; p: number; o: number; h: number; l: number; v: number }> = [];
+
+  const take = (c: IntradayColumns, skipReplaced: boolean) => {
+    for (let i = 0; i < c.date.length; i += 1) {
+      const d = c.date[i];
+      if (skipReplaced && replacing.has(easternDay(d))) continue;
+      rows.push({ d, p: c.price[i], o: c.opening[i], h: c.high[i], l: c.low[i], v: c.volume[i] });
+    }
+  };
+  take(base, true);
+  take(incoming, false);
+
+  rows.sort((a, b) => Date.parse(a.d) - Date.parse(b.d));
+
+  const keep = new Set(
+    Array.from(new Set(rows.map((r) => easternDay(r.d))))
+      .sort()
+      .slice(-SESSIONS_KEPT),
+  );
+
+  const out: IntradayColumns = { date: [], price: [], opening: [], high: [], low: [], volume: [] };
+  for (const r of rows) {
+    if (!keep.has(easternDay(r.d))) continue;
+    out.date.push(r.d);
+    out.price.push(r.p);
+    out.opening.push(r.o);
+    out.high.push(r.h);
+    out.low.push(r.l);
+    out.volume.push(r.v);
+  }
+  return out;
 }
 
 function historyRows(payload: unknown): RawHistoryPoint[] | null {

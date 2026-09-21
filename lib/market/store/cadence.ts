@@ -65,6 +65,15 @@ const TABLE: Record<Section, Row> = {
   corporate_actions: { covered: DAY, rest: DAY, cap: 7 * DAY },
   financials_annual: { covered: 7 * DAY, rest: 7 * DAY, cap: 30 * DAY },
   history_daily: { covered: DAY, rest: DAY, cap: DAY },
+  /* Captured once a day and never backed off. Every other section doubles its
+     interval when an answer comes back unchanged, on the reasoning that a
+     document which has not moved in a week will not move tonight. That
+     reasoning inverts here: an unchanged intraday answer does not mean the
+     market stood still, it means the capture MISSED the session — and those
+     bars are gone for good, because the gateway keeps them only while the
+     session is live. Backing off from a miss would turn one lost day into a
+     week of them. */
+  history_intraday: { covered: DAY, rest: DAY, cap: DAY },
   short_interest: { covered: 3 * DAY, rest: 3 * DAY, cap: 14 * DAY },
   analyst: { covered: 30 * DAY, rest: 30 * DAY, cap: 30 * DAY },
 };
@@ -227,6 +236,28 @@ function baseFor(section: Section, priority: number): number {
 /* Daily bars are the one section scheduled to a moment rather than after an
    interval: they change once, when the session's last bar is published, and
    a doubling streak would only walk away from that moment. */
+/* Five minutes before the close, not after it.
+ *
+ * The endpoint answers an empty array outside a session, so a capture timed
+ * after the bell would store nothing and the day would be lost with no way to
+ * fetch it back. Before the bell it is certain there is something to take; the
+ * cost is that day's post-market bars, which is the cheaper mistake. */
+const CAPTURE_BEFORE_CLOSE = 5 * MINUTE;
+
+function intradayNext(now: number): number {
+  /* The same walk nextEasternClose does, and strictly-after for the same
+     reason: a capture that ran at 15:57 must schedule tomorrow, not compute a
+     15:55 already past and become due again immediately. */
+  for (let day = 0; day <= 8; day += 1) {
+    const probe = now + day * DAY;
+    const { weekday } = easternClock(probe);
+    if (weekday === "Sat" || weekday === "Sun") continue;
+    const capture = closeOn(probe) - CAPTURE_BEFORE_CLOSE;
+    if (capture > now) return capture;
+  }
+  return now + DAY;
+}
+
 function historyNext(input: CadenceInput): number {
   if (input.priority >= 3 && input.phase !== undefined && pricesMove(input.phase)) {
     /* The fourteen tracking funds. Every strip, every sector row and the
@@ -244,6 +275,7 @@ function historyNext(input: CadenceInput): number {
 export function nextCheckAt(input: CadenceInput): number {
   const { section, now } = input;
   if (section === "history_daily") return historyNext(input);
+  if (section === "history_intraday") return intradayNext(now);
 
   let interval: number;
   if (section === "corporate_actions" && calendarNear(input.payload, now, CALENDAR_NEAR)) {
