@@ -61,7 +61,23 @@ const nextConfig: NextConfig = {
   staticPageGenerationTimeout: 180,
   experimental: {
     cpus: 8,
-    staticGenerationMaxConcurrency: 4,
+    /* Two per worker, not four, and the reasoning above it changed rather than
+     * being wrong.
+     *
+     * That note says the gateway is the bottleneck and the CPU is not, which
+     * was true when every prerendered page meant thirteen upstream calls.
+     * These pages come from the store now — one query, then React — so the
+     * bottleneck moved to the box, and thirty-two renders in flight on a build
+     * container starve each other. The symptom is a tail rather than a
+     * slowdown: four deploys in a row failed on ONE page apiece, a different
+     * symbol every time (META, then WBD/VTV/PLTR, then SHW, then CVX), each
+     * over a limit already raised to 180 seconds — while the same symbols
+     * render in about a second locally.
+     *
+     * Sixteen in flight gives each render enough CPU to finish inside the
+     * limit. The page count is untouched: all ~573 stay prerendered, because a
+     * reader arriving on one should not wait for it to be built. */
+    staticGenerationMaxConcurrency: 2,
   },
   headers: async () => [
     {
