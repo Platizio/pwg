@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { refusePublic } from "@/lib/api/public-guard";
 import { snapshotFor, subscribe } from "@/lib/api/stream/upstream";
 import type { Tick } from "@/lib/api/stream/tick";
 import { streamLifecycle } from "@/lib/api/stream/lifecycle";
@@ -31,6 +32,16 @@ export const revalidate = 0;
 const HEARTBEAT_MS = 20_000;
 
 export async function GET(request: NextRequest) {
+  /* Live, non-delayed licensed prices, held open. A reader opens one of these
+     per tab. Twenty a minute leaves room for EventSource's own reconnects and
+     for a reader with several tabs, while still refusing a fan-out. */
+  const refused = refusePublic(request.headers, {
+    route: "stream",
+    limit: 20,
+    windowMs: 60000,
+  });
+  if (refused) return refused;
+
   const raw = request.nextUrl.searchParams.get("symbols") ?? "";
   const requested = normalise(raw.split(","));
 

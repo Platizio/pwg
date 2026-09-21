@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { refusePublic } from "@/lib/api/public-guard";
 import { getFundamentals, getStockArticles } from "@/lib/api/cache-layer";
 import type { RawTickerNews } from "@/lib/api/clients/fundamentals";
 import { toStockNews } from "@/lib/api/normalize/stock-news";
@@ -125,13 +126,23 @@ async function gatewayNewsFor(symbol: string): Promise<RawTickerNews[] | null> {
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   /* `params` is a PROMISE in this version — see the long note in
      app/api/intraday/[ticker]/route.ts for which tool actually enforces that
      shape, and why it is spelled out here instead of taken from the generated
      `RouteContext` helper. */
   context: { params: Promise<{ ticker: string }> },
 ) {
+  /* newsapi.ai, whose key carries a TWO THOUSAND REQUEST LIFETIME quota. The
+     budget guard below refuses below a floor, which protects the last of the
+     allowance; this protects the rest of it. */
+  const refused = refusePublic(request.headers, {
+    route: "stock-news",
+    limit: 12,
+    windowMs: 60_000,
+  });
+  if (refused) return refused;
+
   const { ticker } = await context.params;
   const symbol = decodeURIComponent(ticker ?? "")
     .trim()

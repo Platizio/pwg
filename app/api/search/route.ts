@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { refusePublic } from "@/lib/api/public-guard";
 import { searchSymbols } from "@/lib/api/clients/quotes";
 import { TAGS, TTL } from "@/lib/api/ttl";
 
@@ -25,6 +26,15 @@ const MAX_QUERY = 32;
 const CACHE = "public, s-maxage=300, stale-while-revalidate=3600";
 
 export async function GET(request: NextRequest) {
+  /* Forwards the caller's own text to the gateway. The length bound below stops
+     one request being large; this stops there being many. */
+  const refused = refusePublic(request.headers, {
+    route: "search",
+    limit: 30,
+    windowMs: 60000,
+  });
+  if (refused) return refused;
+
   const criteria = request.nextUrl.searchParams.get("q")?.trim() ?? "";
   if (criteria.length < 2 || criteria.length > MAX_QUERY) {
     return Response.json({ results: [] }, { headers: { "Cache-Control": CACHE } });

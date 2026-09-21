@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { refusePublic } from "@/lib/api/public-guard";
 import { fetchIntraday } from "@/lib/api/clients/quotes";
 import { toPricePoints } from "@/lib/api/normalize/series";
 import { TAGS, TTL } from "@/lib/api/ttl";
@@ -60,7 +61,7 @@ const UNAVAILABLE_NOTE = "This session's trades could not be loaded just now.";
 const REFUSED_NOTE = "That is not a symbol this terminal can quote.";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   /* `params` is a PROMISE in this version — a dynamic route handler's context
      is `{ params: Promise<…> }`, as
      docs/01-app/03-api-reference/03-file-conventions/route.md:82 spells it, and
@@ -76,6 +77,15 @@ export async function GET(
      never handed to tsc. A green typecheck says nothing about this signature. */
   context: { params: Promise<{ ticker: string }> },
 ) {
+  /* One gateway call per miss, polled every sixty seconds while prices move.
+     Thirty a minute covers a reader with several tabs open. */
+  const refused = refusePublic(request.headers, {
+    route: "intraday",
+    limit: 30,
+    windowMs: 60_000,
+  });
+  if (refused) return refused;
+
   const { ticker } = await context.params;
   const symbol = decodeURIComponent(ticker ?? "")
     .trim()

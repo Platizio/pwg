@@ -1,4 +1,5 @@
 import { registry } from "@/lib/api/stream/registry";
+import { refusePublic } from "@/lib/api/public-guard";
 
 /* Edit a live stream's filter without disturbing the stream.
  *
@@ -32,10 +33,40 @@ function names(value: unknown): string[] | null {
   return value as string[];
 }
 
+/* A subscription change is a handful of tickers. Sixteen kilobytes is roughly
+   a thousand of them — far past anything the client sends, and far short of
+   what an anonymous caller could otherwise make this process hold. */
+const MAX_BODY = 16 * 1024;
+
 export async function POST(request: Request) {
+  /* One POST per change to the symbol set: a reader opening tabs, not a loop.
+     Generous enough that a busy terminal never notices it. */
+  const refused = refusePublic(request.headers, {
+    route: "stream/subscribe",
+    limit: 60,
+    windowMs: 60_000,
+  });
+  if (refused) return refused;
+
+  /* THE BODY IS MEASURED BEFORE IT IS READ, and the order is the point. This
+     parsed whatever arrived and only then asked whether the connection id was
+     one we had issued — so an anonymous caller could make the process buffer
+     and parse a body of any size by quoting an id that never existed. The
+     cheapest check goes first. */
+  const declared = Number(request.headers.get("content-length") ?? "0");
+  if (Number.isFinite(declared) && declared > MAX_BODY) {
+    return Response.json({ error: "Body too large." }, { status: 413 });
+  }
+
   let body: unknown;
   try {
-    body = await request.json();
+    /* Read as text against the same ceiling rather than trusting the header,
+       which a caller sets and a chunked request omits entirely. */
+    const raw = await request.text();
+    if (raw.length > MAX_BODY) {
+      return Response.json({ error: "Body too large." }, { status: 413 });
+    }
+    body = JSON.parse(raw);
   } catch {
     return Response.json({ error: "Expected a JSON body." }, { status: 400 });
   }

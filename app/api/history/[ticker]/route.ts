@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { refusePublic } from "@/lib/api/public-guard";
 import { readSections } from "@/lib/market/store/reads";
 import { fromStored } from "@/lib/market/store/sections";
 import { SESSIONS_KEPT, lastSession, type IntradayColumns } from "@/lib/market/intraday-buckets";
@@ -64,6 +65,16 @@ export async function GET(
      is not in it. `next build` checks this signature; `tsc --noEmit` does not. */
   context: { params: Promise<{ ticker: string }> },
 ) {
+  /* Reads the store rather than the gateway, so this costs us nothing upstream
+     — but it serves licensed prices, and a public URL that hands them out
+     without limit is the licence problem rather than the cost one. */
+  const refused = refusePublic(request.headers, {
+    route: "history",
+    limit: 60,
+    windowMs: 60_000,
+  });
+  if (refused) return refused;
+
   const { ticker } = await context.params;
   const symbol = parseSymbol(ticker);
   const range = parseFetchedRange(new URL(request.url).searchParams.get("range"));
