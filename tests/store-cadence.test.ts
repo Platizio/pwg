@@ -23,6 +23,10 @@ import type { RawCorporateActions } from "../lib/api/clients/fundamentals.ts";
 const MINUTE = 60_000;
 const HOUR = 3_600_000;
 const DAY = 86_400_000;
+/* How long after the bell the gateway actually publishes the day's bar. Kept
+   here as a literal rather than imported, so a change to the module has to be
+   restated deliberately in the test that pins it. */
+const PUBLISH_LAG = 8 * HOUR + 45 * MINUTE;
 
 /** Tuesday 15 September 2026, 10:00 in New York — mid-session. */
 const TUE_10ET = Date.parse("2026-09-15T14:00:00Z");
@@ -187,11 +191,88 @@ test("an event beyond the interval, or already past, changes nothing", () => {
 
 /* ---------- daily bars ---------- */
 
-test("daily history is read after the close, whatever the streak says", () => {
-  const after = TUE_CLOSE + 20 * MINUTE;
-  assert.equal(check({ section: "history_daily", changed: false, unchangedStreak: 9 }), after);
-  assert.equal(check({ section: "history_daily", priority: 1 }), after);
-  assert.equal(check({ section: "history_daily", phase: "closed" }), after);
+/* Not "after the close". The gateway publishes a session's daily bar around
+ * midnight Eastern, and the refresh log shows every mass `changed` batch
+ * landing between 00:00 and 04:00 ET — while a pass at 23:00 on the Friday
+ * read 2,011 symbols as UNCHANGED, seven hours after that session had ended.
+ *
+ * Reading at close+20min therefore asked a question whose answer could not yet
+ * be yes. It came back unchanged, wrote nothing, and scheduled the NEXT close
+ * — so the stored series sat a full session behind, and across a weekend the
+ * terminal's week still ended on Thursday all through Monday. */
+test("daily history is read when the bar is published, not when the bell rings", () => {
+  const published = TUE_CLOSE + PUBLISH_LAG;
+  assert.equal(check({ section: "history_daily", changed: false, unchangedStreak: 9 }), published);
+  assert.equal(check({ section: "history_daily", priority: 1 }), published);
+  assert.equal(check({ section: "history_daily", phase: "closed" }), published);
+});
+
+/** Columns shaped as the store holds them, ending on the given feed date. */
+const barsEnding = (date: string) => ({ date: [`${date} 00:00:00 EDT`], price: [1] });
+
+/* The bug itself. An hour after Tuesday's close the series still ends on
+   Monday, because Tuesday's bar does not exist yet — and the old rule read
+   that as "nothing has changed, try again after Wednesday's close". */
+test("a session whose bar has not been published yet is waited for, not skipped", () => {
+  const at = check({
+    section: "history_daily",
+    changed: false,
+    now: TUE_17ET,
+    payload: barsEnding("09/14/2026"),
+  });
+  assert.equal(at, TUE_CLOSE + PUBLISH_LAG, "Tuesday's own publication, eight hours out");
+  assert.ok(at < TUE_CLOSE + DAY, "and certainly not after Wednesday's close");
+});
+
+/* The weekend case, which is the one a reader actually saw: Friday's bar is
+   published on the Saturday, and a rule that walks to the next CLOSE would
+   sleep until Monday evening with Friday sitting in the gateway all along. */
+test("Friday's bar is waited for over the weekend, not until Monday", () => {
+  const friClose = Date.parse("2026-09-18T20:00:00Z");
+  const at = check({
+    section: "history_daily",
+    changed: false,
+    now: friClose + 7 * HOUR,
+    payload: barsEnding("09/17/2026"),
+  });
+  assert.equal(at, friClose + PUBLISH_LAG, "about 00:45 on the Saturday");
+});
+
+/* Publication is measured, not promised, so a late one must not cost the day. */
+test("a publication that is late is retried hourly", () => {
+  near(
+    check({
+      section: "history_daily",
+      changed: false,
+      now: TUE_CLOSE + PUBLISH_LAG + 30 * MINUTE,
+      payload: barsEnding("09/14/2026"),
+    }) - (TUE_CLOSE + PUBLISH_LAG + 30 * MINUTE),
+    HOUR,
+    "late publication",
+  );
+});
+
+/* And a name that simply did not trade has no bar to wait for. Four thousand
+   of those asking hourly for ever is the failure mode this bound exists for. */
+test("but the retries stop by morning rather than running all day", () => {
+  const morning = TUE_CLOSE + 15 * HOUR;
+  assert.equal(
+    check({ section: "history_daily", changed: false, now: morning, payload: barsEnding("09/14/2026") }),
+    Date.parse("2026-09-16T20:00:00Z") + PUBLISH_LAG,
+    "Wednesday's publication, not another hourly retry",
+  );
+});
+
+/* The other direction: having the bar already must not schedule a read at a
+   moment whose answer is known. Every Friday evening would otherwise book a
+   Saturday call for all 4,400 names. */
+test("a series that already covers the last close waits for the next session", () => {
+  const friEvening = Date.parse("2026-09-18T20:00:00Z") + 7 * HOUR;
+  assert.equal(
+    check({ section: "history_daily", changed: true, now: friEvening, payload: barsEnding("09/18/2026") }),
+    Date.parse("2026-09-21T20:00:00Z") + PUBLISH_LAG,
+    "Monday's bar, published early Tuesday",
+  );
 });
 
 /* The fourteen tracking funds are what the strips and the market comparison
@@ -203,7 +284,7 @@ test("an ETF re-reads its bars every half hour while prices are moving", () => {
 });
 
 test("only the ETFs get that, and only while the market is moving", () => {
-  const after = TUE_CLOSE + 20 * MINUTE;
+  const after = TUE_CLOSE + PUBLISH_LAG;
   assert.equal(check({ section: "history_daily", priority: 2, phase: "open" }), after);
   assert.equal(check({ section: "history_daily", priority: 3, phase: "closed" }), after);
 });

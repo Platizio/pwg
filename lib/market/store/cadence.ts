@@ -1,4 +1,5 @@
 import type { RawCorporateActions } from "../../api/clients/fundamentals.ts";
+import { parseFeedDate } from "../../api/normalize/time.ts";
 import { pricesMove, type SessionPhase } from "../session.ts";
 import type { Section } from "./sections.ts";
 
@@ -78,8 +79,43 @@ const TABLE: Record<Section, Row> = {
   analyst: { covered: 30 * DAY, rest: 30 * DAY, cap: 30 * DAY },
 };
 
-/** Twenty minutes after the bell, so the day's last bar has settled. */
-const AFTER_CLOSE = 20 * MINUTE;
+/* When the day's own bar actually appears.
+ *
+ * This used to be twenty minutes after the bell, on the reasonable-sounding
+ * assumption that a daily bar settles when the session ends. It does not, and
+ * the refresh log says so plainly. Over five days of `history_daily`:
+ *
+ *   Thu 03–04 ET   6,551 changed      the whole universe, overnight
+ *   Fri 00 ET      4,415 changed      again, just after midnight
+ *   Fri 23 ET      2,011 UNCHANGED    seven hours after Friday's close
+ *   Sat 00 ET        645 UNCHANGED    still nothing
+ *   Mon 00–01 ET   1,780 changed      Friday's bar, finally
+ *
+ * The gateway publishes a session's daily bar somewhere around midnight
+ * Eastern, not at the close. So a check at close+20min read a series that did
+ * not yet contain the session that had just ended, recorded `unchanged` — no
+ * write, no version bump, and a next check pushed to the FOLLOWING close — and
+ * the stored series sat one whole session behind until something else forced a
+ * re-read. Over a weekend that is three days: on Monday morning the terminal's
+ * week still ended on Thursday, with Friday's bar sitting in the gateway the
+ * whole time. Confirmed by hand — AAPL, NVDA and SPY stored through 09/17
+ * while `/quotes/equity/historical` answered 09/18 for all three.
+ *
+ * Eight hours and forty-five minutes puts the read at about 00:45 ET, inside
+ * the window where every one of those mass `changed` batches landed. It is a
+ * measurement, not a guarantee, which is what the catch-up below is for. */
+const PUBLISH_LAG = 8 * HOUR + 45 * MINUTE;
+
+/* If the bar still is not there, come back in an hour rather than tomorrow —
+   the failure this whole block exists to prevent is precisely a missed
+   publication turning into a lost day. */
+const PUBLISH_RETRY = HOUR;
+
+/* But stop asking by about 06:00 ET. A name that did not trade the session has
+   no bar to wait for and would otherwise re-read for ever, and there are ~4,400
+   of them sharing one rate limit. Five extra calls for a thin name is the
+   cheaper mistake than a day of missing bars for a liquid one. */
+const PUBLISH_GIVE_UP = 14 * HOUR;
 /** How often the tracking funds re-read their bars while prices move. */
 const ETF_WHILE_MOVING = 30 * MINUTE;
 /** A calendar date this close is worth watching twice a day. */
@@ -258,6 +294,48 @@ function intradayNext(now: number): number {
   return now + DAY;
 }
 
+/** The most recent 16:00 Eastern strictly before `nowMs`, weekends skipped. */
+function lastEasternClose(nowMs: number): number {
+  for (let day = 0; day <= 8; day += 1) {
+    const probe = nowMs - day * DAY;
+    const { weekday } = easternClock(probe);
+    if (weekday === "Sat" || weekday === "Sun") continue;
+    const close = closeOn(probe);
+    if (close < nowMs) return close;
+  }
+  return nowMs - DAY;
+}
+
+/**
+ * The next moment a daily bar is expected to be published, strictly after
+ * `nowMs`.
+ *
+ * Not `nextEasternClose + lag`. At 17:00 on a Monday the next close is
+ * Tuesday's, and Tuesday's close plus the lag is Wednesday morning — which
+ * would sail straight past Monday's own bar, due in eight hours. The walk has
+ * to be over publication moments, not over closes.
+ */
+function nextPublication(nowMs: number): number {
+  for (let day = 0; day <= 8; day += 1) {
+    const probe = nowMs + day * DAY;
+    const { weekday } = easternClock(probe);
+    if (weekday === "Sat" || weekday === "Sun") continue;
+    const at = closeOn(probe) + PUBLISH_LAG;
+    if (at > nowMs) return at;
+  }
+  return nowMs + DAY;
+}
+
+/** The Eastern midnight of the last bar the stored columns carry. */
+function lastBarAt(payload: unknown): number | null {
+  if (!isRecord(payload)) return null;
+  const dates = rowsOf(payload.date);
+  const last = dates[dates.length - 1];
+  /* parseFeedDate is the only thing in this codebase allowed to read the
+     feed's "MM/DD/YYYY HH:MM:SS EDT", and it is what stored those columns. */
+  return typeof last === "string" ? parseFeedDate(last) : null;
+}
+
 function historyNext(input: CadenceInput): number {
   if (input.priority >= 3 && input.phase !== undefined && pricesMove(input.phase)) {
     /* The fourteen tracking funds. Every strip, every sector row and the
@@ -266,7 +344,32 @@ function historyNext(input: CadenceInput): number {
        session.live: an 08:00 pre-market book is thin, but it is not still. */
     return input.now + jittered(ETF_WHILE_MOVING, input.section, input.unchangedStreak);
   }
-  return nextEasternClose(input.now) + AFTER_CLOSE;
+
+  /* Does the series we just read actually cover the session that has already
+     closed? The bar's stamp is that trading day's Eastern midnight, so it is
+     compared against the close's own midnight rather than against the close. */
+  const closed = lastEasternClose(input.now);
+  const covered = lastBarAt(input.payload);
+  const behind = covered !== null && covered < closed - CLOSE_INTO_DAY;
+
+  if (behind) {
+    const due = closed + PUBLISH_LAG;
+    /* Not published yet — which is the ordinary case for anything read in the
+       hours between the bell and midnight. Wait for the moment itself. */
+    if (input.now < due) return due;
+    /* Past the moment and still missing: publication is late, or this name did
+       not trade. Ask again hourly for a few hours, then let it go. */
+    if (input.now < closed + PUBLISH_GIVE_UP) {
+      return input.now + jittered(PUBLISH_RETRY, input.section, input.unchangedStreak);
+    }
+  }
+
+  /* The series already covers the last close. If that session's own
+     publication moment has not passed yet, there is nothing to learn by
+     reading at it — the bar is already stored — so the walk starts after it
+     and the next read is the next session's. Without this, every Friday
+     evening read would schedule a pointless Saturday one. */
+  return nextPublication(Math.max(input.now, closed + PUBLISH_LAG));
 }
 
 /**
