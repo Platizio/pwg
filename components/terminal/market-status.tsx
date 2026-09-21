@@ -78,6 +78,19 @@ function Rolling({
 
 const longer = (a: string, b: string) => (b.length > a.length ? b : a);
 
+/* The pill's clock is Asia/Kolkata — `istTime` in lib/market/session.ts pins it,
+   because this terminal is built for Indian investors trading US equities. The
+   NAME was missing here while the home page's pill carried it
+   (components/home/session-pill.tsx:72), so the terminal showed a bare "7:00
+   pm" on a screen full of New York prices — which reads as New York.
+
+   A literal rather than `zoneLabel(readerZone())`: the clock is not the
+   reader's resolved zone, it is India's, and labelling an IST clock with a
+   reader's own zone name would be a lie for anyone outside India. India keeps
+   no DST, so "IST" is right the whole year. Matches the home pill exactly, so
+   the two cannot drift. */
+const CLOCK_ZONE = "IST";
+
 export function MarketStatus({ session }: { session: Session }) {
   /* Warm and pulsing whenever prices are actually moving — which includes the
      extended hours, not just the bell. The pill used to key on `session.live`
@@ -116,7 +129,7 @@ export function MarketStatus({ session }: { session: Session }) {
          makes a screen reader unusable. The label is stated once, as a label.
          Reduced motion is handled globally by the shell's <MotionConfig
          reducedMotion="user">, which turns the roll into a plain swap. */
-      aria-label={opens ? `${label}. ${opens.label} at ${opens.time}.` : label}
+      aria-label={opens ? `${label}. ${opens.label} at ${opens.time} ${CLOCK_ZONE}.` : label}
     >
       <span
         aria-hidden="true"
@@ -138,8 +151,8 @@ export function MarketStatus({ session }: { session: Session }) {
       <span aria-hidden="true" className="h-3 w-px bg-rule-mono" />
 
       <Rolling
-        value={showing ? showing.time : session.clock}
-        widest={opens ? longer(session.clock, opens.time) : session.clock}
+        value={`${showing ? showing.time : session.clock} ${CLOCK_ZONE}`}
+        widest={`${opens ? longer(session.clock, opens.time) : session.clock} ${CLOCK_ZONE}`}
         className="font-mono text-[12.5px] tracking-[0.04em] text-ink-3"
       />
     </div>
