@@ -190,28 +190,21 @@ test("nothing is no sessions, and junk is not a session", () => {
   assert.equal(sessionsAt([Number.NaN, Number.POSITIVE_INFINITY]), 0);
 });
 
-/* A week, as a reader means it: this weekday back to the same weekday before
- * it. Standing on Wednesday 23 September, "1W" is Wednesday the 16th through
- * today — and that window holds SIX trading days, because both ends are the
- * same weekday and both are sessions.
+/* A week means a week of TRADING days: Saturday and Sunday are not sessions,
+ * so standing on Wednesday 23 September the window is Thursday the 17th
+ * through today — five of them.
  *
- * Five is the number you reach for if you think "a trading week is five days".
- * It is the wrong one for a button labelled 1W: on that Wednesday it opens the
- * chart on Thursday the 17th and silently drops the Wednesday the reader
- * anchored on. */
-test("a week spans the same weekday to the same weekday, which is six sessions", () => {
+ * Not six. "A week runs from a weekday back to the same weekday" would include
+ * both Wednesdays, but that is a calendar week, and this button is not offering
+ * one; there is nothing to draw for the weekend it spans. */
+test("a week is five trading sessions, with the weekend excluded", () => {
   const week = [
-    Date.parse("2026-09-16T13:30:00Z"), // Wed — the far end the reader asked for
     Date.parse("2026-09-17T13:30:00Z"), // Thu
     Date.parse("2026-09-18T13:30:00Z"), // Fri
-    Date.parse("2026-09-21T13:30:00Z"), // Mon
+    Date.parse("2026-09-21T13:30:00Z"), // Mon — the weekend leaves no bars at all
     Date.parse("2026-09-22T13:30:00Z"), // Tue
     Date.parse("2026-09-23T13:30:00Z"), // Wed — today
   ];
-  assert.equal(sessionsAt(week), 6);
-  assert.equal(
-    SESSIONS_KEPT,
-    6,
-    "retention has to hold the whole window, or the far Wednesday is discarded before it can be drawn",
-  );
+  assert.equal(sessionsAt(week), 5);
+  assert.equal(SESSIONS_KEPT, 5, "retention has to hold exactly the window the chart draws");
 });

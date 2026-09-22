@@ -35,24 +35,24 @@ export type IntradayColumns = {
    set for five sessions that is ~1GB versus ~110MB. */
 export const BUCKET_MINUTES = 10;
 
-/* SIX sessions, not five, and the sixth is the whole point.
+/* A trading week: five sessions, weekends excluded.
  *
- * A week, to a reader, runs from this weekday to the same weekday before it:
- * standing on a Wednesday, 1W means last Wednesday through today. That window
- * contains SIX sessions — Wed, Thu, Fri, Mon, Tue, Wed — because both ends are
- * the same weekday and both are trading days.
+ * Five, not seven and not six. The window a reader means by "1W" is a week of
+ * TRADING days — Saturday and Sunday are not sessions and there is nothing to
+ * draw for them — so standing on a Wednesday the chart runs Thursday, Friday,
+ * Monday, Tuesday, Wednesday.
  *
- * Five sessions is a different window. On that Wednesday it reaches back only
- * to Thursday, so the chart opens on a day the reader did not ask about and
- * silently drops the one they anchored on. It is the natural number if you
- * think "a trading week is five days"; it is the wrong one if you think "show
- * me the last week", which is what the button says.
+ * This briefly went to six on the reading that a week runs from a weekday back
+ * to the same weekday, which would include both Wednesdays. That is a calendar
+ * week, not a trading one, and it is not what the button means.
  *
- * The storage fear that picked five was measured and is not real at this
- * bucket size: one stored session is 1.79MB across the whole set — 415 bytes
- * a symbol after TOAST compression, not the ~5KB estimated above — so six
- * sessions cost about 10MB against a 318MB database. */
-export const SESSIONS_KEPT = 6;
+ * The storage estimate that originally justified five was wrong by an order of
+ * magnitude and is corrected here so it cannot argue against a future session:
+ * it guessed ~5KB per symbol per session, but measured on the live table after
+ * the first real capture a whole session is 1.79MB across the entire set — 415
+ * bytes a symbol once jsonb TOAST compression has had it — against a 318MB
+ * database. Five is the reader's definition, not a budget. */
+export const SESSIONS_KEPT = 5;
 
 const empty = (): IntradayColumns => ({
   date: [],
