@@ -34,13 +34,12 @@ import { WorkColumn } from "./work-column";
 /* A trading week, for the fallback below. Not in the range table, because
    price-chart slices its source to whatever `sessions` says and a five there
    would cut the fetched 480-bucket week down to its last fifty minutes. */
-/* What "1W" spans: a trading week, five sessions, weekends excluded.
+/* What "1W" spans: seven TRADING days, weekends excluded.
  *
- * Saturday and Sunday are not sessions, so a week of trading days is five —
- * standing on a Wednesday, Thursday through Wednesday. Matches SESSIONS_KEPT
- * in intraday-buckets.ts, so the stored buckets and the daily-close fallback
- * describe the same window rather than two nearly-equal ones. */
-const WEEK_CLOSES = 5;
+ * Matches SESSIONS_KEPT in intraday-buckets.ts, so the stored buckets and the
+ * daily-close fallback describe the same window rather than two nearly-equal
+ * ones — the bug that let one captured session pass for a week. */
+const WEEK_CLOSES = 7;
 
 const LAST_SESSION_NOTE = "The market is closed. Showing the last completed session.";
 

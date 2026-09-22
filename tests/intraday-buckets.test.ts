@@ -190,21 +190,19 @@ test("nothing is no sessions, and junk is not a session", () => {
   assert.equal(sessionsAt([Number.NaN, Number.POSITIVE_INFINITY]), 0);
 });
 
-/* A week means a week of TRADING days: Saturday and Sunday are not sessions,
- * so standing on Wednesday 23 September the window is Thursday the 17th
- * through today — five of them.
- *
- * Not six. "A week runs from a weekday back to the same weekday" would include
- * both Wednesdays, but that is a calendar week, and this button is not offering
- * one; there is nothing to draw for the weekend it spans. */
-test("a week is five trading sessions, with the weekend excluded", () => {
+/* Seven TRADING days, weekends excluded — nine calendar days for seven
+ * sessions. The window and the retention have to agree: keep fewer than the
+ * chart draws and the far end is discarded before it can ever appear. */
+test("a week is seven trading sessions, with the weekends excluded", () => {
   const week = [
+    Date.parse("2026-09-14T13:30:00Z"), // Mon
+    Date.parse("2026-09-15T13:30:00Z"), // Tue
+    Date.parse("2026-09-16T13:30:00Z"), // Wed
     Date.parse("2026-09-17T13:30:00Z"), // Thu
-    Date.parse("2026-09-18T13:30:00Z"), // Fri
-    Date.parse("2026-09-21T13:30:00Z"), // Mon — the weekend leaves no bars at all
+    Date.parse("2026-09-18T13:30:00Z"), // Fri — the weekend leaves no bars at all
+    Date.parse("2026-09-21T13:30:00Z"), // Mon
     Date.parse("2026-09-22T13:30:00Z"), // Tue
-    Date.parse("2026-09-23T13:30:00Z"), // Wed — today
   ];
-  assert.equal(sessionsAt(week), 5);
-  assert.equal(SESSIONS_KEPT, 5, "retention has to hold exactly the window the chart draws");
+  assert.equal(sessionsAt(week), 7);
+  assert.equal(SESSIONS_KEPT, 7, "retention has to hold exactly the window the chart draws");
 });

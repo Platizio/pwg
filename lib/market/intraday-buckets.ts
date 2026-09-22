@@ -35,24 +35,22 @@ export type IntradayColumns = {
    set for five sessions that is ~1GB versus ~110MB. */
 export const BUCKET_MINUTES = 10;
 
-/* A trading week: five sessions, weekends excluded.
+/* Seven TRADING days. Aayush's definition, and it is a product decision rather
+ * than one to be derived.
  *
- * Five, not seven and not six. The window a reader means by "1W" is a week of
- * TRADING days — Saturday and Sunday are not sessions and there is nothing to
- * draw for them — so standing on a Wednesday the chart runs Thursday, Friday,
- * Monday, Tuesday, Wednesday.
+ * Trading days, so Saturday and Sunday are not counted and not drawn — seven
+ * sessions span about nine calendar days. Standing on a Wednesday the window
+ * runs from the Monday of the week before through today.
  *
- * This briefly went to six on the reading that a week runs from a weekday back
- * to the same weekday, which would include both Wednesdays. That is a calendar
- * week, not a trading one, and it is not what the button means.
- *
- * The storage estimate that originally justified five was wrong by an order of
- * magnitude and is corrected here so it cannot argue against a future session:
- * it guessed ~5KB per symbol per session, but measured on the live table after
- * the first real capture a whole session is 1.79MB across the entire set — 415
- * bytes a symbol once jsonb TOAST compression has had it — against a 318MB
- * database. Five is the reader's definition, not a budget. */
-export const SESSIONS_KEPT = 5;
+ * It has been five and briefly six while I guessed at what "a week" meant here;
+ * it is seven because that is what was asked for. The storage estimate that
+ * once argued for five is wrong by an order of magnitude and should not be
+ * allowed to argue against an eighth: it guessed ~5KB per symbol per session,
+ * but measured on the live table after the first real capture a whole session
+ * is 1.79MB across the entire set — 415 bytes a symbol once jsonb TOAST
+ * compression has had it. Seven sessions cost about 12MB against a 318MB
+ * database. */
+export const SESSIONS_KEPT = 7;
 
 const empty = (): IntradayColumns => ({
   date: [],
