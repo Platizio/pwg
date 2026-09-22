@@ -53,10 +53,51 @@ function actionDate(value: string | null | undefined): number | null {
   return Number.isFinite(ms) ? ms : null;
 }
 
-/** Whole days from today to the action, both taken to UTC midnight. */
-function offsetDays(dateMs: number, nowMs: number): number {
-  return Math.round((dateMs - Math.floor(nowMs / DAY_MS) * DAY_MS) / DAY_MS);
+/* The reader's civil day, not the host's.
+ *
+ * "Today" was measured against `Math.floor(nowMs / DAY_MS)` — UTC midnight,
+ * which is the Render box's day and nobody else's. India is UTC+5:30, so for
+ * the five and a half hours after midnight IST the reader's date and the
+ * server's disagreed, and the calendar said "Today · Sun, Sep 20" to somebody
+ * whose own phone read Monday the 21st. That is a falsehood they can see at a
+ * glance, in an h2 and in the section's aria-label.
+ *
+ * A NAMED zone rather than a resolved one. These components server-render, so
+ * there is no reader to resolve; Asia/Kolkata is a literal, which means the
+ * build box, Render and the browser all compute the same integer and hydration
+ * has nothing to repair. It is the same choice `IST_CLOCK` in
+ * lib/market/session.ts already makes for the session pill, for this audience.
+ *
+ * ET was the other candidate and is wrong for this word. The reader is asking
+ * "is this today", about their own day; whether the event falls inside the New
+ * York session is a different question, and the prose beside it already
+ * answers that one without any day arithmetic. */
+const IST_DAY = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Kolkata",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+/* Both sides become a day NUMBER before they are subtracted, so the difference
+   is whole days by construction. Subtracting instants and rounding is what
+   lets a DST shift or a half-hour offset turn a clean day gap into 0.98 of
+   one. */
+function dayNumber(iso: string): number {
+  const [y, m, d] = iso.split("-").map(Number);
+  return Date.UTC(y, m - 1, d) / DAY_MS;
 }
+
+/** Whole days from the reader's today to the action. */
+function offsetDays(dateMs: number, nowMs: number): number {
+  return Math.round(dateMs / DAY_MS) - dayNumber(IST_DAY.format(nowMs));
+}
+
+/* Ten characters by construction, taken from the value actionDate already
+   parsed rather than from the raw feed string: ISO_DATE is deliberately
+   unanchored, so "2026-09-22T00:00:00Z" is a legal input and passing it
+   through would put a full timestamp where a date is promised. */
+const isoDay = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
 
 const sentences = (...parts: Array<string | null>) =>
   parts.filter((part): part is string => part !== null).join(" ");
@@ -90,6 +131,7 @@ function dividendEvent(
   const perShare = cash(amount, dividend.currency);
 
   return {
+    date: isoDay(at),
     offset: offsetDays(at, nowMs),
     time: "Ex-dividend",
     title: `${presentation(ticker).name} · ex-dividend`,
@@ -126,6 +168,7 @@ function splitEvent(
   const ratio = `${RATIO_FMT.format(to)}-for-${RATIO_FMT.format(from)}`;
 
   return {
+    date: isoDay(at),
     offset: offsetDays(at, nowMs),
     time: reverse ? "Reverse split" : "Split",
     title: `${presentation(ticker).name} · ${ratio} ${reverse ? "reverse split" : "split"}`,

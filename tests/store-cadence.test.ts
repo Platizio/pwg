@@ -376,3 +376,40 @@ test("the weekend is skipped", () => {
     "Monday's capture",
   );
 });
+
+/* ---------- a failure that cannot be retried tomorrow ---------- */
+
+/* Every other section can be read again tomorrow and the document will still
+ * be there. A session's minute bars will not: the endpoint serves the CURRENT
+ * session and nothing serves a past one, so a retry landing after the window
+ * has shut fetches nothing, for ever.
+ *
+ * Capture runs at 20:30 ET and the endpoint was measured still holding the
+ * session at 21:11 and empty by 00:45. The ordinary backoff walks straight out
+ * of that window — by the fourth attempt it is sleeping 2h15 — which is how 49
+ * symbols lost the first real capture. */
+test("the intraday capture keeps retrying inside its window", () => {
+  assert.equal(errorBackoffMs(1, "history_intraday"), 5 * MINUTE);
+  assert.equal(errorBackoffMs(2, "history_intraday"), 10 * MINUTE, "would otherwise be 15");
+  assert.equal(errorBackoffMs(3, "history_intraday"), 10 * MINUTE, "would otherwise be 45");
+  assert.equal(errorBackoffMs(9, "history_intraday"), 10 * MINUTE, "and never walks away from it");
+});
+
+/* Bounded, so a symbol the gateway has stopped answering costs a handful of
+   calls a night rather than a retry storm. */
+test("and still waits between those tries", () => {
+  for (let n = 1; n <= 12; n += 1) {
+    assert.ok(
+      errorBackoffMs(n, "history_intraday") >= 5 * MINUTE,
+      `attempt ${n} must not hot-loop`,
+    );
+  }
+});
+
+/* Everything else is unchanged: those failures are worth backing away from. */
+test("sections that can be retried tomorrow still back off to six hours", () => {
+  assert.equal(errorBackoffMs(4, "history_daily"), 135 * MINUTE);
+  assert.equal(errorBackoffMs(5, "history_daily"), 6 * HOUR);
+  assert.equal(errorBackoffMs(5, "profile"), 6 * HOUR);
+  assert.equal(errorBackoffMs(5), 6 * HOUR, "and with no section named at all");
+});

@@ -45,7 +45,6 @@ const PER_SECTOR = 4;
  * here is a hydration failure.
  */
 export function Dashboard({ data }: { data: HomeSnapshot }) {
-  const at = anchorOf(data.diagnostics.sweptAt);
 
   return (
     <div className="grid min-w-0 lg:h-full lg:overflow-hidden xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -105,7 +104,7 @@ export function Dashboard({ data }: { data: HomeSnapshot }) {
           {/* Below `xl` the rail is not a rail — it reads as the last part of
               the page rather than a squeezed column. */}
           <div className="mt-5 h-[860px] xl:hidden">
-            <Rail events={data.events} news={data.wire} at={at} />
+            <Rail events={data.events} news={data.wire} />
           </div>
 
           {/*
@@ -129,26 +128,13 @@ export function Dashboard({ data }: { data: HomeSnapshot }) {
         aria-label="Reference"
         className="hidden min-h-0 border-l border-rule-section xl:block xl:overflow-hidden"
       >
-        <Rail events={data.events} news={data.wire} at={at} />
+        <Rail events={data.events} news={data.wire} />
       </aside>
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
-
-/**
- * The instant the snapshot was taken, in seconds.
- *
- * `calendarDate` falls back to the fixed ANCHOR the mock was built around, and
- * corporate actions are dated in days from the real morning the sweep ran —
- * reading one against the other would date every row from an August that has
- * gone. The sweep's stamp is the only real clock the snapshot carries.
- */
-function anchorOf(sweptAt: string): number | undefined {
-  const ms = Date.parse(sweptAt);
-  return Number.isFinite(ms) ? Math.floor(ms / 1000) : undefined;
-}
 
 /**
  * Why a board is empty.
@@ -471,8 +457,8 @@ const KIND_LABEL = {
  * already happened so the card is never empty out of season. `calendarDate`
  * words the future only, so the past is worded here.
  */
-function when(event: CalendarEvent, at: number | undefined) {
-  const { date, relative } = calendarDate(event, at);
+function when(event: CalendarEvent) {
+  const { date, relative } = calendarDate(event);
   if (event.offset >= 0) return { date, relative };
   return {
     date,
@@ -492,12 +478,9 @@ function when(event: CalendarEvent, at: number | undefined) {
 function Rail({
   events,
   news,
-  at,
 }: {
   events: Panel<CalendarEvent[]>;
   news: Panel<WireItem[]>;
-  /** The snapshot's own instant — see `anchorOf`. */
-  at: number | undefined;
 }) {
   const [openEvent, setOpenEvent] = useState<CalendarEvent | null>(null);
   const [openNews, setOpenNews] = useState<WireItem | null>(null);
@@ -522,7 +505,7 @@ function Rail({
           ) : (
             <ol className="m-0 flex list-none flex-col gap-1 p-0">
               {events.data.map((event) => {
-                const { date, relative } = when(event, at);
+                const { date, relative } = when(event);
                 return (
                   <li key={`${event.title}-${event.offset}`}>
                     <button
@@ -605,7 +588,7 @@ function Rail({
             <>
               <Badge tone="quiet">{KIND_LABEL[openEvent.kind]}</Badge>
               <span className="text-[12.5px] text-ink-3">
-                {when(openEvent, at).relative} · {when(openEvent, at).date} ·{" "}
+                {when(openEvent).relative} · {when(openEvent).date} ·{" "}
                 {openEvent.time}
               </span>
             </>

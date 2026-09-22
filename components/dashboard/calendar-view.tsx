@@ -30,12 +30,12 @@ const KIND_NOTE = {
  * Events are grouped by the day they land on, because "Thursday" is how a
  * person holds a week in their head, not "offset 3".
  */
-export function CalendarView({ events, at }: { events: CalendarEvent[]; at: number }) {
+export function CalendarView({ events }: { events: CalendarEvent[] }) {
   /* Group by day so the reader sees a week, not a queue. Events arrive in
      offset order, so a running comparison is enough — no sort needed. */
   const days: { offset: number; label: string; date: string; events: CalendarEvent[] }[] = [];
   for (const event of events) {
-    const { date, relative } = calendarDate(event, at);
+    const { date, relative } = calendarDate(event);
     const last = days[days.length - 1];
     if (last && last.offset === event.offset) last.events.push(event);
     else days.push({ offset: event.offset, label: relative, date, events: [event] });

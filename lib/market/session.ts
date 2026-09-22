@@ -403,7 +403,18 @@ export const SECTORS: Sector[] = [
 /* ------------------------------------------------------------------ */
 
 export type CalendarEvent = {
-  /** Days from ANCHOR — negative is past, 0 is today. */
+  /**
+   * The exchange's own date, "YYYY-MM-DD".
+   *
+   * Zone-free on purpose. An ex-dividend or execution date is a fact the
+   * exchange declares about a calendar day — it has no instant, so it has no
+   * zone, and the feed already hands it over in exactly this form. Carried
+   * rather than derived: the date used to be REBUILT at render as
+   * `now + offset days`, which made it a function of whichever clock the
+   * renderer happened to pass and let it drift from the date it came from.
+   */
+  date: string;
+  /** Whole days from the reader's today — negative is past, 0 is today. */
   offset: number;
   time: string;
   title: string;
@@ -416,62 +427,6 @@ export type CalendarEvent = {
   watch: string;
 };
 
-export const CALENDAR: CalendarEvent[] = [
-  {
-    offset: 0,
-    time: "20:05 UTC",
-    title: "Spotify · Q2 results",
-    kind: "earnings",
-    ticker: "SPOT",
-    summary:
-      "Second-quarter results, reported after the US close. The last price rise on the premium tier produced less cancellation than the company had modelled, so this is the first full quarter showing whether that held.",
-    watch:
-      "Revenue per user, and whether subscriber growth slowed to pay for it.",
-  },
-  {
-    offset: 1,
-    time: "12:30 UTC",
-    title: "US non-farm payrolls",
-    kind: "macro",
-    summary:
-      "The monthly count of jobs added across the US economy, excluding farms. It is the single most closely watched economic release, because employment drives both consumer spending and the interest-rate path.",
-    watch:
-      "The figure against the forecast, and any revision to the two months before it.",
-  },
-  {
-    offset: 1,
-    time: "20:05 UTC",
-    title: "Amazon · Q2 results",
-    kind: "earnings",
-    ticker: "AMZN",
-    summary:
-      "Second-quarter results, after the US close. Retail is the larger business, but cloud and advertising carry most of the profit, so the segment split matters more here than the headline revenue.",
-    watch: "Cloud growth rate and retail operating margin, in that order.",
-  },
-  {
-    offset: 3,
-    time: "18:00 UTC",
-    title: "FOMC rate decision",
-    kind: "policy",
-    summary:
-      "The US central bank sets its target interest rate. Rates set the return available on cash, so they move the price of every other asset — a company's future profits are worth less today when cash pays more.",
-    watch:
-      "The decision itself, then the projections for where rates go next.",
-  },
-  {
-    offset: 8,
-    time: "20:05 UTC",
-    title: "Nvidia · Q2 results",
-    kind: "earnings",
-    ticker: "NVDA",
-    summary:
-      "Second-quarter results, after the US close. Supply rather than demand has been the constraint, so the guidance for next quarter usually moves the share price more than the quarter just reported.",
-    watch: "Data-centre revenue and the guide for the quarter ahead.",
-  },
-];
-
-const DAY = 86400;
-
 const SHORT_DATE = new Intl.DateTimeFormat("en-US", {
   weekday: "short",
   day: "numeric",
@@ -479,11 +434,45 @@ const SHORT_DATE = new Intl.DateTimeFormat("en-US", {
   timeZone: "UTC",
 });
 
-/** Absolute date for an event, and a relative label for the ones nearby. */
-export function calendarDate(event: CalendarEvent, at: number = ANCHOR) {
-  const stamp = (at + event.offset * DAY) * 1000;
+/* UTC, and the zone cancels out rather than being a choice.
+ *
+ * The value handed to it is built with Date.UTC from the event's own
+ * "YYYY-MM-DD", so reading it back in UTC returns the same three numbers that
+ * went in. That is what makes this safe on a server, a build box and a browser
+ * alike: no wall clock is consulted, so there is nothing for them to disagree
+ * about and nothing for hydration to repair.
+ *
+ * It must stay UTC for that reason. Pointing it at New York, or at the
+ * reader's zone, would read a midnight instant back through an offset and
+ * shift every date a day for part of the clock. */
+function civilDate(iso: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (m === null) return null;
+  const at = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return Number.isFinite(at) ? SHORT_DATE.format(at) : null;
+}
+
+/**
+ * Absolute date for an event, and a relative label for the ones nearby.
+ *
+ * The date is the event's OWN, formatted. It used to be reconstructed as
+ * `(at + offset * DAY)`, which had two faults. It made the printed date a
+ * function of whatever clock the caller passed — and the dashboard passes the
+ * sweep's timestamp while the offsets were measured against the wall clock, so
+ * on the committed-baseline path the rail could print "Today" beside a date a
+ * month old. And it meant the formatter's zone was load-bearing in a way
+ * nothing marked: any change to it silently moved every row a day.
+ *
+ * `relative` is a gloss on the date beside it, and `offset` is now measured
+ * against the READER's day (lib/api/normalize/calendar.ts), so the word and
+ * the date can no longer contradict what the reader's own calendar says.
+ */
+export function calendarDate(event: CalendarEvent) {
   return {
-    date: SHORT_DATE.format(stamp),
+    /* The raw string rather than nothing, if it ever arrives malformed: a
+       reader can still read "2026-09-24", and a blank cell tells them less
+       than the feed already told us. */
+    date: civilDate(event.date) ?? event.date,
     /* A past event fell through to `In ${offset} days` and rendered "In -12
        days" — in an h2 and in the section's aria-label. The calendar carries
        recent ex-dividends deliberately, so the past branch is not an edge

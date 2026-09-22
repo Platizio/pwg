@@ -430,9 +430,37 @@ export function nextCheckAt(input: CadenceInput): number {
   return at;
 }
 
+/* The intraday capture's ceiling, and why it is not six hours.
+ *
+ * Every other section can be retried tomorrow: the document will still be
+ * there. A session's minute bars will not. /quotes/equity/intraday serves the
+ * CURRENT session and there is no endpoint for a past one, so a retry that
+ * lands after the window has closed does not fetch the bars late — it fetches
+ * nothing, for ever.
+ *
+ * Measured: the endpoint still held the full session at 21:11 ET and was empty
+ * by 00:45 ET, and capture runs at 20:30. So there are a few hours to succeed
+ * in, and the ordinary backoff walks straight out of them — 5 min, 15, 45,
+ * then 2h15, which is already past the end. Four unlucky attempts and the day
+ * is gone. That is what happened to the 49 symbols missing from the first real
+ * capture.
+ *
+ * Ten minutes, flat, so a symbol keeps trying across the whole window instead
+ * of accelerating away from it. The cost of being wrong is bounded and small:
+ * a symbol the gateway has stopped answering costs a handful of calls a night
+ * and is picked up by the next day's schedule regardless.
+ *
+ * The TABLE above already states this principle for the unchanged path — "an
+ * unchanged intraday answer does not mean the market stood still, it means the
+ * capture MISSED the session... Backing off from a miss would turn one lost
+ * day into a week of them." The error path is the same failure and was not
+ * guarded. */
+const INTRADAY_ERROR_CEILING = 10 * MINUTE;
+
 /**
  * How long to wait after a section's fetch failed: five minutes, tripling,
- * capped at six hours.
+ * capped at six hours — or at ten minutes for a capture that cannot be retried
+ * tomorrow.
  *
  * Tripling rather than doubling because the failures worth backing off from
  * here are outages and throttles, which last minutes to hours, not the
@@ -440,7 +468,9 @@ export function nextCheckAt(input: CadenceInput): number {
  * gateway has permanently stopped answering from being retried forever while
  * still being retried at all.
  */
-export function errorBackoffMs(attempts: number): number {
+export function errorBackoffMs(attempts: number, section?: Section): number {
   const n = Math.max(1, Math.floor(attempts));
-  return Math.min(5 * MINUTE * 3 ** (n - 1), 6 * HOUR);
+  const grown = 5 * MINUTE * 3 ** (n - 1);
+  if (section === "history_intraday") return Math.min(grown, INTRADAY_ERROR_CEILING);
+  return Math.min(grown, 6 * HOUR);
 }

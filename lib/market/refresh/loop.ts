@@ -639,7 +639,7 @@ export function startRefresher(opts: RefresherOptions = {}): Refresher {
          at the top: the SQL caps the EXPONENT at four, a little under seven
          hours, where ../store/cadence.ts caps the interval itself at six. Six
          is the one that applies on this path. */
-      const at = now + errorBackoffMs(job.attempts);
+      const at = now + errorBackoffMs(job.attempts, job.section);
       const done = await complete({
         symbol: job.symbol,
         section: job.section,
