@@ -338,3 +338,41 @@ test("the close is Eastern, so it moves with the clocks and not with UTC", () =>
 test("the close itself is behind us, not ahead", () => {
   assert.equal(nextEasternClose(TUE_CLOSE), Date.parse("2026-09-16T20:00:00Z"));
 });
+
+/* ---------- when the session's minute bars are taken ---------- */
+
+/* These bars exist nowhere else: /quotes/equity/intraday serves the CURRENT
+ * session and no endpoint will serve a past one, so a capture that runs at the
+ * wrong moment loses the day for good.
+ *
+ * It ran at 15:55 — five minutes before the regular bell — while nobody had
+ * measured when the endpoint stops answering. A probe then sampled an evening:
+ * 815 rows through 19:50 at 20:11 ET, 822 rows through 19:59 at 21:11 ET. The
+ * endpoint serves the whole extended session for at least an hour past the
+ * 20:00 close, so the cautious time was discarding four and a half hours of
+ * post-market prices a night — which this codebase counts as real movement.
+ */
+test("the session is captured after the extended close, not before the bell", () => {
+  const at = check({ section: "history_intraday", now: TUE_10ET });
+  assert.equal(at, TUE_CLOSE + 4 * HOUR + 30 * MINUTE, "20:30 ET on the same Tuesday");
+  assert.ok(at > TUE_CLOSE, "before the bell would lose the post-market");
+});
+
+/* A capture that has just run must schedule TOMORROW. Computing today's moment
+   again would be instantly in the past and the job would spin. */
+test("a capture that has just run schedules the next session, not itself", () => {
+  const justAfter = TUE_CLOSE + 4 * HOUR + 32 * MINUTE;
+  const at = check({ section: "history_intraday", now: justAfter });
+  assert.ok(at > justAfter + 20 * HOUR, `expected tomorrow, got ${new Date(at).toISOString()}`);
+});
+
+/* Friday evening's capture must not book a Saturday one. */
+test("the weekend is skipped", () => {
+  const friEvening = Date.parse("2026-09-18T20:00:00Z") + 5 * HOUR;
+  const at = check({ section: "history_intraday", now: friEvening });
+  assert.equal(
+    at,
+    Date.parse("2026-09-21T20:00:00Z") + 4 * HOUR + 30 * MINUTE,
+    "Monday's capture",
+  );
+});

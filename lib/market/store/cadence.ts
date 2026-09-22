@@ -272,23 +272,44 @@ function baseFor(section: Section, priority: number): number {
 /* Daily bars are the one section scheduled to a moment rather than after an
    interval: they change once, when the session's last bar is published, and
    a doubling streak would only walk away from that moment. */
-/* Five minutes before the close, not after it.
+/* After the extended close, now that we have measured when the endpoint stops
+ * answering.
  *
- * The endpoint answers an empty array outside a session, so a capture timed
- * after the bell would store nothing and the day would be lost with no way to
- * fetch it back. Before the bell it is certain there is something to take; the
- * cost is that day's post-market bars, which is the cheaper mistake. */
-const CAPTURE_BEFORE_CLOSE = 5 * MINUTE;
+ * This was 15:55 — five minutes BEFORE the regular bell — chosen deliberately
+ * while the answer was unknown: /quotes/equity/intraday serves the CURRENT
+ * session and no endpoint will serve a past one, so a capture timed too late
+ * would store nothing and lose the day for good. Early was the safe guess, and
+ * its known cost was that day's post-market bars.
+ *
+ * scripts/probe-intraday-window.mts sampled one evening and settled it:
+ *
+ *   20:11 ET   rows=815   04:00 -> 19:50
+ *   21:11 ET   rows=822   04:00 -> 19:59
+ *
+ * The endpoint keeps serving the whole extended session for at least an hour
+ * after the 20:00 close. So the conservative guess was costing four and a half
+ * hours of real prices a night: yesterday's first capture stopped at 15:30 ET
+ * and held 70 buckets where the session actually ran to 20:00 and holds ~96.
+ *
+ * That matters because this codebase treats pre- and post-market as real
+ * movement rather than noise — `pricesMove` is the whole rule — so throwing
+ * away the post-market to be safe about the endpoint was protecting the wrong
+ * thing once the endpoint's behaviour was known.
+ *
+ * 20:30, not 21:11: thirty minutes past the extended close is comfortably
+ * inside the window both samples confirm, and leaves the observed hour of
+ * margin for an evening that ends earlier than the one measured. */
+const CAPTURE_AFTER_CLOSE = 4 * HOUR + 30 * MINUTE;
 
 function intradayNext(now: number): number {
   /* The same walk nextEasternClose does, and strictly-after for the same
-     reason: a capture that ran at 15:57 must schedule tomorrow, not compute a
-     15:55 already past and become due again immediately. */
+     reason: a capture that ran at 20:32 must schedule tomorrow, not compute a
+     20:30 already past and become due again immediately. */
   for (let day = 0; day <= 8; day += 1) {
     const probe = now + day * DAY;
     const { weekday } = easternClock(probe);
     if (weekday === "Sat" || weekday === "Sun") continue;
-    const capture = closeOn(probe) - CAPTURE_BEFORE_CLOSE;
+    const capture = closeOn(probe) + CAPTURE_AFTER_CLOSE;
     if (capture > now) return capture;
   }
   return now + DAY;
