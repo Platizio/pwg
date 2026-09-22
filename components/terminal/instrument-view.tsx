@@ -3,6 +3,7 @@
 import { motion } from "motion/react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BUCKET_MINUTES, sessionsAt } from "@/lib/market/intraday-buckets";
 import { DEFAULT_RANGE, parseFetchedRange } from "@/lib/market/ranges";
 import type { RangeId, TabId } from "@/lib/market/types";
 import type { InstrumentSnapshot } from "@/lib/market/instrument";
@@ -103,6 +104,21 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
      is the series price-chart reads for every non-intraday range. The stored
      intraday ranges come back as points of the same shape, so the chart needs
      to know nothing about where they came from. */
+  /* How many TRADING days the fetched buckets actually cover. Counted in New
+     York, because a US session is 13:30 to 05:30 the next morning here — count
+     it in the reader's zone and one session passes for two. */
+  const fetchedSessions = useMemo(
+    () => sessionsAt(fetched.points.map((p) => p.at)),
+    [fetched.points],
+  );
+
+  /* Whether the week has a week to draw. Capture began on 21 Sep 2026 and adds
+     one session a day, so for the first four days the store held fewer than
+     five — and drawing them under a 1W label made 1W and 1D the SAME chart
+     with different words under it. Five daily closes are coarse, but they are
+     a week; one day of ten-minute buckets is not, however fine it is. */
+  const weekIsWhole = fetchedSessions >= WEEK_CLOSES;
+
   const chartHistory = useMemo(() => {
     const base = {
       ...snapshot.history,
@@ -121,7 +137,11 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
 
     const wanted = parseFetchedRange(range);
     if (!wanted) return base;
-    if (fetched.points.length > 0) return { ...base, daily: fetched.points };
+    if (range === "1W" && !weekIsWhole) {
+      /* Not a week yet. Fall through to the daily closes below. */
+    } else if (fetched.points.length > 0) {
+      return { ...base, daily: fetched.points };
+    }
 
     /* Nothing fetched. What that means depends on the range, and getting it
        wrong either way is a lie.
@@ -140,16 +160,27 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
      * never printed as "10-minute bars". */
     if (range === "1W") return { ...base, daily: base.daily.slice(-WEEK_CLOSES) };
     return { ...base, daily: fetched.points };
-  }, [snapshot.history, intraday, session.note, range, fetched.points]);
+  }, [snapshot.history, intraday, session.note, range, fetched.points, weekIsWhole]);
 
-  /* What the caption should call the bars it is drawing. Only the week is ever
-     two things — ten-minute buckets once the store has sessions, five daily
-     closes until then — and a caption saying "10-minute bars" over five closes
-     is exactly the sort of small invented fact this codebase refuses. */
-  const chartInterval = useMemo(
-    () => (range === "1W" && fetched.points.length === 0 ? "daily closes" : undefined),
-    [range, fetched.points.length],
-  );
+  /* What the caption should CALL the bars it is drawing.
+   *
+   * Neither of these ranges draws one fixed thing, and the range table can only
+   * name one. The week is ten-minute buckets once five sessions exist and five
+   * daily closes until then. The day is the live gateway's one-minute bars
+   * while the market is open, and the store's ten-minute buckets when it is
+   * shut — which is most of the day from India, and which was printing "70
+   * 1-minute bars" over seventy ten-minute ones.
+   *
+   * A caption that names an interval the chart is not drawing is the small
+   * invented fact this codebase refuses: the reader cannot check it, so it has
+   * to be right. */
+  const chartInterval = useMemo(() => {
+    if (range === "1W" && !weekIsWhole) return "daily closes";
+    if (range === "1D" && intraday.length === 0 && fetched.points.length > 0) {
+      return `${BUCKET_MINUTES}-minute bars`;
+    }
+    return undefined;
+  }, [range, weekIsWhole, intraday.length, fetched.points.length]);
 
   /* The newswire, widened after the page has appeared.
 

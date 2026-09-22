@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { bucketIntraday, SESSIONS_KEPT } from "../lib/market/intraday-buckets.ts";
+import { bucketIntraday, SESSIONS_KEPT, sessionsAt } from "../lib/market/intraday-buckets.ts";
 import { mergeIntradaySessions } from "../lib/market/store/sections.ts";
 
 /* Minute bars reduced to the grid a chart can draw.
@@ -153,4 +153,39 @@ test("only the most recent sessions survive", () => {
 
 test("nothing stored yet is not a reason to refuse the first capture", () => {
   assert.deepEqual(mergeIntradaySessions(null, session("2026-09-17", [7])).price, [7]);
+});
+
+/* ---------- how many sessions are actually here ---------- */
+
+/* The week chart has to know whether it has a week. Capture started on
+ * 2026-09-21, so for the first four days the store held ONE session of
+ * ten-minute buckets — and 1W drew it, which made 1W and 1D the same chart
+ * with different labels on it.
+ *
+ * Counted in EASTERN days. A US session is 13:30 to 05:30 the next morning in
+ * India, so counting in the reader's zone turns one session into two days and
+ * a week into ten — which would have let a single day pass as a full week. */
+test("one session is one session, however many reader-days it straddles", () => {
+  const session = [
+    Date.parse("2026-09-21T08:00:00Z"), // 04:00 ET, pre-market — 13:30 IST
+    Date.parse("2026-09-21T13:30:00Z"), // 09:30 ET, the bell
+    Date.parse("2026-09-21T19:30:00Z"), // 15:30 ET — already 01:00 IST on the 22nd
+  ];
+  assert.equal(sessionsAt(session), 1);
+});
+
+test("separate trading days are counted apart", () => {
+  assert.equal(
+    sessionsAt([
+      Date.parse("2026-09-21T13:30:00Z"),
+      Date.parse("2026-09-22T13:30:00Z"),
+      Date.parse("2026-09-23T13:30:00Z"),
+    ]),
+    3,
+  );
+});
+
+test("nothing is no sessions, and junk is not a session", () => {
+  assert.equal(sessionsAt([]), 0);
+  assert.equal(sessionsAt([Number.NaN, Number.POSITIVE_INFINITY]), 0);
 });

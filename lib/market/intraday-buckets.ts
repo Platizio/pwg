@@ -121,16 +121,39 @@ export function bucketIntraday(
   return out;
 }
 
+/* Held rather than built per call. Constructing an Intl.DateTimeFormat costs
+   ~25us against ~0.4us to reuse one, and this runs once per bar across 4,400
+   symbols in a capture. */
+const EASTERN_DAY = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/New_York",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
 /** Which Eastern calendar day a bar belongs to. */
 export function easternDay(iso: string): string {
   /* The session runs 04:00-20:00 Eastern and straddles midnight UTC, so a UTC
      date would split one session across two days. */
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/New_York",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(iso));
+  return EASTERN_DAY.format(new Date(iso));
+}
+
+/**
+ * How many distinct TRADING days a run of instants covers.
+ *
+ * Eastern days, not the reader's. A US session runs 04:00-20:00 in New York,
+ * which is 13:30 to 05:30 the next morning in India — so counted in the
+ * reader's zone one session looks like two days, and a week would look like
+ * ten. The question this answers is "how many sessions do we actually have",
+ * and a session is a fact about New York.
+ */
+export function sessionsAt(instants: readonly number[]): number {
+  const days = new Set<string>();
+  for (const at of instants) {
+    if (!Number.isFinite(at)) continue;
+    days.add(EASTERN_DAY.format(at));
+  }
+  return days.size;
 }
 
 /**
