@@ -189,3 +189,29 @@ test("nothing is no sessions, and junk is not a session", () => {
   assert.equal(sessionsAt([]), 0);
   assert.equal(sessionsAt([Number.NaN, Number.POSITIVE_INFINITY]), 0);
 });
+
+/* A week, as a reader means it: this weekday back to the same weekday before
+ * it. Standing on Wednesday 23 September, "1W" is Wednesday the 16th through
+ * today — and that window holds SIX trading days, because both ends are the
+ * same weekday and both are sessions.
+ *
+ * Five is the number you reach for if you think "a trading week is five days".
+ * It is the wrong one for a button labelled 1W: on that Wednesday it opens the
+ * chart on Thursday the 17th and silently drops the Wednesday the reader
+ * anchored on. */
+test("a week spans the same weekday to the same weekday, which is six sessions", () => {
+  const week = [
+    Date.parse("2026-09-16T13:30:00Z"), // Wed — the far end the reader asked for
+    Date.parse("2026-09-17T13:30:00Z"), // Thu
+    Date.parse("2026-09-18T13:30:00Z"), // Fri
+    Date.parse("2026-09-21T13:30:00Z"), // Mon
+    Date.parse("2026-09-22T13:30:00Z"), // Tue
+    Date.parse("2026-09-23T13:30:00Z"), // Wed — today
+  ];
+  assert.equal(sessionsAt(week), 6);
+  assert.equal(
+    SESSIONS_KEPT,
+    6,
+    "retention has to hold the whole window, or the far Wednesday is discarded before it can be drawn",
+  );
+});

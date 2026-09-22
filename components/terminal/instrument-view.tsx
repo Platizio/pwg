@@ -34,7 +34,17 @@ import { WorkColumn } from "./work-column";
 /* A trading week, for the fallback below. Not in the range table, because
    price-chart slices its source to whatever `sessions` says and a five there
    would cut the fetched 480-bucket week down to its last fifty minutes. */
-const WEEK_CLOSES = 5;
+/* What "1W" spans: this weekday back to the same weekday before it.
+ *
+ * SIX sessions, not five. Standing on a Wednesday, a reader asking for a week
+ * means last Wednesday through today — and that window holds six trading days,
+ * because both ends are the same weekday. Five would open the chart on the
+ * Thursday and quietly drop the Wednesday they anchored on.
+ *
+ * Matches SESSIONS_KEPT in intraday-buckets.ts, so the stored buckets and the
+ * daily-close fallback describe the same window rather than two nearly-equal
+ * ones. */
+const WEEK_CLOSES = 6;
 
 const LAST_SESSION_NOTE = "The market is closed. Showing the last completed session.";
 

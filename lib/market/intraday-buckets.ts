@@ -35,9 +35,24 @@ export type IntradayColumns = {
    set for five sessions that is ~1GB versus ~110MB. */
 export const BUCKET_MINUTES = 10;
 
-/* A trading week. Enough for the 1W range with nothing spare: every extra
-   session is ~5KB x the hot set, or another 22MB. */
-export const SESSIONS_KEPT = 5;
+/* SIX sessions, not five, and the sixth is the whole point.
+ *
+ * A week, to a reader, runs from this weekday to the same weekday before it:
+ * standing on a Wednesday, 1W means last Wednesday through today. That window
+ * contains SIX sessions — Wed, Thu, Fri, Mon, Tue, Wed — because both ends are
+ * the same weekday and both are trading days.
+ *
+ * Five sessions is a different window. On that Wednesday it reaches back only
+ * to Thursday, so the chart opens on a day the reader did not ask about and
+ * silently drops the one they anchored on. It is the natural number if you
+ * think "a trading week is five days"; it is the wrong one if you think "show
+ * me the last week", which is what the button says.
+ *
+ * The storage fear that picked five was measured and is not real at this
+ * bucket size: one stored session is 1.79MB across the whole set — 415 bytes
+ * a symbol after TOAST compression, not the ~5KB estimated above — so six
+ * sessions cost about 10MB against a 318MB database. */
+export const SESSIONS_KEPT = 6;
 
 const empty = (): IntradayColumns => ({
   date: [],
