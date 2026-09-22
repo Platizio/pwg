@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BUCKET_MINUTES, sessionsAt } from "@/lib/market/intraday-buckets";
+import { regularSessionOnly } from "@/lib/market/regular-session";
 import { DEFAULT_RANGE, parseFetchedRange } from "@/lib/market/ranges";
 import type { RangeId, TabId } from "@/lib/market/types";
 import type { InstrumentSnapshot } from "@/lib/market/instrument";
@@ -109,12 +110,35 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
      is the series price-chart reads for every non-intraday range. The stored
      intraday ranges come back as points of the same shape, so the chart needs
      to know nothing about where they came from. */
+  /* The chart is the REGULAR session and nothing else.
+   *
+   * The gateway's intraday feed runs 04:00-20:00 Eastern in one series, so the
+   * day chart used to open at 13:30 in India — 04:00 in New York — instead of
+   * at 19:00, when the market a reader is watching actually opens. Both the
+   * live series and the stored one are trimmed to 09:30-16:00 ET here, at the
+   * one point where they meet, so neither path can drift from the other.
+   *
+   * This gates the DRAWING only. A pre- or post-market print is a real price
+   * and the header, the tape and the change figure all keep following it — see
+   * `pricesMove`. The number in front of a reader should be the latest one
+   * that exists; the shape they read a session from should be one session.
+   *
+   * It also produces the behaviour asked for during pre- and post-market
+   * without a rule of its own: the live feed's bars are all outside the
+   * session, so `liveSession` is empty, and the day chart falls through to the
+   * last stored regular session — the previous day's trading, which is what a
+   * reader opening a stock before the bell should see. */
+  const liveSession = useMemo(() => regularSessionOnly(intraday), [intraday]);
+  const storedSession = useMemo(() => regularSessionOnly(fetched.points), [fetched.points]);
+
   /* How many TRADING days the fetched buckets actually cover. Counted in New
      York, because a US session is 13:30 to 05:30 the next morning here — count
-     it in the reader's zone and one session passes for two. */
+     it in the reader's zone and one session passes for two. Counted on the
+     TRIMMED series, so a day present only as pre-market does not count as a
+     session the chart can draw. */
   const fetchedSessions = useMemo(
-    () => sessionsAt(fetched.points.map((p) => p.at)),
-    [fetched.points],
+    () => sessionsAt(storedSession.map((p) => p.at)),
+    [storedSession],
   );
 
   /* Whether the week has a week to draw. Capture began on 21 Sep 2026 and adds
@@ -127,25 +151,26 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
   const chartHistory = useMemo(() => {
     const base = {
       ...snapshot.history,
-      intraday,
+      intraday: liveSession,
       intradayNote: session.note ?? snapshot.history.intradayNote,
     };
 
-    /* The day range is the live session, and it only falls back to the stored
-       one when the gateway has nothing — which is every hour the market is
-       shut, and the reason this chart has always been blank overnight. */
+    /* The day range is the live session, and it falls back to the stored one
+       whenever the gateway has nothing INSIDE the session — which is every
+       hour the market is shut, and now also the pre- and post-market hours,
+       whose bars this chart does not draw. */
     if (range === "1D") {
-      return intraday.length > 0 || fetched.points.length === 0
+      return liveSession.length > 0 || storedSession.length === 0
         ? base
-        : { ...base, intraday: fetched.points, intradayNote: LAST_SESSION_NOTE };
+        : { ...base, intraday: storedSession, intradayNote: LAST_SESSION_NOTE };
     }
 
     const wanted = parseFetchedRange(range);
     if (!wanted) return base;
     if (range === "1W" && !weekIsWhole) {
       /* Not a week yet. Fall through to the daily closes below. */
-    } else if (fetched.points.length > 0) {
-      return { ...base, daily: fetched.points };
+    } else if (storedSession.length > 0) {
+      return { ...base, daily: storedSession };
     }
 
     /* Nothing fetched. What that means depends on the range, and getting it
@@ -164,8 +189,8 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
      * The caption is told which of the two it got, so "5 daily closes" is
      * never printed as "10-minute bars". */
     if (range === "1W") return { ...base, daily: base.daily.slice(-WEEK_CLOSES) };
-    return { ...base, daily: fetched.points };
-  }, [snapshot.history, intraday, session.note, range, fetched.points, weekIsWhole]);
+    return { ...base, daily: storedSession };
+  }, [snapshot.history, liveSession, storedSession, session.note, range, weekIsWhole]);
 
   /* What the caption should CALL the bars it is drawing.
    *
@@ -181,11 +206,11 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
    * to be right. */
   const chartInterval = useMemo(() => {
     if (range === "1W" && !weekIsWhole) return "daily closes";
-    if (range === "1D" && intraday.length === 0 && fetched.points.length > 0) {
+    if (range === "1D" && liveSession.length === 0 && storedSession.length > 0) {
       return `${BUCKET_MINUTES}-minute bars`;
     }
     return undefined;
-  }, [range, weekIsWhole, intraday.length, fetched.points.length]);
+  }, [range, weekIsWhole, liveSession.length, storedSession.length]);
 
   /* The newswire, widened after the page has appeared.
 
