@@ -27,7 +27,7 @@ export const RANGES: RangeDef[] = [
   { id: "1W", label: "1W", source: "daily", intraday: false, interval: "5-minute bars" },
   { id: "1M", label: "1M", source: "daily", sessions: 21, intraday: false, interval: "daily candles" },
   { id: "3M", label: "3M", source: "daily", sessions: 64, intraday: false, interval: "daily candles" },
-  { id: "1Y", label: "1Y", source: "daily", sessions: 252, intraday: false, interval: "daily closes" },
+  { id: "1Y", label: "1Y", source: "daily", sessions: 252, intraday: false, interval: "daily candles" },
   { id: "5Y", label: "5Y", source: "daily", intraday: false, interval: "daily closes" },
 ];
 

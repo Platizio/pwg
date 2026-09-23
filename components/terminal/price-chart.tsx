@@ -104,17 +104,18 @@ export function PriceChart({
   /* Whether the bars carry a time of day worth showing: the day range always,
      the week range when it is drawn from minutes rather than closes. */
   const clocked = intraday || multiDay;
-  /* The month and the quarter draw each session as a candle.
+  /* The month, the quarter and the year draw each session as a candle.
    *
    * These are the spans the minute archive cannot reach — it holds about the
    * last seventeen trading days (31 Aug 2026 answered with 391 bars, 27 Aug with
-   * none) — so they are drawn from daily bars, and a line through 21 or 64 daily
-   * closes is a row of straight segments that hides everything that happened
-   * inside each day. A candle shows it: the open, the close, and how far the
-   * price ran either way, all of it real. The year and five years keep the line,
-   * where 252 and 1,275 points are dense enough to read as a curve and candles
-   * would be too narrow to see. */
-  const candles = rangeDef.id === "1M" || rangeDef.id === "3M";
+   * none) — so they are drawn from daily bars, and a line through daily closes
+   * is a run of straight segments that hides everything that happened inside
+   * each day. A candle shows it: the open, the close, and how far the price ran
+   * either way, all of it real. A year is 252 of them; fitContent with a 0.6px
+   * minimum spacing keeps the whole year in view, about three pixels a session
+   * on a desktop chart. Five years keeps the line: 1,275 candles would be
+   * slivers narrower than a pixel. */
+  const candles = rangeDef.id === "1M" || rangeDef.id === "3M" || rangeDef.id === "1Y";
 
   /* The axis labels its own ticks.
 

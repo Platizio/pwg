@@ -100,8 +100,12 @@ test("a daily range names its interval, its real count and its real span", () =>
   assert.match(c, /21 daily candles/);
   assert.match(
     rangeCaption(getRange("1Y"), AUG_4, SEP_1, 252, "America/New_York"),
-    /252 daily closes/,
-    "the year keeps its line, so it keeps its word",
+    /252 daily candles/,
+  );
+  assert.match(
+    rangeCaption(getRange("5Y"), AUG_4, SEP_1, 1275, "America/New_York"),
+    /1,275 daily closes/,
+    "five years keeps its line, so it keeps its word",
   );
   assert.match(c, /Aug 4/);
   assert.match(c, /Sep 1/);
@@ -138,7 +142,7 @@ test("a long count is grouped for reading", () => {
 test("the caption reports what is drawn, not what the range nominally holds", () => {
   /* 1Y nominally slices 252 sessions; a short feed plots fewer. */
   const c = rangeCaption(getRange("1Y"), AUG_4, SEP_1, 200);
-  assert.match(c, /200 daily closes/);
+  assert.match(c, /200 daily candles/);
   assert.ok(!c.includes("252"), `must not claim the nominal window: ${c}`);
 });
 
