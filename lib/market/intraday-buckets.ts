@@ -249,7 +249,15 @@ export function pickSessions(
   for (const day of days) {
     const g = byDay.get(day) ?? [];
     const s = storedByDay.get(day) ?? [];
-    out.push(...(s.length * BUCKET_MINUTES > g.length ? s : g));
+    /* Minutes each source SPANS. n buckets span (n - 1) widths plus the last
+       bar's minute: a full session is 40 ten-minute buckets, 09:30 to 16:00,
+       which is 391 minutes — the same as the gateway's 391 one-minute bars.
+       Counting n x width instead scored that full stored day at 400, above a
+       complete archive day, and swapped every day's minutes for buckets. Ties
+       and near-ties go to the gateway, the finer source; the store wins only
+       when the archive holds clearly less of the day. */
+    const storeMinutes = s.length > 0 ? (s.length - 1) * BUCKET_MINUTES + 1 : 0;
+    out.push(...(g.length >= storeMinutes * 0.9 ? g : s));
   }
   return out;
 }

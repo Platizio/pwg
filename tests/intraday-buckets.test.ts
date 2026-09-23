@@ -214,11 +214,15 @@ test("a week is seven trading sessions, with the weekends excluded", () => {
  * session. Each day is drawn from whichever covers more minutes. */
 const minute = (iso: string, price = 100) => ({ date: iso, price, opening: price, high: price, low: price, volume: 1 });
 
-test("a complete archive day is drawn from the archive's minutes", () => {
+/* Against a FULL stored day — 40 ten-minute buckets, 09:30 to 16:00. The first
+   version scored that at 40 x 10 = 400 minutes, beat the archive's 391 and drew
+   every day from buckets; a test with a one-bucket store could not see it. */
+test("a complete archive day beats a complete stored day", () => {
   const g = Array.from({ length: 391 }, (_, i) => minute(new Date(Date.parse("2026-09-15T13:30:00Z") + i * 60_000).toISOString()));
-  const stored = { date: ["2026-09-15T13:30:00.000Z"], price: [1], opening: [1], high: [1], low: [1], volume: [1] };
+  const b = Array.from({ length: 40 }, (_, i) => new Date(Date.parse("2026-09-15T13:30:00Z") + i * 600_000).toISOString());
+  const stored = { date: b, price: b.map(() => 1), opening: b.map(() => 1), high: b.map(() => 1), low: b.map(() => 1), volume: b.map(() => 1) };
   const out = pickSessions(["2026-09-15"], g as never, stored);
-  assert.equal(out.length, 391);
+  assert.equal(out.length, 391, "the one-minute bars, not the forty buckets");
 });
 
 test("a day the archive lost is drawn from the store instead", () => {
