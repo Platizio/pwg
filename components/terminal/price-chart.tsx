@@ -220,8 +220,11 @@ export function PriceChart({
          not a date range, so these are the only honest source for the caption:
          if the feed's last row is Friday and today is Tuesday, 1W is showing
          last Mon-Fri and only these two numbers reveal it. */
-      firstAt: slice[0]?.at ?? null,
-      lastAt: slice.at(-1)?.at ?? null,
+      /* From the sessions, not the drawn bars: a weekly candle is stamped at
+         its week's first session, so the last one reads Monday even when the
+         data runs to Friday — and the caption then understated its own span. */
+      firstAt: raw[0]?.at ?? null,
+      lastAt: raw.at(-1)?.at ?? null,
       line: slice.map((p) => ({ time: at(p), value: p.price })),
       /* Clamped, not trusted: a bar whose high sits below its own close would
          draw a wick pointing the wrong way. Missing parts fall back to the
