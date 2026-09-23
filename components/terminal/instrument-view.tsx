@@ -212,11 +212,19 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
    * to be right. */
   const chartInterval = useMemo(() => {
     if (range === "1W" && !weekIsWhole) return "daily closes";
-    if (range === "1D" && liveSession.length === 0 && storedSession.length > 0) {
-      return `${BUCKET_MINUTES}-minute bars`;
+    /* Read off the bars themselves rather than assumed. The day and week
+       ranges now come from the gateway's minutes (1-minute and 5-minute), and
+       fall back to the store's ten-minute buckets if that call fails — so the
+       only way the caption can be sure what it is looking at is to measure. */
+    const fromStore =
+      (range === "1D" && liveSession.length === 0 && storedSession.length > 0) ||
+      (range === "1W" && weekIsWhole);
+    if (fromStore) {
+      const m = barMinutes(storedSession);
+      return m ? `${m}-minute bars` : `${BUCKET_MINUTES}-minute bars`;
     }
     return undefined;
-  }, [range, weekIsWhole, liveSession.length, storedSession.length]);
+  }, [range, weekIsWhole, liveSession.length, storedSession]);
 
   /* The newswire, widened after the page has appeared.
 
@@ -399,7 +407,12 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
       />
 
       <div className="h-[240px] sm:h-[300px] lg:h-[340px]">
-        <PriceChart history={chartHistory} range={range} intervalLabel={chartInterval} />
+        <PriceChart
+          history={chartHistory}
+          range={range}
+          intervalLabel={chartInterval}
+          multiDay={range === "1W" && weekIsWhole}
+        />
       </div>
 
       {/* Keyed entrance rather than AnimatePresence: the outgoing panel has
@@ -420,4 +433,17 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
       </motion.div>
     </WorkColumn>
   );
+}
+
+/* The spacing of a minute series, in minutes: the smallest gap between
+   neighbouring bars inside a session. Buckets sit on multiples of their own
+   width, so the smallest gap IS the width; an overnight gap is never the
+   smallest, and a missing minute only makes one gap larger. */
+function barMinutes(points: readonly { at: number }[]): number | null {
+  let best = Infinity;
+  for (let i = 1; i < points.length; i += 1) {
+    const gap = points[i].at - points[i - 1].at;
+    if (gap > 0 && gap < best) best = gap;
+  }
+  return Number.isFinite(best) ? Math.round(best / 60_000) || null : null;
 }

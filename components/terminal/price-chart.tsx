@@ -20,6 +20,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatStamp, money } from "@/lib/market/format";
 import { rangeCaption, readerZone } from "@/lib/market/ranges";
+import { easternDay } from "@/lib/market/intraday-buckets";
 import { getRange } from "@/lib/market/ranges";
 import type { RangeId } from "@/lib/market/types";
 import type { PricePoint } from "@/lib/api/normalize/series";
@@ -64,6 +65,7 @@ export function PriceChart({
   history,
   range,
   intervalLabel,
+  multiDay = false,
 }: {
   /* Both series, so the control can switch between them without a refetch:
      the day comes from minute bars, everything else is a slice of the daily
@@ -76,6 +78,10 @@ export function PriceChart({
      bars" over five closes would be the kind of small invented fact the rest
      of this file refuses. */
   intervalLabel?: string;
+  /* Minute-level bars spanning several sessions (the week range, drawn from
+     the gateway's intraday window). The axis marks each day and the crosshair
+     shows the time, rather than treating five-minute bars as daily closes. */
+  multiDay?: boolean;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
@@ -94,6 +100,9 @@ export function PriceChart({
   const P = useChartPalette();
   const rangeDef = useMemo(() => getRange(range), [range]);
   const intraday = rangeDef.intraday;
+  /* Whether the bars carry a time of day worth showing: the day range always,
+     the week range when it is drawn from minutes rather than closes. */
+  const clocked = intraday || multiDay;
 
   /* The axis labels its own ticks.
 
@@ -130,6 +139,7 @@ export function PriceChart({
         hour12: false,
       }),
       fullDate: of({ month: "short", day: "numeric", year: "numeric" }),
+      monthDay: of({ month: "short", day: "numeric" }),
     };
   }, [zone]);
 
@@ -144,10 +154,19 @@ export function PriceChart({
          axis reading 09:30 while they sit down at 19:00 makes them do the
          conversion on every glance. */
       if (intraday) return F.clock.format(ms);
+      /* A week of minutes: each session's first tick names the day, the ticks
+         inside it name the time. */
+      if (multiDay) {
+        if (tickMarkType === TickMarkType.Time || tickMarkType === TickMarkType.TimeWithSeconds) {
+          return F.clock.format(ms);
+        }
+        if (tickMarkType === TickMarkType.Year) return F.year.format(ms);
+        return F.monthDay.format(ms);
+      }
       if (tickMarkType === TickMarkType.Year) return F.year.format(ms);
       return F.month.format(ms);
     },
-    [intraday, F],
+    [intraday, multiDay, F],
   );
 
   /* The crosshair's own time label, which the axis formatter above does NOT
@@ -162,9 +181,9 @@ export function PriceChart({
   const timeFormatter = useCallback(
     (time: UTCTimestamp) => {
       const ms = (time as number) * 1000;
-      return intraday ? F.dayClock.format(ms) : F.fullDate.format(ms);
+      return clocked ? F.dayClock.format(ms) : F.fullDate.format(ms);
     },
-    [intraday, F],
+    [clocked, F],
   );
 
 
@@ -200,7 +219,9 @@ export function PriceChart({
          exactly the figure the day range needs. */
       prev: rangeDef.intraday
         ? (history.daily.at(-1)?.price ?? slice[0]?.price ?? 0)
-        : slice.length > 1
+        : multiDay
+          ? previousSessionClose(slice)
+          : slice.length > 1
           ? slice[slice.length - 2].price
           : (slice[0]?.price ?? 0),
       empty: slice.length === 0,
@@ -216,7 +237,7 @@ export function PriceChart({
           )
         : null,
     };
-  }, [history, rangeDef]);
+  }, [history, rangeDef, multiDay]);
 
   /* The crosshair handler is subscribed once, with the chart, so it cannot
      close over render values — they freeze at whatever the mount-time range
@@ -224,9 +245,9 @@ export function PriceChart({
      Switching to 1D then measured every hovered bar against a year-old base
      and printed a date with no time. This mirror is refreshed after every
      render and read inside the handler instead. */
-  const liveRef = useRef({ base: data.base, intraday: rangeDef.intraday, P });
+  const liveRef = useRef({ base: data.base, intraday: clocked, P });
   useEffect(() => {
-    liveRef.current = { base: data.base, intraday: rangeDef.intraday, P };
+    liveRef.current = { base: data.base, intraday: clocked, P };
   });
 
   /* What the chart is actually showing, in words: interval, count, real span,
@@ -283,7 +304,7 @@ export function PriceChart({
       localization: { timeFormatter },
       timeScale: {
         borderVisible: false,
-        timeVisible: rangeDef.intraday,
+        timeVisible: clocked,
         secondsVisible: false,
         rightOffset: 2,
         barSpacing: 8,
@@ -384,9 +405,9 @@ export function PriceChart({
   useEffect(() => {
     chartRef.current?.applyOptions({
       localization: { timeFormatter },
-      timeScale: { timeVisible: intraday, secondsVisible: false, tickMarkFormatter },
+      timeScale: { timeVisible: clocked, secondsVisible: false, tickMarkFormatter },
     });
-  }, [intraday, tickMarkFormatter, timeFormatter]);
+  }, [clocked, tickMarkFormatter, timeFormatter]);
 
   /* The family is read from a computed custom property, so on the first paint of
      a server render it is the fallback. Re-applying once the webfont has settled
@@ -637,7 +658,7 @@ export function PriceChart({
               .filter((_, i) => i % 6 === 0 || i === data.line.length - 1)
               .map((d) => (
                 <tr key={d.time}>
-                  <td>{formatStamp(d.time as number, rangeDef.intraday)}</td>
+                  <td>{formatStamp(d.time as number, clocked)}</td>
                   <td>{money(d.value)}</td>
                 </tr>
               ))}
@@ -647,4 +668,18 @@ export function PriceChart({
       </figcaption>
     </figure>
   );
+}
+
+/* The close of the session before the last one in a multi-day minute series —
+   what the week chart compares against, the same basis as the header's day
+   change. Comparing the last five-minute bar with the one before it would
+   colour a whole week by a single tick. */
+function previousSessionClose(points: readonly PricePoint[]): number {
+  const last = points.at(-1);
+  if (!last) return 0;
+  const lastDay = easternDay(new Date(last.at).toISOString());
+  for (let i = points.length - 2; i >= 0; i -= 1) {
+    if (easternDay(new Date(points[i].at).toISOString()) !== lastDay) return points[i].price;
+  }
+  return points[0].price;
 }

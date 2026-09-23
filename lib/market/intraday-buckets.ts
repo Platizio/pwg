@@ -199,3 +199,57 @@ export function lastSession(series: IntradayColumns): IntradayColumns {
   }
   return out;
 }
+
+/**
+ * One row per bar for the given sessions, taking each session from whichever
+ * source actually covers it.
+ *
+ * WHY PER SESSION. The gateway's intraday window is the finer source — one
+ * minute — but its archive has holes: for 16 Sep 2026 it held 14 to 20 bars for
+ * AAPL, MSFT and TSLA against the 391 a session has, even asked for that day
+ * alone, and a chart drawn from 18 points across six and a half hours is a
+ * handful of straight segments. The store's ten-minute buckets were captured
+ * from the LIVE session, when every minute existed, so a day the archive lost
+ * may still be whole there. Covered minutes decide it: a bucket covers its
+ * width, a gateway bar covers one minute.
+ *
+ * `gateway` rows and `stored` columns are expected already limited to the
+ * regular session; the result is rows, ready for bucketIntraday.
+ */
+export function pickSessions(
+  days: readonly string[],
+  gateway: readonly RawHistoryPoint[],
+  stored: IntradayColumns | null,
+): RawHistoryPoint[] {
+  const byDay = new Map<string, RawHistoryPoint[]>();
+  for (const row of gateway) {
+    const at = Date.parse(String(row?.date ?? ""));
+    if (!Number.isFinite(at)) continue;
+    const day = easternDay(new Date(at).toISOString());
+    (byDay.get(day) ?? byDay.set(day, []).get(day)!).push(row);
+  }
+
+  const storedByDay = new Map<string, RawHistoryPoint[]>();
+  if (stored) {
+    for (let i = 0; i < stored.date.length; i += 1) {
+      const date = stored.date[i];
+      const day = easternDay(date);
+      (storedByDay.get(day) ?? storedByDay.set(day, []).get(day)!).push({
+        date,
+        price: stored.price[i],
+        opening: stored.opening[i],
+        high: stored.high[i],
+        low: stored.low[i],
+        volume: stored.volume[i],
+      } as RawHistoryPoint);
+    }
+  }
+
+  const out: RawHistoryPoint[] = [];
+  for (const day of days) {
+    const g = byDay.get(day) ?? [];
+    const s = storedByDay.get(day) ?? [];
+    out.push(...(s.length * BUCKET_MINUTES > g.length ? s : g));
+  }
+  return out;
+}

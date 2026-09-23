@@ -24,7 +24,7 @@ export const RANGES: RangeDef[] = [
      calling itself 1W. The week arrives already being exactly a week.
      The five-close fallback, for before the store has intraday sessions to
      draw from, is sized in instrument-view.tsx where the choice is made. */
-  { id: "1W", label: "1W", source: "daily", intraday: false, interval: "10-minute bars" },
+  { id: "1W", label: "1W", source: "daily", intraday: false, interval: "5-minute bars" },
   { id: "1M", label: "1M", source: "daily", sessions: 21, intraday: false, interval: "daily closes" },
   { id: "3M", label: "3M", source: "daily", sessions: 64, intraday: false, interval: "daily closes" },
   { id: "1Y", label: "1Y", source: "daily", sessions: 252, intraday: false, interval: "daily closes" },

@@ -3,7 +3,17 @@ import { refusePublic } from "@/lib/api/public-guard";
 import { readSections } from "@/lib/market/store/reads";
 import { fromStored } from "@/lib/market/store/sections";
 import { repairAgainst, splitRecord } from "@/lib/market/split-record";
-import { SESSIONS_KEPT, lastSession, type IntradayColumns } from "@/lib/market/intraday-buckets";
+import {
+  SESSIONS_KEPT,
+  bucketIntraday,
+  easternDay,
+  lastSession,
+  pickSessions,
+  type IntradayColumns,
+} from "@/lib/market/intraday-buckets";
+import { fetchIntradayRange } from "@/lib/api/clients/quotes";
+import { inRegularSession } from "@/lib/market/regular-session";
+import { tradingDays, windowFor } from "@/lib/market/session-window";
 import { parseFetchedRange } from "@/lib/market/ranges";
 
 /* One chart range, fetched when the reader asks for it.
@@ -66,9 +76,9 @@ export async function GET(
      is not in it. `next build` checks this signature; `tsc --noEmit` does not. */
   context: { params: Promise<{ ticker: string }> },
 ) {
-  /* Reads the store rather than the gateway, so this costs us nothing upstream
-     — but it serves licensed prices, and a public URL that hands them out
-     without limit is the licence problem rather than the cost one. */
+  /* Serves licensed prices, and for 1D/1W now makes a (cached) gateway call
+     too — a public URL that handed either out without limit would be both the
+     licence problem and the cost one. */
   const refused = refusePublic(request.headers, {
     route: "history",
     limit: 60,
@@ -85,6 +95,61 @@ export async function GET(
       { range: null, series: EMPTY },
       { status: 400, headers: { "Cache-Control": CACHE } },
     );
+  }
+
+  /* THE DAY AND THE WEEK, IN MINUTES, STRAIGHT FROM THE GATEWAY.
+   *
+   * These used to come only from the store's ten-minute buckets, captured one
+   * evening at a time, which left the week chart drawing seven daily closes —
+   * six straight segments — until a week of captures had accumulated. The
+   * intraday endpoint answers for PAST sessions when asked for a window
+   * (fetchIntradayRange), so both ranges are now drawn from real one-minute
+   * bars: every minute of the last session for 1D, and five-minute buckets for
+   * the week (7 x 78, about 550 points — the full 2,700 minutes would be a
+   * heavier payload than a chart a few hundred pixels wide can show).
+   *
+   * Trimmed to the regular session, 09:30-16:00 ET, the one the chart draws.
+   * Cached by Next's fetch cache for five minutes per window, so a popular
+   * symbol costs the gateway one call per window rather than one per reader.
+   * If the gateway fails or returns nothing, the store's buckets below remain
+   * the fallback. */
+  if (range === "1D" || range === "1W") {
+    const days = tradingDays(Date.now(), range === "1D" ? 1 : SESSIONS_KEPT);
+    const window = windowFor(days);
+    if (window) {
+      /* Both sources at once; each session is then taken from whichever
+         covers more of it (pickSessions) — the archive has holes. */
+      const [res, storedRows] = await Promise.all([
+        fetchIntradayRange(symbol, window.from, window.to, 300, [`history:${symbol}`]).catch(
+          () => null,
+        ),
+        readSections([symbol], "history_intraday").catch(() => null),
+      ]);
+      const wanted = new Set(days);
+      const inWindow = (ms: number) =>
+        inRegularSession(ms) && wanted.has(easternDay(new Date(ms).toISOString()));
+      const gatewayRows =
+        res?.ok && Array.isArray(res.data)
+          ? res.data.filter((row) => inWindow(Date.parse(String(row?.date ?? ""))))
+          : [];
+      const storedPayload = storedRows?.ok
+        ? (storedRows.data.find((r) => r.symbol === symbol)?.payload ?? null)
+        : null;
+      const stored = storedPayload ? fromStored("history_intraday", storedPayload) : null;
+      const storedInWindow = stored
+        ? keepColumns(stored, (iso) => inWindow(Date.parse(iso)))
+        : null;
+      const rows = pickSessions(days, gatewayRows, storedInWindow);
+      if (rows.length > 0) {
+        const series = bucketIntraday(rows, range === "1D" ? 1 : 5);
+        if (series.date.length > 0) {
+          return Response.json(
+            { range, series, sessions: days.length },
+            { headers: { "Cache-Control": CACHE } },
+          );
+        }
+      }
+    }
   }
 
   const section = range === "5Y" ? "history_daily" : "history_intraday";
@@ -136,4 +201,19 @@ export async function GET(
     },
     { headers: { "Cache-Control": CACHE } },
   );
+}
+
+/* A columnar series with only the bars whose date passes. */
+function keepColumns(c: IntradayColumns, keep: (iso: string) => boolean): IntradayColumns {
+  const out: IntradayColumns = { date: [], price: [], opening: [], high: [], low: [], volume: [] };
+  for (let i = 0; i < c.date.length; i += 1) {
+    if (!keep(c.date[i])) continue;
+    out.date.push(c.date[i]);
+    out.price.push(c.price[i]);
+    out.opening.push(c.opening[i]);
+    out.high.push(c.high[i]);
+    out.low.push(c.low[i]);
+    out.volume.push(c.volume[i]);
+  }
+  return out;
 }

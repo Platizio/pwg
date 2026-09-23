@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { bucketIntraday, SESSIONS_KEPT, sessionsAt } from "../lib/market/intraday-buckets.ts";
+import { bucketIntraday, SESSIONS_KEPT, sessionsAt, pickSessions } from "../lib/market/intraday-buckets.ts";
 import { mergeIntradaySessions } from "../lib/market/store/sections.ts";
 
 /* Minute bars reduced to the grid a chart can draw.
@@ -205,4 +205,37 @@ test("a week is seven trading sessions, with the weekends excluded", () => {
   ];
   assert.equal(sessionsAt(week), 7);
   assert.equal(SESSIONS_KEPT, 7, "retention has to hold exactly the window the chart draws");
+});
+
+/* ---------- which source draws each session ---------- */
+
+/* The gateway's archive has holes — 16 Sep 2026 held 18 bars for AAPL against
+ * a session's 391 — while the store's buckets were captured from the live
+ * session. Each day is drawn from whichever covers more minutes. */
+const minute = (iso: string, price = 100) => ({ date: iso, price, opening: price, high: price, low: price, volume: 1 });
+
+test("a complete archive day is drawn from the archive's minutes", () => {
+  const g = Array.from({ length: 391 }, (_, i) => minute(new Date(Date.parse("2026-09-15T13:30:00Z") + i * 60_000).toISOString()));
+  const stored = { date: ["2026-09-15T13:30:00.000Z"], price: [1], opening: [1], high: [1], low: [1], volume: [1] };
+  const out = pickSessions(["2026-09-15"], g as never, stored);
+  assert.equal(out.length, 391);
+});
+
+test("a day the archive lost is drawn from the store instead", () => {
+  const thin = [minute("2026-09-16T13:32:00Z"), minute("2026-09-16T19:44:00Z")];
+  const buckets = Array.from({ length: 39 }, (_, i) => new Date(Date.parse("2026-09-16T13:30:00Z") + i * 600_000).toISOString());
+  const stored = { date: buckets, price: buckets.map(() => 2), opening: buckets.map(() => 2), high: buckets.map(() => 2), low: buckets.map(() => 2), volume: buckets.map(() => 1) };
+  const out = pickSessions(["2026-09-16"], thin as never, stored);
+  assert.equal(out.length, 39, "39 ten-minute buckets cover more than 2 stray minutes");
+});
+
+test("with nothing better, a thin day is still drawn rather than dropped", () => {
+  const thin = [minute("2026-09-16T13:32:00Z"), minute("2026-09-16T19:44:00Z")];
+  assert.equal(pickSessions(["2026-09-16"], thin as never, null).length, 2);
+});
+
+test("only the requested sessions come back, in order", () => {
+  const rows = [minute("2026-09-14T14:00:00Z"), minute("2026-09-15T14:00:00Z"), minute("2026-09-16T14:00:00Z")];
+  const out = pickSessions(["2026-09-15", "2026-09-16"], rows as never, null);
+  assert.deepEqual(out.map((r) => r.date), ["2026-09-15T14:00:00Z", "2026-09-16T14:00:00Z"]);
 });

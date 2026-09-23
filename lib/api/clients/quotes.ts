@@ -203,6 +203,31 @@ export function fetchIntraday(
   });
 }
 
+/**
+ * One-minute bars for a WINDOW of sessions, past ones included.
+ *
+ * `from`/`to` are undocumented — the catalogue lists only `symbol` — and were
+ * found by the gateway's own refusal of a wrong format: "Use yyyy-MM-dd
+ * HH:mm:ss". Times are New York's. Measured 21 Sep 2026: 391 bars for one
+ * regular session, 4,243 across seven trading days (the middle days arrive with
+ * their extended hours), nothing for a date a month back. So a past session
+ * CAN be fetched, for a few weeks, which is what lets the day and week charts
+ * draw real minutes instead of a handful of closes.
+ */
+export function fetchIntradayRange(
+  symbol: string,
+  from: string,
+  to: string,
+  revalidate: number,
+  tags: string[],
+): Promise<ApiResult<RawHistoryPoint[]>> {
+  return vtGet<RawHistoryPoint[]>("/aes/api/quotes/equity/intraday", {
+    query: { symbol, from, to },
+    revalidate,
+    tags,
+  });
+}
+
 export function fetchHistory(
   symbol: string,
   range: HistoryRange,
