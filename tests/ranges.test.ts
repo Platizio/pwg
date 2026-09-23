@@ -95,7 +95,14 @@ test("a daily range names its interval, its real count and its real span", () =>
      and the dates either side of it can shift with it. */
   const c = rangeCaption(getRange("1M"), AUG_4, SEP_1, 21, "America/New_York");
   assert.match(c, /^1M/);
-  assert.match(c, /21 daily closes/);
+  /* Candles, not closes: the month and the quarter draw each session's open,
+     high, low and close, and the caption names what is drawn. */
+  assert.match(c, /21 daily candles/);
+  assert.match(
+    rangeCaption(getRange("1Y"), AUG_4, SEP_1, 252, "America/New_York"),
+    /252 daily closes/,
+    "the year keeps its line, so it keeps its word",
+  );
   assert.match(c, /Aug 4/);
   assert.match(c, /Sep 1/);
   assert.match(c, /2026/);

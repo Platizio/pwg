@@ -2,6 +2,7 @@
 
 import {
   AreaSeries,
+  CandlestickSeries,
   ColorType,
   CrosshairMode,
   LineStyle,
@@ -103,6 +104,17 @@ export function PriceChart({
   /* Whether the bars carry a time of day worth showing: the day range always,
      the week range when it is drawn from minutes rather than closes. */
   const clocked = intraday || multiDay;
+  /* The month and the quarter draw each session as a candle.
+   *
+   * These are the spans the minute archive cannot reach — it holds about the
+   * last seventeen trading days (31 Aug 2026 answered with 391 bars, 27 Aug with
+   * none) — so they are drawn from daily bars, and a line through 21 or 64 daily
+   * closes is a row of straight segments that hides everything that happened
+   * inside each day. A candle shows it: the open, the close, and how far the
+   * price ran either way, all of it real. The year and five years keep the line,
+   * where 252 and 1,275 points are dense enough to read as a curve and candles
+   * would be too narrow to see. */
+  const candles = rangeDef.id === "1M" || rangeDef.id === "3M";
 
   /* The axis labels its own ticks.
 
@@ -204,6 +216,20 @@ export function PriceChart({
       firstAt: slice[0]?.at ?? null,
       lastAt: slice.at(-1)?.at ?? null,
       line: slice.map((p) => ({ time: at(p), value: p.price })),
+      /* Clamped, not trusted: a bar whose high sits below its own close would
+         draw a wick pointing the wrong way. Missing parts fall back to the
+         close, which draws an honest flat candle rather than an invented one. */
+      bars: slice.map((p) => {
+        const open = p.open ?? p.price;
+        const close = p.price;
+        return {
+          time: at(p),
+          open,
+          close,
+          high: Math.max(p.high ?? close, open, close),
+          low: Math.min(p.low ?? close, open, close),
+        };
+      }),
       base: slice[0]?.price ?? 0,
       /* The previous close, and on the day range that means the previous
          SESSION — not the previous minute.
@@ -436,26 +462,32 @@ export function PriceChart({
 
     const previous = mainRef.current;
 
-    const series = chart.addSeries(
-      AreaSeries,
-      {
-        priceScaleId: "left",
-        lineWidth: 1,
-        priceLineVisible: false,
-        lastValueVisible: false,
-        crosshairMarkerVisible: true,
-        crosshairMarkerRadius: 4.5,
-        crosshairMarkerBorderWidth: 1.5,
-        crosshairMarkerBorderColor: P.shell,
-      },
-      0,
-    );
+    const series = candles
+      ? chart.addSeries(
+          CandlestickSeries,
+          { priceScaleId: "left", priceLineVisible: false, lastValueVisible: false },
+          0,
+        )
+      : chart.addSeries(
+          AreaSeries,
+          {
+            priceScaleId: "left",
+            lineWidth: 1,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            crosshairMarkerVisible: true,
+            crosshairMarkerRadius: 4.5,
+            crosshairMarkerBorderWidth: 1.5,
+            crosshairMarkerBorderColor: P.shell,
+          },
+          0,
+        );
 
     mainRef.current = series;
     prevLineRef.current = null;
 
     if (previous) chart.removeSeries(previous);
-  }, [P]);
+  }, [P, candles]);
 
   /* Colour, data and the previous-close marker follow the instrument. */
   useEffect(() => {
@@ -487,15 +519,33 @@ export function PriceChart({
       return { priceRange: { minValue: min - pad, maxValue: max + pad } };
     };
 
-    const area = series as ISeriesApi<"Area">;
-    area.applyOptions({
-      lineColor: tone,
-      topColor: up ? "rgba(125, 211, 160, 0.22)" : "rgba(224, 121, 107, 0.22)",
-      bottomColor: up ? "rgba(125, 211, 160, 0)" : "rgba(224, 121, 107, 0)",
-      crosshairMarkerBackgroundColor: tone,
-      autoscaleInfoProvider,
-    });
-    area.setData(data.line.map((d) => ({ time: d.time as UTCTimestamp, value: d.value })));
+    if (candles && series.seriesType() === "Candlestick") {
+      const bars = series as ISeriesApi<"Candlestick">;
+      bars.applyOptions({
+        upColor: P.up,
+        downColor: P.down,
+        borderUpColor: P.up,
+        borderDownColor: P.down,
+        wickUpColor: P.up,
+        wickDownColor: P.down,
+        autoscaleInfoProvider,
+      });
+      bars.setData(data.bars.map((b) => ({ ...b, time: b.time as UTCTimestamp })));
+    } else if (!candles && series.seriesType() === "Area") {
+      const area = series as ISeriesApi<"Area">;
+      area.applyOptions({
+        lineColor: tone,
+        topColor: up ? "rgba(125, 211, 160, 0.22)" : "rgba(224, 121, 107, 0.22)",
+        bottomColor: up ? "rgba(125, 211, 160, 0)" : "rgba(224, 121, 107, 0)",
+        crosshairMarkerBackgroundColor: tone,
+        autoscaleInfoProvider,
+      });
+      area.setData(data.line.map((d) => ({ time: d.time as UTCTimestamp, value: d.value })));
+    } else {
+      /* The series for the new type is created by the effect above; this pass
+         ran against the outgoing one and will run again once it exists. */
+      return;
+    }
 
     /* The dashed prev-close marker the Lux design adds. A native price line
        rather than an absolutely-positioned div, so it tracks the scale.
@@ -518,7 +568,7 @@ export function PriceChart({
       title: "PREV CLOSE",
     });
 
-  }, [data, tone, up, P]);
+  }, [data, tone, up, P, candles]);
 
   /* Reset the time window. The price axis needs no resetting: it is pinned to
      the range's own extremes by the provider above, so it never drifted. */
