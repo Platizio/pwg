@@ -1,5 +1,7 @@
 "use client";
 
+import { useLiveSession } from "@/components/home/use-session";
+
 import { motion } from "motion/react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -93,7 +95,11 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
      ahead of time — so the hook keeps it just long enough to swap in the
      reader's own. */
   const tick = useLiveQuote(stock.id);
-  const session = useIntraday(stock.id, snapshot.session.phase);
+  /* The phase decides whether the day chart polls for new bars, so it has to
+     be the live one — a page rendered before the bell would otherwise never
+     start polling once the session opened. */
+  const marketSession = useLiveSession(snapshot.session);
+  const session = useIntraday(stock.id, marketSession.phase);
   const intraday = useMemo(() => liveTail(session.intraday, tick), [session.intraday, tick]);
   /* The ranges the page does not carry.
    *

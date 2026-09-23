@@ -1,5 +1,7 @@
 "use client";
 
+import { useLiveSession } from "@/components/home/use-session";
+
 import { MotionConfig, motion } from "motion/react";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -294,7 +296,7 @@ function CompactBar({
      honest local source for a price: when it is absent the bar shows the
      market state and no figure at all, rather than the seeded number it used
      to fall back to. A plausible wrong price is worse than a blank one. */
-  session = sessionAt(),
+  session: rendered = sessionAt(),
   lead,
 }: {
   onOpenNav: () => void;
@@ -302,6 +304,8 @@ function CompactBar({
   session?: Session;
   lead?: Lead;
 }) {
+  /* Live, not the value frozen at render — see useLiveSession. */
+  const session = useLiveSession(rendered);
   const pathname = usePathname();
   const match = /^\/instrument\/([^/]+)/.exec(pathname);
 

@@ -1,4 +1,5 @@
 "use client";
+import { useLiveSession } from "@/components/home/use-session";
 
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
@@ -91,7 +92,8 @@ const longer = (a: string, b: string) => (b.length > a.length ? b : a);
    the two cannot drift. */
 const CLOCK_ZONE = "IST";
 
-export function MarketStatus({ session }: { session: Session }) {
+export function MarketStatus({ session: rendered }: { session: Session }) {
+  const session = useLiveSession(rendered);
   /* Warm and pulsing whenever prices are actually moving — which includes the
      extended hours, not just the bell. The pill used to key on `session.live`
      (regular session only) and so sat grey and dead through a pre-market in

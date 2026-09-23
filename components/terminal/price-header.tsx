@@ -1,4 +1,5 @@
 "use client";
+import { useLiveSession } from "@/components/home/use-session";
 
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
@@ -21,7 +22,7 @@ const ago = (ms: number) =>
 
 export function PriceHeader({
   profile,
-  session,
+  session: rendered,
   range,
   onRange,
 }: {
@@ -30,6 +31,7 @@ export function PriceHeader({
   range: RangeId;
   onRange: (id: RangeId) => void;
 }) {
+  const session = useLiveSession(rendered);
   const priceRef = useRef<HTMLSpanElement>(null);
 
   /* The headline figure is the one a reader watches, so it takes live ticks

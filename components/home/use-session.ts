@@ -20,3 +20,23 @@ export function useSession(): Session | null {
   }, []);
   return session;
 }
+
+/**
+ * The session the SERVER rendered with, until the client's own clock takes
+ * over — then the live one, refreshed every half minute.
+ *
+ * WHY THE TERMINAL NEEDS THIS. Its pill, its price header and its top bar were
+ * all handed a `session` computed once, when the page was rendered. These are
+ * ISR pages that live for up to fifteen minutes and are often regenerated long
+ * before a reader arrives, so a page rendered at 08:00 ET kept announcing
+ * "Pre-market" straight through the opening bell and on into the session. The
+ * home page's pill never had the problem because it already used
+ * `useSession`; the terminal's did not.
+ *
+ * The server's value is kept for the FIRST render rather than null, so the
+ * markup matches what the server sent and hydration has nothing to repair —
+ * then the live clock replaces it within a frame.
+ */
+export function useLiveSession(initial: Session): Session {
+  return useSession() ?? initial;
+}
