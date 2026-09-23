@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { sessionAt, type Session } from "@/lib/market/session";
 
 /**
@@ -39,4 +39,26 @@ export function useSession(): Session | null {
  */
 export function useLiveSession(initial: Session): Session {
   return useSession() ?? initial;
+}
+
+const noSubscription = () => () => {};
+
+/**
+ * False on the server and during hydration, true once the client has taken
+ * over — for text that can only be right on the reader's clock.
+ *
+ * A cached page was rendered at some earlier moment, and anything computed from
+ * "now" during that render — "the last tick arrived 2m ago" — cannot match what
+ * the browser computes a moment later, hours on. React calls that a hydration
+ * mismatch (error #418), discards the server's markup and rebuilds the tree on
+ * the client. Rendering such text only after this turns true keeps the first
+ * client render identical to the server's. useSyncExternalStore rather than an
+ * effect-and-setState, for the same reason theme-toggle.tsx uses it.
+ */
+export function useHydrated(): boolean {
+  return useSyncExternalStore(
+    noSubscription,
+    () => true,
+    () => false,
+  );
 }

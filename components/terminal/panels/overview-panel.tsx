@@ -3,7 +3,7 @@
 import { dayStats, insights, returns } from "@/lib/market/instrument-derive";
 import { relativeAge } from "@/lib/api/normalize/time";
 import { liveness } from "@/lib/market/liveness";
-import { useLiveSession } from "@/components/home/use-session";
+import { useHydrated, useLiveSession } from "@/components/home/use-session";
 import { useLiveQuote, useNow } from "../live-provider";
 import type { InstrumentSnapshot } from "@/lib/market/instrument";
 import { Meter, Section } from "../ui";
@@ -20,6 +20,7 @@ export function OverviewPanel({ snapshot }: { snapshot: InstrumentSnapshot }) {
    * whenever the header would call the price live. A degraded note is kept as
    * the server wrote it — it is about missing data, not about time. */
   const now = useNow();
+  const hydrated = useHydrated();
   const session = useLiveSession(snapshot.session);
   const tick = useLiveQuote(snapshot.profile.id);
   const priced = tick !== null && tick.changePercent !== null ? tick : null;
@@ -29,7 +30,12 @@ export function OverviewPanel({ snapshot }: { snapshot: InstrumentSnapshot }) {
     snapshot.status === "degraded"
       ? snapshot.note
       : snapshot.status === "stale" && !isLive
-        ? `Quotes run fifteen minutes behind${asOf === null ? "" : `; the last tick arrived ${relativeAge(asOf, now)}`}.`
+        ? `Quotes run fifteen minutes behind${
+            /* The age only once hydrated: the server's "now" was the moment the
+               page was cached, so the two renders could never agree on it and
+               React would throw away the whole tree (error #418). */
+            hydrated && asOf !== null ? `; the last tick arrived ${relativeAge(asOf, now)}` : ""
+          }.`
         : null;
 
   const stats = dayStats(snapshot);
