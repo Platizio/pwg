@@ -443,10 +443,18 @@ export function PerformancePanel({ snapshot }: { snapshot: InstrumentSnapshot })
     );
   }
 
-  const rows = rollingPeriods(snapshot);
-  const years = calendarYearRows(snapshot);
-  const risk = riskProfile(snapshot);
-  const curve = drawdownCurve(snapshot);
+  /* Measured from the FETCHED five years and benchmark, not the shipped page.
+     The page ships one year of bars and no benchmark (instrument.ts trims both
+     to keep the payload small), and these four were still reading it — so the
+     1-year return was a dash (it needs 253 bars and got 252), the 3- and
+     5-year rows and every S&P comparison were dashes, and "Volatility, full
+     record" described a single year. The series above were being fetched for
+     exactly this and only used for the as-of date. */
+  const measured = { ...snapshot, history: { ...snapshot.history, daily: points }, market };
+  const rows = rollingPeriods(measured);
+  const years = calendarYearRows(measured);
+  const risk = riskProfile(measured);
+  const curve = drawdownCurve(measured);
   const moves = notableMoves(snapshot);
 
   const marketLabel = market?.symbol ?? "Market";

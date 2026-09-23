@@ -79,9 +79,13 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
   /* Tagged with the term it answers, so a result arriving after the reader
      has typed on is simply not used. Clearing it eagerly instead would mean a
      setState on every keystroke, and a cascading render with it. */
-  const [remote, setRemote] = useState<{ term: string; rows: Quote[] }>({
+  /* `failed` is per term, so a lookup that errored reads as "unavailable"
+     rather than "nothing matches" — the second is a claim about the market,
+     the first about our plumbing, and a reader acts on them differently. */
+  const [remote, setRemote] = useState<{ term: string; rows: Quote[]; failed: boolean }>({
     term: "",
     rows: [],
+    failed: false,
   });
 
   const term = query.trim().toLowerCase();
@@ -115,6 +119,10 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
       .slice(0, LIMIT)
       .map((r) => r.q);
   }, [universe, term]);
+
+  /* Still waiting on the remote lookup for this exact term. "Nothing matches"
+     used to show during the wait, and a reader who believed it went away. */
+  const searching = local.length === 0 && term.length >= 2 && remote.term !== term;
 
   const results = useMemo<Quote[]>(
     () => (local.length > 0 ? local : remote.term === term ? remote.rows : []),
@@ -170,10 +178,14 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
       fetch(`/api/search?q=${encodeURIComponent(term)}`, {
         signal: controller.signal,
       })
-        .then((r) => (r.ok ? r.json() : { results: [] }))
+        .then((r) => {
+          if (!r.ok) throw new Error(`search ${r.status}`);
+          return r.json();
+        })
         .then((body: { results?: Array<{ id: string; name: string }> }) => {
           setRemote({
             term,
+            failed: false,
             rows: (body.results ?? []).map((hit) => ({
               id: hit.id,
               name: hit.name,
@@ -187,8 +199,12 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
             })),
           });
         })
-        .catch(() => {
-          /* An aborted or failed lookup leaves the list as it was. */
+        .catch((error: unknown) => {
+          /* An abort is the reader typing on; say nothing. A real failure is
+             recorded against this term so the panel stops claiming there is no
+             such company when the truth is that we could not ask. */
+          if (error instanceof DOMException && error.name === "AbortError") return;
+          setRemote({ term, rows: [], failed: true });
         });
     }, 220);
 
@@ -330,7 +346,17 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
   const activeRow = rows[active];
 
   return (
-    <div ref={rootRef} className="relative w-full">
+    <div
+      ref={rootRef}
+      className="relative w-full"
+      /* Close when focus leaves the whole widget — Tab out of the input used to
+         leave the panel open over the page, and Escape stopped working once
+         focus had gone, since it is only heard by the input. The options are
+         tabIndex -1 and chosen by pointer, so this never fires mid-selection. */
+      onBlur={(e) => {
+        if (!rootRef.current?.contains(e.relatedTarget as Node | null)) setOpen(false);
+      }}
+    >
       <label htmlFor={inputId} className="sr-only">
         Search stocks by name or ticker
       </label>
@@ -432,7 +458,11 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
             {rows.length === 0 ? (
               <p className="px-4 py-5 text-[13.5px] leading-[1.7] text-ink-3">
                 {term
-                  ? `Nothing here matches “${query.trim()}”.`
+                  ? searching
+                    ? `Searching for “${query.trim()}”…`
+                    : remote.term === term && remote.failed
+                      ? "Search is unavailable just now. If you know the ticker, type it in full."
+                      : `Nothing here matches “${query.trim()}”.`
                   : "The boards are not quoting just now, so there is nothing to show here."}
               </p>
             ) : (
@@ -490,7 +520,13 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
                           onClick={() => go(row.quote)}
                           className={cn(
                             "flex w-full min-h-12 items-center gap-3 rounded-[10px] px-3 text-left transition-colors",
-                            on && "bg-[rgba(217,189,139,0.09)]",
+                            /* A hard-coded champagne at 9% vanished on the light
+                               theme's cream, so keyboard users could not see which
+                               row Enter would open. The themed gold tint plus an
+                               inset left rule reads on both themes and does not
+                               depend on a faint fill alone. */
+                            on &&
+                              "bg-[rgba(var(--c-gold-rgb),0.12)] shadow-[inset_2px_0_0_rgba(var(--c-gold-rgb),0.7)]",
                           )}
                         >
                           <Hit quote={row.quote} />
@@ -515,13 +551,18 @@ function Hit({ quote }: { quote: Quote }) {
       <span
         aria-hidden="true"
         /* Sized from its tile, per the monogram rule. */
-        className="font-serif grid h-9 w-9 flex-none place-items-center rounded-[10px] border border-[rgba(217,189,139,0.14)]"
+        /* Decorative, so it gives its width back on a phone, where the panel
+           is only as wide as the input and every pixel went to the name. */
+        className="font-serif hidden h-9 w-9 flex-none place-items-center rounded-[10px] border border-[rgba(217,189,139,0.14)] sm:grid"
         style={{ color: quote.color, fontSize: 17 }}
       >
         {quote.mark}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13.5px] font-medium text-ink">
+        {/* Two lines, not an ellipsis: on a phone a single truncated line cut
+            names to a few characters, and the name is what the reader is
+            choosing between. */}
+        <span className="line-clamp-2 block text-[13.5px] font-medium break-words text-ink">
           {quote.name}
         </span>
         <span className="font-mono mt-0.5 block text-[12px] tracking-[0.05em] text-ink-3">

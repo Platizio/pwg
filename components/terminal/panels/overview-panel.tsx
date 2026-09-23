@@ -1,10 +1,37 @@
 "use client";
 
 import { dayStats, insights, returns } from "@/lib/market/instrument-derive";
+import { relativeAge } from "@/lib/api/normalize/time";
+import { liveness } from "@/lib/market/liveness";
+import { useLiveSession } from "@/components/home/use-session";
+import { useLiveQuote, useNow } from "../live-provider";
 import type { InstrumentSnapshot } from "@/lib/market/instrument";
 import { Meter, Section } from "../ui";
 
 export function OverviewPanel({ snapshot }: { snapshot: InstrumentSnapshot }) {
+  /* The freshness line, measured when it is READ.
+   *
+   * It used to be composed on the server — "the last tick arrived 2m ago" —
+   * and these are cached pages, so the age was frozen at render and could be
+   * hours wrong by the time anyone saw it. And it said "Quotes run fifteen
+   * minutes behind" while the header directly above said Live off a tick
+   * seconds old: two opposite claims about the same number. Now the age is
+   * computed here against a ticking clock, and the delay sentence is withheld
+   * whenever the header would call the price live. A degraded note is kept as
+   * the server wrote it — it is about missing data, not about time. */
+  const now = useNow();
+  const session = useLiveSession(snapshot.session);
+  const tick = useLiveQuote(snapshot.profile.id);
+  const priced = tick !== null && tick.changePercent !== null ? tick : null;
+  const isLive = liveness(priced, session.phase, now).state === "live";
+  const asOf = snapshot.profile.asOf;
+  const note =
+    snapshot.status === "degraded"
+      ? snapshot.note
+      : snapshot.status === "stale" && !isLive
+        ? `Quotes run fifteen minutes behind${asOf === null ? "" : `; the last tick arrived ${relativeAge(asOf, now)}`}.`
+        : null;
+
   const stats = dayStats(snapshot);
   const rows = insights(snapshot);
   const perf = returns(snapshot);
@@ -37,9 +64,9 @@ export function OverviewPanel({ snapshot }: { snapshot: InstrumentSnapshot }) {
         <Section
           title="Insights"
           action={
-            snapshot.note ? (
-              <span className="eyebrow" title={snapshot.note}>
-                {snapshot.note}
+            note ? (
+              <span className="eyebrow" title={note}>
+                {note}
               </span>
             ) : null
           }

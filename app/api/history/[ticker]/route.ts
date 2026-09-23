@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { refusePublic } from "@/lib/api/public-guard";
 import { readSections } from "@/lib/market/store/reads";
 import { fromStored } from "@/lib/market/store/sections";
+import { repairAgainst, splitRecord } from "@/lib/market/split-record";
 import { SESSIONS_KEPT, lastSession, type IntradayColumns } from "@/lib/market/intraday-buckets";
 import { parseFetchedRange } from "@/lib/market/ranges";
 
@@ -102,9 +103,25 @@ export async function GET(
   const payload = rows.data.find((r) => r.symbol === symbol)?.payload ?? null;
 
   if (range === "5Y") {
-    const daily = fromStored("history_daily", payload);
+    /* REPAIRED for splits, the same way the page's own series is
+       (lib/market/instrument.ts repairs at read time). The store keeps the
+       feed's bars as they came, and those carry a cliff at every split — a
+       Netflix 10-for-1 reads as a 90% crash. This series now feeds the
+       Performance tab's five-year figures as well as the 5Y chart, so an
+       unrepaired one would put that cliff into every return and drawdown.
+       When the corporate-actions record cannot be read, splitRecord says so
+       and the bars pass through unchanged, exactly as they do on the page. */
+    const [daily, actionsRows] = await Promise.all([
+      Promise.resolve(fromStored("history_daily", payload)),
+      readSections([symbol], "corporate_actions").catch(() => null),
+    ]);
+    const actionsPayload = actionsRows?.ok
+      ? (actionsRows.data.find((r) => r.symbol === symbol)?.payload ?? null)
+      : null;
+    const actions = actionsPayload ? fromStored("corporate_actions", actionsPayload) : null;
+    const repaired = daily ? repairAgainst(daily, splitRecord(actions)) : [];
     return Response.json(
-      { range, series: daily ?? [] },
+      { range, series: repaired },
       { headers: { "Cache-Control": CACHE } },
     );
   }

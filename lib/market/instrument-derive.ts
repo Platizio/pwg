@@ -97,7 +97,10 @@ export function insights(s: InstrumentSnapshot) {
     out.push({
       kind: returns.ret1y >= 0 ? "up" : "warn",
       title: "Over the past year",
-      body: `Total return of ${pct(returns.ret1y, 1)}, measured to the last completed session and adjusted for splits.`,
+      /* "Price", not "Total": this is the change in price, and dividends are
+         not reinvested into it. Calling it a total return overstates it for
+         every dividend payer, by the yield. */
+      body: `Price return of ${pct(returns.ret1y, 1)}, measured to the last completed session and adjusted for splits (dividends excluded).`,
     });
   }
 
@@ -119,8 +122,14 @@ function over(points: PricePoint[], sessions: number): number | null {
 export function returns(s: InstrumentSnapshot) {
   const pts = s.history.daily;
   const rows: Array<[string, number | null]> = [
-    ["1 month", over(pts, 21)],
-    ["6 months", over(pts, 126)],
+    /* Withheld with the split record, the same way 1Y and 5Y already are
+       (returnsAgainst). Without it the bars are unrepaired, and a split inside
+       the window reads as a crash or a leap — a 10-for-1 prints as -90%. The
+       year figures below were already dashes in that case; these two went on
+       printing confident numbers beside them. `!== false` so a snapshot built
+       before the field existed keeps its figures. */
+    ["1 month", s.splitsKnown !== false ? over(pts, 21) : null],
+    ["6 months", s.splitsKnown !== false ? over(pts, 126) : null],
     ["1 year", s.returns.ret1y],
     ["5 years", s.returns.ret5y],
   ];

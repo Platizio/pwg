@@ -45,7 +45,7 @@ export default async function TerminalLayout({ children }: { children: ReactNode
       <LiveProvider>
       <Shell
         session={session}
-        lead={lead ? { short: lead.short, level: lead.level, chg: lead.chg } : undefined}
+        lead={lead ? { short: lead.short, proxy: indices.data[0]?.proxyTicker ?? lead.short, level: lead.level, chg: lead.chg } : undefined}
         quotes={quotes}
         /* The boards go down as their rows alone: the panel shows what is
            quoting and nothing when nothing is, so it has no use for a panel's

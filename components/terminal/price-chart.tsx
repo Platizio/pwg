@@ -316,6 +316,12 @@ export function PriceChart({
         },
       },
       handleScale: { axisPressedMouseMove: { price: false } },
+      /* Vertical swipes belong to the PAGE. The library's default treats any
+         mostly-vertical touch drag on the chart as a chart gesture and calls
+         preventDefault, so on a phone — where this is a full-width band a third
+         of the screen tall — swiping up over it to reach the tabs did nothing.
+         Horizontal drags still pan the chart. */
+      handleScroll: { vertTouchDrag: false },
     });
 
     chartRef.current = chart;

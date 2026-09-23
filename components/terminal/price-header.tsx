@@ -3,7 +3,7 @@ import { useLiveSession } from "@/components/home/use-session";
 
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { IconCandles } from "@/components/icons";
 import { money, pct } from "@/lib/market/format";
 import { RANGES } from "@/lib/market/ranges";
@@ -14,7 +14,7 @@ import { type Session } from "@/lib/market/session";
 import { liveness, livenessText } from "@/lib/market/liveness";
 import { C } from "@/lib/tokens";
 import { Segmented, SegmentedItem, cn } from "./ui";
-import { useLiveQuote, useNow } from "./live-provider";
+import { useLastTick, useLiveQuote, useNow } from "./live-provider";
 
 /** Tick age in words. Short, because it sits inside a tooltip. */
 const ago = (ms: number) =>
@@ -57,8 +57,18 @@ export function PriceHeader({
 
   /* A company the feed will not price shows a dash rather than a zero: a zero
      in this position reads as a real quote. */
-  const price = showing ? priced.price : profile.price;
-  const chg = showing ? priced.changePercent : profile.chg;
+  /* When the live tick has aged out, the last real trade is still usually
+     NEWER than the price this page was rendered with. Showing the render-time
+     price then puts an older number on screen than the one the reader just
+     watched go past — overnight it presented a mid-session price as the
+     close. Use whichever is newer; price and change still travel together. */
+  const last = useLastTick(profile.id);
+  const lastPriced = last !== null && last.changePercent !== null ? last : null;
+  const fromLast =
+    !showing && lastPriced !== null && (profile.asOf === null || lastPriced.at > profile.asOf);
+
+  const price = showing ? priced.price : fromLast ? lastPriced.price : profile.price;
+  const chg = showing ? priced.changePercent : fromLast ? lastPriced.changePercent : profile.chg;
   const up = (chg ?? 0) >= 0;
 
   const statusText = livenessText(live.state, session.phase, session.label);
@@ -69,11 +79,20 @@ export function PriceHeader({
         ? "Showing the last published snapshot — no live tick received"
         : live.state === "live"
           ? `Live price — last tick ${ago(live.ageMs)}`
-          : `Showing the last published snapshot — last live tick ${ago(live.ageMs)}`;
+          : fromLast
+            ? `Last trade ${ago(live.ageMs)}`
+            : `Showing the last published snapshot — last live tick ${ago(live.ageMs)}`;
 
   /* Count the price into place on every instrument change. Written straight to
      the text node — routing 60 frames a second through React state would
      re-render the whole terminal for a cosmetic effect. */
+  /* The price React is currently showing, for the count-up below to defer to.
+     Updated after commit, which is before the next animation frame reads it. */
+  const latestPrice = useRef(price);
+  useEffect(() => {
+    latestPrice.current = price;
+  }, [price]);
+
   useGSAP(
     () => {
       const node = priceRef.current;
@@ -95,13 +114,33 @@ export function PriceHeader({
             return;
           }
           const from = { v: price * 0.968 };
-          gsap.to(from, {
-            v: price,
+          const target = price;
+          /* The tween must never have the last word. It writes the text node
+             directly, sixty times a second for a second, and a live tick that
+             landed in that second was committed by React and then painted over
+             by the next frame — and React will not rewrite text whose string
+             has not changed, so a quiet symbol could sit on the render-time
+             price beside a live change figure and a "Live" badge. Each frame
+             now checks the price React currently holds; the moment it differs
+             from where the count-up was heading, the count-up stops and the
+             real number goes in. */
+          const settle = () => {
+            const now = latestPrice.current;
+            node.textContent = now === null ? "—" : money(now);
+          };
+          const tween = gsap.to(from, {
+            v: target,
             duration: 1,
             ease: "power2.out",
             onUpdate: () => {
+              if (latestPrice.current !== target) {
+                tween.kill();
+                settle();
+                return;
+              }
               node.textContent = money(from.v);
             },
+            onComplete: settle,
           });
         },
       );

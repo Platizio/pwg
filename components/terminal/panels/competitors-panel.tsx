@@ -27,8 +27,23 @@ export function CompetitorsPanel({ snapshot }: { snapshot: InstrumentSnapshot })
               style={c.isSelf ? { background: "var(--tint-gold-faint)" } : undefined}
             >
               <div className="mb-3 flex items-center gap-3.5">
-                <Monogram mark={c.mark} color={c.color} size={26} />
-                <span className="font-serif text-[20px]">{c.name}</span>
+                {/* The table linked each peer; this phone layout did not, so on a
+                    phone the Competitors tab was a dead end. Same rule as the
+                    table: link a peer with a page, never the company itself. */}
+                {c.covered && !c.isSelf ? (
+                  <Link
+                    href={instrumentPath(c.id)}
+                    className="flex min-h-11 items-center gap-3.5 hover:text-gold"
+                  >
+                    <Monogram mark={c.mark} color={c.color} size={26} />
+                    <span className="font-serif text-[20px]">{c.name}</span>
+                  </Link>
+                ) : (
+                  <>
+                    <Monogram mark={c.mark} color={c.color} size={26} />
+                    <span className="font-serif text-[20px]">{c.name}</span>
+                  </>
+                )}
                 <span
                   className="font-mono ms-auto text-[11.5px]"
                   style={{ color: c.retColor }}

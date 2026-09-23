@@ -1,5 +1,9 @@
 "use client";
 
+import { useLiveQuote } from "./live-provider";
+
+import { tickerFromPath } from "@/lib/market/paths";
+
 import { useLiveSession } from "@/components/home/use-session";
 
 import { MotionConfig, motion } from "motion/react";
@@ -22,7 +26,8 @@ import { cn } from "./ui";
 const NAV_EXIT_MS = 340;
 
 /** As much of a MarketIndex as the compact bar's headline needs. */
-type Lead = { short: string; level: number; chg: number };
+/** `proxy` is the fund actually priced (SPY), which is what `level` is. */
+type Lead = { short: string; proxy: string; level: number; chg: number };
 
 /**
  * The terminal frame: navigation rail, the off-canvas drawer that replaces it
@@ -307,7 +312,20 @@ function CompactBar({
   /* Live, not the value frozen at render — see useLiveSession. */
   const session = useLiveSession(rendered);
   const pathname = usePathname();
-  const match = /^\/instrument\/([^/]+)/.exec(pathname);
+  /* The route test looked for /instrument/, a path this app stopped using, so
+     on /terminal/NVDA it never matched and the phone bar fell through to the
+     index. tickerFromPath also knows that sector, calendar and wire are routes
+     rather than tickers. */
+  const routeTicker = tickerFromPath(pathname);
+
+  /* The lead figure is the PROXY FUND's price (SPY ~ 770), not the index
+     (~6,600), so it is labelled with the fund — the dashboard's market card
+     already does exactly this. And it follows the tape: the layout's snapshot
+     can be fifteen minutes old, which put a different SPY number in this bar
+     than in the card directly beneath it. A tick is used only when it carries
+     its own change, so a live price is never paired with a stale percentage. */
+  const leadTick = useLiveQuote(lead?.proxy ?? "");
+  const leadLive = leadTick && leadTick.changePercent !== null ? leadTick : null;
 
   /* On an instrument route the bar names the instrument and shows no figure.
      It sits above the page in the tree, so it cannot see the snapshot, and it
@@ -315,19 +333,19 @@ function CompactBar({
      mobile header came to read 147.04 while the page beneath it read 303.99.
      The real price is a few pixels below; a wrong one here is worse than
      none. */
-  const headline = match
+  const headline = routeTicker
     ? {
-        key: decodeURIComponent(match[1]).toUpperCase(),
+        key: routeTicker.toUpperCase(),
         sub: session.label,
         value: null,
         chg: null,
       }
     : lead
       ? {
-          key: lead.short,
+          key: lead.proxy,
           sub: session.label,
-          value: money(lead.level),
-          chg: lead.chg,
+          value: money(leadLive ? leadLive.price : lead.level),
+          chg: leadLive ? (leadLive.changePercent as number) : lead.chg,
         }
       : { key: "Platizio Global", sub: session.label, value: null, chg: null };
 

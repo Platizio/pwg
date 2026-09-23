@@ -157,11 +157,20 @@ function RibbonCell({ quote, duplicate }: { quote: Quote; duplicate: boolean }) 
     "shadow-[inset_0_1px_0_rgba(var(--c-gold-hi-rgb),0.045)]",
   );
 
+  /* The duplicated half of the marquee has to WORK for a pointer — it is
+     half of what scrolls past, and a card that looks clickable and does
+     nothing reads as broken. It stays out of the keyboard order and the
+     accessibility tree, so a screen reader still hears each name once. */
   if (duplicate) {
     return (
-      <div aria-hidden="true" className={shell}>
+      <Link
+        href={instrumentPath(quote.id)}
+        tabIndex={-1}
+        aria-hidden="true"
+        className={cn(shell, "hover:border-[rgba(var(--c-gold-rgb),0.28)] hover:bg-[linear-gradient(170deg,var(--c-inset-hover-from),var(--c-inset-hover-to))]")}
+      >
         {inner}
-      </div>
+      </Link>
     );
   }
 

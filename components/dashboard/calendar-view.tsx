@@ -117,9 +117,21 @@ export function CalendarView({ events }: { events: CalendarEvent[] }) {
           </section>
         ))}
 
+        {/* This used to say every date here was "simulated for demonstration"
+            and that the terminal "is not connected to a market feed". Both
+            stopped being true when the calendar moved onto real corporate
+            actions — and a reader told the data is fake has no reason to
+            trust any of it. */}
+        {days.length === 0 && (
+          <p className="mt-8 max-w-[62ch] text-[13.5px] leading-[1.7] text-ink-3">
+            No dividends or splits are scheduled among the companies this page
+            follows right now. It fills as new corporate actions are announced.
+          </p>
+        )}
         <p className="mt-8 max-w-[70ch] text-[12.5px] leading-[1.75] text-ink-3">
-          Every date and figure on this page is simulated for demonstration.
-          Platizio Global is not connected to a market feed, and nothing here is advice.
+          Dividend and split dates come from the market data provider and are
+          shown as the exchange declares them; &ldquo;today&rdquo; and
+          &ldquo;tomorrow&rdquo; follow your own day. Nothing here is advice.
         </p>
       </div>
     </main>

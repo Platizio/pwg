@@ -53,6 +53,8 @@ import { diffSubscription, unionOf } from "@/lib/api/stream/subscription";
 
 type LiveValue = {
   ticks: ReadonlyMap<string, Tick>;
+  /** Every symbol's LAST tick, however old — see useLastTick. */
+  last: ReadonlyMap<string, Tick>;
   register: (id: number, symbols: readonly string[]) => void;
   release: (id: number) => void;
 };
@@ -403,8 +405,8 @@ export function LiveProvider({ children }: { children: ReactNode }) {
   const fresh = useMemo(() => freshTicks(ticks, now), [ticks, now]);
 
   const value = useMemo<LiveValue>(
-    () => ({ ticks: fresh, register, release }),
-    [fresh, register, release],
+    () => ({ ticks: fresh, last: ticks, register, release }),
+    [fresh, ticks, register, release],
   );
 
   return <LiveContext.Provider value={value}>{children}</LiveContext.Provider>;
@@ -432,6 +434,24 @@ export function useLive(symbols: readonly string[]): ReadonlyMap<string, Tick> {
 }
 
 /** One symbol's tick, or null. */
+/**
+ * A symbol's last tick however old it is, for when the fresh one has aged out.
+ *
+ * `useLiveQuote` goes quiet fifteen minutes after the last print, which is
+ * right for deciding what counts as LIVE and wrong for deciding what number to
+ * show. Once it went quiet the header fell back to the price the page was
+ * rendered with — often hours older than the tick it had just been showing —
+ * so a tab left open after the close ended up presenting a mid-session price
+ * beside "Market closed". This keeps the newer of the two available.
+ *
+ * Reads without registering: the symbol is already subscribed by the
+ * useLiveQuote call that every consumer of this makes alongside it.
+ */
+export function useLastTick(symbol: string | null | undefined): Tick | null {
+  const ctx = useContext(LiveContext);
+  return symbol && ctx ? (ctx.last.get(symbol.toUpperCase()) ?? null) : null;
+}
+
 export function useLiveQuote(symbol: string | null | undefined): Tick | null {
   const list = useMemo(() => (symbol ? [symbol] : []), [symbol]);
   const ticks = useLive(list);

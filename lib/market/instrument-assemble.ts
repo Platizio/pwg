@@ -99,6 +99,9 @@ export type InstrumentSnapshot = {
   market: { symbol: string; daily: PricePoint[] } | null;
   /** The largest single-session moves in the record. */
   notableMoves: Array<{ date: string; chg: string; color: string }>;
+  /** Whether the split record could be read, so the daily series is repaired.
+      When false the bars are raw and any return across a split is wrong. */
+  splitsKnown: boolean;
   /* Analyst coverage, as a state rather than a claim.
      `unavailable.analystTargets` was hardcoded `true` — correct today, because
      every analyst path answers 403/4031, but it is a fact about the account
@@ -336,6 +339,7 @@ export function assembleInstrument(inputs: InstrumentInputs, now: number): Instr
        this list every time — the one figure on the page most likely to be
        a split break is the one this picks out. Withheld with the returns. */
     notableMoves: record.readable ? largestSessions(daily) : [],
+    splitsKnown: record.readable,
     analyst: toAnalystAvailability(inputs.analyst, profile.price),
     unavailable: { analystTargets: true, institutionalHolders: true, marketShare: true },
     status,

@@ -5,7 +5,7 @@ import sectorMap from "@/lib/market/data/sector-map.json" with { type: "json" };
 
 const SECTORS = (sectorMap as { sectors: Record<string, string> }).sectors ?? {};
 import { REGISTER_X, cn } from "@/lib/ui";
-import { instrumentPath } from "@/lib/market/paths";
+import { TERMINAL_PATH, instrumentPath } from "@/lib/market/paths";
 
 /**
  * An unknown symbol, inside the terminal.
@@ -19,23 +19,28 @@ export default function NotFound() {
   return (
     <WorkColumn bleed>
       <div className={cn("border-b border-rule-section py-3.5", REGISTER_X)}>
-        <p className="eyebrow">No such stock</p>
+        {/* Generic on purpose: this page answers a mistyped ticker, a bad
+            sector URL and a real symbol the feed no longer quotes alike. */}
+        <p className="eyebrow">Page not found</p>
       </div>
 
       <div className={cn("py-12", REGISTER_X)}>
         <h1 className="font-serif text-[clamp(1.875rem,3vw,2.5rem)] leading-none tracking-[0.005em]">
-          Not in the followed universe
+          Nothing at this address
         </h1>
+        {/* This used to say the terminal "carries a fixed universe of six
+            stocks" and that the symbol "has not been delisted" — false on both
+            counts: roughly 13,800 tickers have pages, and a real symbol that
+            stopped trading also lands here. Say only what is known. */}
         <p className="mt-4 max-w-[54ch] text-[13.5px] leading-[1.75] text-pretty text-ink-3">
-          Platizio Global carries a fixed universe of six stocks. The symbol you
-          asked for is not one of them — it has not been delisted, and nothing
-          has gone wrong with the feed.
+          There is no stock or page at this address. Check the ticker, or use the
+          search above to find the company you are after.
         </p>
       </div>
 
       <div className="border-t border-rule-section">
         <p className={cn("eyebrow eyebrow-wide pt-6 pb-1", REGISTER_X)}>
-          What is covered
+          Popular names
         </p>
         <ul className="m-0 list-none p-0">
           {COVERED.map((ticker) => {
@@ -75,7 +80,7 @@ export default function NotFound() {
 
       <div className="border-t border-rule-section">
         <Link
-          href="/"
+          href={TERMINAL_PATH}
           className={cn(
             "eyebrow eyebrow-gold flex min-h-11 items-center py-4 transition-colors hover:text-gold",
             REGISTER_X,

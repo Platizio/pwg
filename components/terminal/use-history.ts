@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { PricePoint } from "@/lib/api/normalize/series";
 import type { FetchedRange } from "@/lib/market/ranges";
+import { useNow } from "./live-provider";
 
 /* The ranges the page does not carry, fetched when the reader asks for one.
  *
@@ -135,13 +136,30 @@ function toPoints(series: unknown): PricePoint[] {
 const CACHE = new Map<string, PricePoint[]>();
 const CACHE_MAX = 24;
 
+/* When each entry landed. The cache used to be forever, so a tab left open
+   overnight kept drawing yesterday's session as "the last session" and a
+   five-year series that never gained a bar. */
+const FETCHED_AT = new Map<string, number>();
+
+/* Short for the intraday ranges, which gain a session each evening and whose
+   "last session" changes identity at the capture; long for five years, which
+   gains one bar a day. Refetched in the background while the held bars stay on
+   screen, so a failed refresh never blanks a drawn chart. */
+const TTL_MS: Record<FetchedRange, number> = {
+  "1D": 5 * 60_000,
+  "1W": 5 * 60_000,
+  "5Y": 3 * 60 * 60_000,
+};
+
 function remember(key: string, points: PricePoint[]): void {
   CACHE.delete(key);
   CACHE.set(key, points);
+  FETCHED_AT.set(key, Date.now());
   while (CACHE.size > CACHE_MAX) {
     const oldest = CACHE.keys().next().value;
     if (oldest === undefined) break;
     CACHE.delete(oldest);
+    FETCHED_AT.delete(oldest);
   }
 }
 
@@ -159,9 +177,14 @@ export function useHistory(ticker: string, range: FetchedRange | null): HistoryR
 
   const key = ticker && range ? `${ticker}:${range}` : null;
 
+  /* A coarse clock, so an open tab notices when its entry has aged out. */
+  const now = useNow(60_000);
+  const landedAt = key ? FETCHED_AT.get(key) : undefined;
+  const stale = !key || landedAt === undefined || now - landedAt > TTL_MS[range as FetchedRange];
+
   useEffect(() => {
     if (!key) return;
-    if (CACHE.has(key)) return;
+    if (!stale) return;
 
     const controller = new AbortController();
     const [symbol, wanted] = [ticker, range as FetchedRange];
@@ -186,7 +209,7 @@ export function useHistory(ticker: string, range: FetchedRange | null): HistoryR
       });
 
     return () => controller.abort();
-  }, [key, ticker, range]);
+  }, [key, ticker, range, stale]);
 
   if (!key) return { points: NO_POINTS, state: "idle" };
 
