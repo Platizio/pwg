@@ -1,12 +1,44 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { InstrumentView } from "@/components/terminal/instrument-view";
 import { getInstrumentSnapshot } from "@/lib/market/instrument";
-import { COVERED, isPlaceholderInstrument } from "@/lib/market/universe";
+import { COVERED, NAME_BY_SYMBOL, isPlaceholderInstrument } from "@/lib/market/universe";
 import { baselineSnapshot } from "@/lib/market/baseline";
 import { PRERENDER_LIMIT, prerenderTickers } from "@/lib/market/prerender";
 
 type Params = { params: Promise<{ ticker: string }> };
+
+/* WHAT A URL MAY ASK FOR, decided before anything touches the network.
+ *
+ * Every path under /terminal/ that is not a prerendered page used to go
+ * straight to getInstrumentSnapshot, which for a symbol the store does not
+ * hold fans out to the gateway. For a symbol that does not EXIST that fan-out
+ * never succeeds and never gives up quickly: measured on the live site,
+ * /terminal/ZZZZNOTREAL and /terminal/aapl both sat for 150 seconds and
+ * returned nothing. A mistyped URL, or a lowercase one pasted from anywhere,
+ * was a dead tab — and each one held a slot on a 0.1-CPU box while it hung.
+ *
+ * Two answers, both instant:
+ *   - a real ticker in the wrong case or with stray whitespace REDIRECTS to its
+ *     canonical form, which is usually a prerendered page;
+ *   - anything not in the tradable universe is a 404, with no fetch at all.
+ *
+ * The universe is the committed symbol master, 13,797 names including ETFs
+ * and share classes ("BRK.B", "ABR-D"). The cost of trusting it: a listing
+ * newer than the master 404s until the master is rebuilt. That is a narrow,
+ * recoverable miss; the hang it replaces hit every wrong URL. */
+function decoded(raw: string): string | null {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    // A malformed %-escape is not a ticker anyone can hold.
+    return null;
+  }
+}
+
+function canonical(raw: string): string | null {
+  return decoded(raw)?.trim().toUpperCase() ?? null;
+}
 
 /* The names worth building ahead of time.
  *
@@ -83,7 +115,11 @@ export const revalidate = 900;
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { ticker } = await params;
-  const snapshot = await getInstrumentSnapshot(ticker);
+  const symbol = canonical(ticker);
+  /* Metadata runs its own fetch, so it needs the same gate — otherwise the
+     page 404s instantly and the <title> still hangs for two minutes. */
+  if (!symbol || !NAME_BY_SYMBOL.has(symbol)) return { title: "Platizio Global · Stock not found" };
+  const snapshot = await getInstrumentSnapshot(symbol);
   if (!snapshot) return { title: "Platizio Global · Stock not found" };
 
   const { profile } = snapshot;
@@ -100,7 +136,19 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
    than one that admits it does not exist. */
 export default async function InstrumentPage({ params }: Params) {
   const { ticker } = await params;
-  const snapshot = await getInstrumentSnapshot(ticker);
+  const symbol = canonical(ticker);
+  if (!symbol || !NAME_BY_SYMBOL.has(symbol)) notFound();
+  /* /terminal/aapl -> /terminal/AAPL. One canonical URL per instrument, so the
+     cache holds one entry and the reader lands on the prerendered page.
+
+     Compared against the DECODED param, never the raw one. Eighty warrants
+     carry a "+" ("ACHR+"), which encodes to %2B; comparing against a raw param
+     Next may hand back still-encoded would redirect ACHR%2B to ACHR%2B for
+     ever. Decoded, the comparison differs only in case and whitespace, and
+     the target is already canonical, so the redirect can fire at most once. */
+  if (symbol !== decoded(ticker)) permanentRedirect(`/terminal/${encodeURIComponent(symbol)}`);
+
+  const snapshot = await getInstrumentSnapshot(symbol);
   if (!snapshot) notFound();
 
   return <InstrumentView snapshot={snapshot} />;
