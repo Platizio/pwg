@@ -103,9 +103,9 @@ test("a daily range names its interval, its real count and its real span", () =>
     /252 daily candles/,
   );
   assert.match(
-    rangeCaption(getRange("5Y"), AUG_4, SEP_1, 1275, "America/New_York"),
-    /1,275 daily closes/,
-    "five years keeps its line, so it keeps its word",
+    rangeCaption(getRange("5Y"), AUG_4, SEP_1, 261, "America/New_York"),
+    /261 weekly candles/,
+    "five years is drawn as weeks, and says so",
   );
   assert.match(c, /Aug 4/);
   assert.match(c, /Sep 1/);

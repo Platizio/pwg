@@ -22,6 +22,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatStamp, money } from "@/lib/market/format";
 import { rangeCaption, readerZone } from "@/lib/market/ranges";
 import { easternDay } from "@/lib/market/intraday-buckets";
+import { weeklyBars } from "@/lib/market/weekly-bars";
 import { getRange } from "@/lib/market/ranges";
 import type { RangeId } from "@/lib/market/types";
 import type { PricePoint } from "@/lib/api/normalize/series";
@@ -113,9 +114,10 @@ export function PriceChart({
    * each day. A candle shows it: the open, the close, and how far the price ran
    * either way, all of it real. A year is 252 of them; fitContent with a 0.6px
    * minimum spacing keeps the whole year in view, about three pixels a session
-   * on a desktop chart. Five years keeps the line: 1,275 candles would be
-   * slivers narrower than a pixel. */
-  const candles = rangeDef.id === "1M" || rangeDef.id === "3M" || rangeDef.id === "1Y";
+   * on a desktop chart. Five years would be 1,275 candles narrower than a
+   * pixel, so it draws WEEKLY candles instead (about 261) — see weeklyBars. */
+  const candles =
+    rangeDef.id === "1M" || rangeDef.id === "3M" || rangeDef.id === "1Y" || rangeDef.id === "5Y";
 
   /* The axis labels its own ticks.
 
@@ -202,9 +204,13 @@ export function PriceChart({
 
   const data = useMemo(() => {
     const source = rangeDef.source === "intraday" ? history.intraday : history.daily;
-    const slice = rangeDef.sessions
+    const raw = rangeDef.sessions
       ? source.slice(Math.max(0, source.length - rangeDef.sessions))
       : source;
+    /* Five years is drawn as weeks — see weekly-bars.ts. Everything plotted
+       follows the weekly series; the previous close below still reads the
+       DAILY one, because "prev close" means yesterday, not last week. */
+    const slice = rangeDef.id === "5Y" ? weeklyBars(raw) : raw;
 
     const at = (p: PricePoint) => Math.floor(p.at / 1000) as UTCTimestamp;
 
@@ -248,9 +254,9 @@ export function PriceChart({
         ? (history.daily.at(-1)?.price ?? slice[0]?.price ?? 0)
         : multiDay
           ? previousSessionClose(slice)
-          : slice.length > 1
-          ? slice[slice.length - 2].price
-          : (slice[0]?.price ?? 0),
+          : raw.length > 1
+          ? raw[raw.length - 2].price
+          : (raw[0]?.price ?? 0),
       empty: slice.length === 0,
       /* The extremes of this range, wicks included. The price axis is pinned
          to these rather than to whatever is inside the visible window. */

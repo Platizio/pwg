@@ -135,7 +135,14 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
    * last stored regular session — the previous day's trading, which is what a
    * reader opening a stock before the bell should see. */
   const liveSession = useMemo(() => regularSessionOnly(intraday), [intraday]);
-  const storedSession = useMemo(() => regularSessionOnly(fetched.points), [fetched.points]);
+  /* Trimmed only for the MINUTE ranges. The five-year series is daily bars,
+     each stamped at Eastern midnight — outside 09:30-16:00 by construction —
+     so running it through the session trim dropped every point and left the
+     5Y chart blank. */
+  const storedSession = useMemo(
+    () => (range === "5Y" ? fetched.points : regularSessionOnly(fetched.points)),
+    [fetched.points, range],
+  );
 
   /* How many TRADING days the fetched buckets actually cover. Counted in New
      York, because a US session is 13:30 to 05:30 the next morning here — count
