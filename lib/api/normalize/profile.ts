@@ -41,6 +41,31 @@ const nonZero = (v: number | null | undefined): number | null => {
   return n === null || n === 0 ? null : n;
 };
 
+/* A security-type descriptor on the end of a registered name.
+ *
+ * The company record names the SECURITY, not the company: 971 of the 4,400
+ * stored profiles end in something like "Common Stock", "Ordinary Share" or
+ * "American Depository Shares (each representing 20 Class A Ordinary
+ * Shares)", so the instrument heading and the browser tab read "Tesla, Inc.
+ * Common Stock". That is noise to a reader, who can see from the ticker what
+ * they are looking at.
+ *
+ * Only the plain descriptor goes. What is MATERIAL stays:
+ *   - "Class A" / "Class C" — it is the only thing separating GOOGL from GOOG;
+ *   - "Warrant", "Units", "Rights" — a warrant is priced nothing like the
+ *     stock, and a heading that hid which one you opened would be a lie.
+ * The parenthetical an ADR carries ("each representing ...") goes with it. */
+const SECURITY_TYPE =
+  /\s+(?:Common\s+Stock|Common\s+Shares?(?:\s+of\s+Beneficial\s+Interest)?|Ordinary\s+Shares?|Shares\s+of\s+Beneficial\s+Interest|American\s+Deposit[ao]ry\s+(?:Shares?|Receipts?)|Sponsored\s+ADRs?|ADRs?|ADSs?)\s*(?:\((?:[^()]|\([^()]*\))*\))?\s*$/i;
+
+/** The registered name without its security-type descriptor. */
+export function legalName(raw: string | null): string | null {
+  if (raw === null) return null;
+  const cut = raw.replace(SECURITY_TYPE, "").trim();
+  // Never strip a name down to nothing: better noisy than blank.
+  return cut.length > 0 ? cut : raw;
+}
+
 /** Trimmed, or null. The quotes feed writes "_" where it holds no name. */
 const text = (v: string | null | undefined): string | null => {
   const t = v?.trim();
@@ -156,7 +181,7 @@ export function toCompanyProfile(args: {
     /* The record's name is the registered one and properly cased; the quotes
        feed shouts. Where neither answers, the presentation name — which has
        already had the legal-entity noise trimmed off it — is the heading. */
-    name: text(company?.name) ?? look.name,
+    name: legalName(text(company?.name)) ?? look.name,
     short: look.name,
     mark: look.mark,
     color: look.color,
