@@ -202,8 +202,20 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
      * The caption is told which of the two it got, so "5 daily closes" is
      * never printed as "10-minute bars". */
     if (range === "1W") return { ...base, daily: base.daily.slice(-WEEK_CLOSES) };
-    return { ...base, daily: storedSession };
+    /* The month, quarter and year fall back to the page's own daily closes
+       while their minutes load or if the fetch fails — the chart slices those
+       to the range's session count. Five years does NOT: the page ships one
+       year, and one year drawn under a five-year label would mislead. */
+    if (range === "5Y") return { ...base, daily: storedSession };
+    return base;
   }, [snapshot.history, liveSession, storedSession, session.note, range, weekIsWhole]);
+
+  /* Minute bars spanning several sessions: the week once whole, and the month,
+     quarter and year once their intraday bars have arrived. The chart then marks
+     days and months on its axis, shows the time under the crosshair, and does
+     not slice the series by a count of DAILY rows. */
+  const intradayLong = range === "1M" || range === "3M" || range === "1Y";
+  const multiDay = (range === "1W" && weekIsWhole) || (intradayLong && storedSession.length > 0);
 
   /* What the caption should CALL the bars it is drawing.
    *
@@ -223,15 +235,17 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
        ranges now come from the gateway's minutes (1-minute and 5-minute), and
        fall back to the store's ten-minute buckets if that call fails — so the
        only way the caption can be sure what it is looking at is to measure. */
+    if (intradayLong && storedSession.length === 0) return "daily closes";
     const fromStore =
       (range === "1D" && liveSession.length === 0 && storedSession.length > 0) ||
-      (range === "1W" && weekIsWhole);
+      (range === "1W" && weekIsWhole) ||
+      intradayLong;
     if (fromStore) {
       const m = barMinutes(storedSession);
       return m ? `${m}-minute bars` : `${BUCKET_MINUTES}-minute bars`;
     }
     return undefined;
-  }, [range, weekIsWhole, liveSession.length, storedSession]);
+  }, [range, weekIsWhole, liveSession.length, storedSession, intradayLong]);
 
   /* The newswire, widened after the page has appeared.
 
@@ -418,7 +432,7 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
           history={chartHistory}
           range={range}
           intervalLabel={chartInterval}
-          multiDay={range === "1W" && weekIsWhole}
+          multiDay={multiDay}
         />
       </div>
 

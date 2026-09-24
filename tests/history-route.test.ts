@@ -22,9 +22,12 @@ test("the ranges the page does not carry are served", () => {
   assert.equal(parseFetchedRange("5Y"), "5Y");
 });
 
-test("the ranges the page already carries are refused", () => {
-  for (const shipped of ["1M", "3M", "1Y"]) {
-    assert.equal(parseFetchedRange(shipped), null, `${shipped} is a slice of the shipped year`);
+/* 1M, 3M and 1Y used to be refused: the page carries a year of DAILY closes
+   and these ranges were slices of it. They are now fetched as intraday bars
+   from Polygon's aggregates, so a line through them has real detail. */
+test("every chart range is fetched", () => {
+  for (const r of ["1D", "1W", "1M", "3M", "1Y", "5Y"]) {
+    assert.equal(parseFetchedRange(r), r);
   }
 });
 

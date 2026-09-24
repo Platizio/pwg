@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { bucketIntraday, SESSIONS_KEPT, sessionsAt, pickSessions } from "../lib/market/intraday-buckets.ts";
+import { bucketIntraday, SESSIONS_KEPT, sessionsAt, pickSessions, aggsToColumns } from "../lib/market/intraday-buckets.ts";
 import { mergeIntradaySessions } from "../lib/market/store/sections.ts";
 
 /* Minute bars reduced to the grid a chart can draw.
@@ -242,4 +242,30 @@ test("only the requested sessions come back, in order", () => {
   const rows = [minute("2026-09-14T14:00:00Z"), minute("2026-09-15T14:00:00Z"), minute("2026-09-16T14:00:00Z")];
   const out = pickSessions(["2026-09-15", "2026-09-16"], rows as never, null);
   assert.deepEqual(out.map((r) => r.date), ["2026-09-15T14:00:00Z", "2026-09-16T14:00:00Z"]);
+});
+
+/* ---------- Polygon aggregates into the chart's columns ---------- */
+
+/* 2026-09-22 is EDT: 09:30 ET = 13:30Z, 16:00 ET = 20:00Z. */
+const agg = (iso: string, c = 1) => ({ t: Date.parse(iso), o: c, h: c, l: c, c, v: 1 });
+
+test("only buckets that START inside the regular session are drawn", () => {
+  const c = aggsToColumns(
+    [
+      agg("2026-09-22T13:00:00Z"), // 09:00 — pre-market
+      agg("2026-09-22T13:30:00Z"), // 09:30 — the open
+      agg("2026-09-22T19:30:00Z"), // 15:30 — its close is the closing print
+      agg("2026-09-22T20:00:00Z"), // 16:00 — post-market from its first second
+    ],
+    ["2026-09-22"],
+  );
+  assert.deepEqual(c.date, ["2026-09-22T13:30:00.000Z", "2026-09-22T19:30:00.000Z"]);
+});
+
+test("only the requested trading days, in order, without the chunks' overlaps", () => {
+  const c = aggsToColumns(
+    [agg("2026-09-22T14:00:00Z", 2), agg("2026-09-21T14:00:00Z", 1), agg("2026-09-22T14:00:00Z", 2), agg("2026-09-18T14:00:00Z", 9)],
+    ["2026-09-21", "2026-09-22"],
+  );
+  assert.deepEqual(c.price, [1, 2]);
 });

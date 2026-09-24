@@ -2,7 +2,6 @@
 
 import {
   AreaSeries,
-  CandlestickSeries,
   ColorType,
   CrosshairMode,
   LineStyle,
@@ -22,7 +21,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatStamp, money } from "@/lib/market/format";
 import { rangeCaption, readerZone } from "@/lib/market/ranges";
 import { easternDay } from "@/lib/market/intraday-buckets";
-import { weeklyBars } from "@/lib/market/weekly-bars";
 import { getRange } from "@/lib/market/ranges";
 import type { RangeId } from "@/lib/market/types";
 import type { PricePoint } from "@/lib/api/normalize/series";
@@ -105,19 +103,6 @@ export function PriceChart({
   /* Whether the bars carry a time of day worth showing: the day range always,
      the week range when it is drawn from minutes rather than closes. */
   const clocked = intraday || multiDay;
-  /* The month, the quarter and the year draw each session as a candle.
-   *
-   * These are the spans the minute archive cannot reach — it holds about the
-   * last seventeen trading days (31 Aug 2026 answered with 391 bars, 27 Aug with
-   * none) — so they are drawn from daily bars, and a line through daily closes
-   * is a run of straight segments that hides everything that happened inside
-   * each day. A candle shows it: the open, the close, and how far the price ran
-   * either way, all of it real. A year is 252 of them; fitContent with a 0.6px
-   * minimum spacing keeps the whole year in view, about three pixels a session
-   * on a desktop chart. Five years would be 1,275 candles narrower than a
-   * pixel, so it draws WEEKLY candles instead (about 261) — see weeklyBars. */
-  const candles =
-    rangeDef.id === "1M" || rangeDef.id === "3M" || rangeDef.id === "1Y" || rangeDef.id === "5Y";
 
   /* The axis labels its own ticks.
 
@@ -176,6 +161,9 @@ export function PriceChart({
           return F.clock.format(ms);
         }
         if (tickMarkType === TickMarkType.Year) return F.year.format(ms);
+        /* A month boundary on the quarter or the year reads "Oct"; a day
+           boundary on the week or the month reads "Oct 14". */
+        if (tickMarkType === TickMarkType.Month) return F.month.format(ms);
         return F.monthDay.format(ms);
       }
       if (tickMarkType === TickMarkType.Year) return F.year.format(ms);
@@ -204,13 +192,15 @@ export function PriceChart({
 
   const data = useMemo(() => {
     const source = rangeDef.source === "intraday" ? history.intraday : history.daily;
-    const raw = rangeDef.sessions
-      ? source.slice(Math.max(0, source.length - rangeDef.sessions))
-      : source;
-    /* Five years is drawn as weeks — see weekly-bars.ts. Everything plotted
-       follows the weekly series; the previous close below still reads the
-       DAILY one, because "prev close" means yesterday, not last week. */
-    const slice = rangeDef.id === "5Y" ? weeklyBars(raw) : raw;
+    /* `sessions` counts DAILY rows, so it slices only a daily series. A
+       multi-day minute series is already exactly its window — slicing it to 21
+       rows would have cut a month of 15-minute bars down to its last five
+       hours. */
+    const raw =
+      rangeDef.sessions && !multiDay
+        ? source.slice(Math.max(0, source.length - rangeDef.sessions))
+        : source;
+    const slice = raw;
 
     const at = (p: PricePoint) => Math.floor(p.at / 1000) as UTCTimestamp;
 
@@ -220,26 +210,9 @@ export function PriceChart({
          not a date range, so these are the only honest source for the caption:
          if the feed's last row is Friday and today is Tuesday, 1W is showing
          last Mon-Fri and only these two numbers reveal it. */
-      /* From the sessions, not the drawn bars: a weekly candle is stamped at
-         its week's first session, so the last one reads Monday even when the
-         data runs to Friday — and the caption then understated its own span. */
       firstAt: raw[0]?.at ?? null,
       lastAt: raw.at(-1)?.at ?? null,
       line: slice.map((p) => ({ time: at(p), value: p.price })),
-      /* Clamped, not trusted: a bar whose high sits below its own close would
-         draw a wick pointing the wrong way. Missing parts fall back to the
-         close, which draws an honest flat candle rather than an invented one. */
-      bars: slice.map((p) => {
-        const open = p.open ?? p.price;
-        const close = p.price;
-        return {
-          time: at(p),
-          open,
-          close,
-          high: Math.max(p.high ?? close, open, close),
-          low: Math.min(p.low ?? close, open, close),
-        };
-      }),
       base: slice[0]?.price ?? 0,
       /* The previous close, and on the day range that means the previous
          SESSION — not the previous minute.
@@ -472,32 +445,26 @@ export function PriceChart({
 
     const previous = mainRef.current;
 
-    const series = candles
-      ? chart.addSeries(
-          CandlestickSeries,
-          { priceScaleId: "left", priceLineVisible: false, lastValueVisible: false },
-          0,
-        )
-      : chart.addSeries(
-          AreaSeries,
-          {
-            priceScaleId: "left",
-            lineWidth: 1,
-            priceLineVisible: false,
-            lastValueVisible: false,
-            crosshairMarkerVisible: true,
-            crosshairMarkerRadius: 4.5,
-            crosshairMarkerBorderWidth: 1.5,
-            crosshairMarkerBorderColor: P.shell,
-          },
-          0,
-        );
+    const series = chart.addSeries(
+      AreaSeries,
+      {
+        priceScaleId: "left",
+        lineWidth: 1,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: true,
+        crosshairMarkerRadius: 4.5,
+        crosshairMarkerBorderWidth: 1.5,
+        crosshairMarkerBorderColor: P.shell,
+      },
+      0,
+    );
 
     mainRef.current = series;
     prevLineRef.current = null;
 
     if (previous) chart.removeSeries(previous);
-  }, [P, candles]);
+  }, [P]);
 
   /* Colour, data and the previous-close marker follow the instrument. */
   useEffect(() => {
@@ -529,33 +496,15 @@ export function PriceChart({
       return { priceRange: { minValue: min - pad, maxValue: max + pad } };
     };
 
-    if (candles && series.seriesType() === "Candlestick") {
-      const bars = series as ISeriesApi<"Candlestick">;
-      bars.applyOptions({
-        upColor: P.up,
-        downColor: P.down,
-        borderUpColor: P.up,
-        borderDownColor: P.down,
-        wickUpColor: P.up,
-        wickDownColor: P.down,
-        autoscaleInfoProvider,
-      });
-      bars.setData(data.bars.map((b) => ({ ...b, time: b.time as UTCTimestamp })));
-    } else if (!candles && series.seriesType() === "Area") {
-      const area = series as ISeriesApi<"Area">;
-      area.applyOptions({
-        lineColor: tone,
-        topColor: up ? "rgba(125, 211, 160, 0.22)" : "rgba(224, 121, 107, 0.22)",
-        bottomColor: up ? "rgba(125, 211, 160, 0)" : "rgba(224, 121, 107, 0)",
-        crosshairMarkerBackgroundColor: tone,
-        autoscaleInfoProvider,
-      });
-      area.setData(data.line.map((d) => ({ time: d.time as UTCTimestamp, value: d.value })));
-    } else {
-      /* The series for the new type is created by the effect above; this pass
-         ran against the outgoing one and will run again once it exists. */
-      return;
-    }
+    const area = series as ISeriesApi<"Area">;
+    area.applyOptions({
+      lineColor: tone,
+      topColor: up ? "rgba(125, 211, 160, 0.22)" : "rgba(224, 121, 107, 0.22)",
+      bottomColor: up ? "rgba(125, 211, 160, 0)" : "rgba(224, 121, 107, 0)",
+      crosshairMarkerBackgroundColor: tone,
+      autoscaleInfoProvider,
+    });
+    area.setData(data.line.map((d) => ({ time: d.time as UTCTimestamp, value: d.value })));
 
     /* The dashed prev-close marker the Lux design adds. A native price line
        rather than an absolutely-positioned div, so it tracks the scale.
@@ -578,7 +527,7 @@ export function PriceChart({
       title: "PREV CLOSE",
     });
 
-  }, [data, tone, up, P, candles]);
+  }, [data, tone, up, P]);
 
   /* Reset the time window. The price axis needs no resetting: it is pinned to
      the range's own extremes by the provider above, so it never drifted. */

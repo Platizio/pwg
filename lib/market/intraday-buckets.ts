@@ -261,3 +261,44 @@ export function pickSessions(
   }
   return out;
 }
+
+/* Bar START in [09:30, 16:00) New York. For an aggregate the stamp is where
+   the bucket begins, so a 16:00 bucket is post-market from its first second
+   and is dropped, while the 15:30 bucket's close is the closing print. */
+const AGG_ET = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/New_York",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+function startsInSession(ms: number): boolean {
+  const [h, m] = AGG_ET.format(ms).split(":").map(Number);
+  const mins = h * 60 + m;
+  return mins >= 9 * 60 + 30 && mins < 16 * 60;
+}
+
+/**
+ * Polygon aggregate bars as the chart's columns, limited to the regular
+ * session and to the given trading days, oldest first, de-duplicated (the
+ * chunked requests overlap at their edges).
+ */
+export function aggsToColumns(
+  bars: ReadonlyArray<{ t: number; o: number; h: number; l: number; c: number; v?: number }>,
+  days: readonly string[],
+): IntradayColumns {
+  const wanted = new Set(days);
+  const seen = new Set<number>();
+  const kept = bars
+    .filter((b) => Number.isFinite(b?.t) && Number.isFinite(b?.c))
+    .filter((b) => startsInSession(b.t) && wanted.has(easternDay(new Date(b.t).toISOString())))
+    .filter((b) => (seen.has(b.t) ? false : (seen.add(b.t), true)))
+    .sort((a, b) => a.t - b.t);
+  return {
+    date: kept.map((b) => new Date(b.t).toISOString()),
+    price: kept.map((b) => b.c),
+    opening: kept.map((b) => b.o),
+    high: kept.map((b) => b.h),
+    low: kept.map((b) => b.l),
+    volume: kept.map((b) => b.v ?? 0),
+  };
+}

@@ -93,19 +93,25 @@ test("a daily range names its interval, its real count and its real span", () =>
      interval, the count and the span; leaving the zone to the machine made it
      say one thing on a laptop in Kolkata and another on a CI runner in UTC,
      and the dates either side of it can shift with it. */
-  const c = rangeCaption(getRange("1M"), AUG_4, SEP_1, 21, "America/New_York");
+  /* The month drawn from the page's daily closes — its fallback while its
+     intraday bars load — names what is drawn, not its usual bar size. */
+  const c = rangeCaption(
+    { ...getRange("1M"), interval: "daily closes" },
+    AUG_4,
+    SEP_1,
+    21,
+    "America/New_York",
+  );
   assert.match(c, /^1M/);
-  /* Candles, not closes: the month and the quarter draw each session's open,
-     high, low and close, and the caption names what is drawn. */
-  assert.match(c, /21 daily candles/);
+  assert.match(c, /21 daily closes/);
   assert.match(
-    rangeCaption(getRange("1Y"), AUG_4, SEP_1, 252, "America/New_York"),
-    /252 daily candles/,
+    rangeCaption(getRange("1M"), AUG_4, SEP_1, 546, "America/New_York"),
+    /546 15-minute bars/,
+    "and when its intraday bars arrive, it says so",
   );
   assert.match(
-    rangeCaption(getRange("5Y"), AUG_4, SEP_1, 261, "America/New_York"),
-    /261 weekly candles/,
-    "five years is drawn as weeks, and says so",
+    rangeCaption(getRange("5Y"), AUG_4, SEP_1, 1275, "America/New_York"),
+    /1,275 daily closes/,
   );
   assert.match(c, /Aug 4/);
   assert.match(c, /Sep 1/);
@@ -141,8 +147,8 @@ test("a long count is grouped for reading", () => {
 
 test("the caption reports what is drawn, not what the range nominally holds", () => {
   /* 1Y nominally slices 252 sessions; a short feed plots fewer. */
-  const c = rangeCaption(getRange("1Y"), AUG_4, SEP_1, 200);
-  assert.match(c, /200 daily candles/);
+  const c = rangeCaption({ ...getRange("1Y"), interval: "daily closes" }, AUG_4, SEP_1, 200);
+  assert.match(c, /200 daily closes/);
   assert.ok(!c.includes("252"), `must not claim the nominal window: ${c}`);
 });
 

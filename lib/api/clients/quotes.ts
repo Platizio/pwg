@@ -228,6 +228,37 @@ export function fetchIntradayRange(
   });
 }
 
+/** One Polygon aggregate bar, as the gateway passes it through. */
+export type RawAgg = { t: number; o: number; h: number; l: number; c: number; v?: number };
+
+/**
+ * Polygon aggregates, proxied by the gateway — intraday bars with YEARS of
+ * history, which /quotes/equity/intraday (a few weeks) cannot give.
+ *
+ * Found in the catalogue as captured traffic rather than a documented route:
+ * /api/v1/polygon/aggs/... is refused ("No domain found"); the /mdp prefix the
+ * documented polygon indicator routes use answers. Measured 24 Sep 2026: 30-
+ * minute bars over three months, hourly bars over a year. `from`/`to` are epoch
+ * ms; bars are split-adjusted by Polygon's default.
+ *
+ * Each request is capped at 50,000 BASE one-minute aggregates, whatever the
+ * bar size — about fifty trading days once extended hours count — so a long
+ * range must be asked for in pieces (see fetchAggsWindow).
+ */
+export function fetchAggs(
+  symbol: string,
+  multiplier: number,
+  timespan: "minute" | "hour" | "day",
+  fromMs: number,
+  toMs: number,
+  revalidate: number,
+): Promise<ApiResult<{ results?: RawAgg[] }>> {
+  return vtGet<{ results?: RawAgg[] }>(
+    `/mdp/api/v1/polygon/aggs/ticker/${encodeURIComponent(symbol)}/range/${multiplier}/${timespan}/${Math.floor(fromMs)}/${Math.floor(toMs)}`,
+    { query: { adjusted: "true", sort: "asc", limit: "50000" }, revalidate, tags: [`history:${symbol}`] },
+  );
+}
+
 export function fetchHistory(
   symbol: string,
   range: HistoryRange,

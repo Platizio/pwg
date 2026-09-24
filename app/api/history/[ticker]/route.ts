@@ -7,11 +7,12 @@ import {
   SESSIONS_KEPT,
   bucketIntraday,
   easternDay,
+  aggsToColumns,
   lastSession,
   pickSessions,
   type IntradayColumns,
 } from "@/lib/market/intraday-buckets";
-import { fetchIntradayRange } from "@/lib/api/clients/quotes";
+import { fetchAggs, fetchIntradayRange } from "@/lib/api/clients/quotes";
 import { inRegularSession } from "@/lib/market/regular-session";
 import { tradingDays, windowFor } from "@/lib/market/session-window";
 import { parseFetchedRange } from "@/lib/market/ranges";
@@ -150,6 +151,56 @@ export async function GET(
         }
       }
     }
+  }
+
+  /* THE MONTH, THE QUARTER AND THE YEAR, AS INTRADAY LINES.
+   *
+   * These drew a line through 21, 64 and 252 daily closes — straight segments —
+   * because the intraday archive above reaches back only about seventeen
+   * sessions. The gateway also proxies Polygon's aggregates (fetchAggs), which
+   * hold intraday bars for years, so each of these is now drawn from real
+   * intraday bars: 15-minute for the month (~550 points), 30-minute for the
+   * quarter (~830) and the year (~3,300), all trimmed to 09:30-16:00.
+   *
+   * CHUNKED because each request is capped at 50,000 base one-minute bars —
+   * about fifty trading days once extended hours count. Forty sessions a chunk
+   * leaves margin, and the chunks run in parallel. Each chunk's window is the
+   * whole UTC span of its New York days (a day there runs 04:00Z to 04:00Z the
+   * next, give or take DST), trimmed back to the exact days by aggsToColumns.
+   * Cached in Next's fetch cache per chunk: the older chunks never change. */
+  if (range === "1M" || range === "3M" || range === "1Y") {
+    const spec = {
+      "1M": { sessions: 21, minutes: 15, ttl: 900 },
+      "3M": { sessions: 64, minutes: 30, ttl: 3600 },
+      "1Y": { sessions: 252, minutes: 30, ttl: 3600 },
+    }[range];
+    const days = tradingDays(Date.now(), spec.sessions);
+    const chunks: string[][] = [];
+    for (let i = 0; i < days.length; i += 40) chunks.push(days.slice(i, i + 40));
+    const DAY_MS = 86_400_000;
+    const answers = await Promise.all(
+      chunks.map((c) =>
+        fetchAggs(
+          symbol,
+          spec.minutes,
+          "minute",
+          Date.parse(`${c[0]}T00:00:00Z`),
+          Date.parse(`${c[c.length - 1]}T00:00:00Z`) + DAY_MS + 6 * 3_600_000,
+          spec.ttl,
+        ).catch(() => null),
+      ),
+    );
+    const bars = answers.flatMap((a) => (a?.ok && Array.isArray(a.data?.results) ? a.data.results : []));
+    const series = aggsToColumns(bars, days);
+    if (series.date.length > 0) {
+      return Response.json(
+        { range, series, sessions: days.length },
+        { headers: { "Cache-Control": CACHE } },
+      );
+    }
+    /* Nothing came back: the page's own daily closes remain the fallback,
+       drawn by the client, so answer empty rather than guess. */
+    return Response.json({ range, series: EMPTY }, { headers: { "Cache-Control": CACHE } });
   }
 
   const section = range === "5Y" ? "history_daily" : "history_intraday";

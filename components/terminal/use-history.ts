@@ -148,6 +148,9 @@ const FETCHED_AT = new Map<string, number>();
 const TTL_MS: Record<FetchedRange, number> = {
   "1D": 5 * 60_000,
   "1W": 5 * 60_000,
+  "1M": 15 * 60_000,
+  "3M": 60 * 60_000,
+  "1Y": 3 * 60 * 60_000,
   "5Y": 3 * 60 * 60_000,
 };
 
