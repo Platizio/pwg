@@ -307,3 +307,55 @@ export function aggsToColumns(
     volume: kept.map((b) => b.v ?? 0),
   };
 }
+
+const ET_HOUR = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/New_York",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/* 16:00 New York on a given day, as an instant: 20:00Z in summer, 21:00Z in
+   winter. Tried rather than computed from a rule, so a DST change moves it. */
+function closingBell(day: string): number | null {
+  for (const utcHour of [20, 21]) {
+    const at = Date.parse(`${day}T${String(utcHour).padStart(2, "0")}:00:00Z`);
+    if (ET_HOUR.format(at) === "16:00") return at;
+  }
+  return null;
+}
+
+/**
+ * A finished session, ended on its OFFICIAL close.
+ *
+ * Minute bars stop at 15:59, whose close is the last continuous trade; the
+ * official close prints in the closing cross at 16:00:00 — the figure the
+ * "Previous close" card shows. Without this point the day chart ended a few
+ * cents away from the number printed beneath it (336.95 against 337.02 on
+ * 23 Sep 2026). It is a real price at its real time, added only where the
+ * series stops short of the bell.
+ */
+export function withOfficialClose(
+  series: IntradayColumns,
+  day: string,
+  close: number | null,
+  nowMs: number = Number.POSITIVE_INFINITY,
+): IntradayColumns {
+  if (close === null || !Number.isFinite(close) || close <= 0) return series;
+  if (series.date.length === 0) return series;
+  const bell = closingBell(day);
+  if (bell === null) return series;
+  /* A session still running has no official close yet — a partial daily bar's
+     "close" is just the latest trade. */
+  if (nowMs < bell) return series;
+  const last = Date.parse(series.date[series.date.length - 1]);
+  if (!(last < bell)) return series;
+  return {
+    date: [...series.date, new Date(bell).toISOString()],
+    price: [...series.price, close],
+    opening: [...series.opening, close],
+    high: [...series.high, close],
+    low: [...series.low, close],
+    volume: [...series.volume, 0],
+  };
+}

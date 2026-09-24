@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { bucketIntraday, SESSIONS_KEPT, sessionsAt, pickSessions, aggsToColumns, columnsToRows } from "../lib/market/intraday-buckets.ts";
+import { bucketIntraday, SESSIONS_KEPT, sessionsAt, pickSessions, aggsToColumns, columnsToRows, withOfficialClose } from "../lib/market/intraday-buckets.ts";
 import { mergeIntradaySessions } from "../lib/market/store/sections.ts";
 
 /* Minute bars reduced to the grid a chart can draw.
@@ -291,4 +291,48 @@ test("a day the first source lacks is taken from the next one that has it", () =
     { rows: minutes as never, width: 1 },
   ]);
   assert.equal(out.length, 391);
+});
+
+/* ---------- ending a finished session on its official close ---------- */
+
+/* Polygon's minute bars stop at 15:59, whose close is the last continuous
+ * trade (336.95 on 23 Sep 2026). The official close prints at 16:00:00 in the
+ * closing cross (337.02) — the number the "Previous close" card shows. Drawn
+ * without it, the day chart ended a few cents away from the figure printed
+ * beneath it. */
+const cols = (isos: string[], prices: number[]) => ({
+  date: isos, price: prices, opening: prices, high: prices, low: prices, volume: prices.map(() => 1),
+});
+
+test("a finished session ends on its official close at 16:00 New York", () => {
+  const s = withOfficialClose(cols(["2026-09-23T13:30:00.000Z", "2026-09-23T19:59:00.000Z"], [339.89, 336.95]), "2026-09-23", 337.02);
+  assert.equal(s.date.at(-1), "2026-09-23T20:00:00.000Z", "16:00 EDT");
+  assert.equal(s.price.at(-1), 337.02);
+  assert.equal(s.date.length, 3);
+});
+
+test("in winter 16:00 New York is 21:00Z", () => {
+  const s = withOfficialClose(cols(["2026-01-21T20:59:00.000Z"], [100]), "2026-01-21", 101);
+  assert.equal(s.date.at(-1), "2026-01-21T21:00:00.000Z");
+});
+
+test("a session that already ends at 16:00 is left alone", () => {
+  const before = cols(["2026-09-23T19:59:00.000Z", "2026-09-23T20:00:00.000Z"], [336.95, 337.02]);
+  assert.equal(withOfficialClose(before, "2026-09-23", 337.02).date.length, 2);
+});
+
+test("no official close, or no bars, changes nothing", () => {
+  const before = cols(["2026-09-23T19:59:00.000Z"], [336.95]);
+  assert.equal(withOfficialClose(before, "2026-09-23", null).date.length, 1);
+  assert.equal(withOfficialClose(cols([], []), "2026-09-23", 337.02).date.length, 0);
+});
+
+/* A session still running has no official close: a partial daily bar's "close"
+   is only the latest trade, and drawing it at 16:00 would invent the ending. */
+test("a session still running is not given a close", () => {
+  const live = cols(["2026-09-24T13:30:00.000Z", "2026-09-24T15:00:00.000Z"], [336, 335]);
+  const at1100 = Date.parse("2026-09-24T15:00:00Z"); // 11:00 ET
+  assert.equal(withOfficialClose(live, "2026-09-24", 335.5, at1100).date.length, 2);
+  const after = Date.parse("2026-09-24T20:30:00Z"); // 16:30 ET
+  assert.equal(withOfficialClose(live, "2026-09-24", 335.5, after).date.length, 3);
 });

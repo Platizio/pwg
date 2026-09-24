@@ -1,6 +1,8 @@
 import "server-only";
+import { dailyBarsFromAggs } from "../normalize/daily-bars.ts";
+import { polygonTicker } from "../normalize/polygon-ticker.ts";
 import { vtGet } from "../http.ts";
-import type { ApiResult } from "../errors.ts";
+import { ok, type ApiResult } from "../errors.ts";
 import { pooled } from "../pool.ts";
 
 /* /aes/api/quotes/* — the equity feed.
@@ -254,18 +256,47 @@ export function fetchAggs(
   revalidate: number,
 ): Promise<ApiResult<{ results?: RawAgg[] }>> {
   return vtGet<{ results?: RawAgg[] }>(
-    `/mdp/api/v1/polygon/aggs/ticker/${encodeURIComponent(symbol)}/range/${multiplier}/${timespan}/${Math.floor(fromMs)}/${Math.floor(toMs)}`,
+    `/mdp/api/v1/polygon/aggs/ticker/${encodeURIComponent(polygonTicker(symbol))}/range/${multiplier}/${timespan}/${Math.floor(fromMs)}/${Math.floor(toMs)}`,
     { query: { adjusted: "true", sort: "asc", limit: "50000" }, revalidate, tags: [`history:${symbol}`] },
   );
 }
 
-export function fetchHistory(
+/* How far back each range reaches, in calendar days. */
+const RANGE_DAYS: Record<HistoryRange, number> = { "1m": 31, "1y": 366, "5y": 5 * 365 + 10 };
+const DAY_MS = 86_400_000;
+
+/**
+ * Daily bars — from Polygon's OFFICIAL daily aggregates, with the gateway's
+ * /historical as the fallback.
+ *
+ * /historical's "price" is not the official close (see normalize/daily-bars.ts
+ * for the measured gap: 342.70 against a 339.75 close, and a 250.12 "low"),
+ * and every surface in the app reads its closes. Polygon's daily bars are the
+ * official ones and are split-adjusted; the app's split repair detects cliffs
+ * rather than applying factors blindly, so an adjusted series passes through
+ * it unchanged. A symbol Polygon does not recognise (the gateway writes some
+ * share classes and warrants differently) falls back to /historical, so
+ * nothing that drew before draws nothing now.
+ *
+ * The window is rounded to whole UTC days so the URL — and so Next's fetch
+ * cache entry — is stable for a day rather than new on every render.
+ */
+export async function fetchHistory(
   symbol: string,
   range: HistoryRange,
   revalidate: number,
   tags: string[],
   noStore = false,
 ): Promise<ApiResult<RawHistoryPoint[]>> {
+  const now = Date.now();
+  const from = Math.floor((now - RANGE_DAYS[range] * DAY_MS) / DAY_MS) * DAY_MS;
+  const to = Math.floor(now / DAY_MS) * DAY_MS + DAY_MS;
+  const official = await fetchAggs(symbol, 1, "day", from, to, noStore ? 0 : revalidate).catch(
+    () => null,
+  );
+  const bars = official?.ok ? dailyBarsFromAggs(official.data?.results ?? [], now) : [];
+  if (official?.ok && bars.length > 0) return ok(bars, official.status, official.ms);
+
   return vtGet<RawHistoryPoint[]>("/aes/api/quotes/equity/historical", {
     query: { symbol, range },
     revalidate,

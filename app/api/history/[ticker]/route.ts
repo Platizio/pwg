@@ -12,6 +12,7 @@ import {
   columnsToRows,
   lastSession,
   pickSessions,
+  withOfficialClose,
   type IntradayColumns,
 } from "@/lib/market/intraday-buckets";
 import { fetchAggs, fetchIntradayRange } from "@/lib/api/clients/quotes";
@@ -166,7 +167,24 @@ export async function GET(
         { rows: storedInWindow ? columnsToRows(storedInWindow) : [], width: BUCKET_MINUTES },
       ]);
       if (rows.length > 0) {
-        const series = bucketIntraday(rows, width);
+        let series = bucketIntraday(rows, width);
+        /* The day chart ends on the official close, printed at 16:00:00 in the
+           closing cross — minute bars stop at 15:59, a few cents away from the
+           "Previous close" figure on the same page. Only once the bell has
+           rung (withOfficialClose checks), and only for the day range. */
+        if (range === "1D") {
+          const day = days[days.length - 1];
+          const official = await fetchAggs(
+            symbol,
+            1,
+            "day",
+            Date.parse(`${day}T00:00:00Z`),
+            Date.parse(`${day}T23:59:59Z`),
+            300,
+          ).catch(() => null);
+          const close = official?.ok ? (official.data?.results?.at(-1)?.c ?? null) : null;
+          series = withOfficialClose(series, day, close, Date.now());
+        }
         if (series.date.length > 0) {
           return Response.json(
             { range, series, sessions: days.length },

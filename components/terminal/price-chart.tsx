@@ -21,6 +21,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatStamp, money } from "@/lib/market/format";
 import { rangeCaption, readerZone } from "@/lib/market/ranges";
 import { easternDay } from "@/lib/market/intraday-buckets";
+import { priorClose } from "@/lib/market/prior-close";
 import { getRange } from "@/lib/market/ranges";
 import type { RangeId } from "@/lib/market/types";
 import type { PricePoint } from "@/lib/api/normalize/series";
@@ -226,8 +227,11 @@ export function PriceChart({
          header sitting directly above it, which reads the day change off the
          quote. The daily series ends at the last completed session, which is
          exactly the figure the day range needs. */
+      /* The close BEFORE the session on screen (priorClose), not the latest
+         daily bar: before the bell this chart draws the previous session, and
+         the latest bar is then that session's own close. */
       prev: rangeDef.intraday
-        ? (history.daily.at(-1)?.price ?? slice[0]?.price ?? 0)
+        ? (priorClose(history.daily, slice[0]?.at ?? null) ?? slice[0]?.price ?? 0)
         : multiDay
           ? previousSessionClose(slice)
           : raw.length > 1
