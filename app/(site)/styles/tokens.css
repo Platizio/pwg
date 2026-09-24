@@ -121,7 +121,11 @@
   --gray-800: var(--ink);
   --gray-700: #443c31;
   --gray-600: var(--ink-3);
-  --gray-500: #8b8172;
+  /* Every --gray-500 in the legacy sheets is small meta text (FAQ numbers,
+     dates, counts, legal labels). #8b8172 measured 3.29:1 on paper and
+     2.98:1 on paper-3, so it is the tertiary ink now. --gray-400 stays for
+     rules and borders; its two text uses read --ink-3 directly. */
+  --gray-500: var(--ink-3);
   --gray-400: #a89e8d;
   --gray-300: #c9c0af;
   --gray-200: #ddd5c6;

@@ -100,6 +100,7 @@ export type RangeDef = {
 export type TabId =
   | "overview"
   | "performance"
+  | "analysts"
   | "fundamentals"
   | "technicals"
   | "competitors"

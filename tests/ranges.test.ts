@@ -1,6 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_RANGE, RANGES, getRange, rangeCaption, zoneLabel } from "../lib/market/ranges.ts";
+import {
+  DEFAULT_RANGE,
+  HISTORY_RETRY_MS,
+  RANGES,
+  SPACING_MINUTES,
+  getRange,
+  historyAnswered,
+  historyNextFetch,
+  rangeCaption,
+  spacingLabel,
+  zoneLabel,
+} from "../lib/market/ranges.ts";
 
 /* The range table decides which feed answers each button. It was briefly cut
    to three entries on the belief that the gateway served only 1m, 1y and 5y —
@@ -269,5 +280,78 @@ test("UTC keeps the only name it has", () => {
 test("the caption names a line's spacing without calling it bars", () => {
   for (const r of ["1D", "1W", "1M", "3M", "1Y", "5Y"]) {
     assert.doesNotMatch(getRange(r as never).interval, /bar|candle/i, r);
+  }
+});
+
+/* ---------- the spacing a live tail is bucketed to ---------- */
+
+/* The long charts end on the live price by folding today's minutes into the
+   same buckets the fetched series is drawn in. The caption already names that
+   spacing, so the number and the words must be the same fact. */
+test("each intraday range's spacing is the one its caption names", () => {
+  for (const id of ["1D", "1W", "1M", "3M", "1Y"] as const) {
+    const minutes = SPACING_MINUTES[id];
+    assert.equal(typeof minutes, "number", `${id} has no spacing`);
+    assert.equal(spacingLabel(minutes as number), getRange(id).interval, `${id}`);
+  }
+  assert.deepEqual(
+    [SPACING_MINUTES["1W"], SPACING_MINUTES["1M"], SPACING_MINUTES["3M"], SPACING_MINUTES["1Y"]],
+    [5, 15, 30, 30],
+  );
+  assert.equal(SPACING_MINUTES["5Y"], undefined, "five years is daily closes, never bucketed");
+});
+
+/* ---------- how long a fetched range may be kept ---------- */
+
+/* Three faults this policy closes. An EMPTY answer was cached for the range's
+   whole TTL — up to three hours of a blank 1Y after one bad moment upstream.
+   A FAILED fetch was never retried at all until the reader changed range. And
+   an answer fetched before the open or the bell went on being served after
+   it. That last one is now judged by what the answer reaches rather than by
+   the phase it was fetched in — history-schedule.test.ts. */
+
+/* 09:00 ET on the 24th, pre-market: every minute range should reach the
+   23rd's bell, where the route stamps its official close. */
+const T0 = Date.parse("2026-09-24T13:00:00Z");
+const BELL_23 = Date.parse("2026-09-23T20:00:00Z");
+
+test("a range with points keeps them for its TTL", () => {
+  const held = { count: 390, at: T0, lastAt: BELL_23 };
+  assert.equal(historyNextFetch(held, undefined, "1D", T0), T0 + 5 * 60_000);
+  assert.equal(historyNextFetch(held, undefined, "1Y", T0), T0 + 3 * 3_600_000);
+});
+
+test("an empty answer is asked again within half a minute, not after the TTL", () => {
+  const held = { count: 0, at: T0, lastAt: null };
+  assert.equal(historyNextFetch(held, undefined, "1Y", T0), T0 + HISTORY_RETRY_MS);
+  assert.ok(HISTORY_RETRY_MS <= 30_000);
+});
+
+test("a failure is retried within half a minute, whatever is held", () => {
+  assert.equal(historyNextFetch(undefined, T0, "3M", T0), T0 + HISTORY_RETRY_MS);
+  const stale = { count: 500, at: T0 - 2 * 3_600_000, lastAt: BELL_23 };
+  assert.equal(historyNextFetch(stale, T0, "3M", T0), T0 + HISTORY_RETRY_MS);
+});
+
+test("nothing held and nothing failed: fetch now", () => {
+  assert.ok(historyNextFetch(undefined, undefined, "1W", T0) <= T0);
+});
+
+/* What 1D and 1W draw changes at two moments only: the open, when today
+   becomes the session, and the bell, when it gains its official close. The
+   04:00 and 20:00 boundaries change nothing drawn, and refetching there would
+   only spend a request. */
+test("the boundaries that change nothing drawn keep what is held", () => {
+  const at2000 = Date.parse("2026-09-24T00:00:00Z");
+  const held = { count: 391, at: at2000, lastAt: BELL_23 };
+  const at0400 = Date.parse("2026-09-24T08:00:00Z");
+  assert.equal(historyNextFetch(held, undefined, "1D", at0400), at2000 + 5 * 60_000, "04:00");
+  assert.equal(historyNextFetch(held, undefined, "1W", at0400), at2000 + 5 * 60_000);
+});
+
+test("only a 200 is an answer", () => {
+  assert.equal(historyAnswered(200), true);
+  for (const status of [204, 206, 304, 400, 429, 500, 502]) {
+    assert.equal(historyAnswered(status), false, String(status));
   }
 });

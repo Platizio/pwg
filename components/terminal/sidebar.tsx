@@ -1,32 +1,22 @@
 "use client";
 
-import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useId, useRef, useState, useMemo} from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import {
   IconCalendar,
   IconChart,
-  IconChevron,
   IconCollapse,
   IconGlobe,
   IconWatchlist,
   IconOverview,
   IconWire,
 } from "@/components/icons";
-import { pct } from "@/lib/market/format";
-import { DEFAULT_TICKER, INSTRUMENTS } from "@/lib/market/instruments";
-import { C } from "@/lib/tokens";
 import { cn } from "@/lib/ui";
-import { useLive } from "./live-provider";
 import ThemeToggle from "@/components/terminal/theme-toggle";
-import {
-  CALENDAR_PATH,
-  instrumentPath,
-  TERMINAL_PATH,
-  tickerFromPath,
-  WIRE_PATH,
-} from "@/lib/market/paths";
+import { SidebarWatchlist } from "@/components/terminal/watchlist/sidebar-watchlist";
+import { WATCHLIST_PATH, routeTicker } from "@/components/terminal/watchlist/paths";
+import { CALENDAR_PATH, TERMINAL_PATH, WIRE_PATH } from "@/lib/market/paths";
 
 /**
  * The rail of a public screener.
@@ -60,21 +50,12 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
 
-  /* The rail's percentages come from the server snapshot and are then patched
-     by live ticks. A tick with no previous close cannot carry a change, so that
-     symbol keeps the snapshot's figure rather than showing a move computed
-     against nothing. */
-  const covered = useMemo(() => INSTRUMENTS.map((i) => i.id), []);
-  const ticks = useLive(covered);
-  const liveQuotes = useMemo(() => {
-    const merged: Record<string, number> = { ...(quotes ?? {}) };
-    for (const [symbol, tick] of ticks) {
-      if (tick.changePercent !== null) merged[symbol] = tick.changePercent;
-    }
-    return merged;
-  }, [quotes, ticks]);
-
-  const current = tickerFromPath(pathname);
+  /* The ticker being read, if any — never the watchlist page's own segment,
+     which the shared path helper would otherwise take for the ticker
+     WATCHLIST. The rail's figures are the watchlist section's business now:
+     server snapshot first, live ticks over it, exactly as before, for
+     whichever list is active. */
+  const current = routeTicker(pathname);
 
   const nav = [
     {
@@ -84,12 +65,15 @@ export function Sidebar({
       href: TERMINAL_PATH,
       active: pathname === TERMINAL_PATH,
     },
+    /* A destination of its own now. It used to open whichever stock was on
+       screen (or Apple), which made "Watch list" a second name for the stock
+       page and left no place to manage a list at all. */
     {
       key: "watchlist",
       label: "Watch list",
       Icon: IconWatchlist,
-      href: instrumentPath(current ?? DEFAULT_TICKER),
-      active: current !== null,
+      href: WATCHLIST_PATH,
+      active: pathname === WATCHLIST_PATH,
     },
     {
       key: "calendar",
@@ -108,15 +92,21 @@ export function Sidebar({
   ];
 
   return (
+    /* Three fixed bands and one that flexes: the brand and the navigation at
+       the top, the lighting and language row at the foot, and the watchlist
+       between them taking whatever height is left and scrolling inside it.
+       The foot is a row of its own in the flow — not pinned over the column
+       with mt-auto and hoping the list stops short of it — so no length of
+       list and no height of window can put the two on top of each other. */
     <div
       className={cn(
-        "flex h-full flex-col overflow-y-auto py-5",
+        "flex h-full min-h-0 flex-col pt-5 pb-4",
         collapsed ? "items-center px-3" : "px-4",
       )}
     >
       <div
         className={cn(
-          "flex gap-3",
+          "flex flex-none gap-3",
           collapsed ? "flex-col items-center" : "items-start justify-between px-2",
         )}
       >
@@ -180,7 +170,7 @@ export function Sidebar({
 
       <nav
         aria-label="Main"
-        className={cn("mt-7 flex flex-col gap-1", collapsed && "w-full items-center")}
+        className={cn("mt-7 flex flex-none flex-col gap-1", collapsed && "w-full items-center")}
       >
         {nav.map((item) => (
           <Link
@@ -214,89 +204,35 @@ export function Sidebar({
         ))}
       </nav>
 
-      <section
-        aria-labelledby="watchlist-label"
-        /* min-h-0 lets this shrink inside the flex column, but without a
-           scroller of its own the rows simply overflow the box it was shrunk
-           to and paint over the lighting and language controls that mt-auto
-           has pinned below. Scroll the list instead of spilling it. */
-        className={cn("mt-7 min-h-0 overflow-y-auto pb-8", collapsed && "w-full")}
-      >
-        <p
-          id="watchlist-label"
-          className={cn("card-label pb-2.5", collapsed ? "sr-only" : "px-2.5")}
-        >
-          Covered stocks
-        </p>
-        <ul
-          className={cn(
-            "m-0 flex list-none flex-col gap-0.5 p-0",
-            collapsed && "items-center",
-          )}
-        >
-          {INSTRUMENTS.map((s) => {
-            const selected = s.id === current;
-            return (
-              <li key={s.id} className={cn(collapsed && "w-full")}>
-                <motion.div
-                  initial={false}
-                  whileHover={collapsed ? undefined : { x: 3 }}
-                  transition={{ duration: 0.28, ease: "easeOut" }}
-                >
-                  <Link
-                    href={instrumentPath(s.id)}
-                    aria-current={selected ? "true" : undefined}
-                    title={collapsed ? `${s.id} · ${s.short}` : undefined}
-                    className={cn(
-                      "flex min-h-11 items-center gap-3 rounded-[10px] transition-colors",
-                      collapsed ? "justify-center px-0" : "px-2.5",
-                      selected
-                        ? "bg-[rgba(var(--c-gold-rgb),0.09)]"
-                        : "hover:bg-[rgba(var(--c-gold-rgb),0.04)]",
-                    )}
-                  >
-                    <span
-                      aria-hidden="true"
-                      /* Sized from its tile, per the monogram rule. */
-                      className="font-serif grid h-8 w-8 flex-none place-items-center rounded-[9px] border border-[rgba(var(--c-gold-rgb),0.14)]"
-                      style={{ color: s.color, fontSize: 15 }}
-                    >
-                      {s.mark}
-                    </span>
-                    <span className={cn("min-w-0 flex-1", collapsed && "sr-only")}>
-                      <span
-                        className={cn(
-                          "font-mono block text-[13px] font-medium tracking-[0.05em]",
-                          selected ? "text-ink" : "text-ink-2",
-                        )}
-                      >
-                        {s.id}
-                      </span>
-                      <span className="mt-0.5 block truncate text-[12px] text-ink-3">
-                        {s.short}
-                      </span>
-                    </span>
-                    {!collapsed &&
-                      (liveQuotes[s.id] === undefined ? (
-                        <span className="font-mono flex-none text-right text-[12px] text-ink-3">
-                          —
-                        </span>
-                      ) : (
-                        <span
-                          className="font-mono flex-none text-right text-[12px]"
-                          style={{ color: liveQuotes[s.id] >= 0 ? C.up : C.down }}
-                        >
-                          {pct(liveQuotes[s.id])}
-                        </span>
-                      ))}
-                  </Link>
-                </motion.div>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
+      <SidebarWatchlist collapsed={collapsed} quotes={quotes} current={current} />
 
+      <SidebarFooter collapsed={collapsed} />
+    </div>
+  );
+}
+
+/**
+ * The rail's foot: lighting and language, side by side on one row.
+ *
+ * They used to be a two-high stack pinned to the bottom with `mt-auto`, over a
+ * list that only had `overflow-y-auto` to keep it out of the way — and on a
+ * short window the stack sat on top of the last rows. Now the foot is its own
+ * band under a hairline, the list above it scrolls within what is left, and the
+ * two controls share one row so the list keeps the height a second row cost.
+ *
+ * The row runs the full width of the rail's content box, the same box the
+ * navigation rows fill, so its left edge is the rail's left edge. Collapsed, the
+ * two become the same 44px circles as everything else in the icon rail.
+ */
+function SidebarFooter({ collapsed }: { collapsed: boolean }) {
+  return (
+    <div
+      className={cn(
+        "relative mt-2 w-full flex-none border-t border-rule-section pt-3",
+        collapsed ? "flex flex-col items-center gap-2" : "grid grid-cols-2 gap-2",
+      )}
+    >
+      <ThemeToggle collapsed={collapsed} />
       <LanguagePicker collapsed={collapsed} />
     </div>
   );
@@ -314,7 +250,15 @@ export function Sidebar({
 function LanguagePicker({ collapsed }: { collapsed: boolean }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const menuId = useId();
+  /* Collapsed, the rail is 76px wide and scrolls, so a panel anchored inside
+     it would be clipped to a sliver. It is placed against the viewport instead,
+     beside the button. Open, it anchors to the footer row (see SidebarFooter),
+     whose width it shares. */
+  const [fixedAt, setFixedAt] = useState<{ left: number; bottom: number } | null>(null);
+
+  const close = useCallback(() => setOpen(false), []);
 
   useEffect(() => {
     if (!open) return;
@@ -323,82 +267,79 @@ function LanguagePicker({ collapsed }: { collapsed: boolean }) {
       if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      buttonRef.current?.focus();
     };
 
     document.addEventListener("pointerdown", onDown);
     document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", close);
     return () => {
       document.removeEventListener("pointerdown", onDown);
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", close);
     };
-  }, [open]);
+  }, [open, close]);
+
+  useLayoutEffect(() => {
+    if (!open || !collapsed) return;
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setFixedAt({ left: rect.right + 12, bottom: window.innerHeight - rect.bottom });
+  }, [open, collapsed]);
 
   return (
-    <div ref={rootRef} className={cn("relative mt-auto shrink-0", collapsed && "w-full")}>
-      {open && (
+    /* `contents`, so the button is the footer grid's own cell and the panel
+       anchors to the footer row rather than to a half-width wrapper. */
+    <div ref={rootRef} className="contents">
+      {open && (!collapsed || fixedAt) && (
         <div
           id={menuId}
           role="dialog"
           aria-label="Language"
           className={cn(
-            "card edge-lit absolute bottom-[calc(100%+10px)] z-30 w-[224px] p-4",
-            collapsed ? "left-0" : "left-0",
+            "z-40",
+            collapsed
+              ? "fixed w-[224px]"
+              : "absolute right-0 bottom-[calc(100%+10px)] left-0",
           )}
+          style={collapsed && fixedAt ? { left: fixedAt.left, bottom: fixedAt.bottom } : undefined}
         >
-          <p className="card-label">Language</p>
-          <p className="mt-2 flex items-center gap-2 text-[13.5px] text-ink">
-            <IconGlobe aria-hidden="true" className="h-4 w-4 flex-none text-gold" />
-            English
-            <span className="ml-auto text-[12px] text-gold">Current</span>
-          </p>
-          <p className="mt-3 border-t border-rule-section pt-3 text-[12.5px] leading-[1.6] text-ink-3">
-            Platizio Global is published in English only for now. Prices and dates are
-            formatted to US conventions throughout.
-          </p>
+          <div className="card edge-lit p-4 shadow-[0_18px_36px_-12px_rgba(var(--c-shadow-rgb),0.85)]">
+            <p className="card-label">Language</p>
+            <p className="mt-2 flex items-center gap-2 text-[13.5px] text-ink">
+              <IconGlobe aria-hidden="true" className="h-4 w-4 flex-none text-gold" />
+              English
+              <span className="ml-auto text-[12px] text-gold">Current</span>
+            </p>
+            <p className="mt-3 border-t border-rule-section pt-3 text-[12.5px] leading-[1.6] text-ink-3">
+              Platizio Global is published in English only for now. Prices and dates are
+              formatted to US conventions throughout.
+            </p>
+          </div>
         </div>
       )}
 
-      {/* One box around both controls, so they are one column rather than two
-          pills that happen to be stacked.
-          A grid whose track is `w-fit` takes the width of its widest child and
-          stretches the other to match; sized individually they came out 102px
-          and 123px, sharing a left edge and missing each other's right one by
-          twenty-one. Collapsed they are both 44px squares and there is nothing
-          to reconcile, so the stretch only applies open. */}
-      <div className={cn("grid", collapsed ? "w-11" : "w-fit")}>
-        <ThemeToggle collapsed={collapsed} />
-
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          aria-controls={open ? menuId : undefined}
-          aria-label={collapsed ? "Language, English" : undefined}
-          title={collapsed ? "Language · English" : undefined}
-          className={cn(
-            "flex min-h-11 items-center gap-2.5 rounded-full border text-[13px] font-medium transition-colors",
-            collapsed ? "w-11 justify-center px-0" : "w-full px-4",
-            open
-              ? "border-[rgba(var(--c-gold-rgb),0.34)] text-ink"
-              : "border-rule-control text-ink-2 hover:border-gold hover:text-ink",
-          )}
-        >
-          <IconGlobe className="h-4 w-4 flex-none text-gold" />
-          {!collapsed && (
-            <>
-              English
-              <IconChevron
-                aria-hidden="true"
-                className={cn(
-                  "h-3 w-3 flex-none transition-transform duration-300",
-                  open ? "-rotate-90" : "rotate-0",
-                )}
-              />
-            </>
-          )}
-        </button>
-      </div>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
+        aria-label={collapsed ? "Language, English" : undefined}
+        title={collapsed ? "Language · English" : undefined}
+        className={cn(
+          "flex min-h-11 items-center gap-2 rounded-full border text-[13px] font-medium transition-colors",
+          collapsed ? "w-11 justify-center px-0" : "w-full min-w-0 px-3.5",
+          open
+            ? "border-[rgba(var(--c-gold-rgb),0.34)] text-ink"
+            : "border-rule-control text-ink-2 hover:border-gold hover:text-ink",
+        )}
+      >
+        <IconGlobe aria-hidden="true" className="h-4 w-4 flex-none text-gold" />
+        {!collapsed && <span className="truncate">English</span>}
+      </button>
     </div>
   );
 }

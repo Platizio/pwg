@@ -11,6 +11,7 @@ import type { MarketIndex, Quote } from "@/lib/market/session";
 import { C } from "@/lib/tokens";
 import { cn } from "@/lib/ui";
 import { instrumentPath } from "@/lib/market/paths";
+import { CARD_X } from "./inset";
 
 /**
  * The market, one index at a time.
@@ -64,7 +65,7 @@ export function MarketCard({ views }: { views: IndexView[] }) {
      than the gap. */
   if (views.length === 0) {
     return (
-      <Card lit className="px-7 py-7">
+      <Card lit className={cn("py-6 sm:py-7", CARD_X)}>
         <p className="text-[13.5px] leading-[1.7] text-ink-3">
           No index is quoting. The tabs return when the tracking funds do.
         </p>
@@ -111,14 +112,19 @@ export function MarketCard({ views }: { views: IndexView[] }) {
   }
 
   return (
-    <Card lit className="px-7 py-7">
+    /* The dashboard's one inset (CARD_X), so the tabs, the level and the
+       movers share a left line with every card below. */
+    <Card lit className={cn("py-6 sm:py-7", CARD_X)}>
       <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
         <div
           ref={tabsRef}
           role="tablist"
           aria-label="Market"
           onKeyDown={onKeyDown}
-          className="flex flex-wrap items-center gap-2"
+          /* Tighter pills below `sm`, so the three indices hold one line
+             in a phone-width card instead of leaving the last alone on a
+             second row. */
+          className="flex flex-wrap items-center gap-1.5 sm:gap-2"
         >
           {views.map(({ index: i }) => {
             const selected = i.id === index.id;
@@ -132,7 +138,7 @@ export function MarketCard({ views }: { views: IndexView[] }) {
                 tabIndex={selected ? 0 : -1}
                 onClick={() => setActive(i.id)}
                 className={cn(
-                  "min-h-11 rounded-full px-5 text-[13.5px] font-medium transition-all duration-300",
+                  "min-h-11 rounded-full px-3.5 text-[13.5px] font-medium whitespace-nowrap transition-all duration-300 sm:px-5",
                   selected
                     ? "bg-[linear-gradient(140deg,#f6e6c6,#dcbb8a)] text-on-gold shadow-[0_10px_26px_-12px_rgba(217,189,139,0.6)]"
                     : "border border-rule-control text-ink-3 hover:border-[rgba(217,189,139,0.3)] hover:text-ink",

@@ -1,7 +1,9 @@
 "use client";
 
 import { position } from "@/lib/market/instrument-derive";
+import { shortInterestIsCurrent } from "@/lib/market/short-interest-age";
 import type { InstrumentSnapshot } from "@/lib/market/instrument";
+import { useLiveSnapshot } from "../live-provider";
 import { GoldButton, Section } from "../ui";
 
 export function HoldingsPanel({
@@ -15,7 +17,19 @@ export function HoldingsPanel({
   portfolio: number;
   onTrade: () => void;
 }) {
-  const mine = position(snapshot, held, portfolio);
+  /* Market value and today's move at the header's price and change. */
+  const mine = position(useLiveSnapshot(snapshot), held, portfolio);
+
+  /* A filing older than six weeks is history, not the position: every record
+     on file today settled in Dec 2017. Measured against the last daily bar,
+     which is server data, so both renders agree. */
+  const short = snapshot.shortInterest;
+  const shortCurrent = shortInterestIsCurrent(
+    short.settlementDate,
+    snapshot.history.daily.at(-1)?.at ?? null,
+  );
+  const sharesShort = shortCurrent ? short.shortInterest : null;
+  const daysToCover = shortCurrent ? short.daysToCover : null;
 
   return (
     <div className="grid gap-8 xl:grid-cols-[1.3fr_1fr] xl:gap-11">
@@ -28,25 +42,27 @@ export function HoldingsPanel({
           <div>
             <dt className="card-label">Shares short</dt>
             <dd className="font-mono mt-2 text-[15px] text-ink-2">
-              {snapshot.shortInterest.shortInterest === null
-                ? "—"
-                : snapshot.shortInterest.shortInterest.toLocaleString("en-US")}
+              {sharesShort === null ? "—" : sharesShort.toLocaleString("en-US")}
             </dd>
           </div>
           <div>
             <dt className="card-label">Days to cover</dt>
             <dd className="font-mono mt-2 text-[15px] text-ink-2">
-              {snapshot.shortInterest.daysToCover === null
-                ? "—"
-                : snapshot.shortInterest.daysToCover.toFixed(2)}
+              {daysToCover === null ? "—" : daysToCover.toFixed(2)}
             </dd>
           </div>
         </dl>
-        {snapshot.shortInterest.settlementDate && (
-          <p className="mt-3 text-[12px] text-ink-3">
-            As at settlement on {snapshot.shortInterest.settlementDate}.
-          </p>
-        )}
+        {short.settlementDate &&
+          (shortCurrent ? (
+            <p className="mt-3 text-[12px] text-ink-3">
+              As at settlement on {short.settlementDate}.
+            </p>
+          ) : (
+            <p className="mt-3 max-w-[46ch] text-[12px] leading-[1.6] text-ink-3">
+              No current filing. The latest on record settled on {short.settlementDate}, too
+              long ago to show as today&rsquo;s position.
+            </p>
+          ))}
 
         <p className="card-label mt-7">Recent dividends</p>
         {snapshot.dividends.length === 0 ? (
@@ -71,36 +87,41 @@ export function HoldingsPanel({
         </p>
       </Section>
 
-      <section
-        className="border border-rule-raised p-6"
-        style={{
-          background:
-            "linear-gradient(165deg, rgba(217,189,139,0.07), transparent 70%)",
-        }}
-      >
-        <h3 className="font-serif mb-5 text-[24px]">Your position</h3>
-        <dl className="flex flex-col">
-          {mine.map((p) => (
-            <div
-              key={p.label}
-              className="flex items-baseline justify-between gap-3 border-t border-rule py-3"
-            >
-              <dt className="text-[12px] font-bold tracking-[0.16em] text-ink-3 uppercase">
-                {p.label}
-              </dt>
-              <dd
-                className="font-serif m-0 text-[21px]"
-                style={{ color: p.color }}
+      {/* Titled the way the left column is, so the two headings share a top
+          line and a line height. The box holds only the figures and the
+          action, and ends where they do rather than stretching to the height
+          of the column beside it. */}
+      <Section title="Your position" className="xl:self-start">
+        <div
+          className="border border-rule-raised px-6 pt-3 pb-6"
+          style={{
+            background:
+              "linear-gradient(165deg, rgba(217,189,139,0.07), transparent 70%)",
+          }}
+        >
+          <dl className="flex flex-col [&>div:first-child]:border-t-0">
+            {mine.map((p) => (
+              <div
+                key={p.label}
+                className="flex items-baseline justify-between gap-3 border-t border-rule py-3"
               >
-                {p.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-        <GoldButton onClick={onTrade} className="mt-6 w-full">
-          Manage position
-        </GoldButton>
-      </section>
+                <dt className="text-[12px] font-bold tracking-[0.16em] text-ink-3 uppercase">
+                  {p.label}
+                </dt>
+                <dd
+                  className="font-serif m-0 text-[21px]"
+                  style={{ color: p.color }}
+                >
+                  {p.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <GoldButton onClick={onTrade} className="mt-6 w-full">
+            Manage position
+          </GoldButton>
+        </div>
+      </Section>
     </div>
   );
 }

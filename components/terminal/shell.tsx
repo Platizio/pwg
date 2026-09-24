@@ -228,7 +228,7 @@ export function Shell({
 
           {/*
             The terminal's chrome bar, held above every route: the one way into
-            a name on the left, and whether the market is trading on the right.
+            a name at its centre, and whether the market is trading on the right.
 
             Both used to be somewhere else. The search had a band of its own
             stacked above the page's header, so a reader met two ruled strips
@@ -246,8 +246,44 @@ export function Shell({
             as soon as the reader scrolls on a phone.
           */}
           {chrome && (
-            <div className="relative z-[25] grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 border-b border-rule-section px-4 py-3 sm:gap-x-6 sm:px-6 lg:px-7">
-              <div className="min-w-0 max-w-[460px]">
+            <div
+              className={cn(
+                "relative z-[25] grid items-center border-b border-rule-section px-4 py-3 sm:px-6 lg:px-7",
+                /* Below `lg` the box takes every pixel the right-hand end
+                   leaves it: on a phone a centred, capped search is a stub. */
+                "grid-cols-[minmax(0,1fr)_auto] gap-x-4 sm:gap-x-6",
+                /*
+                  From `lg` the search is centred on the bar and long.
+
+                  Three tracks, and the outer two are the whole mechanism. The
+                  middle one is the box, capped at min(680px, 52vw). The outer
+                  two are both 1fr, so they split what is left equally and the
+                  box sits dead centre — except that the right one may not go
+                  below its own max-content, which is the session pill and
+                  Invest. On a display wide enough for both, the halves match
+                  and the box is centred on the bar. On a narrower one the right
+                  track holds its width, the left gives way, and the box slides
+                  left just far enough to clear the pill, keeping its full
+                  length instead of shrinking to stay symmetric. A fixed centre
+                  with the pill laid over it was the alternative, and at 1440
+                  it put the pill on top of the box.
+
+                  No column gap at this size: the left track is empty and often
+                  zero, and a gap would indent the box from the page's own left
+                  edge. The right end carries its own inset instead.
+
+                  107px tall so the bar's centre line runs through the centre of
+                  the rail's brand block beside it: 20px rail inset, 66.5px mark
+                  and wordmark, 20px again, and the bar's own 1px rule. The
+                  search, the session pill and the logo tile then share one
+                  centre line across the top of the frame instead of sitting
+                  a row apart, which is where the old 69px bar left them.
+                */
+                "lg:min-h-[107px] lg:gap-x-0 lg:py-4",
+                "lg:grid-cols-[minmax(0,1fr)_minmax(0,min(680px,52vw))_minmax(max-content,1fr)]",
+              )}
+            >
+              <div className="min-w-0 lg:col-start-2">
                 {search && <InstrumentSearch data={search} />}
               </div>
 
@@ -263,7 +299,7 @@ export function Shell({
                   most readers arrive at is not a call to action. The search
                   gives up the width instead, which is what minmax(0,1fr) on
                   this grid's first track has always been for. */}
-              <div className="flex items-center justify-end gap-2 sm:gap-3">
+              <div className="flex items-center justify-end gap-2 sm:gap-3 lg:col-start-3 lg:pl-6">
                 {session && (
                   <div className="hidden sm:flex">
                     <MarketStatus session={session} />
@@ -314,8 +350,8 @@ function CompactBar({
   const pathname = usePathname();
   /* The route test looked for /instrument/, a path this app stopped using, so
      on /terminal/NVDA it never matched and the phone bar fell through to the
-     index. tickerFromPath also knows that sector, calendar and wire are routes
-     rather than tickers. */
+     index. tickerFromPath also knows that sector, calendar, wire and watchlist
+     are routes rather than tickers. */
   const routeTicker = tickerFromPath(pathname);
 
   /* The lead figure is the PROXY FUND's price (SPY ~ 770), not the index
@@ -370,21 +406,27 @@ function CompactBar({
         </p>
         <p className="truncate text-[11px] text-ink-3">{headline.sub}</p>
       </div>
-      <div className="text-right">
-        {headline.value === null || headline.chg === null ? (
-          <p className="font-mono text-[11px] text-ink-3">No quote</p>
-        ) : (
-          <>
-            <p className="font-serif text-[21px] leading-none">{headline.value}</p>
-            <p
-              className="font-mono mt-1 text-[11px]"
-              style={{ color: headline.chg >= 0 ? C.up : C.down }}
-            >
-              {pct(headline.chg)}
-            </p>
-          </>
-        )}
-      </div>
+      {/* On an instrument route the right slot stays empty: the live price is
+          directly beneath, and a "No quote" beside the ticker read as a broken
+          feed. The placeholder is kept only for the dashboard fallback, where
+          there is genuinely no lead figure to show. */}
+      {!routeTicker && (
+        <div className="text-right">
+          {headline.value === null || headline.chg === null ? (
+            <p className="font-mono text-[11px] text-ink-3">No quote</p>
+          ) : (
+            <>
+              <p className="font-serif text-[21px] leading-none">{headline.value}</p>
+              <p
+                className="font-mono mt-1 text-[11px]"
+                style={{ color: headline.chg >= 0 ? C.up : C.down }}
+              >
+                {pct(headline.chg)}
+              </p>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

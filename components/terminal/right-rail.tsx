@@ -6,6 +6,7 @@ import { notableMoves } from "@/lib/market/instrument-derive";
 import type { InstrumentSnapshot } from "@/lib/market/instrument";
 import type { WireItem } from "@/lib/market/home";
 import { CapsLink } from "./ui";
+import { RailFoldToggle } from "./work-column";
 import { WIRE_PATH } from "@/lib/market/paths";
 
 /**
@@ -52,9 +53,18 @@ export function RightRail({
           cent of the way down, past every panel. The static company blurb was
           outranking the one section that changes hourly. */}
       <section>
-        <header className="mb-4 flex items-baseline justify-between gap-3">
-          <h3 className="font-serif text-[24px]">Newswire</h3>
-          <CapsLink href={WIRE_PATH}>See more</CapsLink>
+        {/* The rail's collapse control ends its first header row, where a
+            panel's own controls sit. The heading and "See more" keep their
+            shared baseline in a row of their own, because a glyph-only button
+            has no text baseline to align with; the control is centred on that
+            row instead. Below `xl` RailFoldToggle renders nothing and this is
+            the same header it always was. */}
+        <header className="mb-4 flex items-center gap-4">
+          <div className="flex min-w-0 flex-1 items-baseline justify-between gap-3">
+            <h3 className="font-serif text-[24px]">Newswire</h3>
+            <CapsLink href={WIRE_PATH}>See more</CapsLink>
+          </div>
+          <RailFoldToggle />
         </header>
         {/* Headlines, ruled apart.
 

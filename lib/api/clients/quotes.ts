@@ -1,8 +1,8 @@
 import "server-only";
-import { dailyBarsFromAggs } from "../normalize/daily-bars.ts";
-import { polygonTicker } from "../normalize/polygon-ticker.ts";
+import { settleHistory, withPredecessors } from "../normalize/daily-bars.ts";
+import { polygonTicker, predecessorsSince } from "../normalize/polygon-ticker.ts";
 import { vtGet } from "../http.ts";
-import { ok, type ApiResult } from "../errors.ts";
+import type { ApiResult } from "../errors.ts";
 import { pooled } from "../pool.ts";
 
 /* /aes/api/quotes/* — the equity feed.
@@ -266,17 +266,23 @@ const RANGE_DAYS: Record<HistoryRange, number> = { "1m": 31, "1y": 366, "5y": 5 
 const DAY_MS = 86_400_000;
 
 /**
- * Daily bars — from Polygon's OFFICIAL daily aggregates, with the gateway's
- * /historical as the fallback.
+ * Daily bars — the gateway's /historical series, carrying Polygon's OFFICIAL
+ * daily bars wherever the two describe the same security (see mergeOfficial in
+ * normalize/daily-bars.ts for the rule and the measurements behind it).
  *
- * /historical's "price" is not the official close (see normalize/daily-bars.ts
- * for the measured gap: 342.70 against a 339.75 close, and a 250.12 "low"),
- * and every surface in the app reads its closes. Polygon's daily bars are the
- * official ones and are split-adjusted; the app's split repair detects cliffs
- * rather than applying factors blindly, so an adjusted series passes through
- * it unchanged. A symbol Polygon does not recognise (the gateway writes some
- * share classes and warrants differently) falls back to /historical, so
- * nothing that drew before draws nothing now.
+ * /historical alone has the wrong closes (342.70 against a 339.75 close) and
+ * runs a session behind; Polygon alone follows the ticker into securities that
+ * held it before — META's 2021 history is an ETF at $14.91. Asked in parallel,
+ * the pair costs one round trip.
+ *
+ * A symbol Polygon does not know comes back empty, and the gateway's bars
+ * stand. A request that FAILED is different: a page degrades to whichever
+ * source answered, but the worker (noStore) writes what it fetches into the
+ * store, where it would replace official closes with the gateway's (or, the
+ * other way about, a company's history with the ETF's) — so there a failure
+ * from either source, whatever its status or shape, is returned, and the job
+ * backs off with the stored series untouched. settleHistory in
+ * normalize/daily-bars.ts has the rule and the measurements.
  *
  * The window is rounded to whole UTC days so the URL — and so Next's fetch
  * cache entry — is stable for a day rather than new on every render.
@@ -291,16 +297,35 @@ export async function fetchHistory(
   const now = Date.now();
   const from = Math.floor((now - RANGE_DAYS[range] * DAY_MS) / DAY_MS) * DAY_MS;
   const to = Math.floor(now / DAY_MS) * DAY_MS + DAY_MS;
-  const official = await fetchAggs(symbol, 1, "day", from, to, noStore ? 0 : revalidate).catch(
-    () => null,
-  );
-  const bars = official?.ok ? dailyBarsFromAggs(official.data?.results ?? [], now) : [];
-  if (official?.ok && bars.length > 0) return ok(bars, official.status, official.ms);
-
-  return vtGet<RawHistoryPoint[]>("/aes/api/quotes/equity/historical", {
-    query: { symbol, range },
-    revalidate,
-    tags,
+  const rev = noStore ? 0 : revalidate;
+  /* A renamed company's earlier bars are under its earlier ticker on Polygon
+     (PREDECESSORS in normalize/polygon-ticker.ts); each is asked for its own
+     days only, in the same round trip. Noon UTC is the same date in New York,
+     which is how Polygon reads a daily request's bounds. */
+  const earlier = predecessorsSince(symbol, new Date(from).toISOString().slice(0, 10));
+  const [gateway, official, ...theirs] = await Promise.all([
+    vtGet<RawHistoryPoint[]>("/aes/api/quotes/equity/historical", {
+      query: { symbol, range },
+      revalidate,
+      tags,
+      noStore,
+    }),
+    fetchAggs(symbol, 1, "day", from, to, rev),
+    ...earlier.map((p) =>
+      fetchAggs(
+        p.symbol,
+        1,
+        "day",
+        p.from === undefined ? from : Math.max(from, Date.parse(`${p.from}T12:00:00Z`)),
+        Date.parse(`${p.until}T12:00:00Z`),
+        rev,
+      ),
+    ),
+  ]);
+  const spliced = withPredecessors(
+    official,
+    earlier.map((p, i) => ({ from: p.from, until: p.until, answer: theirs[i] })),
     noStore,
-  });
+  );
+  return settleHistory(gateway, spliced, now, noStore);
 }

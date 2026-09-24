@@ -5,14 +5,31 @@ import { useLiveSession } from "@/components/home/use-session";
 import { motion } from "motion/react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BUCKET_MINUTES, sessionsAt } from "@/lib/market/intraday-buckets";
-import { regularSessionOnly } from "@/lib/market/regular-session";
-import { DEFAULT_RANGE, parseFetchedRange, spacingLabel } from "@/lib/market/ranges";
+import { BUCKET_MINUTES } from "@/lib/market/intraday-buckets";
+import {
+  coversSessions,
+  easternDayOf,
+  endOnClose,
+  pickDaySeries,
+  regularSessionOnly,
+  sessionTick,
+  withLiveSession,
+  withTick,
+} from "@/lib/market/regular-session";
+import { quoteCloseDay, sessionClose } from "@/lib/market/prior-close";
+import {
+  DEFAULT_RANGE,
+  SPACING_MINUTES,
+  getRange,
+  parseFetchedRange,
+  spacingLabel,
+} from "@/lib/market/ranges";
+import type { PricePoint } from "@/lib/api/normalize/series";
 import type { RangeId, TabId } from "@/lib/market/types";
 import type { InstrumentSnapshot } from "@/lib/market/instrument";
 import { usePortfolio } from "@/lib/portfolio";
 import { liveTail } from "@/lib/market/chart-tail";
-import { useLiveQuote } from "./live-provider";
+import { useLastTick, useLiveQuote, useNow, useShownQuote } from "./live-provider";
 import { useHistory } from "./use-history";
 import { useIntraday } from "./use-intraday";
 import { useStockNews } from "./use-stock-news";
@@ -23,6 +40,8 @@ import { FundamentalsPanel } from "./panels/fundamentals-panel";
 import { HoldingsPanel } from "./panels/holdings-panel";
 import { OverviewPanel } from "./panels/overview-panel";
 import { PerformancePanel } from "./panels/performance-panel";
+import { AnalystPanel } from "./panels/analyst-panel";
+import { analystModelFromAvailability } from "@/lib/market/analyst";
 import { TechnicalsPanel } from "./panels/technicals-panel";
 import { PriceHeader } from "./price-header";
 import { RightRail } from "./right-rail";
@@ -43,8 +62,6 @@ import { WorkColumn } from "./work-column";
  * daily-close fallback describe the same window rather than two nearly-equal
  * ones — the bug that let one captured session pass for a week. */
 const WEEK_CLOSES = 7;
-
-const LAST_SESSION_NOTE = "The market is closed. Showing the last completed session.";
 
 const PriceChart = dynamic(
   () => import("./price-chart").then((m) => m.PriceChart),
@@ -77,14 +94,13 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
      here instead. Everything else about this arrangement is unchanged: the
      price above the chart comes off the websocket seconds old, the series
      underneath it is minutes old, and two numbers for one stock on one screen
-     is the failure this terminal keeps coming back to. liveTail folds the tick
-     onto the tail.
+     is the failure this terminal keeps coming back to. The tick joins the end
+     of whichever series is drawn — AFTER the series is chosen (`dayBase`).
 
-     Two memos rather than one, and the split is what keeps the old identity
-     guarantee: liveTail returns the very same array whenever it refuses a
-     tick, so the first memo's value does not change, so the second hands back
-     the object it handed back last time and the chart does not rebuild its
-     series for a tick that said nothing.
+     Separate memos for the choice and the tick, and the split is what keeps
+     the old identity guarantee: liveTail returns the very same array whenever
+     it refuses a tick, so the chart does not rebuild its series for a tick
+     that said nothing.
 
      The note follows the series. Until the first answer lands the snapshot's
      own note stands, which says where the bars are coming from; after it, the
@@ -100,7 +116,6 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
      start polling once the session opened. */
   const marketSession = useLiveSession(snapshot.session);
   const session = useIntraday(stock.id, marketSession.phase);
-  const intraday = useMemo(() => liveTail(session.intraday, tick), [session.intraday, tick]);
   /* The ranges the page does not carry.
    *
    * It ships the year it opens with — 1M and 3M are slices of that same year
@@ -110,7 +125,10 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
    *
    * `parseFetchedRange` answers null for the ranges already in hand, and the
    * hook then fetches nothing at all. */
-  const fetched = useHistory(stock.id, parseFetchedRange(range));
+  /* The phase wakes the fetch at the open and the bell, when a held range
+     falls short of what it should reach (historyTarget in ranges.ts) and is
+     asked for again — and stays drawn until the new answer lands. */
+  const fetched = useHistory(stock.id, parseFetchedRange(range), marketSession.phase);
 
   /* A fetched range replaces the DAILY series the chart slices, because that
      is the series price-chart reads for every non-intraday range. The stored
@@ -121,8 +139,13 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
    * The gateway's intraday feed runs 04:00-20:00 Eastern in one series, so the
    * day chart used to open at 13:30 in India — 04:00 in New York — instead of
    * at 19:00, when the market a reader is watching actually opens. Both the
-   * live series and the stored one are trimmed to 09:30-16:00 ET here, at the
+   * live series and the stored one are trimmed to the session here, at the
    * one point where they meet, so neither path can drift from the other.
+   *
+   * The two trims read the bell differently. The LIVE series stops before it:
+   * the gateway's live 16:00 minute is a post-market print, not the close
+   * (13:00 on a half-day). The FETCHED series keeps a point stamped exactly at
+   * the bell, because that is where the route puts the official close.
    *
    * This gates the DRAWING only. A pre- or post-market print is a real price
    * and the header, the tape and the change figure all keep following it — see
@@ -131,10 +154,28 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
    *
    * It also produces the behaviour asked for during pre- and post-market
    * without a rule of its own: the live feed's bars are all outside the
-   * session, so `liveSession` is empty, and the day chart falls through to the
-   * last stored regular session — the previous day's trading, which is what a
-   * reader opening a stock before the bell should see. */
-  const liveSession = useMemo(() => regularSessionOnly(intraday), [intraday]);
+   * session, so `liveBars` is empty, the tick is not a session price, and the
+   * day chart falls through to the last fetched regular session — the
+   * previous day's trading, which is what a reader opening a stock before the
+   * bell should see.
+   *
+   * The gateway's bars and the tick are kept apart until a series is chosen.
+   * The bars run twenty minutes behind Polygon's (regular-session.ts has the
+   * measurements), so they only ever carry the fetched session on past its
+   * end; the tick, seconds old, joins whatever was chosen. Folded in first,
+   * the tick alone made a "live session" at 09:30 that outranked all of
+   * yesterday's, and the day chart was one point for twenty minutes. */
+  const liveBars = useMemo(
+    () => regularSessionOnly(session.intraday, { close: "exclude" }),
+    [session.intraday],
+  );
+  const liveTick = useMemo(() => sessionTick(tick), [tick]);
+  /* Today as the long ranges fold it in: the bars, then the tick — which at
+     the open, before the gateway has a bar of today, is today's first price. */
+  const liveSession = useMemo(
+    () => withTick(liveBars, liveTick) as PricePoint[],
+    [liveBars, liveTick],
+  );
   /* Trimmed only for the MINUTE ranges. The five-year series is daily bars,
      each stamped at Eastern midnight — outside 09:30-16:00 by construction —
      so running it through the session trim dropped every point and left the
@@ -144,71 +185,164 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
     [fetched.points, range],
   );
 
-  /* How many TRADING days the fetched buckets actually cover. Counted in New
-     York, because a US session is 13:30 to 05:30 the next morning here — count
-     it in the reader's zone and one session passes for two. Counted on the
-     TRIMMED series, so a day present only as pre-market does not count as a
-     session the chart can draw. */
-  const fetchedSessions = useMemo(
-    () => sessionsAt(storedSession.map((p) => p.at)),
-    [storedSession],
+  /* The previous close the reader is shown, handed to the chart as the one
+     number its dashed line may carry. The chart used to compute its own, and
+     with the market shut drew 339.73 under a card that said otherwise.
+
+     Read from the same hook, with the same inputs, as the card and the header
+     (useShownQuote; the card prints liveProfile's `shown.previousClose ??
+     profile.previousClose`, which is this expression). It is live: the page's
+     own figure is fixed at render and these pages are cached, so one drawn
+     before the 04:00 roll carries the session before last while the header,
+     reading the tick, has moved on — and the card, the header and this line
+     move together. */
+  const shown = useShownQuote(stock, marketSession.phase);
+  const lastTick = useLastTick(stock.id);
+  const previousClose = shown.previousClose ?? stock.previousClose;
+  /* When the quote behind that figure was taken, which says whose close it is
+     (quoteCloseDay): the live tick's, the last tick's, or the page's own. */
+  const shownAt = shown.showing
+    ? (tick?.at ?? null)
+    : shown.fromLast
+      ? (lastTick?.at ?? null)
+      : stock.asOf;
+  /* Which session that figure closes. It changes at the roll, where the
+     timestamp changes with every tick, so it is what the memos below key on. */
+  const cardDay = useMemo(() => quoteCloseDay(shownAt), [shownAt]);
+
+  /* The official close of any one session, from the shown figure when its
+     quote says it IS that session's close (pre-market, after the 04:00 roll),
+     and from the daily bars for a session older than that. Both describe
+     finished sessions only — the figure rolls at 04:00 the next day, and a
+     session newer than the figure's gets no close here at all, because its
+     daily bar may still be running (sessionClose) — which is why no clock
+     guards its use below. The route has already ended such a session on its
+     own official close, and that point stands. */
+  const closeOf = useCallback(
+    (day: string) =>
+      sessionClose(day, { daily: snapshot.history.daily, previousClose, cardDay }),
+    [snapshot.history.daily, previousClose, cardDay],
   );
 
-  /* Whether the week has a week to draw. Capture began on 21 Sep 2026 and adds
-     one session a day, so for the first four days the store held fewer than
-     five — and drawing them under a 1W label made 1W and 1D the SAME chart
-     with different words under it. Five daily closes are coarse, but they are
-     a week; one day of ten-minute buckets is not, however fine it is. */
-  const weekIsWhole = fetchedSessions >= WEEK_CLOSES;
+  /* The daily closes, reaching the session the card describes.
+   *
+   * The daily series runs a session behind — measured 24 Sep 2026 at 05:04
+   * ET, the page's ended on the 22nd while the card already held the 23rd's
+   * official 337.02 — so every range drawn from it (5Y, and the week, month
+   * and year while their minutes load) ended a session short and a few
+   * dollars from the dashed line. The card's close is that session's bar. */
+  const daily = useMemo(() => {
+    const withCard = (points: PricePoint[]) =>
+      cardDay === null
+        ? points
+        : (endOnClose(points, closeOf(cardDay), Number.POSITIVE_INFINITY, {
+            daily: true,
+            day: cardDay,
+          }) as PricePoint[]);
+    return { page: withCard(snapshot.history.daily), withCard };
+  }, [snapshot.history.daily, cardDay, closeOf]);
+
+  /* The day chart's series before the tick, and where it came from. See
+     pickDaySeries: whichever copy of the session reaches further — the
+     fetched one wherever it has the session, carried on by any live bars
+     past its end. A finished fetched session ends on its official close. */
+  const dayBase = useMemo(() => {
+    const chosen = pickDaySeries(liveBars, storedSession);
+    if (chosen === liveBars || chosen.length === 0) {
+      return { series: chosen, fromStore: false };
+    }
+    const last = chosen[chosen.length - 1];
+    return {
+      series: endOnClose(chosen, closeOf(easternDayOf(last.at)), Number.POSITIVE_INFINITY) as PricePoint[],
+      fromStore: true,
+    };
+  }, [liveBars, storedSession, closeOf]);
+
+  /* ...and the tick on its end. liveTail refuses a tick more than thirty
+     minutes past the series, so before today has a bar the day chart stays
+     the last session rather than drawing a line from yesterday's close. */
+  const daySeries = useMemo(() => liveTail(dayBase.series, liveTick), [dayBase.series, liveTick]);
+
+  /* The week, month, quarter and year, carried on to the live price.
+   *
+   * Today's live points are folded in past the end of the fetch, bucketed to
+   * the range's own spacing, so 1W to 1Y end on the live price instead of on
+   * whatever the fetch held when it was cached — up to three hours old for the
+   * year. Held at the range's size, so today joining does not make the week
+   * eight sessions. With the market shut there is no live session, and a
+   * finished last session ends on its official close. */
+  const longDrawn = useMemo(() => {
+    if (range === "1D" || range === "5Y" || storedSession.length === 0) return null;
+    const minutes = barMinutes(storedSession) ?? SPACING_MINUTES[range] ?? BUCKET_MINUTES;
+    const keep = range === "1W" ? WEEK_CLOSES : getRange(range).sessions;
+    const drawn = withLiveSession(storedSession, liveSession, minutes, keep) as PricePoint[];
+    const last = drawn[drawn.length - 1];
+    return last
+      ? (endOnClose(drawn, closeOf(easternDayOf(last.at)), Number.POSITIVE_INFINITY) as PricePoint[])
+      : drawn;
+  }, [range, storedSession, liveSession, closeOf]);
+
+  /* Whether the week has a week to draw.
+   *
+   * Capture began on 21 Sep 2026 and adds one session a day, so for the first
+   * four days the store held fewer than five — and drawing them under a 1W
+   * label made 1W and 1D the SAME chart with different words under it. Seven
+   * daily closes are coarse, but they are a week; one day of ten-minute
+   * buckets is not, however fine it is.
+   *
+   * Counted on what is DRAWN, today's live session included, and with a
+   * running session counted before it has a point. At 09:30 the window turns
+   * to include today while nothing yet has a bar of it, so the route serves
+   * six sessions; counting only those sent the week back to daily closes
+   * ending yesterday for the first five to fifteen minutes of every session
+   * (coversSessions). Counted in New York, because a US session is 19:00 to
+   * 01:30 here — counted in the reader's zone one session passes for two. */
+  const now = useNow();
+  const running = marketSession.phase === "open" || marketSession.phase === "halted";
+  const runningDay = running ? easternDayOf(now) : null;
+  const weekIsWhole =
+    range === "1W" && longDrawn !== null && coversSessions(longDrawn, WEEK_CLOSES, runningDay);
 
   const chartHistory = useMemo(() => {
+    /* The day is its own series (daySeries); every other range reads
+       `daily`, which the branches below replace. */
     const base = {
       ...snapshot.history,
-      intraday: liveSession,
+      daily: daily.page,
+      intraday: daySeries,
       intradayNote: session.note ?? snapshot.history.intradayNote,
     };
 
-    /* The day range is the live session, and it falls back to the stored one
-       whenever the gateway has nothing INSIDE the session — which is every
-       hour the market is shut, and now also the pre- and post-market hours,
-       whose bars this chart does not draw. */
-    if (range === "1D") {
-      return liveSession.length > 0 || storedSession.length === 0
-        ? base
-        : { ...base, intraday: storedSession, intradayNote: LAST_SESSION_NOTE };
-    }
+    if (range === "1D") return base;
 
     const wanted = parseFetchedRange(range);
     if (!wanted) return base;
-    if (range === "1W" && !weekIsWhole) {
-      /* Not a week yet. Fall through to the daily closes below. */
-    } else if (storedSession.length > 0) {
-      return { ...base, daily: storedSession };
+    if (range === "5Y") {
+      /* Five years does NOT fall back: the page ships one year, and one year
+         drawn under a five-year label would mislead. */
+      return { ...base, daily: daily.withCard(storedSession) };
+    }
+    if (longDrawn !== null && (range !== "1W" || weekIsWhole)) {
+      return { ...base, daily: longDrawn };
     }
 
     /* Nothing fetched. What that means depends on the range, and getting it
        wrong either way is a lie.
      *
      * A WEEK still has something to draw. The store has five years of daily
-     * closes, and the last five of them ARE the week — coarser than the
-     * ten-minute buckets the capture will supply, and exactly what this range
+     * closes, and the last seven of them ARE the week — coarser than the
+     * five-minute buckets the fetch will supply, and exactly what this range
      * showed before it existed. Drawing nothing because the better series has
-     * not accumulated yet would be worse than the crude line it replaced.
+     * not arrived yet would be worse than the crude line it replaced.
      *
-     * FIVE YEARS has not. The page ships one year, and five years of axis over
-     * one year of bars is the mislabelling this guard was written for — a
-     * reader cannot see that it is wrong.
-     *
-     * The caption is told which of the two it got, so "5 daily closes" is
-     * never printed as "10-minute bars". */
+     * The caption is told which of the two it got, so "7 daily closes" is
+     * never printed as "prices, every 5 minutes". */
     if (range === "1W") return { ...base, daily: base.daily.slice(-WEEK_CLOSES) };
     /* The month, quarter and year fall back to the page's own daily closes
        while their minutes load or if the fetch fails — the chart slices those
-       to the range's session count. Five years does NOT: the page ships one
-       year, and one year drawn under a five-year label would mislead. */
-    if (range === "5Y") return { ...base, daily: storedSession };
+       to the range's session count. */
     return base;
-  }, [snapshot.history, liveSession, storedSession, session.note, range, weekIsWhole]);
+  }, [snapshot.history, daily, daySeries, storedSession, session.note, range, weekIsWhole, longDrawn]);
 
   /* Minute bars spanning several sessions: the week once whole, and the month,
      quarter and year once their intraday bars have arrived. The chart then marks
@@ -217,35 +351,33 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
   const intradayLong = range === "1M" || range === "3M" || range === "1Y";
   const multiDay = (range === "1W" && weekIsWhole) || (intradayLong && storedSession.length > 0);
 
-  /* What the caption should CALL the bars it is drawing.
+  /* What the caption should CALL the points it is drawing.
    *
    * Neither of these ranges draws one fixed thing, and the range table can only
-   * name one. The week is ten-minute buckets once five sessions exist and five
-   * daily closes until then. The day is the live gateway's one-minute bars
-   * while the market is open, and the store's ten-minute buckets when it is
-   * shut — which is most of the day from India, and which was printing "70
-   * 1-minute bars" over seventy ten-minute ones.
+   * name one. The week is five-minute buckets once seven sessions exist and
+   * seven daily closes until then. The day is the fetched series wherever it
+   * has the session — Polygon's minutes, or the store's ten-minute buckets if
+   * those were not available — and the live gateway's one-minute prices only
+   * when they are a newer session than the fetch.
    *
    * A caption that names an interval the chart is not drawing is the small
    * invented fact this codebase refuses: the reader cannot check it, so it has
    * to be right. */
   const chartInterval = useMemo(() => {
     if (range === "1W" && !weekIsWhole) return "daily closes";
-    /* Read off the bars themselves rather than assumed. The day and week
-       ranges now come from the gateway's minutes (1-minute and 5-minute), and
-       fall back to the store's ten-minute buckets if that call fails — so the
-       only way the caption can be sure what it is looking at is to measure. */
+    /* Read off the points themselves rather than assumed. The day and week
+       ranges come from Polygon's and the gateway's minutes, and fall back to
+       the store's ten-minute buckets if those fail — so the only way the
+       caption can be sure what it is looking at is to measure. */
     if (intradayLong && storedSession.length === 0) return "daily closes";
     const fromStore =
-      (range === "1D" && liveSession.length === 0 && storedSession.length > 0) ||
-      (range === "1W" && weekIsWhole) ||
-      intradayLong;
+      (range === "1D" && dayBase.fromStore) || (range === "1W" && weekIsWhole) || intradayLong;
     if (fromStore) {
       const m = barMinutes(storedSession);
       return spacingLabel(m ?? BUCKET_MINUTES);
     }
     return undefined;
-  }, [range, weekIsWhole, liveSession.length, storedSession, intradayLong]);
+  }, [range, weekIsWhole, dayBase.fromStore, storedSession, intradayLong]);
 
   /* The newswire, widened after the page has appeared.
 
@@ -352,6 +484,15 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
   const panels: Record<TabId, React.ReactNode> = {
     overview: <OverviewPanel snapshot={snapshot} />,
     performance: <PerformancePanel snapshot={snapshot} />,
+    analysts: (
+      <AnalystPanel
+        ticker={snapshot.profile.id}
+        model={analystModelFromAvailability(snapshot.analyst, {
+          ticker: snapshot.profile.id,
+          price: snapshot.profile.price,
+        })}
+      />
+    ),
     fundamentals: <FundamentalsPanel snapshot={snapshot} />,
     technicals: <TechnicalsPanel snapshot={snapshot} />,
     competitors: <CompetitorsPanel snapshot={snapshot} />,
@@ -433,6 +574,9 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
           range={range}
           intervalLabel={chartInterval}
           multiDay={multiDay}
+          previousClose={previousClose}
+          subject={stock.id}
+          status={fetched.state}
         />
       </div>
 

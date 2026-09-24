@@ -141,4 +141,38 @@
     letter-spacing: 0.16em;
     padding-block: 9px;
   }
+
+  /* The phone tap floor. Measured at 390, these were the links a thumb
+     actually reaches for and misses: the footer directory at 32px tall, the
+     home page's three reads at 19px, the breadcrumb trails at 21px. */
+
+  /* The footer directory: 21px of text in 44px of row. The list's 8px gap
+     comes out so the pitch grows by 4px a link rather than 12. */
+  .pgf-list { gap: 0; }
+  .pgf-link { padding-block: 11.5px; }
+
+  /* "Read first": the three links wrap onto two rows here, so the rows take
+     the height instead of a gap. */
+  .hm-reads-list { row-gap: 0; }
+  .hm-read {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  /* Breadcrumbs: an invisible 44px band centred on each link, inside it, so
+     the target grows while the trail's line and the links' underlines stay
+     exactly where they were drawn. */
+  .page-hero .breadcrumb a,
+  .pz-crumb a { position: relative; }
+  .page-hero .breadcrumb a::before,
+  .pz-crumb a::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 44px;
+    transform: translateY(-50%);
+  }
 }

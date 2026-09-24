@@ -8,6 +8,7 @@ import {
   periodReturn,
   ytdReturn,
 } from "../api/normalize/performance.ts";
+import { calendarReturn, calendarWindow, easternDay, sinceLabel } from "../api/normalize/returns.ts";
 import type { PricePoint } from "../api/normalize/series.ts";
 import type { InstrumentSnapshot } from "./instrument.ts";
 
@@ -47,9 +48,11 @@ const ALIGNMENT_SLACK_MS = 4 * 86_400_000;
 /* The proxy's bars, but only where they can honestly stand beside the
    subject's.
 
-   Every rolling window below is an INDEX lookback — 252 bars back on each
-   series — and that compares like with like only while the two records are
-   date-aligned. Today they are: `getInstrumentSnapshot` fetches both from the
+   The month windows below are INDEX lookbacks — 21 bars back on each series —
+   and that compares like with like only while the two records are
+   date-aligned. (The year rows are calendar-anchored and struck to the
+   subject's last close on both legs, which is less fragile, but they share
+   the same guard.) Today they are: `getInstrumentSnapshot` fetches both from the
    same history endpoint, for the same five-year range, in the same fan-out, so
    they arrive the same length with the same dates. But that is an observation
    about the data rather than a guarantee of the type. A proxy leg served from
@@ -107,7 +110,12 @@ export type PeriodRow = {
   key: PeriodKey;
   /** Matches the `PERIODS` label for every window measured in sessions. */
   label: string;
-  /** Trading sessions in the lookback, or null where the window is a calendar boundary. */
+  /** The Eastern date a year row is struck from when its record opens after
+      the anchor, and the label then names it ("Since Sep 24, 2021"); null for
+      a row measured over its whole window. */
+  since: string | null;
+  /** Trading sessions in the lookback, or null where the window is a calendar
+      boundary: year to date, and the 1, 3 and 5 year rows. */
   sessions: number | null;
   /** The subject's price return over the window, percent. */
   stock: number | null;
@@ -129,15 +137,29 @@ export type PeriodRow = {
    is noise next to a five-year row. And year-to-date is not a session count at
    all — it is a calendar boundary — so it cannot live in that array, and
    `sessions: null` is how this row says so rather than claiming a length it
-   does not have. */
-const WINDOWS: ReadonlyArray<{ key: PeriodKey; label: string; sessions: number | null }> = [
+   does not have.
+
+   The YEAR rows are calendar boundaries too, and `years` is how they say so.
+   1Y was "the close 252 bars back" here and "the close nearest 365.25 days
+   back" on the Overview — two numbers under one label on one page. Both read
+   calendarReturn now (lib/api/normalize/returns.ts): the latest close against
+   the last close on or before the same date one, three or five years earlier.
+   That is also what returns.json and the snapshot's `returns` are built with,
+   so the Overview's Price return, this table, the peers column and the sector
+   table all agree. */
+const WINDOWS: ReadonlyArray<{
+  key: PeriodKey;
+  label: string;
+  sessions: number | null;
+  years?: number;
+}> = [
   { key: "1m", label: "1 month", sessions: 21 },
   { key: "3m", label: "3 months", sessions: 64 },
   { key: "6m", label: "6 months", sessions: 126 },
   { key: "ytd", label: "Year to date", sessions: null },
-  { key: "1y", label: "1 year", sessions: 252 },
-  { key: "3y", label: "3 years", sessions: 756 },
-  { key: "5y", label: "5 years", sessions: 1260 },
+  { key: "1y", label: "1 year", sessions: null, years: 1 },
+  { key: "3y", label: "3 years", sessions: null, years: 3 },
+  { key: "5y", label: "5 years", sessions: null, years: 5 },
 ];
 
 /**
@@ -162,21 +184,76 @@ export function rollingPeriods(s: InstrumentSnapshot): PeriodRow[] {
      so the two year-to-date figures cannot be struck from different years. */
   const asOf = pts.length ? pts[pts.length - 1].at : 0;
 
-  const measure = (series: readonly PricePoint[], sessions: number | null) =>
-    sessions === null ? ytdReturn(series, asOf) : periodReturn(series, sessions);
+  const measure = (series: readonly PricePoint[], w: (typeof WINDOWS)[number]) =>
+    w.years !== undefined
+      ? calendarReturn(series, w.years, asOf)
+      : w.sessions === null
+        ? ytdReturn(series, asOf)
+        : periodReturn(series, w.sessions);
 
   return WINDOWS.map((w) => {
-    const stock = pts.length ? measure(pts, w.sessions) : null;
-    const market = mkt === null ? null : measure(mkt, w.sessions);
+    /* A year window whose record opens after its anchor is struck from the
+       record's first close (REACH_GRACE_DAYS in returns.ts). Measured 24 Sep
+       2026, META's opens a session late and its "5 years" read +110.82% for a
+       true +115.08%. The row is named by that close instead, as the Overview's
+       is, and the fund is measured from the same session: SPY's record does
+       reach its anchor, and a comparison of the stock's four-years-and-364-days
+       against the fund's full five is not a comparison of one window. */
+    const span = w.years !== undefined && pts.length ? calendarWindow(pts, w.years, asOf) : null;
+    if (span !== null && !span.anchored) {
+      const since = easternDay(span.from.at);
+      const stock = (span.to.price / span.from.price - 1) * 100;
+      const market = mkt === null ? null : changeBetween(mkt, span.from.at, span.to.at);
+      return {
+        key: w.key,
+        label: sinceLabel(since),
+        since,
+        sessions: w.sessions,
+        stock,
+        market,
+        relative: relativeReturn(stock, market),
+      };
+    }
+
+    const stock = pts.length ? measure(pts, w) : null;
+    const market = mkt === null ? null : measure(mkt, w);
     return {
       key: w.key,
       label: w.label,
+      since: null,
       sessions: w.sessions,
       stock,
       market,
       relative: relativeReturn(stock, market),
     };
   });
+}
+
+/* The last close at or before an instant, by binary search over an ascending
+   series; null when the series opens after it. */
+function closeAtOrBefore(series: readonly PricePoint[], at: number): PricePoint | null {
+  let lo = 0;
+  let hi = series.length - 1;
+  let found: PricePoint | null = null;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (series[mid].at <= at) {
+      found = series[mid];
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return found;
+}
+
+/** Percent change from the close at or before `fromAt` to the one at or before
+    `toAt`, or null when either is missing or they are the same close. */
+function changeBetween(series: readonly PricePoint[], fromAt: number, toAt: number): number | null {
+  const from = closeAtOrBefore(series, fromAt);
+  const to = closeAtOrBefore(series, toAt);
+  if (from === null || to === null || from.at >= to.at || !(from.price > 0)) return null;
+  return (to.price / from.price - 1) * 100;
 }
 
 /* ── calendar years ────────────────────────────────────────────────────── */

@@ -3,7 +3,7 @@ import { useLiveSession } from "@/components/home/use-session";
 
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
-import { phaseWord, pricesMove, type Session } from "@/lib/market/session";
+import { phaseWord, pricesMove, sessionNotices, type Session } from "@/lib/market/session";
 import { EASE } from "@/lib/tokens";
 import { cn } from "./ui";
 
@@ -23,10 +23,12 @@ import { cn } from "./ui";
  *
  * IT ROLLS. This audience trades US hours from India, where the bell is 7pm and
  * the close is half past one in the morning, so "when" is as load-bearing as
- * "what". One pill cannot hold both without becoming a sentence, so it holds
- * them in turn — and it changes over the way a departure board does, the old
- * line leaving upwards as the new one arrives from below, because a hard cut
- * at the edge of vision reads as a glitch while a roll reads as an update.
+ * "what" — and on a half-day, when the bell is 11:30 pm and the post-market
+ * ends at 3:30 am, the "when" is the whole news. One pill cannot hold all of
+ * it without becoming a sentence, so it holds them in turn — and it changes
+ * over the way a departure board does, the old line leaving upwards as the
+ * new one arrives from below, because a hard cut at the edge of vision reads
+ * as a glitch while a roll reads as an update.
  */
 
 /* Ten and four. The status is the resting state and earns the long dwell; the
@@ -77,7 +79,8 @@ function Rolling({
   );
 }
 
-const longer = (a: string, b: string) => (b.length > a.length ? b : a);
+const longest = (values: string[]) =>
+  values.reduce((a, b) => (b.length > a.length ? b : a), "");
 
 /* The pill's clock is Asia/Kolkata — `istTime` in lib/market/session.ts pins it,
    because this terminal is built for Indian investors trading US equities. The
@@ -99,21 +102,30 @@ export function MarketStatus({ session: rendered }: { session: Session }) {
      (regular session only) and so sat grey and dead through a pre-market in
      which every price on the page was changing. */
   const moving = pricesMove(session.phase);
-  const opens = session.opens;
 
-  const [showOpens, setShowOpens] = useState(false);
+  /* What the pill rolls onto between status lines: the next opening, and on a
+     half-day the early close as well (sessionNotices decides, so this pill and
+     the home page's cannot tell a reader two different things). Even steps are
+     the status, odd steps take the notices in turn. */
+  const notices = sessionNotices(session);
+  /* The effect keys on the notices' content, not the array: a fresh array every
+     render would restart the timer on every parent render and the pill would
+     never roll. */
+  const noticesKey = notices.map((n) => `${n.label}@${n.at}`).join("|");
+  const [step, setStep] = useState(0);
 
   useEffect(() => {
     /* Nothing to alternate with — a market with no opening inside eight days is
        not a market, but the pill should sit still rather than roll between one
        message and itself. */
-    if (!opens) return;
-    const t = setTimeout(() => setShowOpens((v) => !v), showOpens ? OPENS_MS : STATUS_MS);
+    if (noticesKey === "") return;
+    const t = setTimeout(() => setStep((n) => n + 1), step % 2 === 1 ? OPENS_MS : STATUS_MS);
     return () => clearTimeout(t);
-  }, [showOpens, opens]);
+  }, [step, noticesKey]);
 
   const label = `US ${phaseWord(session.phase)}`;
-  const showing = showOpens && opens ? opens : null;
+  const showing =
+    step % 2 === 1 && notices.length > 0 ? notices[((step - 1) / 2) % notices.length] : null;
 
   return (
     <div
@@ -131,7 +143,7 @@ export function MarketStatus({ session: rendered }: { session: Session }) {
          makes a screen reader unusable. The label is stated once, as a label.
          Reduced motion is handled globally by the shell's <MotionConfig
          reducedMotion="user">, which turns the roll into a plain swap. */
-      aria-label={opens ? `${label}. ${opens.label} at ${opens.time} ${CLOCK_ZONE}.` : label}
+      aria-label={[label, ...notices.map((n) => `${n.label} at ${n.time} ${CLOCK_ZONE}`)].join(". ") + "."}
     >
       <span
         aria-hidden="true"
@@ -143,7 +155,7 @@ export function MarketStatus({ session: rendered }: { session: Session }) {
 
       <Rolling
         value={showing ? showing.label : label}
-        widest={opens ? longer(label, opens.label) : label}
+        widest={longest([label, ...notices.map((n) => n.label)])}
         className={cn(
           "text-[13px] font-medium",
           moving ? "text-gold" : "text-ink-3",
@@ -154,7 +166,7 @@ export function MarketStatus({ session: rendered }: { session: Session }) {
 
       <Rolling
         value={`${showing ? showing.time : session.clock} ${CLOCK_ZONE}`}
-        widest={`${opens ? longer(session.clock, opens.time) : session.clock} ${CLOCK_ZONE}`}
+        widest={`${longest([session.clock, ...notices.map((n) => n.time)])} ${CLOCK_ZONE}`}
         className="font-mono text-[12.5px] tracking-[0.04em] text-ink-3"
       />
     </div>

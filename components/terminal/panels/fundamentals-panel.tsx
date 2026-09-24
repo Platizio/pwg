@@ -13,6 +13,7 @@ import {
 } from "@/lib/market/derive-fundamentals";
 import { ratios } from "@/lib/market/instrument-derive";
 import type { InstrumentSnapshot } from "@/lib/market/instrument";
+import { useLiveSnapshot } from "../live-provider";
 import { LeaderRow, Meter, Section } from "../ui";
 
 /* The filed record, read the way somebody deciding whether to buy reads it.
@@ -80,14 +81,17 @@ function LedgerTable({
         <tbody>
           {ledger.rows.map((row) => (
             <tr key={row.key} className="border-b border-rule-table">
+              {/* Everything top-aligned. The first line of each cell is the
+                  one the eye reads across, so it shares a single line with the
+                  row label; the margins' meters hang below it. */}
               <th
                 scope="row"
-                className="py-3.5 pr-4 text-left text-[13px] font-normal text-ink-2"
+                className="py-3.5 pr-4 text-left align-top text-[13px] font-normal text-ink-2"
               >
                 {row.label}
               </th>
               {row.cells.map((c, i) => (
-                <td key={ledger.years[i]} className="py-3.5 pl-4 text-right align-bottom">
+                <td key={ledger.years[i]} className="py-3.5 pl-4 text-right align-top">
                   <span
                     className={`font-mono text-[13px] ${i === last ? "text-ink" : "text-ink-2"}`}
                   >
@@ -117,6 +121,10 @@ function LedgerTable({
 }
 
 export function FundamentalsPanel({ snapshot }: { snapshot: InstrumentSnapshot }) {
+  /* The market cap, and the FCF yield, EV and P/FCF struck from it, follow
+     the header's price: the stored cap was fixed at the previous close, and
+     this page is cached. The filed figures below do not move with price. */
+  const live = useLiveSnapshot(snapshot);
   const strip = headline(snapshot);
   const rates = growth(snapshot);
   const income = incomeLedger(snapshot);
@@ -127,19 +135,24 @@ export function FundamentalsPanel({ snapshot }: { snapshot: InstrumentSnapshot }
   /* The twelve trailing ratios stay exactly as they were — imported, not
      reimplemented — and the five this module adds run on after them in the
      same list. */
-  const valuationRows = [...ratios(snapshot), ...valuation(snapshot)];
+  const valuationRows = [...ratios(live), ...valuation(live)];
   const filed = income.years.length > 0;
 
   return (
     <div className="flex flex-col gap-11">
       {filed ? (
         <dl className="grid grid-cols-2 border-t border-b border-rule-section sm:grid-cols-3 xl:grid-cols-5">
+          {/* Each cell spans two rows of the strip's own grid, label over
+              figure, so every figure in a row shares one top line however
+              many lines its label takes. A single-line label sits on the
+              bottom of the label track, level with the last line of a wrapped
+              one, and the figures and their notes line up across the strip. */}
           {strip.map((f) => (
             <div
               key={f.key}
-              className="border-r border-b border-rule-section px-5 py-5 last:border-r-0 xl:border-b-0"
+              className="row-span-2 grid grid-rows-subgrid border-r border-b border-rule-section px-5 py-5 last:border-r-0 xl:border-b-0"
             >
-              <dt className="eyebrow mb-3">{f.label}</dt>
+              <dt className="eyebrow mb-3 self-end">{f.label}</dt>
               <dd className="m-0">
                 <span className="font-serif block text-[24px] tracking-[0.01em]">{f.value}</span>
                 {f.note && (
@@ -178,7 +191,10 @@ export function FundamentalsPanel({ snapshot }: { snapshot: InstrumentSnapshot }
             <tbody>
               {rates.map((r, i) => (
                 <tr key={r.key} className="border-b border-rule-table">
-                  <td className="py-3.5 pr-4 text-[13.5px] text-ink-2">
+                  {/* Top-aligned like the three figures beside it: the meter
+                      hangs below the label, so the label is the cell's first
+                      line and has to share the row's top line. */}
+                  <td className="py-3.5 pr-4 align-top text-[13.5px] text-ink-2">
                     {r.label}
                     <span className="mt-2 block">
                       <Meter width={r.yoyWidth} color={r.yoyColor} delay={i * 0.06} />
@@ -252,11 +268,16 @@ export function FundamentalsPanel({ snapshot }: { snapshot: InstrumentSnapshot }
 
       <div className="grid gap-11 xl:grid-cols-[1.15fr_1fr]">
         <Section title="Valuation" eyebrow="Live price against the latest filed year">
-          <dl className="grid grid-cols-1 gap-x-10 sm:grid-cols-2">
-            {valuationRows.map((r) => (
-              <LeaderRow key={r.label} label={r.label} value={r.value} />
-            ))}
-          </dl>
+          {/* Two columns only when the list's own column can hold them. Sized
+              by the viewport, it split into two ~170px columns inside the
+              narrow xl column, and five labels wrapped around their leaders. */}
+          <div className="@container">
+            <dl className="grid grid-cols-1 gap-x-10 @min-[40rem]:grid-cols-2">
+              {valuationRows.map((r) => (
+                <LeaderRow key={r.label} label={r.label} value={r.value} />
+              ))}
+            </dl>
+          </div>
         </Section>
 
         <Section

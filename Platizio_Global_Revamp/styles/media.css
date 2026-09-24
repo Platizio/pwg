@@ -218,31 +218,45 @@
 }
 
 /*
- * NOT `.btn-gold`. That control carries a hardcoded burnt-orange ramp in
- * base.css (#C25514 -> #7E3008) which is the old cool palette's accent and
- * reads as a visitor from another design on champagne paper. This is the same
- * shape in the gold ramp, and it moves with the tokens.
+ * The site's one primary action: the gold foil ramp .btn-gold wears
+ * (app/(site)/styles/glass.css) with ink lettering, in the tracked capitals
+ * and at the 52px height every page's primary shares. It was a solid bronze
+ * face with cream lettering, which made it a different object from the gold
+ * "Start investing" on the home, products and pricing pages.
  */
 .mw-cta {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
-  padding: 17px 32px;
-  border: 1px solid var(--gold);
+  min-height: 52px;
+  padding: 0 32px;
+  border: 0;
   border-radius: var(--radius-full);
-  background: var(--gold);
-  color: var(--white);
+  background: linear-gradient(120deg, #efd9b0 0%, var(--foil) 34%, #c7a468 58%, #e6cc9f 100%);
+  color: var(--on-gold);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.22em;
+  line-height: 1;
   text-transform: uppercase;
   text-decoration: none;
   cursor: pointer;
-  transition: transform 0.2s var(--ease), background 0.24s var(--ease), border-color 0.24s var(--ease);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -1px 0 rgba(90, 60, 20, 0.25),
+    0 1px 2px rgba(26, 18, 7, 0.15),
+    var(--shadow-gold);
+  transition: transform 0.2s var(--ease), box-shadow 0.24s var(--ease);
 }
 
-.mw-cta:hover { transform: translateY(-2px); background: var(--gold-hi); border-color: var(--gold-hi); }
+.mw-cta:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 -1px 0 rgba(90, 60, 20, 0.25),
+    0 2px 4px rgba(26, 18, 7, 0.15),
+    0 22px 50px -16px rgba(184, 148, 92, 0.9);
+}
 .mw-cta:active { transform: translateY(0); }
 .mw-cta[disabled] { opacity: 0.6; cursor: default; transform: none; }
 
@@ -664,7 +678,14 @@
 
 .mw-side { display: flex; flex-direction: column; gap: var(--space-4); height: 100%; }
 
-.mw-list { list-style: none; display: grid; gap: var(--space-3); margin: 0; padding: 0; }
+/* The rows take the column's slack. .mw-side stretches to the feature card
+   beside it, and with the list at its natural height the button was pushed
+   down alone, leaving a 165px empty band between it and the last row. Each
+   row's content stays centred in its share (.mw-row aligns its grid to the
+   centre). */
+.mw-list { list-style: none; display: grid; grid-auto-rows: 1fr; gap: var(--space-3); margin: 0; padding: 0; flex: 1 1 auto; }
+/* The link fills its item, so the card border is the row's full share. */
+.mw-list > li { display: grid; }
 
 .mw-row {
   display: grid;
@@ -917,6 +938,14 @@
 }
 
 /* ===================================================== responsive */
+
+/* The articles column is bare and the blog note beside it is a card, so the
+   card's padding and border put its head 36px lower than "Articles". The bare
+   column takes the same inset at the top, and both heads and both hairlines
+   share one line. Two columns only. */
+@media (min-width: 1001px) {
+  .mw-articles { padding-top: calc(clamp(1.5rem, 2.5vw, 2rem) + 1px); }
+}
 
 @media (max-width: 1000px) {
   .mw-hero-inner,

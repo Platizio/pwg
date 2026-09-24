@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { inRegularSession, regularSessionOnly } from "../lib/market/regular-session.ts";
+import { bellOf, inRegularSession, regularSessionOnly } from "../lib/market/regular-session.ts";
 
 /* Which bars a chart may draw.
  *
@@ -78,4 +78,64 @@ test("nothing in, nothing out", () => {
   const empty: Array<{ at: number }> = [];
   assert.equal(regularSessionOnly(empty), empty);
   assert.equal(inRegularSession(Number.NaN), false);
+});
+
+/* ---------- two readings of the bell ---------- */
+
+/* The same 16:00 minute means two different things depending on who stamped
+ * it. The FETCHED day ends on a point the route adds at 16:00:00 carrying the
+ * official close (the closing cross), and that point has to survive. The
+ * gateway's LIVE series also has a 16:00 minute, and it is a post-market print:
+ * measured 23 Sep 2026, AAPL's live 16:00 bar was not 337.02, the official
+ * close. So the live path drops everything from the bell on, and the fetched
+ * path keeps the bell itself. */
+
+test("the live reading stops before the bell", () => {
+  const opts = { close: "exclude" } as const;
+  assert.equal(inRegularSession(at("2026-09-22T19:59:00Z"), opts), true, "15:59 ET is the last live minute");
+  assert.equal(inRegularSession(at("2026-09-22T19:59:59Z"), opts), true, "a tick at 15:59:59");
+  assert.equal(inRegularSession(at("2026-09-22T20:00:00Z"), opts), false, "16:00 ET is post-market on the live feed");
+  assert.equal(inRegularSession(at("2026-09-22T13:30:00Z"), opts), true, "the open is unchanged");
+});
+
+test("a live day loses its 16:00 print, a fetched day keeps its official close", () => {
+  const day = [
+    { at: at("2026-09-22T13:30:00Z") },
+    { at: at("2026-09-22T19:59:00Z") },
+    { at: at("2026-09-22T20:00:00Z") },
+    { at: at("2026-09-22T20:01:00Z") },
+  ];
+  assert.deepEqual(
+    regularSessionOnly(day, { close: "exclude" }).map((p) => p.at),
+    day.slice(0, 2).map((p) => p.at),
+  );
+  assert.deepEqual(
+    regularSessionOnly(day).map((p) => p.at),
+    day.slice(0, 3).map((p) => p.at),
+    "inclusive by default, which is what the fetched series needs",
+  );
+});
+
+/* ---------- half-days ---------- */
+
+/* 27 Nov 2026, the day after Thanksgiving, closes at 13:00 ET (EST, UTC-5, so
+   18:00Z). Everything between 13:00 and 16:00 that day is after-hours trading,
+   and a chart that kept it would draw three hours of post-market as if it were
+   the session. */
+test("on a half-day the session ends at 13:00", () => {
+  assert.equal(inRegularSession(at("2026-11-27T14:30:00Z")), true, "09:30 EST");
+  assert.equal(inRegularSession(at("2026-11-27T18:00:00Z")), true, "13:00, the half-day bell, fetched reading");
+  assert.equal(inRegularSession(at("2026-11-27T18:00:00Z"), { close: "exclude" }), false, "13:00 live reading");
+  assert.equal(inRegularSession(at("2026-11-27T17:59:00Z"), { close: "exclude" }), true, "12:59");
+  assert.equal(inRegularSession(at("2026-11-27T18:01:00Z")), false, "13:01 is after-hours");
+  assert.equal(inRegularSession(at("2026-11-27T20:00:00Z")), false, "15:00 is after-hours on a half-day");
+  assert.equal(inRegularSession(at("2026-11-27T21:00:00Z")), false, "16:00 too");
+});
+
+test("the bell, as an instant, follows New York's clock and its half-days", () => {
+  assert.equal(bellOf("2026-09-23"), at("2026-09-23T20:00:00Z"), "16:00 EDT");
+  assert.equal(bellOf("2026-01-21"), at("2026-01-21T21:00:00Z"), "16:00 EST");
+  assert.equal(bellOf("2026-11-27"), at("2026-11-27T18:00:00Z"), "13:00 EST on the half-day");
+  assert.equal(bellOf("2026-12-24"), at("2026-12-24T18:00:00Z"), "Christmas Eve");
+  assert.equal(bellOf("not a day"), null);
 });

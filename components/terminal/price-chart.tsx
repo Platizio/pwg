@@ -19,9 +19,8 @@ import {
 import { motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatStamp, money } from "@/lib/market/format";
-import { rangeCaption, readerZone } from "@/lib/market/ranges";
-import { easternDay } from "@/lib/market/intraday-buckets";
-import { priorClose } from "@/lib/market/prior-close";
+import { emptyChartText, rangeCaption, readerZone, viewShowsAll } from "@/lib/market/ranges";
+import { chartReference } from "@/lib/market/prior-close";
 import { getRange } from "@/lib/market/ranges";
 import type { RangeId } from "@/lib/market/types";
 import type { PricePoint } from "@/lib/api/normalize/series";
@@ -67,6 +66,9 @@ export function PriceChart({
   range,
   intervalLabel,
   multiDay = false,
+  previousClose,
+  subject,
+  status,
 }: {
   /* Both series, so the control can switch between them without a refetch:
      the day comes from minute bars, everything else is a slice of the daily
@@ -83,6 +85,19 @@ export function PriceChart({
      the gateway's intraday window). The axis marks each day and the crosshair
      shows the time, rather than treating five-minute bars as daily closes. */
   multiDay?: boolean;
+  /* The page's "Previous close" figure — the ONE number the dashed line may
+     show. Not computed here: the chart's own guess (339.73, the last bucket of
+     the session before the final one) sat under a card printing a different
+     number, and the owner asked, reasonably, which was the previous close.
+     Null draws no line, as the card then draws a dash. */
+  previousClose: number | null;
+  /* Whose prices these are. A different stock is a new series, and the
+     entrance plays for it; a live point joining the same series is not. */
+  subject?: string;
+  /* Where the fetch for this range stands (use-history.ts), so an empty chart
+     can say it is loading, or that loading failed, instead of claiming there
+     is no history. Only read while nothing is drawn. */
+  status?: "idle" | "loading" | "ready" | "empty" | "failed";
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
@@ -93,6 +108,10 @@ export function PriceChart({
   const chartRef = useRef<IChartApi | null>(null);
   const mainRef = useRef<ISeriesApi<SeriesType> | null>(null);
   const prevLineRef = useRef<IPriceLine | null>(null);
+  /* How many points the series held after its last setData — what the
+     visible window is measured against to tell a fitted view from a zoomed
+     one (viewShowsAll). */
+  const drawnRef = useRef(0);
   /* Which series type `mainRef` currently holds — the data effect needs it to
      pick the right payload shape without re-running on every series swap. */
 
@@ -205,6 +224,22 @@ export function PriceChart({
 
     const at = (p: PricePoint) => Math.floor(p.at / 1000) as UTCTimestamp;
 
+    /* Two references, kept apart (see chartReference). `prev` is the card's
+       figure and nothing else. `basis` colours the area and measures the
+       tooltip: on the day, the close BEFORE the session on
+       screen — not the previous minute, which once painted a session up 2%
+       red because its last tick was down a cent; on every longer range, the
+       first point drawn, so a week is read from where the week began. Before
+       the bell the two differ on the day chart, and correctly: the chart is
+       the last completed session measured from the close before it, and the
+       line is that session's own close, where the chart now ends. */
+    const reference = chartReference({
+      intraday: rangeDef.intraday,
+      points: slice,
+      daily: history.daily,
+      previousClose,
+    });
+
     return {
       values: slice.map((p) => p.price),
       /* The real ends of what is drawn. The window is a tail-slice of ROWS,
@@ -215,28 +250,8 @@ export function PriceChart({
       lastAt: raw.at(-1)?.at ?? null,
       line: slice.map((p) => ({ time: at(p), value: p.price })),
       base: slice[0]?.price ?? 0,
-      /* The previous close, and on the day range that means the previous
-         SESSION — not the previous minute.
-
-         This read `slice[length - 2]` for every range. On a daily range that is
-         yesterday's close and correct. On 1D it is the bar one minute earlier,
-         and it was driving three things at once: the dashed gold "PREV CLOSE"
-         marker, the up/down colour of the whole area fill, and the percentage
-         in the screen-reader summary. So a session up 2% could paint red
-         because the last minute ticked down a cent, disagreeing with the
-         header sitting directly above it, which reads the day change off the
-         quote. The daily series ends at the last completed session, which is
-         exactly the figure the day range needs. */
-      /* The close BEFORE the session on screen (priorClose), not the latest
-         daily bar: before the bell this chart draws the previous session, and
-         the latest bar is then that session's own close. */
-      prev: rangeDef.intraday
-        ? (priorClose(history.daily, slice[0]?.at ?? null) ?? slice[0]?.price ?? 0)
-        : multiDay
-          ? previousSessionClose(slice)
-          : raw.length > 1
-          ? raw[raw.length - 2].price
-          : (raw[0]?.price ?? 0),
+      basis: reference.basis ?? 0,
+      prev: reference.line,
       empty: slice.length === 0,
       /* The extremes of this range, wicks included. The price axis is pinned
          to these rather than to whatever is inside the visible window. */
@@ -250,7 +265,7 @@ export function PriceChart({
           )
         : null,
     };
-  }, [history, rangeDef, multiDay]);
+  }, [history, rangeDef, multiDay, previousClose]);
 
   /* The crosshair handler is subscribed once, with the chart, so it cannot
      close over render values — they freeze at whatever the mount-time range
@@ -258,9 +273,9 @@ export function PriceChart({
      Switching to 1D then measured every hovered bar against a year-old base
      and printed a date with no time. This mirror is refreshed after every
      render and read inside the handler instead. */
-  const liveRef = useRef({ base: data.base, intraday: clocked, P });
+  const liveRef = useRef({ base: data.basis, intraday: clocked, P });
   useEffect(() => {
-    liveRef.current = { base: data.base, intraday: clocked, P };
+    liveRef.current = { base: data.basis, intraday: clocked, P };
   });
 
   /* What the chart is actually showing, in words: interval, count, real span,
@@ -279,7 +294,7 @@ export function PriceChart({
   );
 
   const last = data.values.at(-1) ?? 0;
-  const up = last >= data.prev;
+  const up = last >= data.basis;
   const tone = up ? P.up : P.down;
 
   /* Create the chart once and keep it alive across every data change — tearing
@@ -492,8 +507,8 @@ export function PriceChart({
       const b = data.bounds;
       if (!b || !Number.isFinite(b.min) || !Number.isFinite(b.max)) return null;
 
-      const min = Math.min(b.min, data.prev);
-      const max = Math.max(b.max, data.prev);
+      const min = data.prev === null ? b.min : Math.min(b.min, data.prev);
+      const max = data.prev === null ? b.max : Math.max(b.max, data.prev);
       // A flat series would otherwise collapse to a zero-height range.
       const pad = (max - min) * 0.08 || Math.max(max * 0.01, 0.01);
 
@@ -508,20 +523,37 @@ export function PriceChart({
       crosshairMarkerBackgroundColor: tone,
       autoscaleInfoProvider,
     });
+    /* A point joining or leaving refits the view only if the view showed every
+       point before it: read BEFORE setData, which shifts a window whose right
+       edge was on the last point. A reader who zoomed keeps their zoom. */
+    const scale = chart.timeScale();
+    const count = data.line.length;
+    const wasWhole = viewShowsAll(scale.getVisibleLogicalRange(), drawnRef.current);
     area.setData(data.line.map((d) => ({ time: d.time as UTCTimestamp, value: d.value })));
+    if (count !== drawnRef.current && wasWhole) scale.fitContent();
+    drawnRef.current = count;
+  }, [data, tone, up, P]);
 
-    /* The dashed prev-close marker the Lux design adds. A native price line
-       rather than an absolutely-positioned div, so it tracks the scale.
+  /* The dashed prev-close marker the Lux design adds. A native price line
+     rather than an absolutely-positioned div, so it tracks the scale.
 
-       Skipped when there is nothing plotted: `prev` is 0 on an empty slice, so
-       this drew a dashed gold line labelled PREV CLOSE at 0.00 behind the "no
-       trades yet this session" message, and handed the price axis a zero to
-       scale against. */
+     Its own effect, keyed on the figure, so a live point joining the series
+     does not tear the line down and redraw it on every tick. Runs after the
+     series effect above, which resets the ref whenever it replaces the series
+     (the old series' lines go with it).
+
+     Skipped when there is nothing plotted: this once drew a dashed gold line
+     labelled PREV CLOSE at 0.00 behind the "no trades yet this session"
+     message, and handed the price axis a zero to scale against. And skipped
+     when the page has no previous close to show — the card prints a dash. */
+  useEffect(() => {
+    const series = mainRef.current;
+    if (!series) return;
     if (prevLineRef.current) {
       series.removePriceLine(prevLineRef.current);
       prevLineRef.current = null;
     }
-    if (data.empty) return;
+    if (data.empty || data.prev === null) return;
     prevLineRef.current = series.createPriceLine({
       price: data.prev,
       color: P.goldDeep,
@@ -530,8 +562,7 @@ export function PriceChart({
       axisLabelVisible: true,
       title: "PREV CLOSE",
     });
-
-  }, [data, tone, up, P]);
+  }, [data.empty, data.prev, P]);
 
   /* Reset the time window. The price axis needs no resetting: it is pinned to
      the range's own extremes by the provider above, so it never drifted. */
@@ -539,9 +570,16 @@ export function PriceChart({
     chartRef.current?.timeScale().fitContent();
   }, []);
 
+  /* A NEW series is fitted: another range, another stock, or the same range
+     starting somewhere else (the day chart moving from yesterday's session to
+     today's, the week dropping its oldest day). Not its length — that changes
+     every time a live point joins, a minute apart on the day and every five
+     to thirty on 1W-1Y, and a reader zoomed into the last month of the year
+     was thrown back to the whole year each time. Growth is handled beside
+     setData above, and only for a view that was already whole. */
   useEffect(() => {
     refit();
-  }, [refit, range, data.values.length]);
+  }, [refit, range, subject, data.firstAt]);
 
   /* The canvas holds literal colours, so it does not follow the theme on its
      own. Re-apply them when the lighting changes: without this the chart keeps
@@ -574,13 +612,16 @@ export function PriceChart({
      range's own first price, and the previous close is stated separately as
      the different fact it is. */
   const rangeMove = data.base > 0 ? (last / data.base - 1) * 100 : 0;
+  const emptyText = emptyChartText(range, status, history.intradayNote);
   const summary = data.empty
-    ? `${range} chart. No price history available for this range.`
+    ? `${range} chart. ${emptyText}`
     : `${range} chart, ${caption}. Opened ${money(data.base)} dollars, last ${money(
         last,
       )} dollars, ${rangeMove >= 0 ? "up" : "down"} ${Math.abs(rangeMove).toFixed(
         2,
-      )} percent across the range. Previous close ${money(data.prev)} dollars.`;
+      )} percent across the range.${
+        data.prev === null ? "" : ` Previous close ${money(data.prev)} dollars.`
+      }`;
 
   return (
     /* A column, not a stack. The caption used to be absolutely positioned at
@@ -604,9 +645,7 @@ export function PriceChart({
         {data.empty && (
           <div className="absolute inset-0 grid place-items-center">
             <p className="max-w-[30ch] text-center text-[13px] leading-[1.7] text-ink-3">
-              {rangeDef.source === "intraday"
-                ? (history.intradayNote ?? "No trades yet this session.")
-                : "No price history is available for this stock."}
+              {emptyText}
             </p>
           </div>
         )}
@@ -620,7 +659,10 @@ export function PriceChart({
       */}
       {!reduceMotion && (
         <motion.div
-          key={`${range}-${data.values.length}`}
+          /* Keyed on the series' identity — whose, which range, where it
+             starts — not on its length: a live point joining the day or the
+             week must not replay the wipe every minute. */
+          key={`${subject ?? ""}-${range}-${data.firstAt ?? "none"}`}
           aria-hidden="true"
           initial={{ scaleX: 1 }}
           animate={{ scaleX: 0 }}
@@ -653,8 +695,14 @@ export function PriceChart({
       <figcaption>
         {/* Interval, count, real span, timezone. The chart said none of this —
             six buttons and no way to tell five daily closes from a week of
-            minutes, nor that a 13:30 tick was UTC rather than a session hour. */}
-        <p className="font-mono shrink-0 truncate pt-1.5 text-[10.5px] tracking-[0.04em] text-ink-4">
+            minutes, nor that a 13:30 tick was UTC rather than a session hour.
+
+            It WRAPS rather than truncating. On a 375px phone the column is
+            343px, and the year's caption measured 387px in Outfit at this size
+            — truncated, it lost the zone, the one word saying which clock the
+            axis reads. Two lines on a phone cost the plot a line of height;
+            one cut line cost the reader the clock. */}
+        <p className="font-mono shrink-0 pt-1.5 text-[10.5px] leading-[1.45] tracking-[0.04em] text-pretty text-ink-4">
           {caption}
         </p>
         <span className="sr-only">
@@ -681,18 +729,4 @@ export function PriceChart({
       </figcaption>
     </figure>
   );
-}
-
-/* The close of the session before the last one in a multi-day minute series —
-   what the week chart compares against, the same basis as the header's day
-   change. Comparing the last five-minute bar with the one before it would
-   colour a whole week by a single tick. */
-function previousSessionClose(points: readonly PricePoint[]): number {
-  const last = points.at(-1);
-  if (!last) return 0;
-  const lastDay = easternDay(new Date(last.at).toISOString());
-  for (let i = points.length - 2; i >= 0; i -= 1) {
-    if (easternDay(new Date(points[i].at).toISOString()) !== lastDay) return points[i].price;
-  }
-  return points[0].price;
 }

@@ -14,6 +14,17 @@ import type { Tick } from "@/lib/api/stream/tick";
 import { freshTicks } from "@/lib/market/fresh-map";
 import { reconnectDelay } from "@/lib/api/stream/backoff";
 import { diffSubscription, unionOf } from "@/lib/api/stream/subscription";
+import { liveness, type Liveness } from "@/lib/market/liveness";
+import {
+  liveProfile,
+  regularSessionDay,
+  yearPosition,
+  type SessionRange,
+} from "@/lib/market/instrument-derive";
+import type { Session, SessionPhase } from "@/lib/market/session";
+import type { CompanyProfile } from "@/lib/api/normalize/profile";
+import type { InstrumentSnapshot } from "@/lib/market/instrument";
+import { useHydrated, useLiveSession } from "@/components/home/use-session";
 
 /* One live connection for the whole page, for the whole visit.
  *
@@ -55,11 +66,15 @@ type LiveValue = {
   ticks: ReadonlyMap<string, Tick>;
   /** Every symbol's LAST tick, however old — see useLastTick. */
   last: ReadonlyMap<string, Tick>;
+  /** Each symbol's regular-session high and low as the feed has shown them —
+      see useSessionRange. */
+  ranges: ReadonlyMap<string, SessionRange>;
   register: (id: number, symbols: readonly string[]) => void;
   release: (id: number) => void;
 };
 
 const EMPTY: ReadonlyMap<string, Tick> = new Map();
+const NO_RANGES: ReadonlyMap<string, SessionRange> = new Map();
 const LiveContext = createContext<LiveValue | null>(null);
 
 /* Long enough to absorb a mount cascade, short enough that the first ticks are
@@ -81,9 +96,17 @@ let nextId = 0;
 export function LiveProvider({ children }: { children: ReactNode }) {
   const registry = useRef(new Map<number, readonly string[]>());
   const [ticks, setTicks] = useState<ReadonlyMap<string, Tick>>(EMPTY);
+  const [ranges, setRanges] = useState<ReadonlyMap<string, SessionRange>>(NO_RANGES);
 
   /* Everything the connection knows about itself. */
   const buffer = useRef(new Map<string, Tick>());
+  /* The regular-session high and low each symbol has printed while this page
+     has been listening. The buffer keeps only the LAST tick, and the Day's
+     high and low need every one of them, so they are widened here as each
+     arrives rather than reconstructed from whatever happened to be on screen
+     when React rendered. */
+  const range = useRef(new Map<string, SessionRange>());
+  const rangeMoved = useRef(false);
   const source = useRef<EventSource | null>(null);
   /* Null until the snapshot frame names this connection; until then there is no
      address to send a delta to. */
@@ -117,6 +140,10 @@ export function LiveProvider({ children }: { children: ReactNode }) {
   const flush = useCallback(() => {
     frame.current = 0;
     setTicks(new Map(buffer.current));
+    if (rangeMoved.current) {
+      rangeMoved.current = false;
+      setRanges(new Map(range.current));
+    }
   }, []);
 
   const paint = useCallback(() => {
@@ -136,12 +163,34 @@ export function LiveProvider({ children }: { children: ReactNode }) {
       }
       let changed = false;
       for (const t of data.ticks ?? []) {
+        /* Before the ordering check: a print that arrives behind a newer one
+           is still a trade at that price, and the session's range is every
+           trade, not the latest. Only the regular session counts — a 07:00
+           pre-market print is not the Day's high, and a 17:00 one is not
+           either. A tick from a LATER session starts the range over; one
+           from an earlier session, which the stream does replay, is ignored. */
+        const day = regularSessionDay(t.at);
+        if (day !== null) {
+          const had = range.current.get(t.symbol);
+          if (!had || day > had.day) {
+            range.current.set(t.symbol, { day, high: t.price, low: t.price });
+            rangeMoved.current = true;
+          } else if (day === had.day && (t.price > had.high || t.price < had.low)) {
+            range.current.set(t.symbol, {
+              day,
+              high: Math.max(had.high, t.price),
+              low: Math.min(had.low, t.price),
+            });
+            rangeMoved.current = true;
+          }
+        }
+
         const prev = buffer.current.get(t.symbol);
         if (prev && prev.at > t.at) continue;
         buffer.current.set(t.symbol, t);
         changed = true;
       }
-      if (changed) paint();
+      if (changed || rangeMoved.current) paint();
       return data;
     },
     [paint],
@@ -155,8 +204,9 @@ export function LiveProvider({ children }: { children: ReactNode }) {
       let changed = false;
       for (const symbol of symbols) {
         if (buffer.current.delete(symbol)) changed = true;
+        if (range.current.delete(symbol)) rangeMoved.current = true;
       }
-      if (changed) paint();
+      if (changed || rangeMoved.current) paint();
     },
     [paint],
   );
@@ -405,8 +455,8 @@ export function LiveProvider({ children }: { children: ReactNode }) {
   const fresh = useMemo(() => freshTicks(ticks, now), [ticks, now]);
 
   const value = useMemo<LiveValue>(
-    () => ({ ticks: fresh, last: ticks, register, release }),
-    [fresh, ticks, register, release],
+    () => ({ ticks: fresh, last: ticks, ranges, register, release }),
+    [fresh, ticks, ranges, register, release],
   );
 
   return <LiveContext.Provider value={value}>{children}</LiveContext.Provider>;
@@ -456,6 +506,132 @@ export function useLiveQuote(symbol: string | null | undefined): Tick | null {
   const list = useMemo(() => (symbol ? [symbol] : []), [symbol]);
   const ticks = useLive(list);
   return symbol ? (ticks.get(symbol.toUpperCase()) ?? null) : null;
+}
+
+/**
+ * The regular-session high and low the feed has shown for a symbol since this
+ * page began listening, dated by session. Null until a regular-session print
+ * arrives. Reads without registering, like useLastTick.
+ */
+export function useSessionRange(symbol: string | null | undefined): SessionRange | null {
+  const ctx = useContext(LiveContext);
+  return symbol && ctx ? (ctx.ranges.get(symbol.toUpperCase()) ?? null) : null;
+}
+
+export type ShownQuote = {
+  /** The price the header prints. */
+  price: number | null;
+  /** The move beside it, percent, and the close it is measured from. They
+      travel with the price or not at all. */
+  chg: number | null;
+  previousClose: number | null;
+  live: Liveness;
+  /** The price is a live tick. */
+  showing: boolean;
+  /** The price is the last tick, aged out but newer than the page. */
+  fromLast: boolean;
+};
+
+/**
+ * The price the header shows, decided in one place.
+ *
+ * It lived inside price-header.tsx, and the cards below the chart printed the
+ * server's figures beside it: a cap struck at Wednesday's close under this
+ * morning's price, a "Previous close" that was not the close the header's
+ * change was measured from. Every surface that prints a figure derived from
+ * the price reads this now, so they cannot disagree about which price it is.
+ *
+ * The rules are unchanged from the header's: a fresh tick that carries a
+ * change wins; once it ages out, the last tick still wins if it is newer than
+ * the page; otherwise the page's own figure.
+ */
+export function useShownQuote(profile: CompanyProfile, phase: SessionPhase): ShownQuote {
+  const tick = useLiveQuote(profile.id);
+  /* A tick that cannot supply both halves is not a live price, so it is not
+     treated as one anywhere below — including by the badge. */
+  const priced = tick !== null && tick.changePercent !== null ? tick : null;
+
+  /* One predicate decides the badge AND the number. The clock is half of it:
+     the buffer never expires a tick, so a feed that dies mid-session leaves its
+     last one sitting there and nothing re-renders to notice. */
+  const now = useNow();
+  const live = liveness(priced, phase, now);
+  const showing = priced !== null && live.state === "live";
+
+  /* When the live tick has aged out, the last real trade is still usually
+     NEWER than the price this page was rendered with. Showing the render-time
+     price then puts an older number on screen than the one the reader just
+     watched go past. */
+  const last = useLastTick(profile.id);
+  const lastPriced = last !== null && last.changePercent !== null ? last : null;
+  const fromLast =
+    !showing && lastPriced !== null && (profile.asOf === null || lastPriced.at > profile.asOf);
+
+  const source = showing ? priced : fromLast ? lastPriced : null;
+  return {
+    price: source ? source.price : profile.price,
+    chg: source ? source.changePercent : profile.chg,
+    previousClose: source ? (source.previousClose ?? profile.previousClose) : profile.previousClose,
+    live,
+    showing,
+    fromLast,
+  };
+}
+
+/**
+ * The company profile as a reader should see it NOW: the shown price, the cap
+ * re-struck at it, the Day's figures re-checked against the reader's clock and
+ * widened by regular-session ticks, the 52-week range widened the same way.
+ *
+ * The server settled the profile when it rendered (settleProfile); these pages
+ * are cached, so that can be hours ago. Until hydration the clock is left out
+ * and the server's object comes back untouched, so the first client render is
+ * byte-identical to the server's. See liveProfile for the rules.
+ */
+export function useLiveProfile(profile: CompanyProfile, rendered: Session): CompanyProfile {
+  const session = useLiveSession(rendered);
+  const shown = useShownQuote(profile, session.phase);
+  const range = useSessionRange(profile.id);
+  const hydrated = useHydrated();
+  const now = useNow();
+  const nowMs = hydrated ? now : null;
+  return useMemo(
+    () =>
+      liveProfile(profile, {
+        price: shown.price,
+        chg: shown.chg,
+        previousClose: shown.previousClose,
+        range,
+        nowMs,
+      }),
+    [profile, shown.price, shown.chg, shown.previousClose, range, nowMs],
+  );
+}
+
+/**
+ * The snapshot with a live profile, and the 52-week position re-struck against
+ * it. The SAME snapshot comes back when nothing has moved.
+ *
+ * For any panel that prints the price, the cap, the Day's figures or the
+ * 52-week range: `const live = useLiveSnapshot(snapshot)`, then hand `live` to
+ * the derive functions in place of `snapshot`.
+ */
+export function useLiveSnapshot(snapshot: InstrumentSnapshot): InstrumentSnapshot {
+  const profile = useLiveProfile(snapshot.profile, snapshot.session);
+  return useMemo(
+    () =>
+      profile === snapshot.profile
+        ? snapshot
+        : {
+            ...snapshot,
+            profile,
+            technical: {
+              ...snapshot.technical,
+              rangePosition: yearPosition(profile.price, profile.low52, profile.high52),
+            },
+          },
+    [snapshot, profile],
+  );
 }
 
 /**

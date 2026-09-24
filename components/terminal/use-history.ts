@@ -2,8 +2,14 @@
 
 import { useEffect, useState } from "react";
 import type { PricePoint } from "@/lib/api/normalize/series";
-import type { FetchedRange } from "@/lib/market/ranges";
-import { useNow } from "./live-provider";
+import {
+  historyAnswered,
+  historyNextFetch,
+  historyReplaces,
+  type FetchedRange,
+  type HeldHistory,
+} from "@/lib/market/ranges";
+import type { SessionPhase } from "@/lib/market/session";
 
 /* The ranges the page does not carry, fetched when the reader asks for one.
  *
@@ -36,6 +42,27 @@ import { useNow } from "./live-provider";
  *   later fetch fails, the bars stay and the state says so. Replacing real
  *   prices with an empty chart because a request timed out tells the reader
  *   something false about the market.
+ *
+ * And three about not letting a bad moment outlast itself — the policy lives
+ * in lib/market/ranges.ts, where it is tested:
+ *
+ *   AN EMPTY OR FAILED ANSWER IS ASKED AGAIN WITHIN HALF A MINUTE. An empty
+ *   series used to be cached like a full one, for up to three hours, and a
+ *   failure was never retried until the reader pressed another range.
+ *
+ *   ONLY A 200 IS AN ANSWER. Anything else is a failure, not a series.
+ *
+ *   AN ANSWER SHORT OF THE OPEN OR THE BELL IS ASKED AGAIN, AND STAYS DRAWN.
+ *   Fetched before the open, 1D is yesterday's session and 1W ends yesterday;
+ *   fetched before the bell, every minute range lacks the official close. Each
+ *   is due at once when the boundary passes, and asked again every half
+ *   minute or so while upstream catches up (historyNextFetch). It used to be
+ *   dropped instead, which blanked the day and threw the week back to daily
+ *   closes at every open for as long as the refetch took to find today.
+ *
+ *   A REFETCH NEVER MOVES THE CHART BACKWARDS. An answer that reaches less
+ *   far than the one held — empty, or the route's coarser fallback of the same
+ *   session — does not replace it (historyReplaces).
  */
 
 export type HistoryState = "idle" | "loading" | "ready" | "empty" | "failed";
@@ -133,36 +160,24 @@ function toPoints(series: unknown): PricePoint[] {
  * objects on the page. Oldest out first; twenty-four is a few stocks' worth of
  * ranges, which is the span of a session's browsing.
  */
-const CACHE = new Map<string, PricePoint[]>();
+type Held = HeldHistory & { points: PricePoint[] };
+
+const CACHE = new Map<string, Held>();
 const CACHE_MAX = 24;
 
-/* When each entry landed. The cache used to be forever, so a tab left open
-   overnight kept drawing yesterday's session as "the last session" and a
-   five-year series that never gained a bar. */
-const FETCHED_AT = new Map<string, number>();
-
-/* Short for the intraday ranges, which gain a session each evening and whose
-   "last session" changes identity at the capture; long for five years, which
-   gains one bar a day. Refetched in the background while the held bars stay on
-   screen, so a failed refresh never blanks a drawn chart. */
-const TTL_MS: Record<FetchedRange, number> = {
-  "1D": 5 * 60_000,
-  "1W": 5 * 60_000,
-  "1M": 15 * 60_000,
-  "3M": 60 * 60_000,
-  "1Y": 3 * 60 * 60_000,
-  "5Y": 3 * 60 * 60_000,
-};
+/* When the last fetch for a key failed. Cleared by the next answer; read by
+   the render to say "failed" and by the schedule to retry. */
+const FAILED_AT = new Map<string, number>();
 
 function remember(key: string, points: PricePoint[]): void {
   CACHE.delete(key);
-  CACHE.set(key, points);
-  FETCHED_AT.set(key, Date.now());
+  CACHE.set(key, { points, count: points.length, at: Date.now(), lastAt: points.at(-1)?.at ?? null });
+  FAILED_AT.delete(key);
   while (CACHE.size > CACHE_MAX) {
     const oldest = CACHE.keys().next().value;
     if (oldest === undefined) break;
     CACHE.delete(oldest);
-    FETCHED_AT.delete(oldest);
+    FAILED_AT.delete(oldest);
   }
 }
 
@@ -171,55 +186,107 @@ function remember(key: string, points: PricePoint[]): void {
  *
  * `range` may be null, which means the caller is showing a range the page
  * already carries and wants nothing fetched at all.
+ *
+ * `phase` is the reader's session phase, and it is here only to wake the
+ * schedule when it turns: the open and the bell are when a held minute range
+ * falls short of what it should reach and is due again. A caller that reads
+ * only five years, which neither changes, can leave it out.
  */
-export function useHistory(ticker: string, range: FetchedRange | null): HistoryRead {
-  /* Bumped when a fetch lands, purely to bring the render back round to read
-     the cache again. The series itself is never held in state. */
-  const [, setLanded] = useState(0);
-  const [failed, setFailed] = useState<string | null>(null);
+export function useHistory(
+  ticker: string,
+  range: FetchedRange | null,
+  phase?: SessionPhase,
+): HistoryRead {
+  /* Bumped when a fetch lands, fails, or its entry falls due — to bring the
+     render back round to read the cache, and the effect round to schedule the
+     next fetch. The series itself is never held in state. */
+  const [wake, setWake] = useState(0);
 
   const key = ticker && range ? `${ticker}:${range}` : null;
-
-  /* A coarse clock, so an open tab notices when its entry has aged out. */
-  const now = useNow(60_000);
-  const landedAt = key ? FETCHED_AT.get(key) : undefined;
-  const stale = !key || landedAt === undefined || now - landedAt > TTL_MS[range as FetchedRange];
+  /* Not read by the effect, only listed in its dependencies: a phase change
+     re-runs the schedule, which is how an answer held across the open or the
+     bell is found to be due. */
+  const bound = phase ?? null;
 
   useEffect(() => {
-    if (!key) return;
-    if (!stale) return;
+    if (!key || !range) return;
 
     const controller = new AbortController();
-    const [symbol, wanted] = [ticker, range as FetchedRange];
+    /* Belt and braces with the signal: a fetch that has already resolved and
+       is being parsed is not rejected by an abort. */
+    let live = true;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const bump = () => setWake((n) => n + 1);
+    const cleanup = () => {
+      live = false;
+      controller.abort();
+      if (timer !== null) clearTimeout(timer);
+    };
 
-    fetch(`/api/history/${encodeURIComponent(symbol)}?range=${wanted}`, {
+    /* Not due yet: sleep until it is. A timer rather than a polling clock, so
+       an empty answer is retried at thirty seconds, not whenever a coarse
+       clock next happens to tick. */
+    const now = Date.now();
+    const due = historyNextFetch(CACHE.get(key), FAILED_AT.get(key), range, now);
+    const wait = due - now;
+    if (wait > 0) {
+      timer = setTimeout(bump, wait);
+      return cleanup;
+    }
+
+    /* A re-ask revalidates. The route's answers carry max-age=60, so a retry
+       half a minute after an empty one — or a refetch at the opening bell of a
+       day fetched at 09:29 — would otherwise be handed the very body it is
+       replacing, straight out of the browser's cache. */
+    const again = CACHE.has(key) || FAILED_AT.has(key);
+    fetch(`/api/history/${encodeURIComponent(ticker)}?range=${range}`, {
       signal: controller.signal,
+      cache: again ? "no-cache" : "default",
     })
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+      .then((res) => {
+        if (!historyAnswered(res.status)) throw new Error(`history ${res.status}`);
+        return res.json();
+      })
       .then((body: { series?: unknown }) => {
-        remember(key, toPoints(body?.series));
-        setFailed(null);
-        setLanded((n) => n + 1);
+        if (!live) return;
+        const next = toPoints(body?.series);
+        const held = CACHE.get(key);
+        /* Stamped as landing now either way, so the schedule runs from this
+           answer: a kept copy that is still short is asked again soon. */
+        remember(
+          key,
+          held && !historyReplaces(held, { count: next.length, lastAt: next.at(-1)?.at ?? null })
+            ? held.points
+            : next,
+        );
+        bump();
       })
       .catch((error: unknown) => {
-        /* An abort is this component tidying up after itself, not something the
-           reader should be told about. */
-        if (controller.signal.aborted) return;
+        /* An abort is this component tidying up after itself, not something
+           the reader should be told about. */
+        if (!live || controller.signal.aborted) return;
         if (error instanceof DOMException && error.name === "AbortError") return;
-        /* Not cached: a failure is about this moment, and the next press should
-           be allowed to try again. */
-        setFailed(key);
+        /* Not cached as an answer: a failure is about this moment. Recorded so
+           the schedule retries it in half a minute and the render can say so. */
+        FAILED_AT.set(key, Date.now());
+        /* Bounded like the cache: a key that never answers is still one key. */
+        while (FAILED_AT.size > CACHE_MAX) {
+          const oldest = FAILED_AT.keys().next().value;
+          if (oldest === undefined) break;
+          FAILED_AT.delete(oldest);
+        }
+        bump();
       });
 
-    return () => controller.abort();
-  }, [key, ticker, range, stale]);
+    return cleanup;
+  }, [key, ticker, range, bound, wake]);
 
-  if (!key) return { points: NO_POINTS, state: "idle" };
+  if (!key || !range) return { points: NO_POINTS, state: "idle" };
 
   const held = CACHE.get(key);
-  if (held) return { points: held, state: held.length ? "ready" : "empty" };
+  if (held) return { points: held.points, state: held.points.length ? "ready" : "empty" };
   /* A failure never blanks bars that are already drawn — but there are none to
      keep here, or the cache would have answered. */
-  if (failed === key) return { points: NO_POINTS, state: "failed" };
+  if (FAILED_AT.has(key)) return { points: NO_POINTS, state: "failed" };
   return { points: NO_POINTS, state: "loading" };
 }

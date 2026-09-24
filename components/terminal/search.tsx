@@ -348,7 +348,9 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
   return (
     <div
       ref={rootRef}
-      className="relative w-full"
+      /* Static on a phone, so the panel below hangs from the chrome bar rather
+         than from the box — see the panel's anchor. */
+      className="relative w-full max-sm:static"
       /* Close when focus leaves the whole widget — Tab out of the input used to
          leave the panel open over the page, and Escape stopped working once
          focus had gone, since it is only heard by the input. The options are
@@ -363,26 +365,43 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
 
       {/*
         Unfilled, and built to the same anatomy as the session readout at the
-        other end of this bar: mark, label, hairline divider, mono tail, one
-        hairline pill around all of it. It used to carry a gradient ground of
-        its own, which made it the only filled surface in a terminal whose
-        chrome is hairlines and space — a foreign object sat on a shelf rather
-        than a control belonging to the frame. Nothing here lights until
-        something is happening: the status pill warms when the market is
-        trading, this one warms when the reader is typing.
+        other end of this bar: mark, label, divider, mono tail, one pill around
+        all of it. It used to carry a gradient ground of its own, which made it
+        the only filled surface in a terminal whose chrome is hairlines and
+        space — a foreign object sat on a shelf rather than a control belonging
+        to the frame.
+
+        The one place it departs from that family is the stroke. At a hairline
+        in the rule colour (1.4:1 against the shell in either theme) the box
+        all but vanished into the bar, and the one control every reader needs
+        was the hardest thing in the chrome to find. It is drawn at 2px in
+        the tertiary ink at 65%, which measures 3.1:1 against the shell in both
+        themes — the non-text contrast a control's boundary is owed — and is
+        still a neutral, so Invest stays the only warm thing on the bar at
+        rest. Focus is where this one warms: a gold stroke and a soft gold
+        ring, on keyboard and pointer focus alike, because a search box that
+        has the caret is always "in use".
+
+        h-12 is the height, not a minimum: the icon, the text and the shortcut
+        are centred on it geometrically rather than floated by padding, which
+        is what keeps the three on one line.
       */}
       <div
         className={cn(
-          "flex min-h-11 items-center gap-2.5 rounded-full border px-4 transition-colors duration-300",
-          open
-            ? "border-[rgba(217,189,139,0.3)] bg-[rgba(217,189,139,0.05)]"
-            : "border-rule-control hover:border-[rgba(217,189,139,0.22)]",
+          "group/search flex h-12 items-center gap-3 rounded-full px-4 transition-[border-color,box-shadow,background-color] duration-300 sm:px-5",
+          /* 2px, not 1.5. Chrome snaps a fractional border down to a whole
+             pixel — measured at 1px on both a 1x and a 2x screen — so 1.5
+             would have drawn the very hairline this replaces. */
+          "border-2",
+          "border-ink-3/65 hover:border-ink-3/90",
+          "focus-within:border-gold focus-within:shadow-[0_0_0_3px_rgba(var(--c-gold-rgb),0.2)] hover:focus-within:border-gold",
+          open && "bg-[rgba(var(--c-gold-rgb),0.04)]",
         )}
       >
         <IconSearch
           className={cn(
-            "h-4 w-4 flex-none transition-colors duration-300",
-            open ? "text-gold-dim" : "text-ink-3",
+            "h-[18px] w-[18px] flex-none transition-colors duration-300",
+            "text-ink-3 group-focus-within/search:text-gold",
           )}
         />
         <input
@@ -411,23 +430,30 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
               ? `Search ${COUNT_FMT.format(universe.length)} stocks`
               : "Search stocks"
           }
-          className="w-full min-w-0 bg-transparent py-2.5 text-[13px] text-ink placeholder:text-ink-3 focus:outline-none"
+          /* 16px below `sm`: iOS zooms the page into any field set smaller the
+             moment it takes focus, and a terminal that lurches sideways on the
+             first tap reads as broken. */
+          className="h-full w-full min-w-0 bg-transparent text-[16px] leading-none text-ink placeholder:text-ink-3 focus:outline-none sm:text-[14.5px]"
         />
         {/* The shortcut, stated where the control is, behind the same hairline
             divider the clock sits behind opposite. It had a bordered cap of
             its own, which put a box inside a box; the divider says the same
             thing with a single pixel. It goes while the box is in use, where
             it would sit under the reader's own text, and it is kept off touch
-            widths, where there is no key to press. */}
+            widths, where there is no key to press.
+
+            Both sit in 18px boxes, the icon's own size, and are centred in
+            them rather than left on the text's line box, so the glass at one
+            end and the slash at the other share a centre line exactly. */}
         {!open && (
           <>
             <span
               aria-hidden="true"
-              className="hidden h-3 w-px flex-none bg-rule-mono sm:block"
+              className="hidden h-[18px] w-px flex-none bg-rule-mono sm:block"
             />
             <kbd
               aria-hidden="true"
-              className="font-mono hidden flex-none text-[12.5px] tracking-[0.04em] text-ink-3 sm:block"
+              className="font-mono hidden h-[18px] min-w-[18px] flex-none place-items-center text-[13px] leading-none text-ink-3 sm:grid"
             >
               /
             </kbd>
@@ -444,8 +470,14 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
           quietly took the page with it, adding five hundred pixels to the
           chrome row and pushing the whole terminal down every time the box was
           opened. The float belongs to a wrapper that has no other opinions.
+
+          It is exactly as wide as the box from `sm` up. On a phone the box
+          shares its row with Invest and is barely 240px, which wrapped every
+          fund name onto two lines beside its price, so there the root drops
+          its positioning and the panel spans the chrome bar instead, inset by
+          the bar's own 16px gutter.
         */
-        <div className="absolute top-[calc(100%+9px)] right-0 left-0 z-40">
+        <div className="absolute top-[calc(100%+9px)] right-0 left-0 z-40 max-sm:right-4 max-sm:left-4">
           <div
             ref={listRef}
             /* The one place a shadow is earned here: the panel is displaced over
@@ -552,7 +584,7 @@ function Hit({ quote }: { quote: Quote }) {
         aria-hidden="true"
         /* Sized from its tile, per the monogram rule. */
         /* Decorative, so it gives its width back on a phone, where the panel
-           is only as wide as the input and every pixel went to the name. */
+           is at its narrowest and every pixel goes to the name. */
         className="font-serif hidden h-9 w-9 flex-none place-items-center rounded-[10px] border border-[rgba(217,189,139,0.14)] sm:grid"
         style={{ color: quote.color, fontSize: 17 }}
       >

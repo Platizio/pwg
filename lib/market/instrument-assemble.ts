@@ -1,4 +1,5 @@
 import "server-only";
+import type { StockInsight } from "./insights.ts";
 
 import type { RawFinancials } from "../api/clients/financials.ts";
 import type { RawCorporateActions, RawFundamentals } from "../api/clients/fundamentals.ts";
@@ -15,7 +16,9 @@ import { toPricePoints, type PricePoint } from "../api/normalize/series.ts";
 import { toStockNews } from "../api/normalize/stock-news.ts";
 import { toWireItems } from "../api/normalize/wire.ts";
 import { repairAgainst, returnsAgainst, splitRecord } from "./split-record.ts";
+import { capAt, settleProfile } from "./instrument-derive.ts";
 import { sessionAt, type Session } from "./session.ts";
+import { presentation } from "./universe.ts";
 import type { WireItem } from "./home.ts";
 
 /* One instrument, assembled from documents that have already arrived.
@@ -70,6 +73,10 @@ export type PeerQuote = {
 
 export type InstrumentSnapshot = {
   profile: CompanyProfile;
+  /* The Overview's insights, ranked and dated, computed on the server from
+     the full five-year record before shippedWithPage trims it. Absent, the
+     panel falls back to instrument-derive's insights(). */
+  insights?: StockInsight[];
   /* The exchange's own state. The header used to announce "Market open" as a
      fixed string beside a pulsing dot, on a Sunday as readily as a Tuesday. */
   session: Session;
@@ -203,8 +210,10 @@ export const dataOf = <T,>(r: { ok: true; data: T } | { ok: false } | undefined)
  *
  * Exported so the caller can compute it once, resolve `profile.peers`, and
  * hand the resolved rows back to `assembleInstrument` — which recomputes the
- * profile from the same inputs and therefore gets the same one. Cheap: it is a
- * field-by-field read of two documents already in memory.
+ * profile from the same inputs and therefore gets the same one, then SETTLES
+ * it against the clock and the daily bars (settleProfile): identity and peers
+ * are untouched, the Day's figures, the 52-week range and the cap are what
+ * move. Cheap: it is a field-by-field read of two documents already in memory.
  */
 export function profileFrom(inputs: InstrumentInputs): CompanyProfile {
   return toCompanyProfile({
@@ -215,6 +224,33 @@ export function profileFrom(inputs: InstrumentInputs): CompanyProfile {
   });
 }
 
+/**
+ * One peer row, from the peer's own quote.
+ *
+ * The cap is re-struck at the peer's last price, the same way the subject's is
+ * (capAt in instrument-derive.ts): the quotes feed states it in millions AT
+ * THE PREVIOUS CLOSE — measured 24 Sep 2026, cap / yesterdayClose is a whole
+ * share count on 22 of 22 names while lastPrice had already moved — so a row
+ * printing this morning's price beside yesterday's valuation disagreed with
+ * itself. Exported for tests/stat-cards.test.ts; instrument.ts's peers wave is
+ * the caller.
+ */
+export function peerQuoteFrom(q: RawEquityQuote): PeerQuote {
+  const price = q.lastPrice ?? q.closingPrice ?? null;
+  return {
+    id: q.symbol,
+    name: presentation(q.symbol, q.companyName).name,
+    price,
+    chg: q.changePercent === null ? null : q.changePercent * 100,
+    /* Filled from each peer's own history by the caller; the quotes feed
+       carries no trailing-year figure. */
+    ret1y: null,
+    // The quotes feed reports capitalisation in millions.
+    marketCap: capAt(q.marketCap === null ? null : q.marketCap * 1e6, q.yesterdayClose, price),
+    pe: q.priceEarningRatio !== null && q.priceEarningRatio > 0 ? q.priceEarningRatio : null,
+  };
+}
+
 export function assembleInstrument(inputs: InstrumentInputs, now: number): InstrumentSnapshot {
   const { ticker } = inputs;
   const failures: string[] = [];
@@ -222,7 +258,10 @@ export function assembleInstrument(inputs: InstrumentInputs, now: number): Instr
   const fundamentals = inputs.fundamentals;
   if (!fundamentals) failures.push("company record");
 
-  const profile = profileFrom(inputs);
+  /* Settled below, once the daily bars are in hand: the Day's figures are
+     withheld before the bell, the 52-week range takes in the sessions the feed
+     has not folded in, and the cap is re-struck at the quote's price. */
+  const quoted = profileFrom(inputs);
 
   /* ---- filings ---- */
   const annual = inputs.financials ? toFinancialYears(inputs.financials) : [];
@@ -245,6 +284,8 @@ export function assembleInstrument(inputs: InstrumentInputs, now: number): Instr
 
   const daily = toPricePoints(series);
 
+  const profile = settleProfile(quoted, daily, now);
+
   const intraday = inputs.intraday ? toPricePoints(inputs.intraday) : [];
   const marketDaily = inputs.market ? toPricePoints(inputs.market) : [];
 
@@ -253,7 +294,11 @@ export function assembleInstrument(inputs: InstrumentInputs, now: number): Instr
   failures.push(...inputs.failures);
 
   /* ---- the rest ---- */
-  const short = inputs.shortInterest?.results?.[0];
+  /* The newest filing whatever order the store's copy arrived in: rows
+     stored before the request asked for settlement_date.desc hold 2017 first. */
+  const short = [...(inputs.shortInterest?.results ?? [])].sort((a, b) =>
+    String(b?.settlement_date ?? "").localeCompare(String(a?.settlement_date ?? "")),
+  )[0];
 
   /* Both feeds, ranked as one list. toWireItems has already dropped anything
      the gateway's own reasoning marks as a mention, and toStockNews scores

@@ -224,9 +224,13 @@ export function SegmentedItem({
 export function LeaderRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="rule-t flex items-baseline gap-3 py-3">
-      <dt className="text-[12px] font-semibold tracking-[0.1em] text-ink-3">{label}</dt>
+      {/* A label never breaks around its leader: a two-line label makes the
+          row taller than its neighbours and the dotted leaders jump. */}
+      <dt className="text-[12px] font-semibold tracking-[0.1em] whitespace-nowrap text-ink-3">
+        {label}
+      </dt>
       <span aria-hidden="true" className="leader" />
-      <dd className="font-mono m-0 text-[12px] text-ink">{value}</dd>
+      <dd className="font-mono m-0 text-[12px] whitespace-nowrap text-ink">{value}</dd>
     </div>
   );
 }

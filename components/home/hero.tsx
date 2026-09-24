@@ -58,6 +58,7 @@ export function Hero() {
                 server-rendered. That is the behaviour, so this is the form. */}
             <a className="ft-ghost" href={SCREENER_URL} target="_blank" rel="noopener noreferrer">
               {COPY.cta.ghost}
+              <span className="sr-only"> (opens in a new tab)</span>
             </a>
           </div>
 

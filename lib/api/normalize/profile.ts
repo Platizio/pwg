@@ -100,6 +100,11 @@ export type CompanyProfile = {
   avgVolume: number | null;
   /** Dollars, whichever feed answered. */
   marketCap: number | null;
+  /** The share price `marketCap` was struck at, so the cap can follow the live
+      price (capAt in lib/market/instrument-derive.ts). Null where neither feed
+      states one, and then the cap is shown as stored rather than scaled by a
+      guess. */
+  capBasis: number | null;
   pe: number | null;
   eps: number | null;
   beta: number | null;
@@ -165,8 +170,32 @@ export function toCompanyProfile(args: {
 
   // The quotes endpoint counts market cap in millions; the record counts dollars.
   const capMillions = pos(quote?.marketCap);
-  const marketCap =
-    pos(company?.market_cap) ?? (capMillions === null ? null : capMillions * 1e6);
+  const recordCap = pos(company?.market_cap);
+  const marketCap = recordCap ?? (capMillions === null ? null : capMillions * 1e6);
+
+  /* The price that cap was struck at. Neither feed moves its cap with the
+     price, so without this the header can read $335.67 while the grid below it
+     prices the company at Wednesday's $337.02.
+
+     Measured 24 Sep 2026 across 22 liquid names, pre-market: the record's
+     market_cap divided by its weighted_shares_outstanding is the previous
+     close to the cent, 22 of 22 (AAPL 4,918,530,543,600 / 14,594,180,000 =
+     337.02), and it stays exact however old the stored record is, because it
+     is read off the record's own two figures. The quote's cap, in millions,
+     divided by its yesterdayClose is a whole share count on every name (AAPL
+     14,594.18M, NVDA 24,100.00M) while lastPrice had already moved — so its
+     basis is yesterdayClose. The ratio snapshot's `price` is the fallback for
+     a record without the share count; it carried the same close where
+     present. */
+  const weighted = pos((company as { weighted_shares_outstanding?: number | null } | null)?.weighted_shares_outstanding);
+  const capBasis =
+    recordCap !== null
+      ? weighted !== null
+        ? recordCap / weighted
+        : pos(ratios?.price)
+      : capMillions !== null
+        ? previousClose
+        : null;
 
   /* The quote's yield is already a percent (0.34); the record's is a fraction
      (0.0034). The same company, twice, an order of magnitude apart. */
@@ -203,6 +232,7 @@ export function toCompanyProfile(args: {
     volume: num(quote?.volume),
     avgVolume: pos(quote?.averageVolume30) ?? pos(ratios?.average_volume),
     marketCap,
+    capBasis,
     pe: pos(quote?.priceEarningRatio) ?? pos(ratios?.price_to_earnings),
     eps: nonZero(quote?.trailing12MonthsEps) ?? nonZero(ratios?.earnings_per_share),
     beta: nonZero(quote?.beta),

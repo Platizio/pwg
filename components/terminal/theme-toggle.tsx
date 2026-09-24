@@ -81,13 +81,13 @@ export default function ThemeToggle({ collapsed = false }: { collapsed?: boolean
       }
       title={collapsed ? `Lighting · ${label}` : undefined}
       className={cn(
-        "flex min-h-11 items-center gap-2.5 rounded-full border text-[13px] font-medium transition-colors",
+        "flex min-h-11 items-center gap-2 rounded-full border text-[13px] font-medium transition-colors",
         "border-rule-control text-ink-2 hover:border-gold hover:text-ink",
-        /* w-full, not w-fit: the sidebar footer stacks this with the language
-           control and sizes both to the wider of the two, so their edges line
-           up. Sized to its own content they were 102px and 123px — same left
-           edge, right edges twenty-one pixels apart. */
-        collapsed ? "w-11 justify-center px-0" : "w-full px-4",
+        /* w-full, not w-fit: the sidebar footer sets this beside the language
+           control in two equal grid tracks, so the pair share both edges and
+           the rail's own. Sized to its own content they were 102px and 123px
+           and never lined up. */
+        collapsed ? "w-11 justify-center px-0" : "w-full min-w-0 px-3.5",
       )}
     >
       {isLight ? (
@@ -95,13 +95,11 @@ export default function ThemeToggle({ collapsed = false }: { collapsed?: boolean
       ) : (
         <IconMoon aria-hidden="true" className="h-4 w-4 flex-none text-gold" />
       )}
-      {/* Wide enough for the longest label this can ever hold, which is the
-          SERVER's: before hydration the theme is unknowable, so it renders
-          "Lighting" — 48px at this size, against a reservation that was 41.6px.
-          The button therefore shrank by six pixels the moment the page came
-          alive, taking the control out from under a pointer already on its way
-          to it. "Light" and "Dark" are 30px and sit inside the same box. */}
-      {!collapsed && <span className="min-w-[3.1rem] text-left">{label}</span>}
+      {/* The button's width is its grid track's, not its label's, so the
+          server's "Lighting" giving way to "Light" or "Dark" on hydration moves
+          nothing: the label is left-aligned after a fixed icon, and the box
+          around it stays put. */}
+      {!collapsed && <span className="truncate text-left">{label}</span>}
     </button>
   );
 }

@@ -3,6 +3,7 @@ import { IconCalendar } from "@/components/icons";
 import { Badge, Card } from "@/components/ui/surface";
 import { calendarDate, type CalendarEvent } from "@/lib/market/session";
 import { instrumentPath } from "@/lib/market/paths";
+import { eventTime } from "./reading-order";
 
 const KIND_LABEL = {
   earnings: "Earnings",
@@ -62,57 +63,64 @@ export function CalendarView({ events }: { events: CalendarEvent[] }) {
             </div>
 
             <div className="mt-3 flex flex-col gap-3">
-              {day.events.map((event) => (
-                <Card key={`${event.title}-${event.offset}`} className="px-6 py-6">
-                  <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-                    <div className="flex min-w-0 items-start gap-3.5">
-                      <span
-                        aria-hidden="true"
-                        className="tile grid h-10 w-10 flex-none place-items-center text-gold"
-                      >
-                        <IconCalendar className="h-[18px] w-[18px]" />
-                      </span>
-                      <div className="min-w-0">
-                        <h3 className="font-serif text-[20px] leading-[1.35] text-pretty text-ink">
-                          {event.title}
-                        </h3>
-                        <p className="font-mono mt-1.5 text-[12.5px] tracking-[0.04em] text-ink-3">
-                          {event.time}
-                        </p>
+              {day.events.map((event) => {
+                /* A corporate action's "time" is usually the word already in
+                   its title; the mono line is kept for a real time only. */
+                const time = eventTime(event);
+                return (
+                  <Card key={`${event.title}-${event.offset}`} className="px-6 py-6">
+                    <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+                      <div className="flex min-w-0 items-start gap-3.5">
+                        <span
+                          aria-hidden="true"
+                          className="tile grid h-10 w-10 flex-none place-items-center text-gold"
+                        >
+                          <IconCalendar className="h-[18px] w-[18px]" />
+                        </span>
+                        <div className="min-w-0">
+                          <h3 className="font-serif text-[20px] leading-[1.35] text-pretty text-ink">
+                            {event.title}
+                          </h3>
+                          {time && (
+                            <p className="font-mono mt-1.5 text-[12.5px] tracking-[0.04em] text-ink-3">
+                              {time}
+                            </p>
+                          )}
+                        </div>
                       </div>
+                      <Badge tone="quiet">{KIND_LABEL[event.kind]}</Badge>
                     </div>
-                    <Badge tone="quiet">{KIND_LABEL[event.kind]}</Badge>
-                  </div>
 
-                  <p className="mt-5 max-w-[68ch] text-[13.5px] leading-[1.75] text-ink-3">
-                    {event.summary}
-                  </p>
-
-                  <div className="mt-5 border-t border-rule-section pt-4">
-                    <p className="card-label">What to watch</p>
-                    <p className="mt-2 max-w-[68ch] text-[13.5px] leading-[1.75] text-ink-2">
-                      {event.watch}
+                    <p className="mt-5 max-w-[68ch] text-[13.5px] leading-[1.75] text-ink-3">
+                      {event.summary}
                     </p>
-                  </div>
 
-                  {/* The note explains the kind; the link is an action. They
-                      were one sentence, which made the action a 16px target
-                      hanging off the end of prose. */}
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-                    <p className="text-[12.5px] leading-[1.6] text-ink-3">
-                      {KIND_NOTE[event.kind]}
-                    </p>
-                    {event.ticker && (
-                      <Link
-                        href={instrumentPath(event.ticker)}
-                        className="-mx-2 inline-flex min-h-9 items-center rounded-full px-2 text-[12.5px] text-gold transition-colors hover:bg-[rgba(217,189,139,0.06)] hover:text-ink"
-                      >
-                        Open {event.ticker}
-                      </Link>
-                    )}
-                  </div>
-                </Card>
-              ))}
+                    <div className="mt-5 border-t border-rule-section pt-4">
+                      <p className="card-label">What to watch</p>
+                      <p className="mt-2 max-w-[68ch] text-[13.5px] leading-[1.75] text-ink-2">
+                        {event.watch}
+                      </p>
+                    </div>
+
+                    {/* The note explains the kind; the link is an action. They
+                        were one sentence, which made the action a 16px target
+                        hanging off the end of prose. */}
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+                      <p className="text-[12.5px] leading-[1.6] text-ink-3">
+                        {KIND_NOTE[event.kind]}
+                      </p>
+                      {event.ticker && (
+                        <Link
+                          href={instrumentPath(event.ticker)}
+                          className="-mx-2 inline-flex min-h-9 items-center rounded-full px-2 text-[12.5px] text-gold transition-colors hover:bg-[rgba(217,189,139,0.06)] hover:text-ink"
+                        >
+                          Open {event.ticker}
+                        </Link>
+                      )}
+                    </div>
+                  </Card>
+                );
+              })}
             </div>
           </section>
         ))}

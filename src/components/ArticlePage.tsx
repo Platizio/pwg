@@ -472,8 +472,10 @@ export default function ArticlePage() {
                   Open an account and place a first order in the market this article
                   describes.
                 </p>
+                {/* The site's own gold button (glass.css), so this close and
+                    every other page's primary action are the same object. */}
                 <a
-                  className="art-cta"
+                  className="btn-gold btn--lg art-cta"
                   href={TRADING_PLATFORM_URL}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -482,6 +484,7 @@ export default function ArticlePage() {
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M5 12h14M13 5l7 7-7 7" />
                   </svg>
+                  <span className="sr-only"> (opens in a new tab)</span>
                 </a>
               </div>
             </div>

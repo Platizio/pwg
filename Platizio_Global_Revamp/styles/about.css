@@ -583,6 +583,13 @@
 
 .ab-qa-row:last-child { border-bottom: 1px solid var(--line); }
 
+/* The section head already ends on a hairline. With the first row drawing its
+   own, the two ran parallel about 43px apart and read as a doubled rule. The
+   head's rule is the first row's top edge now, and the row's own padding is
+   the only space between them. */
+.ab-qa { margin-top: 0; }
+.ab-qa > .ab-qa-row:first-child { border-top: 0; }
+
 .ab-qa-q {
   margin: 0;
   font-family: var(--font-display);
@@ -678,11 +685,11 @@
   text-wrap: pretty;
 }
 
-/* Not `.btn-gold`: that ramp starts at #C25514, a burnt orange left over from
-   the cool palette, and it is hardcoded in base.css which this page does not
-   own. A solid `--gold` face carries `--white` lettering at 5.68:1 and stays
-   inside the champagne world; hover goes to `--gold-hi`, which is darker still,
-   so the contrast only ever improves. */
+/* The site's one primary action: the gold foil ramp (.btn-gold in
+   app/(site)/styles/glass.css) with ink lettering, set in the tracked capitals
+   the home, products, pricing and media actions use, 52px tall. It was a solid
+   bronze face with cream sentence-case lettering — a different object from
+   every other "Start investing" on the site. */
 .ab-cta {
   display: inline-flex;
   align-items: center;
@@ -690,27 +697,39 @@
   gap: var(--space-3);
   min-height: 52px;
   margin-top: var(--space-8);
-  padding: var(--space-4) var(--space-8);
+  padding: 0 32px;
+  border: 0;
   border-radius: var(--radius-full);
-  background: var(--gold);
-  color: var(--white);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  letter-spacing: var(--tracking-snug);
+  background: linear-gradient(120deg, #efd9b0 0%, var(--foil) 34%, #c7a468 58%, #e6cc9f 100%);
+  color: var(--on-gold);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  line-height: 1;
+  text-transform: uppercase;
   text-decoration: none;
-  box-shadow: 0 10px 30px color-mix(in srgb, var(--gold) 26%, transparent);
-  transition: transform var(--t), background var(--t), box-shadow var(--t);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -1px 0 rgba(90, 60, 20, 0.25),
+    0 1px 2px rgba(26, 18, 7, 0.15),
+    var(--shadow-gold);
+  transition: transform var(--t), box-shadow var(--t);
 }
 
 .ab-cta:hover {
-  background: var(--gold-hi);
   transform: translateY(-2px);
-  box-shadow: 0 14px 38px color-mix(in srgb, var(--gold) 34%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 -1px 0 rgba(90, 60, 20, 0.25),
+    0 2px 4px rgba(26, 18, 7, 0.15),
+    0 22px 50px -16px rgba(184, 148, 92, 0.9);
 }
 
 .ab-cta:active { transform: translateY(0); }
 
-.ab-arrow { width: 18px; height: 18px; flex: none; transition: transform var(--t); }
+/* Sized to the 10px capitals it follows, as the 16px arrow is to .btn-gold's
+   14px label. */
+.ab-arrow { width: 14px; height: 14px; flex: none; transition: transform var(--t); }
 .ab-cta:hover .ab-arrow { transform: translateX(3px); }
 
 /* =========================================================

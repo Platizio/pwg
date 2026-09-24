@@ -208,7 +208,7 @@
 
   --c-gold: #7e6238;
   --c-gold-hi: #5f4926;
-  --c-gold-dim: #8a6e43;
+  --c-gold-dim: #7a5f36;
   --c-gold-deep: #9b7d4a;
   --c-on-gold: #1a1207;
 
@@ -288,7 +288,7 @@
 
     --c-gold: #7e6238;
     --c-gold-hi: #5f4926;
-    --c-gold-dim: #8a6e43;
+    --c-gold-dim: #7a5f36;
     --c-gold-deep: #9b7d4a;
     --c-on-gold: #1a1207;
 
@@ -831,10 +831,18 @@
      token. Those colours are pastels chosen against near-black; on paper they
      dropped to about 1.0-1.6:1. Darkening by filter keeps each mark its own hue
      while lifting it clear of the page. They are aria-hidden decoration, so this
-     is polish rather than a text-contrast fix. */
-  :root[data-theme='light'] [aria-hidden='true'].grid[style*='color'],
-  :root:not([data-theme='dark']) [aria-hidden='true'].grid[style*='color'] {
+     is polish rather than a text-contrast fix.
+
+     A visitor who has not pinned a theme follows the system, so the unpinned
+     case only darkens under a light system — the same gate the token block
+     uses. Unguarded, it dimmed every monogram by 42% on the dark ground. */
+  :root[data-theme='light'] [aria-hidden='true'].grid[style*='color'] {
     filter: brightness(0.58) saturate(1.45);
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme='dark']) [aria-hidden='true'].grid[style*='color'] {
+      filter: brightness(0.58) saturate(1.45);
+    }
   }
 
   .rail-lit {

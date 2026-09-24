@@ -1,0 +1,551 @@
+/* The article page's frame — /articles/<slug>, thirty URLs, one template.
+ *
+ * WHY THIS EXISTS. src/components/ArticlePage.tsx was rebuilt around `art-*`
+ * classes (masthead, figures, contents rail, questions, close) and the sheet
+ * that styled them never landed. Measured in the browser, every article
+ * rendered flush against the left edge of the window at every width, the
+ * figures as a bare definition list, the contents rail as a column of loose
+ * links, and the close's 24px arrow icon — an <svg> with no size — scaled to
+ * fill the viewport, 600px across. The prose itself was always styled
+ * (`.article-body`, library.css); this is the frame around it.
+ *
+ * THE WORLD. The /articles index, because this is the page it links to: the
+ * same 1280 measure and growing gutter as `.alib-wrap`, so a reader moving
+ * from the index into a piece keeps the same left edge; the same tracked gold
+ * label, the same display serif at the same weights, the same warm hairlines
+ * and the same wash. Site tokens only (tokens.css), no hex.
+ *
+ * LONGHANDS for the ground, never the `background` shorthand: `.art` is the
+ * first child of #main-content, so chrome.css runs it up behind the floating
+ * pill with a transparent top border and `background-origin: border-box`,
+ * which the shorthand would reset.
+ */
+
+.art {
+  --art-wash: color-mix(in srgb, var(--foil) 22%, transparent);
+  --art-sheet: var(--paper-2);
+  --art-line: var(--rule);
+  --art-line-2: var(--rule-2);
+
+  background-color: var(--paper);
+  background-image: radial-gradient(1100px 520px at 50% 0%, var(--art-wash), transparent 62%);
+  background-repeat: no-repeat;
+  color: var(--ink);
+}
+
+.art :focus-visible { outline: 2px solid var(--gold-text); outline-offset: 3px; }
+
+/* The reading rule: a gold hairline across the very top of the window that
+   the component scales from 0 to 1 through the body. Fixed, above the rail's
+   z-index, and never a target. */
+.art-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 101;
+  height: 2px;
+  background: linear-gradient(90deg, var(--foil-deep), var(--foil));
+  transform-origin: left center;
+  pointer-events: none;
+}
+
+/* The measure. Identical to `.alib-wrap` on the index. */
+.art-wrap {
+  width: 100%;
+  max-width: 1280px;
+  margin-inline: auto;
+  padding-inline: clamp(1.25rem, 4vw, 3rem);
+}
+
+/* ============================================================ type */
+
+.art-label {
+  display: block;
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  line-height: 1.45;
+  text-transform: uppercase;
+  color: var(--gold-text);
+}
+
+.art-h1 {
+  margin: 16px 0 0;
+  max-width: 22ch;
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: clamp(2.25rem, 4.6vw, 3.9rem);
+  line-height: 1.04;
+  letter-spacing: -0.028em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.art-h2 {
+  margin: 16px 0 0;
+  max-width: 18ch;
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: clamp(1.75rem, 3.2vw, 2.6rem);
+  line-height: 1.08;
+  letter-spacing: -0.022em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+/* ======================================================== masthead */
+
+.art-masthead {
+  padding-block: clamp(2.75rem, 5.5vw, 5rem) clamp(2rem, 4vw, 3rem);
+}
+
+/* The trail. `.breadcrumb` brings a white-on-ink colour from the old dark
+   opener with it, so every property that matters is restated here, on paper,
+   at the index's own values. */
+.art .art-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 clamp(1.5rem, 3vw, 2.25rem);
+  font-size: 12.5px;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  color: var(--ink-3);
+}
+.art .art-crumbs a {
+  position: relative;
+  color: var(--ink-2);
+  font-weight: 400;
+  text-decoration: underline;
+  text-decoration-color: var(--rule-2);
+  text-underline-offset: 3px;
+  transition: color var(--t) var(--ease), text-decoration-color var(--t) var(--ease);
+}
+/* A 44px target on a 19px line, without moving the line. */
+.art .art-crumbs a::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 44px;
+  transform: translateY(-50%);
+}
+.art .art-crumbs a:hover { color: var(--gold-text); text-decoration-color: currentColor; }
+.art .art-crumbs .crumb-sep { color: var(--rule-2); }
+.art .art-crumbs > span:last-child { color: var(--ink); }
+
+/* Copy-led: the headline takes the wider side, the figures the narrower, and
+   the two sit on one bottom line. */
+.art-masthead-grid {
+  display: grid;
+  gap: clamp(2rem, 5vw, 4rem);
+  align-items: end;
+}
+@media (min-width: 1000px) {
+  .art-masthead-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 0.62fr); }
+}
+
+.art-masthead-l { min-width: 0; }
+
+.art-lede {
+  margin: 20px 0 0;
+  max-width: 58ch;
+  font-size: var(--size-lede);
+  line-height: 1.7;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+/* The figures, on the raised sheet the index uses for a card: three measured
+   figures across, the date on its own line beneath them. */
+.art-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding: clamp(1.25rem, 2.2vw, 1.75rem);
+  border: 1px solid var(--art-line);
+  border-radius: var(--r-tile);
+  background-color: var(--art-sheet);
+  background-image: radial-gradient(80% 120% at 100% 0%, var(--art-wash), transparent 70%);
+  box-shadow: var(--shadow-card);
+}
+
+/* Each figure spans two shared rows — figure, then label — so the labels sit
+   on one line across the three however the figures wrap: at the sheet's
+   narrower widths "1,139 words" takes two lines where "6 min" takes one, and
+   stacked on their own the three labels landed on two different lines. The
+   figure is placed above its label; the markup keeps <dt> before <dd>. */
+.art-fact {
+  display: grid;
+  grid-row: span 2;
+  grid-template-rows: subgrid;
+  row-gap: 8px;
+  min-width: 0;
+  padding-inline: 0 12px;
+}
+.art-fact > dd { grid-row: 1; align-self: start; }
+.art-fact > dt { grid-row: 2; }
+.art-fact + .art-fact:not(.art-fact--wide) {
+  padding-left: clamp(0.75rem, 1.6vw, 1.25rem);
+  border-left: 1px solid var(--art-line);
+}
+
+.art-fact dt {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  line-height: 1.45;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.art-fact dd {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.2;
+  color: var(--ink-2);
+}
+
+.art-fig {
+  font-family: var(--display);
+  font-size: clamp(1.75rem, 2.8vw, 2.4rem);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.art-fact--wide {
+  grid-column: 1 / -1;
+  grid-row: auto;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px 16px;
+  margin-top: clamp(1rem, 1.8vw, 1.35rem);
+  padding: clamp(0.85rem, 1.6vw, 1.1rem) 0 0;
+  border-top: 1px solid var(--art-line);
+}
+.art-fact-line {
+  font-size: 13.5px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ================================================= the reading section */
+
+.art-read {
+  padding-block: 0 clamp(3rem, 6vw, 5rem);
+}
+
+/* Prose on the left at its measure, the contents rail on the right. The rail
+   comes first in the DOM (a keyboard reader meets the list before the piece);
+   explicit placement puts it on the right. */
+.art-read-grid {
+  display: grid;
+  gap: clamp(2rem, 4vw, 3rem);
+  padding-top: clamp(2rem, 4vw, 3rem);
+  border-top: 1px solid var(--art-line-2);
+}
+
+.art-read-grid > .article-body {
+  min-width: 0;
+  max-width: 68ch;
+}
+
+@media (min-width: 1081px) {
+  .art-read-grid {
+    grid-template-columns: minmax(0, 1fr) 16rem;
+    column-gap: clamp(3rem, 6vw, 6rem);
+  }
+  .art-read-grid > .article-body { grid-column: 1; grid-row: 1; }
+  .art-toc {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+    position: sticky;
+    top: calc(var(--bar-inset) + var(--bar-h) + 1.5rem);
+    max-height: calc(100vh - var(--bar-inset) - var(--bar-h) - 3rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/* The first heading of the body opens the section rather than following a
+   paragraph, so it does not need the space a mid-body heading does. */
+.art-read-grid > .article-body > :first-child { margin-top: 0; }
+
+/* ---- the contents rail ---- */
+
+.art-toc-h {
+  margin: 0 0 12px;
+  max-width: none;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  line-height: 1.45;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.art-toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-left: 1px solid var(--art-line-2);
+}
+
+.art-toc-list a {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 8px 0 8px 16px;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--ink-3);
+  text-decoration: none;
+  transition: color var(--t-fast) var(--ease);
+}
+.art-toc-list a:hover { color: var(--ink); }
+
+/* The marker sits ON the rail's hairline, so "you are here" is a rule that
+   lights up rather than a second line beside the first. */
+.art-toc-mark {
+  position: absolute;
+  left: -1px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background-color var(--t) var(--ease);
+}
+.art-toc-list a[aria-current="true"] { color: var(--ink); font-weight: 600; }
+.art-toc-list a[aria-current="true"] .art-toc-mark { background: var(--gold-text); }
+
+/* Stacked, the rail is a contents box above the piece — a list you read once,
+   not a column that follows you. */
+@media (max-width: 1080px) {
+  .art-toc {
+    padding: clamp(1.1rem, 3vw, 1.5rem);
+    border: 1px solid var(--art-line);
+    border-radius: var(--r-tile);
+    background-color: var(--art-sheet);
+  }
+  .art-toc-list a { min-height: 44px; }
+}
+
+/* ===================================================== closing sections */
+
+.art-section { padding-block: clamp(3rem, 6vw, 5rem) 0; }
+
+/* The index's section head: the heading on the left, a short line on the
+   right, both sitting on one hairline. */
+.art-head {
+  display: grid;
+  gap: clamp(1rem, 3vw, 3rem);
+  align-items: end;
+  padding-bottom: clamp(1.1rem, 2vw, 1.5rem);
+  border-bottom: 1px solid var(--art-line-2);
+}
+@media (min-width: 901px) {
+  .art-head { grid-template-columns: minmax(0, 1fr) minmax(0, 0.82fr); }
+}
+
+.art-head-body {
+  margin: 0;
+  max-width: 44ch;
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+/* The questions, open, in hairline rows — the topic hubs' treatment — two
+   columns wide so they fill the measure the heading above them spans. */
+.art-faq {
+  display: grid;
+  column-gap: clamp(2rem, 4vw, 3.5rem);
+  margin-top: clamp(0.5rem, 1vw, 0.75rem);
+}
+@media (min-width: 901px) {
+  .art-faq { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.art-faq-item {
+  padding-block: clamp(1.1rem, 2vw, 1.4rem);
+  border-bottom: 1px solid var(--art-line);
+}
+.art-faq-item h3 {
+  margin: 0 0 8px;
+  font-family: var(--display);
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.art-faq-item p {
+  margin: 0;
+  max-width: 62ch;
+  font-size: 14.5px;
+  line-height: 1.72;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+/* ---- the close ---- */
+
+.art-close-grid {
+  display: grid;
+  gap: clamp(1.25rem, 3vw, 3rem);
+  align-items: end;
+  padding: clamp(1.5rem, 3.5vw, 2.75rem);
+  border: 1px solid var(--art-line);
+  border-radius: var(--r-tile);
+  background-color: var(--art-sheet);
+  background-image: radial-gradient(90% 140% at 0% 0%, var(--art-wash), transparent 68%);
+  box-shadow: var(--shadow-card);
+}
+@media (min-width: 901px) {
+  .art-close-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 0.82fr); }
+}
+
+.art-close-r {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.art-close-body {
+  margin: 0;
+  max-width: 40ch;
+  font-size: 15.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+/* The action is the site's own gold button (.btn-gold, glass.css). Only the
+   icon needs saying: without a size the <svg> filled its container. */
+.art-cta svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+/* ---- related reading ---- */
+
+.art-related {
+  padding-block: clamp(1rem, 2vw, 1.5rem) clamp(4rem, 8vw, 6rem);
+}
+
+.art-related .related-articles {
+  margin-top: clamp(2rem, 4vw, 3rem);
+  padding-top: 0;
+  border-top: 0;
+}
+
+.art-related .related-articles > h2 {
+  margin: 0 0 clamp(1rem, 2vw, 1.4rem);
+  font-family: var(--display);
+  font-size: clamp(1.4rem, 2.2vw, 1.75rem);
+  font-weight: 500;
+  letter-spacing: -0.018em;
+  color: var(--ink);
+}
+
+/* Three across on a desk, one per row on a phone; one height per row either
+   way, so the three cards end on one line whatever their excerpts run to. */
+.art-related .related-list {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: clamp(1.25rem, 2vw, 1.5rem);
+}
+@media (min-width: 901px) {
+  .art-related .related-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+.art-related .related-list > li { display: flex; }
+.art-related .related-list a {
+  flex: 1;
+  padding: clamp(1.1rem, 2vw, 1.35rem);
+  border: 1px solid var(--art-line);
+  border-radius: var(--r-tile);
+  background: var(--art-sheet);
+  box-shadow: var(--shadow-card);
+  transition: border-color var(--t) var(--ease), box-shadow var(--t) var(--ease);
+}
+.art-related .related-list a:hover {
+  border-color: color-mix(in srgb, var(--gold-text) 42%, transparent);
+  box-shadow: var(--shadow-card-hover);
+}
+.art-related .related-tag {
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--gold-text);
+}
+.art-related .related-title {
+  margin-bottom: 8px;
+  font-family: var(--display);
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.art-related .related-excerpt {
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--ink-3);
+}
+.art-related .related-topics,
+.art-related .related-all {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+.art-related .related-all { margin-top: 6px; }
+.art-related .related-topics a,
+.art-related .related-all a {
+  color: var(--gold-text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-underline-offset: 3px;
+}
+.art-related .related-topics a:hover,
+.art-related .related-all a:hover { text-decoration-color: currentColor; }
+
+/* ============================================================ phones */
+
+@media (max-width: 560px) {
+  .art-label,
+  .art-toc-h,
+  .art-fact dt { font-size: 12px; letter-spacing: 0.14em; }
+
+  /* Three figures still fit across at 390; the unit drops under its figure. */
+  .art-fact { padding-inline: 0 8px; }
+  .art-fact + .art-fact:not(.art-fact--wide) { padding-left: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .art-toc-list a,
+  .art-toc-mark,
+  .art-related .related-list a { transition: none; }
+}

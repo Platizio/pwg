@@ -29,7 +29,7 @@ import { TRADING_PLATFORM_URL } from '../constants'
  * from is shared with eighteen other routes and is owned elsewhere. The page's
  * own world is declared here, scoped under `.th`, from the marketing token
  * layer only — `--surface`, `--white`, `--gray-800/700/600`, `--gold`,
- * `--gold-hi`, `--gold-deep`, `--line`, `--ease`. No literal colour appears
+ * `--gold-hi`, `--gold-deep`, `--gold-text`, `--line`, `--ease`. No literal colour appears
  * below, so the hub follows the palette wherever it is next taken rather than
  * pinning a copy of today's values.
  *
@@ -866,7 +866,8 @@ a.th-link:focus-visible .th-rule { transform: scaleX(1); }
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--gold-deep);
+  /* The text gold: --gold-deep is the fill tone, 3.57:1 on paper-2 at 10.5px. */
+  color: var(--gold-text);
 }
 .th-row-x {
   margin: 10px 0 0;

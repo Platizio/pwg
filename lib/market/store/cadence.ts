@@ -1,6 +1,14 @@
 import type { RawCorporateActions } from "../../api/clients/fundamentals.ts";
 import { parseFeedDate } from "../../api/normalize/time.ts";
-import { pricesMove, type SessionPhase } from "../session.ts";
+import {
+  easternDay,
+  easternTime,
+  pricesMove,
+  shiftDay,
+  tradingDay,
+  type SessionPhase,
+  type TradingDay,
+} from "../session.ts";
 import type { Section } from "./sections.ts";
 
 /* When to ask the gateway about a section again.
@@ -101,21 +109,28 @@ const TABLE: Record<Section, Row> = {
  * whole time. Confirmed by hand — AAPL, NVDA and SPY stored through 09/17
  * while `/quotes/equity/historical` answered 09/18 for all three.
  *
- * Eight hours and forty-five minutes puts the read at about 00:45 ET, inside
- * the window where every one of those mass `changed` batches landed. It is a
- * measurement, not a guarantee, which is what the catch-up below is for. */
-const PUBLISH_LAG = 8 * HOUR + 45 * MINUTE;
+ * So the read is at 00:45 ET on the night after the session, inside the window
+ * where every one of those mass `changed` batches landed. It is a measurement,
+ * not a guarantee, which is what the catch-up below is for.
+ *
+ * A wall-clock time after MIDNIGHT, not a lag after the bell. This was written
+ * as close + 8h45, which is the same instant on an ordinary day and the wrong
+ * one on a half-day: 13:00 + 8h45 is 21:45, before the nightly batch and before
+ * normalize/daily-bars.ts lets the day's Polygon bar into the series at all
+ * (it holds back "today" until Eastern midnight). A read there finds nothing
+ * and falls into the hourly retries. The bar follows the date, not the bell. */
+const PUBLISH_AT_ET = 45 * 60;
 
 /* If the bar still is not there, come back in an hour rather than tomorrow —
    the failure this whole block exists to prevent is precisely a missed
    publication turning into a lost day. */
 const PUBLISH_RETRY = HOUR;
 
-/* But stop asking by about 06:00 ET. A name that did not trade the session has
-   no bar to wait for and would otherwise re-read for ever, and there are ~4,400
+/* But stop asking by 06:00 ET. A name that did not trade the session has no
+   bar to wait for and would otherwise re-read for ever, and there are ~4,400
    of them sharing one rate limit. Five extra calls for a thin name is the
    cheaper mistake than a day of missing bars for a liquid one. */
-const PUBLISH_GIVE_UP = 14 * HOUR;
+const PUBLISH_GIVE_UP_ET = 6 * 3600;
 /** How often the tracking funds re-read their bars while prices move. */
 const ETF_WHILE_MOVING = 30 * MINUTE;
 /** A calendar date this close is worth watching twice a day. */
@@ -164,71 +179,77 @@ function jittered(interval: number, section: string, streak: number): number {
 }
 
 /* ------------------------------------------------------------------ */
-/* The close                                                           */
+/* The exchange's calendar                                             */
 /* ------------------------------------------------------------------ */
 
-/* The exchange's own wall clock. session.ts reads the same two fields the same
-   way and for the same reason — a UTC weekday calls a Friday post-market a
-   Saturday — but it keeps the reader private and works in seconds, and this
-   module works in milliseconds. */
-const ET_CLOCK = new Intl.DateTimeFormat("en-US", {
-  timeZone: "America/New_York",
-  weekday: "short",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hourCycle: "h23",
-});
+/* Every moment below is read from session.ts's tradingDay — the same hours the
+ * pill, the phase and pricesMove use — so the worker and the page cannot
+ * disagree about when a session ended. That module works in seconds and this
+ * one in milliseconds; the conversion is at the edge, here.
+ *
+ * It used to keep its own clock: 16:00 every weekday, weekends skipped and
+ * nothing else. Two consequences.
+ *
+ * A HALF-DAY closed at 16:00. Its post-market ends at 17:00, so the minute-bar
+ * capture waited until 20:30 for a session that had been over for three and a
+ * half hours.
+ *
+ * A HOLIDAY was a session. That was a deliberate choice — "the extra read costs
+ * one call and finds nothing changed, while a wrong holiday list would cost a
+ * whole day of bars" — and the first half of it was wrong. On Thanksgiving
+ * evening the stored daily series correctly ends on Wednesday, the worker read
+ * that as a missing Thursday bar, and every enrolled name (~4,400) was re-read
+ * at 00:45 and then hourly until 06:00: some 26,000 calls against the shared
+ * rate limit, for a bar that will never exist. The capture ran for the holiday
+ * as well. The second half no longer holds either: the holiday list is now
+ * load-bearing for the charts (session-window.ts, daily-bars.ts), so an error
+ * in it is already an error everywhere, and the realistic error is a closure
+ * the list MISSES — an unscheduled day of mourning — which behaves exactly as
+ * before. A day listed that did trade costs one night's delay on its daily bar
+ * (the next read fetches the whole series) and nothing more. */
 
-function easternClock(ms: number): { weekday: string; msIntoDay: number } {
-  const parts = ET_CLOCK.formatToParts(ms);
-  const part = (type: Intl.DateTimeFormatPartTypes) =>
-    Number(parts.find((p) => p.type === type)?.value ?? "0");
-  return {
-    weekday: parts.find((p) => p.type === "weekday")?.value ?? "",
-    msIntoDay: (part("hour") * 3600 + part("minute") * 60 + part("second")) * 1000,
-  };
+/* The longest stretch without a session is four days — Christmas Eve on a
+   Thursday, then Christmas and a weekend — so ten dates always reaches one, and
+   a bad clock cannot spin here. */
+const WALK = 10;
+
+/** The trading days from `offset` dates after today's Eastern date, walking by `step`. */
+function* tradingDays(nowMs: number, offset: number, step: 1 | -1): Generator<TradingDay> {
+  const today = easternDay(Math.floor(nowMs / 1000));
+  for (let i = 0; i <= WALK; i += 1) {
+    const hours = tradingDay(shiftDay(today, offset + i * step));
+    if (hours !== null) yield hours;
+  }
 }
 
-const CLOSE_INTO_DAY = 16 * HOUR;
-
-/** 16:00 Eastern on whichever Eastern day contains `ms`. */
-function closeOn(ms: number): number {
-  const { msIntoDay } = easternClock(ms);
-  const midnight = Math.floor((ms - msIntoDay) / 1000) * 1000;
-  const guess = midnight + CLOSE_INTO_DAY;
-
-  /* One correction pass, because "midnight plus sixteen hours" is a UTC sum
-     and the day it lands in may keep a different offset than the day it
-     started in. The clocks move at 02:00 on a Sunday and the exchange does not
-     trade on Sundays, so this never actually fires today — but it costs one
-     formatToParts, and the alternative is a rule that is silently an hour
-     wrong on some future Monday nobody is watching. */
-  return guess - (easternClock(guess).msIntoDay - CLOSE_INTO_DAY);
+/* A wall-clock time on the night after a session: the Eastern date after it.
+   Calendar-next rather than +24h, so a DST Sunday cannot move it — and it
+   never has to, since no session is followed by one. */
+function nightAfter(day: TradingDay, secondsIntoDay: number): number {
+  const at = easternTime(shiftDay(day.day, 1), secondsIntoDay);
+  // Unreachable: every time this is asked for exists on every date.
+  return at === null ? day.close * 1000 + DAY : at * 1000;
 }
 
 /**
- * The next 16:00 America/New_York strictly after `nowMs`, weekends skipped.
- *
- * Holidays are deliberately ignored. session.ts keeps a committed list of full
- * closures, and honouring it here would mean the daily-bar refresh for
- * Thanksgiving skips to Friday — but the gateway publishes no bar for a day
- * that did not trade either, so the extra read costs one call and finds
- * nothing changed, while a wrong holiday list would cost a whole day of bars.
- * Being early is the harmless direction to be wrong in.
+ * The next regular close strictly after `nowMs`: 16:00 America/New_York, or
+ * 13:00 on a half-day, with weekends and exchange holidays skipped.
  */
 export function nextEasternClose(nowMs: number): number {
-  // A weekday is never more than three days away; eight is the same bound
-  // nextOpening uses, so a bad clock cannot spin here either.
-  for (let day = 0; day <= 8; day += 1) {
-    const probe = nowMs + day * DAY;
-    const { weekday } = easternClock(probe);
-    if (weekday === "Sat" || weekday === "Sun") continue;
-    const close = closeOn(probe);
+  for (const day of tradingDays(nowMs, 0, 1)) {
+    const close = day.close * 1000;
     if (close > nowMs) return close;
   }
   // Unreachable with a real clock; a day out beats a thrown scheduler.
   return nowMs + DAY;
+}
+
+/** The most recent session whose regular close is strictly before `nowMs`. */
+function lastSession(nowMs: number): TradingDay | null {
+  for (const day of tradingDays(nowMs, 0, -1)) {
+    if (day.close * 1000 < nowMs) return day;
+  }
+  return null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -298,33 +319,24 @@ function baseFor(section: Section, priority: number): number {
  *
  * 20:30, not 21:11: thirty minutes past the extended close is comfortably
  * inside the window both samples confirm, and leaves the observed hour of
- * margin for an evening that ends earlier than the one measured. */
-const CAPTURE_AFTER_CLOSE = 4 * HOUR + 30 * MINUTE;
+ * margin for an evening that ends earlier than the one measured.
+ *
+ * Measured from the EXTENDED close rather than the bell, which is the same
+ * 20:30 on an ordinary day and matters on a half-day: the post-market then
+ * ends at 17:00, so the session is whole by 17:30 and there is no reason to
+ * sit three hours closer to the end of the endpoint's window. */
+const CAPTURE_AFTER_EXTENDED_CLOSE = 30 * MINUTE;
 
 function intradayNext(now: number): number {
-  /* The same walk nextEasternClose does, and strictly-after for the same
-     reason: a capture that ran at 20:32 must schedule tomorrow, not compute a
-     20:30 already past and become due again immediately. */
-  for (let day = 0; day <= 8; day += 1) {
-    const probe = now + day * DAY;
-    const { weekday } = easternClock(probe);
-    if (weekday === "Sat" || weekday === "Sun") continue;
-    const capture = closeOn(probe) + CAPTURE_AFTER_CLOSE;
+  /* Strictly after, like nextEasternClose: a capture that ran at 20:32 must
+     schedule the next session, not compute a 20:30 already past and become
+     due again immediately. Holidays are skipped — there is no session to
+     capture, and the endpoint would hand back the previous one. */
+  for (const day of tradingDays(now, 0, 1)) {
+    const capture = day.postClose * 1000 + CAPTURE_AFTER_EXTENDED_CLOSE;
     if (capture > now) return capture;
   }
   return now + DAY;
-}
-
-/** The most recent 16:00 Eastern strictly before `nowMs`, weekends skipped. */
-function lastEasternClose(nowMs: number): number {
-  for (let day = 0; day <= 8; day += 1) {
-    const probe = nowMs - day * DAY;
-    const { weekday } = easternClock(probe);
-    if (weekday === "Sat" || weekday === "Sun") continue;
-    const close = closeOn(probe);
-    if (close < nowMs) return close;
-  }
-  return nowMs - DAY;
 }
 
 /**
@@ -334,27 +346,28 @@ function lastEasternClose(nowMs: number): number {
  * Not `nextEasternClose + lag`. At 17:00 on a Monday the next close is
  * Tuesday's, and Tuesday's close plus the lag is Wednesday morning — which
  * would sail straight past Monday's own bar, due in eight hours. The walk has
- * to be over publication moments, not over closes.
+ * to be over publication moments, not over closes — and it starts from
+ * yesterday's session, whose bar is published after today's midnight.
  */
 function nextPublication(nowMs: number): number {
-  for (let day = 0; day <= 8; day += 1) {
-    const probe = nowMs + day * DAY;
-    const { weekday } = easternClock(probe);
-    if (weekday === "Sat" || weekday === "Sun") continue;
-    const at = closeOn(probe) + PUBLISH_LAG;
+  for (const day of tradingDays(nowMs, -1, 1)) {
+    const at = nightAfter(day, PUBLISH_AT_ET);
     if (at > nowMs) return at;
   }
   return nowMs + DAY;
 }
 
-/** The Eastern midnight of the last bar the stored columns carry. */
-function lastBarAt(payload: unknown): number | null {
+/** The Eastern date ("yyyy-mm-dd") of the last bar the stored columns carry. */
+function lastBarDay(payload: unknown): string | null {
   if (!isRecord(payload)) return null;
   const dates = rowsOf(payload.date);
   const last = dates[dates.length - 1];
   /* parseFeedDate is the only thing in this codebase allowed to read the
-     feed's "MM/DD/YYYY HH:MM:SS EDT", and it is what stored those columns. */
-  return typeof last === "string" ? parseFeedDate(last) : null;
+     feed's "MM/DD/YYYY HH:MM:SS EDT", and it is what stored those columns. The
+     stamp is the trading day's Eastern midnight, so its Eastern date is the
+     session it belongs to. */
+  const at = typeof last === "string" ? parseFeedDate(last) : null;
+  return at === null ? null : easternDay(Math.floor(at / 1000));
 }
 
 function historyNext(input: CadenceInput): number {
@@ -366,21 +379,23 @@ function historyNext(input: CadenceInput): number {
     return input.now + jittered(ETF_WHILE_MOVING, input.section, input.unchangedStreak);
   }
 
+  const last = lastSession(input.now);
+  // Unreachable with a real clock: some session always closed in the last ten days.
+  if (last === null) return nextPublication(input.now);
+  const published = nightAfter(last, PUBLISH_AT_ET);
+
   /* Does the series we just read actually cover the session that has already
-     closed? The bar's stamp is that trading day's Eastern midnight, so it is
-     compared against the close's own midnight rather than against the close. */
-  const closed = lastEasternClose(input.now);
-  const covered = lastBarAt(input.payload);
-  const behind = covered !== null && covered < closed - CLOSE_INTO_DAY;
+     closed? Compared as Eastern dates, which is what a daily bar is. */
+  const covered = lastBarDay(input.payload);
+  const behind = covered !== null && covered < last.day;
 
   if (behind) {
-    const due = closed + PUBLISH_LAG;
     /* Not published yet — which is the ordinary case for anything read in the
        hours between the bell and midnight. Wait for the moment itself. */
-    if (input.now < due) return due;
+    if (input.now < published) return published;
     /* Past the moment and still missing: publication is late, or this name did
        not trade. Ask again hourly for a few hours, then let it go. */
-    if (input.now < closed + PUBLISH_GIVE_UP) {
+    if (input.now < nightAfter(last, PUBLISH_GIVE_UP_ET)) {
       return input.now + jittered(PUBLISH_RETRY, input.section, input.unchangedStreak);
     }
   }
@@ -390,7 +405,7 @@ function historyNext(input: CadenceInput): number {
      reading at it — the bar is already stored — so the walk starts after it
      and the next read is the next session's. Without this, every Friday
      evening read would schedule a pointless Saturday one. */
-  return nextPublication(Math.max(input.now, closed + PUBLISH_LAG));
+  return nextPublication(Math.max(input.now, published));
 }
 
 /**

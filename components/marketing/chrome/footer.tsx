@@ -50,7 +50,16 @@ import {
  * in tokens, with no inherited white left anywhere to hunt down.
  */
 
-const DIRECTORY: Array<{ heading: string; links: Array<{ label: string; href: string; external?: boolean }> }> = [
+/* `newTab` is for a path inside this app that must still load as a document
+   in a tab of its own: the terminal. A Next <Link> into it is a client
+   transition that carries the marketing layout across and makes the reader
+   wait on the whole terminal payload with nothing moving; the hero, the
+   products page and the home ticker all open it as a plain anchor in a new
+   tab, and this is the same link, so it behaves the same way. */
+const DIRECTORY: Array<{
+  heading: string
+  links: Array<{ label: string; href: string; external?: boolean; newTab?: boolean }>
+}> = [
   {
     heading: 'Platizio',
     links: [
@@ -63,7 +72,7 @@ const DIRECTORY: Array<{ heading: string; links: Array<{ label: string; href: st
     heading: 'Invest',
     links: [
       { label: 'Products', href: '/products' },
-      { label: 'Live terminal', href: '/terminal' },
+      { label: 'Live terminal', href: '/terminal', newTab: true },
       { label: 'Open an account', href: TRADING_PLATFORM_URL, external: true },
     ],
   },
@@ -198,22 +207,25 @@ export default function Footer() {
             <div className="pgf-col" key={heading}>
               <h3 className="pgf-col-h">{heading}</h3>
               <ul className="pgf-list">
-                {links.map(({ label, href, external }) => (
-                  <li key={label}>
-                    {external ? (
-                      <a
-                        className="pgf-link"
-                        href={href}
-                        {...(href.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                      >
-                        {label}
-                        {href.startsWith('http') && <span className="pgf-sr"> (opens in a new tab)</span>}
-                      </a>
-                    ) : (
-                      <Link className="pgf-link" href={href}>{label}</Link>
-                    )}
-                  </li>
-                ))}
+                {links.map(({ label, href, external, newTab }) => {
+                  const opensTab = newTab || href.startsWith('http')
+                  return (
+                    <li key={label}>
+                      {external || newTab ? (
+                        <a
+                          className="pgf-link"
+                          href={href}
+                          {...(opensTab ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                        >
+                          {label}
+                          {opensTab && <span className="pgf-sr"> (opens in a new tab)</span>}
+                        </a>
+                      ) : (
+                        <Link className="pgf-link" href={href}>{label}</Link>
+                      )}
+                    </li>
+                  )
+                })}
               </ul>
             </div>
           ))}

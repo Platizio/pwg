@@ -2,20 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { phaseWord, pricesMove, type Session } from "@/lib/market/session";
+import { phaseWord, pricesMove, sessionNotices, type Session } from "@/lib/market/session";
 import { EASE } from "@/lib/tokens";
 
 /*
- * The market's state and its next opening, in one pill that rolls between
- * them the way a departure board does. Ten seconds on the status, four on the
- * opening. The visible halves are hidden from assistive tech; the pill's
- * label states both once.
+ * The market's state and what happens next, in one pill that rolls between
+ * them the way a departure board does. Ten seconds on the status, four on each
+ * notice — the next opening, and on a half-day the early close too. The
+ * visible halves are hidden from assistive tech; the pill's label states them
+ * all once.
  */
 const STATUS_MS = 10_000;
 const OPENS_MS = 4_000;
 const ROLL_S = 0.42;
 
-const longer = (a: string, b: string) => (b.length > a.length ? b : a);
+const longest = (values: string[]) =>
+  values.reduce((a, b) => (b.length > a.length ? b : a), "");
 
 function Rolling({ value, widest, className }: { value: string; widest: string; className?: string }) {
   return (
@@ -38,14 +40,19 @@ function Rolling({ value, widest, className }: { value: string; widest: string; 
 }
 
 export function SessionPill({ session, className }: { session: Session | null; className?: string }) {
-  const opens = session?.opens ?? null;
-  const [showOpens, setShowOpens] = useState(false);
+  /* sessionNotices, not `opens` alone, so this pill and the terminal's
+     (components/terminal/market-status.tsx) announce the same things. The
+     effect keys on the notices' content: a fresh array every render would
+     restart the timer on each parent render and the pill would never roll. */
+  const notices = session ? sessionNotices(session) : [];
+  const noticesKey = notices.map((n) => `${n.label}@${n.at}`).join("|");
+  const [step, setStep] = useState(0);
 
   useEffect(() => {
-    if (!opens) return;
-    const t = setTimeout(() => setShowOpens((v) => !v), showOpens ? OPENS_MS : STATUS_MS);
+    if (noticesKey === "") return;
+    const t = setTimeout(() => setStep((n) => n + 1), step % 2 === 1 ? OPENS_MS : STATUS_MS);
     return () => clearTimeout(t);
-  }, [showOpens, opens]);
+  }, [step, noticesKey]);
 
   if (!session) {
     return (
@@ -58,19 +65,24 @@ export function SessionPill({ session, className }: { session: Session | null; c
 
   const moving = pricesMove(session.phase);
   const label = `US ${phaseWord(session.phase)}`;
-  const showing = showOpens && opens ? opens : null;
+  const showing =
+    step % 2 === 1 && notices.length > 0 ? notices[((step - 1) / 2) % notices.length] : null;
 
   return (
     <span
       className={["hm-pill", moving && "is-moving", className].filter(Boolean).join(" ")}
-      aria-label={opens ? `${label}. ${opens.label} at ${opens.time} IST.` : label}
+      aria-label={[label, ...notices.map((n) => `${n.label} at ${n.time} IST`)].join(". ") + "."}
     >
       <span className="hm-pill-dot" aria-hidden="true" />
-      <Rolling value={showing ? showing.label : label} widest={opens ? longer(label, opens.label) : label} className="hm-pill-l" />
+      <Rolling
+        value={showing ? showing.label : label}
+        widest={longest([label, ...notices.map((n) => n.label)])}
+        className="hm-pill-l"
+      />
       <span className="hm-pill-sep" aria-hidden="true" />
       <Rolling
         value={`${showing ? showing.time : session.clock} IST`}
-        widest={`${opens ? longer(session.clock, opens.time) : session.clock} IST`}
+        widest={`${longest([session.clock, ...notices.map((n) => n.time)])} IST`}
         className="hm-pill-t"
       />
     </span>

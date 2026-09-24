@@ -26,6 +26,7 @@ import { isPlaceholderInstrument, presentation } from "./universe.ts";
 import { DEFAULT_RANGE, getRange } from "./ranges.ts";
 import { storeConfigured, touchVisit } from "./store/client.ts";
 import { fromStored } from "./store/sections.ts";
+import { insightInputFrom, sectorFundFor, stockInsights, type Benchmark } from "./insights.ts";
 import { indicatorsFromDaily } from "./store/local-indicators.ts";
 import type { StoredInstrument } from "./store/types.ts";
 import {
@@ -33,6 +34,7 @@ import {
   MAX_PEERS,
   assembleInstrument,
   dataOf,
+  peerQuoteFrom,
   profileFrom,
   value,
   type InstrumentInputs,
@@ -170,6 +172,48 @@ const SESSION_SERIES_NOTE = "This session's trades load with the chart.";
  * entry it was already going to fill, so the next reader of this symbol finds
  * the answer this one gave up on. Nothing is wasted except the waiting. */
 const STORE_BUDGET_MS = 8_000;
+
+/* The sector fund's five years, for the insights' "against its sector" line.
+   One store read with a 1.5 s budget: the insights are a garnish, and a slow
+   read must never hold the page. Any failure is simply no comparison. */
+const SECTOR_BUDGET_MS = 1_500;
+
+async function sectorBenchmark(sector: string | null, ticker: string): Promise<Benchmark | null> {
+  const fund = sectorFundFor(sector);
+  if (!fund || fund === ticker || !storeConfigured()) return null;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const { readSections } = await import("./store/reads.ts");
+    const budget = new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), SECTOR_BUDGET_MS);
+    });
+    const read = await Promise.race([
+      Promise.all([readSections([fund], "history_daily"), readSections([fund], "corporate_actions")]),
+      budget,
+    ]);
+    if (!read) return null;
+    const [rows, acts] = read;
+    if (!rows.ok) return null;
+    const history = fromStored("history_daily", rows.data.find((r) => r.symbol === fund)?.payload ?? null);
+    if (!history || history.length === 0) return null;
+    const ap = acts.ok ? (acts.data.find((r) => r.symbol === fund)?.payload ?? null) : null;
+    const record = splitRecord(ap ? fromStored("corporate_actions", ap) : null);
+    return { symbol: fund, daily: toPricePoints(repairAgainst(history, record)) };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function withInsights(full: InstrumentSnapshot, sector: Benchmark | null, now: number): InstrumentSnapshot {
+  try {
+    return { ...full, insights: stockInsights(insightInputFrom(full, { now, sector })) };
+  } catch (e) {
+    console.warn(`instrument ${full.profile.id}: insights skipped: ${e instanceof Error ? e.message : String(e)}`);
+    return full;
+  }
+}
 
 /**
  * The snapshot, minus everything that no longer travels with the page.
@@ -357,8 +401,15 @@ export function inputsFromStored(
       ret1y: p.ret1y,
       /* Already in dollars: toSweepRow multiplies the quotes feed's millions
          out before the row is stored, where the gateway path has to do it
-         itself. */
-      marketCap: p.mcap,
+         itself. Re-struck at the row's own price, as on the gateway path (see
+         peerQuoteFrom): the stored cap is the quote's, struck at the previous
+         close, and the row's change is measured from that same close — so
+         price / previousClose is exactly 1 + chg/100. A change the store only
+         defaulted to nought (no chg_known on this row) leaves the cap as it
+         was stored, which is where it stood before. */
+      marketCap: p.mcap !== null && p.chg !== null && Number.isFinite(p.chg) && p.chg > -100
+        ? p.mcap * (1 + p.chg / 100)
+        : p.mcap,
       pe: p.pe !== null && p.pe > 0 ? p.pe : null,
     }));
 
@@ -553,7 +604,8 @@ export const getInstrumentSnapshot = cache(
       /* One RPC and nothing else. `inputs.articles` is already null and stays
          that way: this used to await the news provider here, which was the
          whole of what a filled-store page still cost a reader. */
-      return shippedWithPage(assembleInstrument(stored.inputs, now));
+      const full = assembleInstrument(stored.inputs, now);
+      return shippedWithPage(withInsights(full, await sectorBenchmark(full.profile.sector, ticker), now));
     }
 
     /* ---- the gateway fan-out, unchanged ---- */
@@ -736,20 +788,9 @@ export const getInstrumentSnapshot = cache(
       let peers: PeerQuote[] = [];
       const peerQuotes = await fetchQuotes(peerIds, TTL.sweep, [TAGS.quotes]).catch(() => null);
       if (peerQuotes?.ok) {
-        peers = peerQuotes.data
-          .filter((q) => !q.notFound && !q.notPermissioned)
-          .map((q) => ({
-            id: q.symbol,
-            name: presentation(q.symbol, q.companyName).name,
-            price: q.lastPrice ?? q.closingPrice ?? null,
-            chg: q.changePercent === null ? null : q.changePercent * 100,
-            /* Filled from each peer's own history below; the quotes feed
-               carries no trailing-year figure. */
-            ret1y: null,
-            // The quotes feed reports capitalisation in millions.
-            marketCap: q.marketCap === null ? null : q.marketCap * 1e6,
-            pe: q.priceEarningRatio !== null && q.priceEarningRatio > 0 ? q.priceEarningRatio : null,
-          }));
+        /* One row per peer, its cap re-struck at its own last price — see
+           peerQuoteFrom. ret1y is filled from each peer's history below. */
+        peers = peerQuotes.data.filter((q) => !q.notFound && !q.notPermissioned).map(peerQuoteFrom);
       } else {
         inputs.failures.push("peers");
       }
@@ -796,7 +837,8 @@ export const getInstrumentSnapshot = cache(
       inputs.peers = peers;
     }
 
-    return shippedWithPage(assembleInstrument(inputs, now));
+    const full = assembleInstrument(inputs, now);
+    return shippedWithPage(withInsights(full, await sectorBenchmark(full.profile.sector, ticker), now));
   },
 );
 

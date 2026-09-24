@@ -128,7 +128,11 @@ export function SectorView({ sector }: { sector: SectorSnapshot }) {
 
       <div className="flex-1 px-4 pt-5 pb-10 sm:px-6 lg:overflow-y-auto lg:px-7">
         <Card className="px-7 py-7">
-          <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-5">
+          {/* Top-aligned, so the three labels share one line over figures of
+              different sizes. On a phone the row is a two-column grid rather
+              than a wrapping flex row, which had thrown the second figure to
+              the far edge and the third alone onto the next line. */}
+          <div className="grid grid-cols-2 items-start gap-x-8 gap-y-5 sm:flex sm:flex-wrap sm:justify-between">
             <div>
               <p className="card-label">Today</p>
               <p className="mt-3">

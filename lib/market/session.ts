@@ -43,7 +43,12 @@ export type Session = {
   lastTick: string;
   /** The next opening, whenever it is — the pill rotates onto it. Null only
       if nothing opens inside the next eight days. */
-  opens: { label: string; time: string; at: number } | null;
+  opens: Moment | null;
+  /** On a half-day only, the early end of what is trading: "US Market closes
+      early" at 13:00 ET through the pre-market and the session, then "US
+      Post-market ends" at 17:00. Null on every other day, and once nothing is
+      left to close. */
+  closes: Moment | null;
   /** True only during the regular session. This is the narrow reading: the
       chrome bar renders it as the words "US markets Open"/"Closed", and an
       08:00 ET pre-market book is quoting but is not open. For "are these
@@ -56,6 +61,9 @@ export type Session = {
   /** What the gateway calls the feed, e.g. "Delay". */
   feedSource?: string;
 };
+
+/** Something the pill announces: what happens, when in IST, and the instant. */
+export type Moment = { label: string; time: string; at: number };
 
 /*
   US cash equities, as seconds past midnight *Eastern*: the pre-market opens at
@@ -71,11 +79,16 @@ export type Session = {
   since nothing about a wrong label looks wrong. The holiday list below already
   read its dates through America/New_York for exactly this reason; the clock
   now does too.
+
+  The close is not a constant: it is regularCloseMinute(day) below, 16:00 or
+  13:00 on a half-day. On a half-day the post-market runs 13:00-17:00 rather
+  than to 20:00 — the extended session ends when the exchanges' late sessions
+  do, four hours after the early bell.
 */
 const PRE_OPEN_ET = 4 * 3600;
 const OPEN_ET = 9 * 3600 + 30 * 60;
-const CLOSE_ET = 16 * 3600;
 const POST_CLOSE_ET = 20 * 3600;
+const EARLY_POST_CLOSE_ET = 17 * 3600;
 
 const DATE_FMT = new Intl.DateTimeFormat("en-US", {
   weekday: "long",
@@ -106,17 +119,6 @@ const PHASE_LABEL: Record<SessionPhase, string> = {
   halted: "Trading halted",
 };
 
-/**
- * Whether the numbers on the page are changing.
- *
- * Deliberately not `session.live`. The two questions look identical and are
- * not: `live` is consumed as the literal words "US markets Open"/"Closed" in
- * the chrome bar, so it has to stay the regular session and nothing else,
- * while the pulsing gold dot beside the price claims only that the figure it
- * sits next to is moving. Extended-hours quotes do move — thinly, on wider
- * spreads, but they move — so a frozen dot over a changing price was the
- * wrong half of the pair to be honest about.
- */
 /* The word the chrome-bar pill puts after "US markets".
  *
  * Deliberately NOT PHASE_LABEL. That names the phase beside a price, where
@@ -138,16 +140,23 @@ const PHASE_WORD: Record<SessionPhase, string> = {
 
 export const phaseWord = (phase: SessionPhase): string => PHASE_WORD[phase];
 
+/**
+ * Whether the numbers on the page are changing.
+ *
+ * Deliberately not `session.live`. The two questions look identical and are
+ * not: `live` is consumed as the literal words "US markets Open"/"Closed" in
+ * the chrome bar, so it has to stay the regular session and nothing else,
+ * while the pulsing gold dot beside the price claims only that the figure it
+ * sits next to is moving. Extended-hours quotes do move — thinly, on wider
+ * spreads, but they move — so a frozen dot over a changing price was the
+ * wrong half of the pair to be honest about.
+ *
+ * A phase, not a clock: the half-day's 13:00 bell and 17:00 post-market close
+ * are decided once, in sessionAt, and everything gated on this follows them.
+ */
 export const pricesMove = (phase: SessionPhase): boolean =>
   phase === "pre-market" || phase === "open" || phase === "post-market";
 
-/**
- * Resolve the session at a given instant. Weekends read as closed; every other
- * boundary comes from the three constants above.
- *
- * `at` is a parameter rather than a module constant so that the day a real
- * clock replaces `ANCHOR`, this function is the only thing that changes.
- */
 /* Full-day NYSE and Nasdaq closures, as ISO dates in US Eastern terms.
 
    A weekday check alone is not enough: without this the dateline announces an
@@ -157,13 +166,20 @@ export const pricesMove = (phase: SessionPhase): boolean =>
    observed on an adjacent weekday — and a wrong guess is worse than a list
    that has to be extended.
 
-   Half-days (the early closes after Thanksgiving and before Christmas) are not
-   modelled: the market genuinely is open on those days, and a session that
-   ends ninety minutes early reads as "closed" a little sooner, which is the
-   harmless direction to be wrong in.
+   2024 and 2025 are here for the charts, not the dateline: the one-year chart
+   counts 252 sessions back into 2025, and without them it asks for bars on
+   closed days and comes up two sessions short. 9 Jan 2025 is the national day
+   of mourning for President Carter, an unscheduled closure.
+
+   Half-days are in EARLY_CLOSES below.
 
    Extend before January 2029. */
 const MARKET_HOLIDAYS = new Set([
+  "2024-01-01", "2024-01-15", "2024-02-19", "2024-03-29", "2024-05-27",
+  "2024-06-19", "2024-07-04", "2024-09-02", "2024-11-28", "2024-12-25",
+  "2025-01-01", "2025-01-09", "2025-01-20", "2025-02-17", "2025-04-18",
+  "2025-05-26", "2025-06-19", "2025-07-04", "2025-09-01", "2025-11-27",
+  "2025-12-25",
   "2026-01-01", "2026-01-19", "2026-02-16", "2026-04-03", "2026-05-25",
   "2026-06-19", "2026-07-03", "2026-09-07", "2026-11-26", "2026-12-25",
   "2027-01-01", "2027-01-18", "2027-02-15", "2027-03-26", "2027-05-31",
@@ -173,17 +189,48 @@ const MARKET_HOLIDAYS = new Set([
 ]);
 
 /* The exchange's own calendar day, not the server's. A UTC timestamp inside the
-   session belongs to the Eastern date five hours earlier. */
-const easternDate = (ms: number): string =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/New_York",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(ms);
+   session belongs to the Eastern date five hours earlier.
+
+   One formatter, held: mergeOfficial asks this of every day in a five-year
+   series, and building an Intl formatter is the expensive half of the call. */
+const ET_DAY = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/New_York",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const easternDate = (ms: number): string => ET_DAY.format(ms);
+
+/** The Eastern calendar date ("yyyy-mm-dd") of an instant, in epoch seconds. */
+export const easternDay = (at: number): string => easternDate(at * 1000);
 
 export function isMarketHoliday(at: number): boolean {
   return MARKET_HOLIDAYS.has(easternDate(at * 1000));
+}
+
+/* Half-days: the regular session ends at 13:00 ET and the closing auction runs
+   then, not at 16:00. The day before Independence Day, the day after
+   Thanksgiving, and Christmas Eve — each only when it is itself a trading day
+   (in 2026 July 3 is the observed holiday, so there is no July half-day).
+   Minute bars after 13:00 on these days are post-market trades, and a chart
+   that keeps them draws three hours of after-hours as if it were the session. */
+const EARLY_CLOSES = new Set([
+  "2024-07-03", "2024-11-29", "2024-12-24",
+  "2025-07-03", "2025-11-28", "2025-12-24",
+  "2026-11-27", "2026-12-24",
+  "2027-11-26",
+  "2028-07-03", "2028-11-24",
+]);
+
+/** Is this Eastern date ("yyyy-mm-dd") a half-day? */
+export function isEarlyClose(isoDay: string): boolean {
+  return EARLY_CLOSES.has(isoDay);
+}
+
+/** Minutes after Eastern midnight when the regular session ends on this Eastern
+    date ("yyyy-mm-dd"): 960 (16:00), or 780 (13:00) on a half-day. */
+export function regularCloseMinute(isoDay: string): number {
+  return EARLY_CLOSES.has(isoDay) ? 13 * 60 : 16 * 60;
 }
 
 /* The exchange's own wall clock, read for the same reason as its calendar day.
@@ -196,6 +243,9 @@ export function isMarketHoliday(at: number): boolean {
    midnight is inside the closed stretch this arithmetic has to get right. */
 const ET_CLOCK = new Intl.DateTimeFormat("en-US", {
   timeZone: "America/New_York",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
   weekday: "short",
   hour: "2-digit",
   minute: "2-digit",
@@ -203,17 +253,123 @@ const ET_CLOCK = new Intl.DateTimeFormat("en-US", {
   hourCycle: "h23",
 });
 
-function easternClock(ms: number): { weekday: string; secondsIntoDay: number } {
+function easternClock(ms: number): { day: string; weekday: string; secondsIntoDay: number } {
   const parts = ET_CLOCK.formatToParts(ms);
   const part = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((p) => p.type === type)?.value ?? "";
   return {
+    day: `${part("year")}-${part("month")}-${part("day")}`,
     weekday: part("weekday"),
     secondsIntoDay:
       Number(part("hour")) * 3600 +
       Number(part("minute")) * 60 +
       Number(part("second")),
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* One trading day's hours                                              */
+/* ------------------------------------------------------------------ */
+
+const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/* A calendar date as the UTC midnight of the same three numbers — arithmetic
+   on a DATE, not an instant. getUTCDay on this is exact: no zone is consulted,
+   so there is none to be wrong about. (getUTCDay on an INSTANT is the bug
+   easternClock exists to avoid; that is a different question.) Null for
+   anything that is not a real "yyyy-mm-dd", including a 30 February. */
+function civilMs(isoDay: string): number | null {
+  const m = ISO_DAY.exec(isoDay);
+  if (m === null) return null;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const at = Date.UTC(y, mo - 1, d);
+  const back = new Date(at);
+  return back.getUTCFullYear() === y && back.getUTCMonth() === mo - 1 && back.getUTCDate() === d
+    ? at
+    : null;
+}
+
+/** The calendar date `n` days after (or before) `isoDay`. */
+export function shiftDay(isoDay: string, n: number): string {
+  const at = civilMs(isoDay);
+  if (at === null) return isoDay;
+  return new Date(at + n * 86_400_000).toISOString().slice(0, 10);
+}
+
+/**
+ * The instant, in epoch seconds, at which the Eastern wall clock on `isoDay`
+ * reads `secondsIntoDay`. Null when it never does.
+ *
+ * Eastern is UTC-4 or UTC-5, so both are tried and the zone itself confirms
+ * which — no DST rule is restated here. Every time this module asks for
+ * (midnight, 00:45, 04:00-20:00, 06:00) exists exactly once on every date,
+ * because the clocks change at 02:00. For the hour that happens twice on the
+ * November Sunday the first, EDT, reading is returned; for the hour that never
+ * happens in March, null.
+ */
+export function easternTime(isoDay: string, secondsIntoDay: number): number | null {
+  const base = civilMs(isoDay);
+  if (base === null) return null;
+  const naive = base / 1000 + secondsIntoDay;
+  for (const offsetHours of [4, 5]) {
+    const at = naive + offsetHours * 3600;
+    const read = easternClock(at * 1000);
+    if (read.day === isoDay && read.secondsIntoDay === secondsIntoDay) return at;
+  }
+  return null;
+}
+
+/** One trading day's hours, as epoch seconds. */
+export type TradingDay = {
+  /** The Eastern date, "yyyy-mm-dd". */
+  day: string;
+  /** A half-day: the bell at 13:00, the post-market to 17:00. */
+  earlyClose: boolean;
+  preOpen: number;
+  open: number;
+  /** The regular close — 16:00, or 13:00 on a half-day. */
+  close: number;
+  /** The end of the post-market — 20:00, or 17:00 on a half-day. */
+  postClose: number;
+};
+
+/* Held per date: a date's hours are a fixed fact, and sessionAt asks for the
+   same one or two days on every call — every thirty seconds in the browser,
+   and once per job in the refresh worker. Cleared rather than evicted when it
+   grows, since a process only ever asks about the days around it. */
+const HOURS = new Map<string, TradingDay | null>();
+
+/**
+ * The hours the exchange keeps on an Eastern date, or null when it does not
+ * trade: a weekend, a listed holiday, or something that is not a date.
+ *
+ * The one place a day's shape is decided. The phase, the pill's announcements
+ * and the refresh worker's schedule (store/cadence.ts) all read it, so a
+ * half-day cannot close at 13:00 on the pill and at 16:00 in the worker.
+ */
+export function tradingDay(isoDay: string): TradingDay | null {
+  const held = HOURS.get(isoDay);
+  if (held !== undefined) return held;
+  if (HOURS.size > 4_096) HOURS.clear();
+
+  const hours = computeTradingDay(isoDay);
+  HOURS.set(isoDay, hours);
+  return hours;
+}
+
+function computeTradingDay(isoDay: string): TradingDay | null {
+  const civil = civilMs(isoDay);
+  if (civil === null) return null;
+  const weekday = new Date(civil).getUTCDay();
+  if (weekday === 0 || weekday === 6 || MARKET_HOLIDAYS.has(isoDay)) return null;
+
+  const earlyClose = EARLY_CLOSES.has(isoDay);
+  const preOpen = easternTime(isoDay, PRE_OPEN_ET);
+  const open = easternTime(isoDay, OPEN_ET);
+  const close = easternTime(isoDay, regularCloseMinute(isoDay) * 60);
+  const postClose = easternTime(isoDay, earlyClose ? EARLY_POST_CLOSE_ET : POST_CLOSE_ET);
+  if (preOpen === null || open === null || close === null || postClose === null) return null;
+  return { day: isoDay, earlyClose, preOpen, open, close, postClose };
 }
 
 /* The reader's clock. This terminal is built for Indian investors trading US
@@ -232,14 +388,7 @@ const IST_CLOCK = new Intl.DateTimeFormat("en-US", {
 const istTime = (ms: number): string =>
   IST_CLOCK.format(ms).replace(/\s*([AP])M$/i, (_m, p: string) => ` ${p.toLowerCase()}m`);
 
-/* The three moments something starts trading. The close at POST_CLOSE_ET is
-   deliberately absent: this announces openings, and nobody needs an hour's
-   warning that trading is about to stop. */
-const OPENINGS: Array<{ at: number; word: string }> = [
-  { at: PRE_OPEN_ET, word: "Pre-market" },
-  { at: OPEN_ET, word: "Market" },
-  { at: CLOSE_ET, word: "Post-market" },
-];
+const moment = (label: string, at: number): Moment => ({ label, time: istTime(at * 1000), at });
 
 /**
  * The next moment something starts trading — always, not only when it is near.
@@ -248,51 +397,103 @@ const OPENINGS: Array<{ at: number; word: string }> = [
  * so it needs an answer at every hour of the day, including the ones where the
  * next opening is on the far side of a weekend or a holiday.
  *
- * Walks forward a day at a time and takes the first opening it can reach. The
+ * Three openings a day: the pre-market at 04:00, the bell at 09:30, and the
+ * post-market at the close — 16:00, or 13:00 on a half-day, when the early
+ * bell is also the moment after-hours trading starts. The end of the
+ * post-market is not an opening and is not announced here; on a half-day,
+ * when it comes three hours early, `closes` says so instead.
+ *
+ * Walks forward a date at a time and takes the first opening it can reach. The
  * eight-day bound clears the longest real gap — a Friday evening followed by a
  * Monday holiday still lands inside it — and returning null past that is
  * better than looping forever if the holiday list is ever fed something odd.
  *
- * Midnight is derived per day rather than by adding 86400 to a fixed origin,
- * so a DST shift cannot drag the boundaries an hour off: the clocks move at
- * 02:00 on a Sunday, that Sunday is skipped as a weekend, and Monday measures
- * from its own Eastern midnight.
+ * Each date's hours are resolved from its own Eastern wall clock (tradingDay),
+ * so a DST change cannot drag a boundary an hour off: the Monday after either
+ * Sunday opens at 04:00 in its own offset.
  */
-export function nextOpening(
-  at: number = ANCHOR,
-): { label: string; time: string; at: number } | null {
-  for (let day = 0; day <= 8; day += 1) {
-    const probe = at + day * 86_400;
-    const { weekday, secondsIntoDay } = easternClock(probe * 1000);
-    if (weekday === "Sat" || weekday === "Sun" || isMarketHoliday(probe)) continue;
-
-    const easternMidnight = probe - secondsIntoDay;
-    for (const o of OPENINGS) {
-      const when = easternMidnight + o.at;
-      if (when > at) {
-        return { label: `US ${o.word} opens`, time: istTime(when * 1000), at: when };
-      }
+export function nextOpening(at: number = ANCHOR): Moment | null {
+  const today = easternDay(at);
+  for (let d = 0; d <= 8; d += 1) {
+    const hours = tradingDay(shiftDay(today, d));
+    if (hours === null) continue;
+    const openings: Array<[number, string]> = [
+      [hours.preOpen, "Pre-market"],
+      [hours.open, "Market"],
+      [hours.close, "Post-market"],
+    ];
+    for (const [when, word] of openings) {
+      if (when > at) return moment(`US ${word} opens`, when);
     }
   }
   return null;
 }
 
+/* A half-day's early end, for as long as there is something left to end.
+ *
+ * Why announce a close at all, when openings are the rule: because this one is
+ * a surprise. A reader in India knows the bell as 01:30 and the post-market as
+ * running to 05:30; on Black Friday the session ends at 23:30 IST and the
+ * post-market at 03:30, and nothing else on the page says so. From the
+ * pre-market onward the pill names the early bell; once it has rung, the early
+ * end of the post-market.
+ *
+ * "US Post-market ends" rather than "... closes early": the home pill sits on a
+ * phone with its line unbroken, and "US Post-market closes early" beside
+ * "3:30 am IST" comes to about 358px against the 343 a 375px screen leaves
+ * inside its gutters. That this line appears at all says the day is short —
+ * it is never announced on an ordinary one. */
+function earlyEnd(hours: TradingDay | null, phase: SessionPhase): Moment | null {
+  if (hours === null || !hours.earlyClose) return null;
+  if (phase === "pre-market" || phase === "open") return moment("US Market closes early", hours.close);
+  if (phase === "post-market") return moment("US Post-market ends", hours.postClose);
+  return null;
+}
+
+/**
+ * What the pill rotates onto after the status line, in the order they happen.
+ *
+ * Ordinarily just the next opening. On a half-day the early close joins it —
+ * and during that day's regular session replaces it, because the next opening
+ * then IS the early bell (the post-market starts at 13:00) and one instant
+ * should be said once, in the words that explain it.
+ *
+ * `closes` is read as possibly absent: a page rendered before the field existed
+ * still hands over a session without it, and must still roll onto its opening.
+ */
+export function sessionNotices(session: { opens: Moment | null; closes?: Moment | null }): Moment[] {
+  const closes = session.closes ?? null;
+  const opens = session.opens ?? null;
+  const out: Moment[] = [];
+  if (closes !== null) out.push(closes);
+  if (opens !== null && !(closes !== null && opens.at === closes.at)) out.push(opens);
+  return out.sort((a, b) => a.at - b.at);
+}
+
+/**
+ * Resolve the session at a given instant.
+ *
+ * Weekends and listed holidays read as closed. Every other boundary is the
+ * day's own: 04:00 and 09:30 always, the close and the end of the post-market
+ * from tradingDay — 16:00 and 20:00, or 13:00 and 17:00 on a half-day.
+ *
+ * `at` is a parameter rather than a module constant so that the day a real
+ * clock replaces `ANCHOR`, this function is the only thing that changes.
+ */
 export function sessionAt(at: number = ANCHOR): Session {
   const ms = at * 1000;
-  const { weekday, secondsIntoDay } = easternClock(ms);
-  const weekend = weekday === "Sat" || weekday === "Sun";
-  const shut = weekend || isMarketHoliday(at);
+  const { day } = easternClock(ms);
+  const hours = tradingDay(day);
 
   /* Order matters: the shut test runs first, so a holiday or a weekend can
      never fall through into an extended-hours phase. Thanksgiving at 05:00 ET
      is closed, not pre-market. */
-  const phase: SessionPhase = shut
-    ? "closed"
-    : secondsIntoDay < PRE_OPEN_ET || secondsIntoDay >= POST_CLOSE_ET
+  const phase: SessionPhase =
+    hours === null || at < hours.preOpen || at >= hours.postClose
       ? "closed"
-      : secondsIntoDay < OPEN_ET
+      : at < hours.open
         ? "pre-market"
-        : secondsIntoDay < CLOSE_ET
+        : at < hours.close
           ? "open"
           : "post-market";
 
@@ -306,6 +507,7 @@ export function sessionAt(at: number = ANCHOR): Session {
        what matters — a live feed fills it in. */
     lastTick: pricesMove(phase) ? "2s ago" : "—",
     opens: nextOpening(at),
+    closes: earlyEnd(hours, phase),
     live: phase === "open",
   };
 }

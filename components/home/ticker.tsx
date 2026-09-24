@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { formatPrice } from "@/Platizio_Global_Revamp/lib/format";
+import { formatAsOf, formatPrice } from "@/Platizio_Global_Revamp/lib/format";
 import QuoteChange from "@/Platizio_Global_Revamp/components/QuoteChange";
-import MarketNote from "@/Platizio_Global_Revamp/components/MarketNote";
 import type { MarketData } from "@/Platizio_Global_Revamp/hooks/useMarketData";
 import { instrumentPath } from "@/lib/market/paths";
 import type { Session } from "@/lib/market/session";
@@ -43,19 +42,42 @@ export function Ticker({ data, session }: { data: MarketData; session: Session |
         ) : (
           <Marquee label={`${COPY.ticker.label}, scrolling`} spacing="12px" duration={58} className="hm-tape">
             {movers.map((q) => (
-              <Link className="hm-tile" href={instrumentPath(q.symbol)} key={q.symbol}>
+              /* A plain document load into a new tab, not a Next <Link> — the
+                 same form as the hero's "See the terminal" button and every
+                 terminal link on the products page. A client transition from
+                 here carried the marketing layout into the terminal and drew
+                 it broken; a document load arrives server-rendered in the
+                 terminal's own shell, with the site left open behind it. */
+              <a
+                className="hm-tile"
+                href={instrumentPath(q.symbol)}
+                target="_blank"
+                rel="noopener noreferrer"
+                key={q.symbol}
+              >
                 <span className="hm-tile-top">
                   <span className="hm-tile-sym">{q.symbol}</span>
                   <QuoteChange changePercent={q.changePercent} variant="chip" />
                 </span>
                 <span className="hm-tile-name">{q.name}</span>
                 <span className="hm-tile-px">${formatPrice(q.price)}</span>
-              </Link>
+                <span className="sr-only"> (opens in a new tab)</span>
+              </a>
             ))}
           </Marquee>
         )}
 
-        <MarketNote asOf={data.asOf} delayed={data.delayed} />
+        {/* The shared MarketNote, less its "Prices delayed." lead: the owner
+            asked for no delay label on the home page (24 Sep 2026). The time
+            and the not-advice line stay. Nothing renders until data arrives,
+            so the time is never a server-side guess. */}
+        {data.asOf && (
+          <p className="market-note market-note--light">
+            Prices last updated {formatAsOf(data.asOf)}.{" "}
+            For information only — not investment advice or a recommendation to buy or sell.{" "}
+            <Link href="/disclaimer">Risk disclosure</Link>
+          </p>
+        )}
       </div>
     </section>
   );

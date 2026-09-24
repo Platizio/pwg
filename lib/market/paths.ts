@@ -15,6 +15,8 @@
 export const TERMINAL_PATH = "/terminal";
 export const CALENDAR_PATH = "/terminal/calendar";
 export const WIRE_PATH = "/terminal/wire";
+/** The reader's saved lists of stocks. */
+export const WATCHLIST_PATH = "/terminal/watchlist";
 
 /** One instrument. Encoded: tickers may carry `.` and `/` (BRK.B, RDS/A). */
 export const instrumentPath = (ticker: string): string =>
@@ -40,6 +42,6 @@ export const tickerFromPath = (pathname: string): string | null => {
   const m = /^\/terminal\/([^/]+)$/.exec(pathname);
   if (!m) return null;
   /* The static children of /terminal are routes, not tickers. */
-  if (m[1] === "sector" || m[1] === "calendar" || m[1] === "wire") return null;
+  if (m[1] === "sector" || m[1] === "calendar" || m[1] === "wire" || m[1] === "watchlist") return null;
   return decodeURIComponent(m[1]);
 };

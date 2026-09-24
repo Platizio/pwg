@@ -12,13 +12,16 @@ import {
   columnsToRows,
   lastSession,
   pickSessions,
-  withOfficialClose,
+  startsInRegularSession,
+  withOfficialCloses,
   type IntradayColumns,
 } from "@/lib/market/intraday-buckets";
-import { fetchAggs, fetchIntradayRange } from "@/lib/api/clients/quotes";
-import { inRegularSession } from "@/lib/market/regular-session";
+import { dailySpan, officialCloses } from "@/lib/market/official-close";
+import { fetchAggs, fetchIntradayRange, type RawAgg } from "@/lib/api/clients/quotes";
+import { sinceLastSeam } from "@/lib/api/normalize/daily-bars";
+import type { ApiResult } from "@/lib/api/errors";
 import { tradingDays, windowFor } from "@/lib/market/session-window";
-import { parseFetchedRange } from "@/lib/market/ranges";
+import { parseFetchedRange, type FetchedRange } from "@/lib/market/ranges";
 
 /* One chart range, fetched when the reader asks for it.
  *
@@ -32,10 +35,18 @@ import { parseFetchedRange } from "@/lib/market/ranges";
  *
  * So the page ships the range it OPENS with and this answers for the rest.
  *
- * It reads the store and never the gateway. Every series here is one the
- * refresher has already fetched and stored, so an anonymous caller cannot make
- * this spend a gateway call — the licensing reason app/api/search/route.ts
- * states applies just as much to a route that names a symbol.
+ * Five years comes from the store. The day, week, month, quarter and year come
+ * from Polygon's aggregates through the gateway (and, for the day and week, the
+ * gateway's own minute archive and our captures), each call held in Next's
+ * fetch cache so a popular symbol costs one upstream call per window rather
+ * than one per reader.
+ *
+ * EVERY SESSION ENDS ON ITS OFFICIAL CLOSE. Minute bars stop at 15:59, whose
+ * close is the last continuous trade — 336.95 for AAPL on 23 Sep 2026 against
+ * an official 337.02 — so each drawn session gains one point at its bell
+ * carrying the official close (lib/market/official-close.ts says which figure
+ * that is and when there is one). The last point of a range drawn while the
+ * market is shut is then the "Previous close" printed beside the chart.
  */
 
 /* The longest listed US ticker is nine characters across the symbol master's
@@ -72,6 +83,54 @@ const EMPTY: IntradayColumns = {
   volume: [],
 };
 
+const DAY_MS = 86_400_000;
+
+/* HOW LONG AN ANSWER CARRYING THE NEWEST SESSION IS CACHED.
+ *
+ * The client refetches every range at the open and at the bell, then every
+ * 30 s while an answer falls short of the boundary that has passed
+ * (historyTarget in lib/market/ranges.ts). Those retries reach Polygon only as
+ * often as Next's fetch cache lets them, and its entries are keyed by URL,
+ * which for these requests is the same all day. So the request holding the
+ * newest session sets how late a chart can be: under a range's own TTL (an
+ * hour for 3M and 1Y) a copy cached at 15:30 kept the year's line off today's
+ * official close until about 16:30. Older sessions never change and keep the
+ * long lifetime; only the newest request is held this briefly. */
+const NEWEST_TTL = 300;
+/* The day and the week while TODAY is their newest session: the chart takes
+   the fetched copy whenever it reaches further than the live bars
+   (pickDaySeries), and at the bell the 16:00 cross it needs is in this
+   answer. A minute bounds that delay without a call per reader. */
+const TODAY_TTL = 60;
+
+const aggsOf =(a: ApiResult<{ results?: RawAgg[] }> | null): RawAgg[] =>
+  a?.ok && Array.isArray(a.data?.results) ? a.data.results : [];
+
+/* A series drawn from what came back. */
+const served = (range: FetchedRange, series: unknown, sessions?: number) =>
+  Response.json(
+    sessions === undefined ? { range, series } : { range, series, sessions },
+    { headers: { "Cache-Control": CACHE } },
+  );
+
+/* WHY A FAILURE IS A 503 AND NOT AN EMPTY 200.
+ *
+ * The client (components/terminal/use-history.ts) keeps a 200 that carries
+ * points for the range's lifetime — three hours for 5Y and 1Y. A store that
+ * was unreachable for a second, or a Polygon chunk that timed out, used to
+ * come back as an empty 200 and left the five-year chart blank for the
+ * afternoon. Only a 200 is an answer there (historyAnswered, in
+ * lib/market/ranges.ts): anything else is held as a failure, asked again
+ * thirty seconds later past the browser's cache, and never replaces points
+ * already drawn. no-store keeps any cache in between from holding it either.
+ * An empty 200 still means what it says — every source answered and had
+ * nothing — and the client re-asks that after thirty seconds as well. */
+const unavailable = (range: FetchedRange) =>
+  Response.json(
+    { range, series: EMPTY, error: "unavailable" },
+    { status: 503, headers: { "Cache-Control": "no-store" } },
+  );
+
 export async function GET(
   request: NextRequest,
   /* Spelled out rather than taken from the generated RouteContext helper, for
@@ -80,9 +139,9 @@ export async function GET(
      is not in it. `next build` checks this signature; `tsc --noEmit` does not. */
   context: { params: Promise<{ ticker: string }> },
 ) {
-  /* Serves licensed prices, and for 1D/1W now makes a (cached) gateway call
-     too — a public URL that handed either out without limit would be both the
-     licence problem and the cost one. */
+  /* Serves licensed prices and makes (cached) upstream calls — a public URL
+     that handed either out without limit would be both the licence problem and
+     the cost one. */
   const refused = refusePublic(request.headers, {
     route: "history",
     limit: 60,
@@ -101,199 +160,187 @@ export async function GET(
     );
   }
 
-  /* THE DAY AND THE WEEK, IN MINUTES, STRAIGHT FROM THE GATEWAY.
-   *
-   * These used to come only from the store's ten-minute buckets, captured one
-   * evening at a time, which left the week chart drawing seven daily closes —
-   * six straight segments — until a week of captures had accumulated. The
-   * intraday endpoint answers for PAST sessions when asked for a window
-   * (fetchIntradayRange), so both ranges are now drawn from real one-minute
-   * bars: every minute of the last session for 1D, and five-minute buckets for
-   * the week (7 x 78, about 550 points — the full 2,700 minutes would be a
-   * heavier payload than a chart a few hundred pixels wide can show).
-   *
-   * Trimmed to the regular session, 09:30-16:00 ET, the one the chart draws.
-   * Cached by Next's fetch cache for five minutes per window, so a popular
-   * symbol costs the gateway one call per window rather than one per reader.
-   * If the gateway fails or returns nothing, the store's buckets below remain
-   * the fallback. */
-  if (range === "1D" || range === "1W") {
-    const days = tradingDays(Date.now(), range === "1D" ? 1 : SESSIONS_KEPT);
-    const window = windowFor(days);
-    if (window) {
-      /* Three sources at once; each session is then taken from whichever
-         covers it (pickSessions), finest first. Polygon's aggregates lead: they
-         have every minute for years, where the intraday archive has holes
-         (16 Sep 2026 held 18 of 391 bars) and lags a day behind (on 24 Sep it
-         had not yet filled the 23rd, and the day chart fell back to forty
-         ten-minute buckets). The archive and our own captures remain behind
-         it, so one source failing never blanks a day. */
-      const width = range === "1D" ? 1 : 5;
-      const DAY_MS = 86_400_000;
-      const [poly, res, storedRows] = await Promise.all([
-        fetchAggs(
-          symbol,
-          width,
-          "minute",
-          Date.parse(`${days[0]}T00:00:00Z`),
-          Date.parse(`${days[days.length - 1]}T00:00:00Z`) + DAY_MS + 6 * 3_600_000,
-          300,
-        ).catch(() => null),
-        fetchIntradayRange(symbol, window.from, window.to, 300, [`history:${symbol}`]).catch(
-          () => null,
-        ),
-        readSections([symbol], "history_intraday").catch(() => null),
-      ]);
-      const wanted = new Set(days);
-      const inWindow = (ms: number) =>
-        inRegularSession(ms) && wanted.has(easternDay(new Date(ms).toISOString()));
-      const polyRows = columnsToRows(
-        aggsToColumns(poly?.ok && Array.isArray(poly.data?.results) ? poly.data.results : [], days),
-      );
-      const gatewayRows =
-        res?.ok && Array.isArray(res.data)
-          ? res.data.filter((row) => inWindow(Date.parse(String(row?.date ?? ""))))
-          : [];
-      const storedPayload = storedRows?.ok
-        ? (storedRows.data.find((r) => r.symbol === symbol)?.payload ?? null)
-        : null;
-      const stored = storedPayload ? fromStored("history_intraday", storedPayload) : null;
-      const storedInWindow = stored
-        ? keepColumns(stored, (iso) => inWindow(Date.parse(iso)))
-        : null;
-      const rows = pickSessions(days, [
-        { rows: polyRows, width },
-        { rows: gatewayRows, width: 1 },
-        { rows: storedInWindow ? columnsToRows(storedInWindow) : [], width: BUCKET_MINUTES },
-      ]);
-      if (rows.length > 0) {
-        let series = bucketIntraday(rows, width);
-        /* The day chart ends on the official close, printed at 16:00:00 in the
-           closing cross — minute bars stop at 15:59, a few cents away from the
-           "Previous close" figure on the same page. Only once the bell has
-           rung (withOfficialClose checks), and only for the day range. */
-        if (range === "1D") {
-          const day = days[days.length - 1];
-          const official = await fetchAggs(
-            symbol,
-            1,
-            "day",
-            Date.parse(`${day}T00:00:00Z`),
-            Date.parse(`${day}T23:59:59Z`),
-            300,
-          ).catch(() => null);
-          const close = official?.ok ? (official.data?.results?.at(-1)?.c ?? null) : null;
-          series = withOfficialClose(series, day, close, Date.now());
-        }
-        if (series.date.length > 0) {
-          return Response.json(
-            { range, series, sessions: days.length },
-            { headers: { "Cache-Control": CACHE } },
-          );
-        }
-      }
-    }
+  const now = Date.now();
+  if (range === "1D" || range === "1W") return dayOrWeek(symbol, range, now);
+  if (range === "1M" || range === "3M" || range === "1Y") return monthsOrYear(symbol, range, now);
+  return fiveYears(symbol);
+}
+
+/* THE DAY AND THE WEEK, IN MINUTES.
+ *
+ * These used to come only from the store's ten-minute buckets, captured one
+ * evening at a time, which left the week chart drawing seven daily closes —
+ * six straight segments — until a week of captures had accumulated. Both are
+ * now drawn from real minutes: every minute of the last session for 1D, and
+ * five-minute buckets for the week (7 x 78, about 550 points — the full 2,700
+ * minutes would be a heavier payload than a chart a few hundred pixels wide
+ * can show).
+ *
+ * Three sources at once; each session is then taken from whichever covers it
+ * (pickSessions), finest first. Polygon's aggregates lead: they have every
+ * minute for years, where the gateway's intraday archive has holes (16 Sep
+ * 2026 held 18 of 391 bars) and lags a day behind (on 24 Sep it had not yet
+ * filled the 23rd). The archive and our own captures remain behind it, so one
+ * source failing never blanks a day. A fourth request, Polygon's daily bars
+ * over the same days, supplies the official closes.
+ *
+ * Trimmed to the regular session by where each bar STARTS — 09:30 to 16:00,
+ * 13:00 on a half-day — so neither the gateway's 16:00 minute (a post-market
+ * print) nor a half-day's afternoon is drawn as session. */
+async function dayOrWeek(symbol: string, range: "1D" | "1W", now: number): Promise<Response> {
+  const days = tradingDays(now, range === "1D" ? 1 : SESSIONS_KEPT);
+  const window = windowFor(days);
+  const span = dailySpan(days);
+  if (!window || !span) return unavailable(range);
+
+  const width = range === "1D" ? 1 : 5;
+  const today = easternDay(new Date(now).toISOString());
+  const ttl = days[days.length - 1] === today ? TODAY_TTL : NEWEST_TTL;
+  const [poly, res, storedRows, daily] = await Promise.all([
+    fetchAggs(
+      symbol,
+      width,
+      "minute",
+      Date.parse(`${days[0]}T00:00:00Z`),
+      Date.parse(`${days[days.length - 1]}T00:00:00Z`) + DAY_MS + 6 * 3_600_000,
+      ttl,
+    ).catch(() => null),
+    fetchIntradayRange(symbol, window.from, window.to, 300, [`history:${symbol}`]).catch(() => null),
+    readSections([symbol], "history_intraday").catch(() => null),
+    fetchAggs(symbol, 1, "day", span.fromMs, span.toMs, ttl).catch(() => null),
+  ]);
+
+  /* Untrimmed on purpose: the bar that STARTS at the bell is post-market by its
+     stamp, and its open is the best figure for today's official close until
+     the daily bar is final (official-close.ts has the measured accuracy). */
+  const raw = aggsOf(poly);
+  const closes = officialCloses(days, daily?.ok ? aggsOf(daily) : null, raw, now);
+
+  const wanted = new Set(days);
+  const inWindow = (ms: number) =>
+    startsInRegularSession(ms) && wanted.has(easternDay(new Date(ms).toISOString()));
+  const polyRows = columnsToRows(aggsToColumns(raw, days));
+  const gatewayRows =
+    res?.ok && Array.isArray(res.data)
+      ? res.data.filter((row) => inWindow(Date.parse(String(row?.date ?? ""))))
+      : [];
+  const storedPayload = storedRows?.ok
+    ? (storedRows.data.find((r) => r.symbol === symbol)?.payload ?? null)
+    : null;
+  const stored = storedPayload ? fromStored("history_intraday", storedPayload) : null;
+  const storedInWindow = stored ? keepColumns(stored, (iso) => inWindow(Date.parse(iso))) : null;
+
+  const rows = pickSessions(days, [
+    { rows: polyRows, width },
+    { rows: gatewayRows, width: 1 },
+    { rows: storedInWindow ? columnsToRows(storedInWindow) : [], width: BUCKET_MINUTES },
+  ]);
+  if (rows.length > 0) {
+    const series = withOfficialCloses(bucketIntraday(rows, width), closes);
+    if (series.date.length > 0) return served(range, series, days.length);
   }
 
-  /* THE MONTH, THE QUARTER AND THE YEAR, AS INTRADAY LINES.
-   *
-   * These drew a line through 21, 64 and 252 daily closes — straight segments —
-   * because the intraday archive above reaches back only about seventeen
-   * sessions. The gateway also proxies Polygon's aggregates (fetchAggs), which
-   * hold intraday bars for years, so each of these is now drawn from real
-   * intraday bars: 15-minute for the month (~550 points), 30-minute for the
-   * quarter (~830) and the year (~3,300), all trimmed to 09:30-16:00.
-   *
-   * CHUNKED because each request is capped at 50,000 base one-minute bars —
-   * about fifty trading days once extended hours count. Forty sessions a chunk
-   * leaves margin, and the chunks run in parallel. Each chunk's window is the
-   * whole UTC span of its New York days (a day there runs 04:00Z to 04:00Z the
-   * next, give or take DST), trimmed back to the exact days by aggsToColumns.
-   * Cached in Next's fetch cache per chunk: the older chunks never change. */
-  if (range === "1M" || range === "3M" || range === "1Y") {
-    const spec = {
-      "1M": { sessions: 21, minutes: 15, ttl: 900 },
-      "3M": { sessions: 64, minutes: 30, ttl: 3600 },
-      "1Y": { sessions: 252, minutes: 30, ttl: 3600 },
-    }[range];
-    const days = tradingDays(Date.now(), spec.sessions);
-    const chunks: string[][] = [];
-    for (let i = 0; i < days.length; i += 40) chunks.push(days.slice(i, i + 40));
-    const DAY_MS = 86_400_000;
-    const answers = await Promise.all(
-      chunks.map((c) =>
-        fetchAggs(
-          symbol,
-          spec.minutes,
-          "minute",
-          Date.parse(`${c[0]}T00:00:00Z`),
-          Date.parse(`${c[c.length - 1]}T00:00:00Z`) + DAY_MS + 6 * 3_600_000,
-          spec.ttl,
-        ).catch(() => null),
-      ),
-    );
-    const bars = answers.flatMap((a) => (a?.ok && Array.isArray(a.data?.results) ? a.data.results : []));
-    const series = aggsToColumns(bars, days);
-    if (series.date.length > 0) {
-      return Response.json(
-        { range, series, sessions: days.length },
-        { headers: { "Cache-Control": CACHE } },
-      );
-    }
-    /* Nothing came back: the page's own daily closes remain the fallback,
-       drawn by the client, so answer empty rather than guess. */
-    return Response.json({ range, series: EMPTY }, { headers: { "Cache-Control": CACHE } });
-  }
+  /* Nothing inside the window. If the store could not be read either, that
+     is a failure rather than an answer: it may well hold the session. If it
+     could, its newest sessions, whichever days they are, are still a better
+     chart than none — and an empty store is an answer. */
+  if (!storedRows?.ok) return unavailable(range);
+  const kept = stored ? keepColumns(stored, (iso) => startsInRegularSession(Date.parse(iso))) : EMPTY;
+  const fallback = withOfficialCloses(range === "1D" ? lastSession(kept) : kept, closes);
+  return served(range, fallback, SESSIONS_KEPT);
+}
 
-  const section = range === "5Y" ? "history_daily" : "history_intraday";
-  const rows = await readSections([symbol], section).catch(() => null);
+/* THE MONTH, THE QUARTER AND THE YEAR, AS INTRADAY LINES.
+ *
+ * These drew a line through 21, 64 and 252 daily closes — straight segments —
+ * because the intraday archive reaches back only about seventeen sessions.
+ * Polygon's aggregates hold intraday bars for years, so each is drawn from
+ * real intraday bars: 15-minute for the month (~550 points), 30-minute for the
+ * quarter (~830) and the year (~3,300), trimmed to the regular session.
+ *
+ * CHUNKED because each request is capped at 50,000 base one-minute bars —
+ * about fifty trading days once extended hours count. Forty sessions a chunk
+ * leaves margin, and the chunks run in parallel. Each chunk's window is the
+ * whole UTC span of its New York days (a day there runs 04:00Z to 04:00Z the
+ * next, give or take DST), trimmed back to the exact days by aggsToColumns.
+ * Cached in Next's fetch cache per chunk: the older chunks never change. One
+ * daily request beside them carries every session's official close.
+ *
+ * ALL OR NOTHING. A chunk that failed is up to forty sessions missing from
+ * the middle of the line, which the chart would bridge with one straight
+ * segment and the reader could not tell from a quiet two months. The page's
+ * own daily closes are the honest fallback, and a 503 is what sends the
+ * client to them without caching the hole (see `unavailable`). */
+async function monthsOrYear(
+  symbol: string,
+  range: "1M" | "3M" | "1Y",
+  now: number,
+): Promise<Response> {
+  const spec = {
+    "1M": { sessions: 21, minutes: 15, ttl: 900 },
+    "3M": { sessions: 64, minutes: 30, ttl: 3600 },
+    "1Y": { sessions: 252, minutes: 30, ttl: 3600 },
+  }[range];
+  const days = tradingDays(now, spec.sessions);
+  const span = dailySpan(days);
+  if (!span) return unavailable(range);
+  const chunks: string[][] = [];
+  for (let i = 0; i < days.length; i += 40) chunks.push(days.slice(i, i + 40));
 
-  /* An empty series is a 200, not an error, and the distinction matters to the
-     reader rather than to the protocol. A symbol whose intraday has not been
-     captured yet, or a store that is briefly unreachable, both mean "there is
-     nothing to draw for this range" — which the chart already knows how to
-     say. A 500 would make the client retry something that will not change for
-     hours. */
-  if (!rows?.ok) {
-    return Response.json({ range, series: EMPTY }, { headers: { "Cache-Control": CACHE } });
-  }
+  const [daily, ...answers] = await Promise.all([
+    fetchAggs(symbol, 1, "day", span.fromMs, span.toMs, NEWEST_TTL).catch(() => null),
+    ...chunks.map((c, i) =>
+      fetchAggs(
+        symbol,
+        spec.minutes,
+        "minute",
+        Date.parse(`${c[0]}T00:00:00Z`),
+        Date.parse(`${c[c.length - 1]}T00:00:00Z`) + DAY_MS + 6 * 3_600_000,
+        i === chunks.length - 1 ? NEWEST_TTL : spec.ttl,
+      ).catch(() => null),
+    ),
+  ]);
+  if (answers.some((a) => !a?.ok)) return unavailable(range);
 
+  const raw = answers.flatMap(aggsOf);
+  const closes = officialCloses(days, daily?.ok ? aggsOf(daily) : null, raw, now);
+  const series = withOfficialCloses(aggsToColumns(raw, days), closes);
+  /* Every chunk answered and none had a bar: a symbol Polygon does not know.
+     That is an answer — the client draws the page's daily closes instead. */
+  return served(range, series.date.length > 0 ? series : EMPTY, days.length);
+}
+
+/* FIVE YEARS, from the store's daily bars. */
+async function fiveYears(symbol: string): Promise<Response> {
+  const [rows, actionsRows] = await Promise.all([
+    readSections([symbol], "history_daily").catch(() => null),
+    readSections([symbol], "corporate_actions").catch(() => null),
+  ]);
+  if (!rows?.ok) return unavailable("5Y");
+
+  /* REPAIRED for splits, the same way the page's own series is
+     (lib/market/instrument.ts repairs at read time). The store keeps the
+     feed's bars as they came, and those carry a cliff at every split — a
+     Netflix 10-for-1 reads as a 90% crash. This series feeds the Performance
+     tab's five-year figures as well as the 5Y chart, so an unrepaired one
+     would put that cliff into every return and drawdown. When the
+     corporate-actions record cannot be read, splitRecord says so and the bars
+     pass through unchanged, exactly as they do on the page.
+
+     And served from the series' last SEAM (sinceLastSeam, normalize/daily-
+     bars.ts): a store written from Polygon alone can carry the history of a
+     security that held the ticker before. Measured 24 Sep 2026, production
+     served META's five years as the Roundhill ETF at $14.99 until a four-month
+     hole, then Facebook at $184 — a +4,884% five-year return. That clears
+     only when the worker rewrites the row, so the route does not wait for it. */
   const payload = rows.data.find((r) => r.symbol === symbol)?.payload ?? null;
-
-  if (range === "5Y") {
-    /* REPAIRED for splits, the same way the page's own series is
-       (lib/market/instrument.ts repairs at read time). The store keeps the
-       feed's bars as they came, and those carry a cliff at every split — a
-       Netflix 10-for-1 reads as a 90% crash. This series now feeds the
-       Performance tab's five-year figures as well as the 5Y chart, so an
-       unrepaired one would put that cliff into every return and drawdown.
-       When the corporate-actions record cannot be read, splitRecord says so
-       and the bars pass through unchanged, exactly as they do on the page. */
-    const [daily, actionsRows] = await Promise.all([
-      Promise.resolve(fromStored("history_daily", payload)),
-      readSections([symbol], "corporate_actions").catch(() => null),
-    ]);
-    const actionsPayload = actionsRows?.ok
-      ? (actionsRows.data.find((r) => r.symbol === symbol)?.payload ?? null)
-      : null;
-    const actions = actionsPayload ? fromStored("corporate_actions", actionsPayload) : null;
-    const repaired = daily ? repairAgainst(daily, splitRecord(actions)) : [];
-    return Response.json(
-      { range, series: repaired },
-      { headers: { "Cache-Control": CACHE } },
-    );
-  }
-
-  const intraday = fromStored("history_intraday", payload) ?? EMPTY;
-  return Response.json(
-    {
-      range,
-      /* 1W is every stored session; 1D is only the newest of them. */
-      series: range === "1D" ? lastSession(intraday) : intraday,
-      sessions: SESSIONS_KEPT,
-    },
-    { headers: { "Cache-Control": CACHE } },
-  );
+  const daily = fromStored("history_daily", payload);
+  const actionsPayload = actionsRows?.ok
+    ? (actionsRows.data.find((r) => r.symbol === symbol)?.payload ?? null)
+    : null;
+  const actions = actionsPayload ? fromStored("corporate_actions", actionsPayload) : null;
+  const repaired = daily ? sinceLastSeam(repairAgainst(daily, splitRecord(actions))) : [];
+  return served("5Y", repaired);
 }
 
 /* A columnar series with only the bars whose date passes. */

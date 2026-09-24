@@ -134,6 +134,19 @@
   display: flex;
   gap: 12px;
   overflow: hidden;
+  /* The live tape's edge fade, so the loading row runs off the page the way
+     the tape it stands in for does instead of being cut at the container. */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+}
+
+/* When the quotes cannot be fetched, the note keeps the height of the row it
+   replaces, so nothing above the fold jumps and no gap opens under it. */
+.hm-ticker .ft-movers-wait {
+  display: flex;
+  align-items: center;
+  min-height: 118px;
+  margin: 0;
 }
 
 .hm-tile--wait {
@@ -366,11 +379,19 @@
   text-align: center;
 }
 
+/* The offset is the point; a ragged bottom edge is not. Top-aligned, the three
+   columns ended wherever their own copy did — 407, 510 and 389px down the
+   section at 1440 — and the two outer columns' second cards were 160 and
+   142px tall side by side. Stretched, every column ends on the middle
+   column's line, and `flex: 1 1 0` splits each outer column into two equal
+   cards, so the outer pair match each other row for row. The middle column is
+   unchanged: its panel and card are already the tallest content and each
+   keeps its own height. */
 .hm-bento {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: clamp(0.9rem, 1.5vw, 1.15rem);
-  align-items: start;
+  align-items: stretch;
   margin-top: clamp(1.25rem, 2vw, 1.75rem);
 }
 
@@ -380,6 +401,8 @@
   gap: clamp(0.9rem, 1.5vw, 1.15rem);
   min-width: 0;
 }
+
+.hm-bento-col > * { flex: 1 1 0; }
 
 /* ---- the portfolio panel ----------------------------------------------
  *
@@ -393,10 +416,12 @@
  * has been settled: how much a resident may send at all.
  */
 
+/* No padding of its own: it takes .hm-card's. It used to set a tighter
+   clamp, which put the panel's text 5.4px left of the card directly beneath
+   it in the same column at 1440 (548.5 against 553.9) and 1.6px at 390. */
 .hm-pf {
   display: flex;
   flex-direction: column;
-  padding: clamp(1.5rem, 2.4vw, 2rem);
 }
 
 .hm-pf-l {
@@ -675,7 +700,10 @@
 
 .hm-q-a {
   margin: 0;
-  padding: 0 clamp(1.3rem, 2.4vw, 2rem) clamp(1.35rem, 2.2vw, 1.85rem) 5rem;
+  /* Hangs under the question, not the number: the head's inline padding, the
+     4rem number column and its 1rem gap. A flat 5rem started the answer 32px
+     left of the words it answers. */
+  padding: 0 clamp(1.3rem, 2.4vw, 2rem) clamp(1.35rem, 2.2vw, 1.85rem) calc(clamp(1.3rem, 2.4vw, 2rem) + 5rem);
   font-size: 15.5px;
   line-height: 1.8;
   color: var(--m-dim);
@@ -782,8 +810,27 @@
   .hm-globe .globe { width: min(100%, 400px); }
 }
 
+/* products.css stacks every hero at 1100. Stacked, the home hero's copy took
+   the left half of the row and the globe sat centred below it, so the right
+   half was empty and the two stood on different axes. The home hero keeps
+   its two columns down to 900; under that the globe takes the copy's left
+   edge. */
+@media (min-width: 901px) and (max-width: 1100px) {
+  .hm .ft-hero-inner { grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); }
+}
+
+@media (max-width: 900px) {
+  .hm-globe { place-items: center start; }
+}
+
+/* Two across, the three stacked columns cannot hold: the third column wrapped
+   under the first on a row of its own and left half the section empty beside
+   it. The columns dissolve instead, so the six blocks flow as three even rows
+   of two in reading order — the two reasons, the panel beside its card, the
+   last two reasons. */
 @media (max-width: 1024px) {
   .hm-bento { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hm-bento-col { display: contents; }
 }
 
 @media (max-width: 900px) {
@@ -793,6 +840,9 @@
     gap: clamp(1rem, 2.4vw, 1.4rem);
   }
   .hm-ledger-row { grid-template-columns: minmax(0, 1fr); gap: 0.6rem; }
+  /* Stacked, the gloss hangs under the term rather than under its tick:
+     the 15px tick and its 11px gap. */
+  .hm-ledger-v { padding-left: 26px; }
   .hm-cost-foot { justify-content: flex-start; }
 }
 
@@ -800,6 +850,7 @@
   .hm-bento { grid-template-columns: minmax(0, 1fr); }
   .hm-reads-all { margin-left: 0; }
   .hm-tile { min-width: 200px; min-height: 108px; }
+  .hm-ticker .ft-movers-wait { min-height: 108px; }
   .hm-hero-facts { grid-template-columns: minmax(0, 1fr); width: auto; }
   .hm-hero-fact {
     border-left: 0;

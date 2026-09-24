@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { WireItem } from "@/lib/market/home";
 import { Card } from "@/components/ui/surface";
 import { instrumentPath } from "@/lib/market/paths";
+import { newestFirst } from "./reading-order";
 
 /**
  * The wire, in full.
@@ -18,7 +19,12 @@ import { instrumentPath } from "@/lib/market/paths";
 export function WireView({ stories }: { stories: WireItem[] }) {
   /* Every story the universe holds, freshest first. The rail takes 8; this
      takes all of them, so the limit is set past the ceiling rather than
-     guessed at. */
+     guessed at.
+
+     The feed arrives ranked on relevance and impact, which is how the stories
+     were chosen, not how they read. The page promises "newest first", so it
+     is put in time order here; `age` is hours since publication. */
+  const ordered = newestFirst(stories);
 
   return (
     <main id="terminal-main" className="flex min-w-0 flex-col overflow-hidden lg:h-full">
@@ -38,7 +44,7 @@ export function WireView({ stories }: { stories: WireItem[] }) {
         </p>
 
         <ol className="m-0 mt-3 flex list-none flex-col gap-3 p-0">
-          {stories.map((item) => (
+          {ordered.map((item) => (
             <li key={`${item.ticker}-${item.title}`}>
               <Card className="px-6 py-6">
                 <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">

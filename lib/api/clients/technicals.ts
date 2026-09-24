@@ -62,8 +62,11 @@ export function fetchShortInterest(
   tags: string[],
   noStore = false,
 ): Promise<ApiResult<RawShortInterest>> {
+  /* Newest first. Unsorted, the endpoint answers the OLDEST ten filings —
+     measured 24 Sep 2026: AAPL's first result settled 29 Dec 2017, and the
+     Holdings tab printed it as today's short interest on every stock. */
   return vtGet<RawShortInterest>("/mdp/api/v1/polygon/stocks/short-interest", {
-    query: { ticker },
+    query: { ticker, sort: "settlement_date.desc", limit: "2" },
     revalidate,
     tags,
     noStore,

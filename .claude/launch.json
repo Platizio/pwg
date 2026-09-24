@@ -4,8 +4,31 @@
     {
       "name": "platizio",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3000
+    },
+    {
+      "name": "platizio-ui-safe",
+      "runtimeExecutable": "/usr/bin/env",
+      "runtimeArgs": [
+        "VIEWTRADE_GATEWAY=http://127.0.0.1:9",
+        "VIEWTRADE_BASE_URL=http://127.0.0.1:9",
+        "VIEWTRADE_API_KEY=disabled-local-ui",
+        "VIEWTRADE_API_SECRET=disabled-local-ui",
+        "NEWS_ENABLED=0",
+        "NEWSAPI_AI_KEY=",
+        "SITE_URL=http://127.0.0.1:9",
+        "npm",
+        "run",
+        "dev",
+        "--",
+        "-p",
+        "3100"
+      ],
+      "port": 3100
     }
   ]
 }

@@ -42,3 +42,12 @@ test("the gateway window runs from the first open to the last close", () => {
   });
   assert.equal(windowFor([]), null);
 });
+
+/* On a half-day the session ends at 13:00, and so does the window. Fri 27 Nov
+   2026 is the day after Thanksgiving. */
+test("a window ending on a half-day ends at 13:00", () => {
+  assert.deepEqual(windowFor(["2026-11-23", "2026-11-27"]), {
+    from: "2026-11-23 09:30:00",
+    to: "2026-11-27 13:00:00",
+  });
+});

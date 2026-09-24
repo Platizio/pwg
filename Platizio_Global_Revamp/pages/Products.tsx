@@ -216,7 +216,7 @@ export default function Products() {
             </h1>
 
             <p className="ft-permit">
-              <strong>You are allowed to.</strong> The Reserve Bank&rsquo;s Liberalised
+              <strong>You are allowed to.</strong>{' '}The Reserve Bank&rsquo;s Liberalised
               Remittance Scheme lets a resident individual send up to{' '}
               <span className="ft-fig">$250,000</span> abroad each financial year,
               investment included — an ordinary, declared route, not a loophole.
@@ -232,6 +232,7 @@ export default function Products() {
                   be showing. The symbol-specific links below still deep-link. */}
               <a className="ft-ghost" href={SCREENER_URL} target="_blank" rel="noopener noreferrer">
                 See the terminal
+                <span className="sr-only"> (opens in a new tab)</span>
               </a>
             </div>
           </div>
@@ -458,6 +459,7 @@ export default function Products() {
                         strokeLinejoin="round"
                       />
                     </svg>
+                    <span className="sr-only"> (opens in a new tab)</span>
                   </a>
                 </div>
               )}
@@ -532,6 +534,7 @@ export default function Products() {
           <p className="ft-see-go">
             <a className="ft-link" href={screenerInstrument(linkSymbol)} target="_blank" rel="noopener noreferrer">
               Open {symbol} in the terminal <span className="ft-link-rule" aria-hidden="true" />
+              <span className="sr-only"> (opens in a new tab)</span>
             </a>
           </p>
         </div>
@@ -675,6 +678,7 @@ export default function Products() {
               </a>
               <a className="ft-ghost" href={screenerInstrument(linkSymbol)} target="_blank" rel="noopener noreferrer">
                 Keep looking at {symbol}
+                <span className="sr-only"> (opens in a new tab)</span>
               </a>
             </div>
             <div className="ft-close-rule" aria-hidden="true" />

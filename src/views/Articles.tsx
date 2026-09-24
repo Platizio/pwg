@@ -301,12 +301,16 @@ const SHEET = `
 
 /* ============================================================= start here */
 
-/* The lead against the two that follow it — 1fr / 0.82fr, copy-led. */
+/* The lead against the two that follow it — 1fr / 0.82fr, copy-led.
+   Stretched, not top-aligned: the lead is taller than the two cards stacked
+   beside it, and top-aligned the pair stopped 62px short of the lead's bottom
+   edge. The side column now fills the row and splits it evenly (.alib-side),
+   so the three cards end on one line. */
 .alib-start {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 0.82fr);
   gap: clamp(1.25rem, 2.5vw, 2rem);
-  align-items: start;
+  align-items: stretch;
   padding-top: clamp(1.75rem, 3vw, 2.5rem);
 }
 
@@ -360,12 +364,15 @@ const SHEET = `
   text-wrap: pretty;
 }
 
-.alib-side { display: grid; gap: clamp(0.75rem, 1.5vw, 1rem); align-content: start; }
+.alib-side { display: grid; gap: clamp(0.75rem, 1.5vw, 1rem); grid-auto-rows: 1fr; }
 
+/* Centred in its height, because a stretched card holds its picture and its
+   three lines in the middle rather than leaving the slack as a gap below. */
 .alib-card {
   position: relative;
   display: grid;
   grid-template-columns: 132px minmax(0, 1fr);
+  align-items: center;
   gap: 18px;
   padding: 16px;
   border-radius: 14px;

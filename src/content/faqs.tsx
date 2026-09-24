@@ -487,7 +487,7 @@ export const FAQ_SECTIONS: FaqSection[] = [
               <li>Downloaded all necessary reports (trade confirms, ledger, and P&amp;L statements), as these will not be accessible once your account is closed</li>
               <li>If you wish to move securities to another broker, transferred your shares and cash prior to requesting account closure</li>
             </ul>
-            <strong>Please note:</strong> Upon submission of an account closure request, the client irrevocably agrees that any residual amounts — including but not limited to dividends, corporate action proceeds, or any other entitlements arising from prior holdings and received post-closure — shall not be credited to the client&apos;s account. The client acknowledges and accepts that such amounts may be forfeited, and that no claims shall lie against the Company in respect of the same.
+            <strong>Please note:</strong>{' '}Upon submission of an account closure request, the client irrevocably agrees that any residual amounts — including but not limited to dividends, corporate action proceeds, or any other entitlements arising from prior holdings and received post-closure — shall not be credited to the client&apos;s account. The client acknowledges and accepts that such amounts may be forfeited, and that no claims shall lie against the Company in respect of the same.
           </span>
         ),
       },

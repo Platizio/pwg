@@ -13,6 +13,7 @@ import {
 import type { IndicatorPoint } from "@/lib/market/indicators";
 import type { InstrumentSnapshot } from "@/lib/market/instrument";
 import { C } from "@/lib/tokens";
+import { useLiveSnapshot } from "../live-provider";
 import { Meter, Section } from "../ui";
 
 /* What the instrument's price has been doing, rather than five scalars.
@@ -167,15 +168,19 @@ export function TechnicalsPanel({ snapshot }: { snapshot: InstrumentSnapshot }) 
   /* One pass over the bars per render. Four functions rather than one so each
      is testable on its own; the whole set costs well under a millisecond on
      1,274 points, and the memo keeps it off re-renders the live quote causes. */
-  const { m, avg, vol, range } = useMemo(
+  const { m, avg, vol } = useMemo(
     () => ({
       m: momentum(snapshot),
       avg: movingAverages(snapshot),
       vol: volatility(snapshot),
-      range: yearRange(snapshot),
     }),
     [snapshot],
   );
+  /* The 52-week range from the LIVE profile, outside the memo: it takes in
+     today's regular-session prints and the price the header shows, so it
+     moves with the tick, where the three readings above are of the daily
+     series and do not. */
+  const range = yearRange(useLiveSnapshot(snapshot));
 
   if (m.bars === 0) {
     return (
@@ -300,7 +305,9 @@ export function TechnicalsPanel({ snapshot }: { snapshot: InstrumentSnapshot }) 
               ] as const).map((cell) => (
                 <div
                   key={cell.label}
-                  className="border-r border-rule-section py-3.5 pr-4 last:border-r-0"
+                  /* Every cell but the first steps in off the divider before
+                     it, so no label starts on the rule. */
+                  className="border-r border-rule-section py-3.5 pr-4 pl-4 first:pl-0 last:border-r-0"
                 >
                   <dt className="eyebrow mb-2">{cell.label}</dt>
                   <dd className="font-mono m-0 text-[14px]" style={{ color: cell.color }}>
@@ -333,7 +340,7 @@ export function TechnicalsPanel({ snapshot }: { snapshot: InstrumentSnapshot }) 
                 : `The line has been ${m.macd.cross.state} its signal${
                     m.macd.cross.sinceDays === null
                       ? " for longer than this record reaches"
-                      : ` for ${m.macd.cross.sinceDays} days`
+                      : ` for ${m.macd.cross.sinceDays} ${m.macd.cross.sinceDays === 1 ? "day" : "days"}`
                   }.`}
             </p>
           </div>
@@ -342,10 +349,18 @@ export function TechnicalsPanel({ snapshot }: { snapshot: InstrumentSnapshot }) 
         {/* -------------------------------------------------- volatility */}
         <Section
           title="Volatility"
-          eyebrow="Bollinger (20, 2σ) · True range (14)"
+          /* The eyebrow is set in capitals, and a capital sigma is a sum,
+             not a standard deviation — so the sigma alone keeps its case. */
+          eyebrow={
+            <>
+              Bollinger (20, 2<span className="normal-case">σ</span>) · True range (14)
+            </>
+          }
           className="xl:border-l xl:border-rule-section xl:pl-[34px]"
         >
-          <div className="rule-t pt-4">
+          {/* pt-5, as Momentum's first block: the two columns' first
+              eyebrows sit under one rule and have to share its line. */}
+          <div className="rule-t pt-5">
             <div className="mb-3 flex items-baseline justify-between gap-4">
               <span className="eyebrow">Position in band</span>
               <span className="text-[11px] font-bold tracking-[0.18em]" style={{ color: bandTone }}>
@@ -524,7 +539,7 @@ export function TechnicalsPanel({ snapshot }: { snapshot: InstrumentSnapshot }) 
               : `The fifty-day average has been ${avg.cross.state} the two-hundred-day ${
                   avg.cross.sinceDays === null
                     ? "for as long as this five-year record reaches — the crossing that put it there is older than the history on file."
-                    : `for ${avg.cross.sinceDays} days.`
+                    : `for ${avg.cross.sinceDays} ${avg.cross.sinceDays === 1 ? "day" : "days"}.`
                 }`}
         </p>
       </Section>

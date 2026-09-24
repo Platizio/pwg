@@ -297,18 +297,30 @@ export function seedOf(ticker: string): number {
 }
 
 /** Trim the legal-entity noise off a gateway company name.
-    "NVIDIA CORP" → "Nvidia", "STATE STREET SPDR S&P 500 ETF" → title case. */
+    "NVIDIA CORP" → "Nvidia", "STATE STREET SPDR S&P 500 ETF" → title case.
+
+    Depositary receipts carry their terms in the name ("SPON ADS EACH REP 1
+    ORD SHS", "ADR EACH REPR 5 ORD USD0.50") and unit trusts their series
+    ("UNIT SER 1"); both go. Dropping "CO" out of "DEERE & CO" leaves the
+    ampersand that joined it, so a trailing "&", "and" or comma goes too. A
+    word of three to five letters with no vowel is an initialism or a ticker
+    (QQQ, CVS, HSBC), never a word, so it keeps its capitals. */
 function tidyName(raw: string): string {
   const cleaned = raw
-    .replace(/\b(INC|CORP|CORPORATION|CO|COMPANY|LTD|LIMITED|PLC|LLC|LP|SA|NV|AG|HOLDINGS?|GROUP|TRUST|THE)\b\.?/gi, " ")
+    .replace(/\bSPONS?(?:ORED)?\s+AD[RS]S?\b.*$/i, " ")
+    .replace(/\bAD[RS]S?[\s-]+(?:EACH|EAC|EA|REPR?|CNV)\b.*$/i, " ")
+    .replace(/\bUNIT\s+SER(?:IES)?\s+\d+\b/gi, " ")
+    .replace(/\b(INC|CORP|CORPORATION|CO|COMPANY|LTD|LIMITED|PLC|LLC|LP|SA|NV|AG|HOLDINGS?|HLDGS?|GROUP|GRP|TRUST|THE)\b\.?/gi, " ")
     .replace(/\bCLASS\s+[A-Z]\b/gi, " ")
     .replace(/\s+/g, " ")
+    .replace(/(?:\s*(?:&|\band\b|,))+\s*$/i, "")
     .trim();
   const base = cleaned || raw;
   return base
     .toLowerCase()
     .replace(/\b[a-z]/g, (c) => c.toUpperCase())
-    .replace(/\b(Etf|Adr|Reit|Spdr|Ai|Us|Uk)\b/g, (m) => m.toUpperCase());
+    .replace(/\b(Etf|Adr|Reit|Spdr|Ai|Us|Uk)\b/g, (m) => m.toUpperCase())
+    .replace(/\b[B-DF-HJ-NP-TV-XZ][b-df-hj-np-tv-xz]{2,4}\b/g, (m) => m.toUpperCase());
 }
 
 /** Presentation metadata for any symbol, curated or not. */

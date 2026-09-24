@@ -1,0 +1,186 @@
+/* Alignment corrections across the marketing pages.
+ *
+ * Every rule here fixes something measured in the browser at 1440, 1024, 768
+ * and 390, and each block says what was wrong. None of them changes a word of
+ * copy or a colour of the system; they put edges, baselines and heights back
+ * where the pages already meant them to be.
+ *
+ * WHY A SHEET OF ITS OWN. The pages these touch are styled by the legacy
+ * sheets (css/styles.css and the revamp sheets under Platizio_Global_Revamp),
+ * which load first. This loads after them and after home.css, so a selector of
+ * equal weight wins on order alone and nothing here needs `!important`. It
+ * loads BEFORE chrome.css, and it touches no chrome selector: the header,
+ * drawer and footer are corrected in chrome.css and mobile.css themselves.
+ */
+
+/* ============================================================ buttons */
+
+/* The gold action and the ghost beside it were two pixels apart in height —
+   50.5 against 52.5 — because the ghost carries a 1px border and the gold
+   face carried none. Measured on the home hero, the home close, the products
+   hero and the products close: the pair sat on different top edges in every
+   one of them. A transparent border gives the face the same box without
+   drawing anything. */
+.ft-cta { border: 1px solid transparent; }
+
+/* The pricing page's gold action set its label in white on the pale gold
+   ramp — about 1.6:1, where every other gold button on the site sets dark ink
+   on the same ramp. Same object, same ink. */
+.pz-cta { color: var(--on-gold); }
+
+/* ====================================================== equal-height cards */
+
+/* /products "Know what you owe later" and /pricing's two prose tax cards:
+   cards in one row stretch to one height, but the link at the foot of each
+   followed its own paragraph, so the two calls to action sat at different
+   heights in the same row. The paragraph now takes the slack and every action
+   lands on the card's bottom edge. `align-self` keeps each action the width of
+   its label instead of the width of the card. */
+.ft-later-item {
+  display: flex;
+  flex-direction: column;
+}
+.ft-later-item > p { flex-grow: 1; }
+.ft-later-item > .ft-link { align-self: flex-start; }
+
+.pz-tax > .pz-tax-block:not(.pz-tax-block--split):not(.pz-tax-block--full) {
+  display: flex;
+  flex-direction: column;
+}
+.pz-tax > .pz-tax-block:not(.pz-tax-block--split):not(.pz-tax-block--full) > .pz-tax-p {
+  flex-grow: 1;
+}
+.pz-tax > .pz-tax-block:not(.pz-tax-block--split):not(.pz-tax-block--full) > .pz-more {
+  align-self: flex-start;
+}
+
+/* /help: the assistant and the FAQ browser share a row but not a height —
+   610px against 682px at 1440, so the pair ended on two different lines. The
+   assistant's height was a fixed clamp so its composer could dock; it now
+   fills the row instead and keeps that clamp as its floor. Positioned inside
+   its cell so the conversation still scrolls within the panel rather than
+   growing the row as answers get longer. Two columns only: stacked, each
+   keeps its own height. */
+@media (min-width: 901px) {
+  .help-layout { align-items: stretch; }
+  .help-main {
+    position: relative;
+    min-height: clamp(28rem, 68vh, 40rem);
+  }
+  .help-main > .assistant {
+    position: absolute;
+    inset: 0;
+    height: auto;
+  }
+}
+
+/* The composer's send button was a 44px circle beside a 48px field, so the
+   pair shared a centre line but not a top or bottom edge. It takes the
+   field's height. */
+.assistant-composer-send {
+  width: 48px;
+  height: 48px;
+}
+
+/* One more pixel pair on /help: the browse links measured 42px tall, under
+   the 44px a finger needs. The ordinal, title and count keep their shared
+   baseline; the row gets the extra padding. */
+.help-browse-list a { padding-block: 0.625rem; }
+
+/* ============================================================ /faqs */
+
+/* The contents rail wrapped its long titles back under the ordinal — "06
+   Portfolio, Statements &" then "Reports" starting at the number's edge
+   rather than the title's. A two-column row holds the hanging indent. Only
+   while it is a rail: at 1024 and below it becomes a row of pills and each
+   one sits on a single line. */
+@media (min-width: 1025px) {
+  .faq-index a {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: var(--space-2);
+    align-items: baseline;
+  }
+  .faq-index-num { margin-right: 0; }
+}
+
+/* As pills the section links were 37px tall. */
+@media (max-width: 1024px) {
+  .faq-index a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
+/* The plus sat 2.4px below the question it opens. The question's first line
+   is 1.45em tall and the icon 26px, so the icon's top margin is whatever
+   centres the one on the other — on the first line, so a question that wraps
+   keeps its icon beside its opening words. */
+.faq-ico { margin-top: calc(0.725em - 13px); }
+
+/* ======================================================== /user-guide */
+
+/* The three facts: the first label wraps to two lines ("What the account /
+   costs") and the other two do not, so the first card's text started a line
+   lower than its neighbours'. Subgrid gives every label one shared row, so
+   the three bodies start on one line. Three across only — stacked, each card
+   is alone in its row. */
+@media (min-width: 721px) {
+  .guide-fact {
+    display: grid;
+    grid-row: span 2;
+    grid-template-rows: subgrid;
+    row-gap: 0;
+  }
+}
+
+/* The two notes under the funding track were caught by `.guide-track > p`,
+   the rule for the track's intro paragraph: capped at 62ch and given no top
+   margin. So the first note sat flush against the document row above it (0px
+   apart) and both stopped 240px short of the column's right edge that every
+   other block in the track runs to. */
+.guide-track > .faq-note {
+  max-width: none;
+  margin: var(--space-6) 0 0;
+}
+
+/* ======================================================= document headings */
+
+/* base.css sets every h2 as a display heading: 18ch wide at 1.06 leading.
+   That is right for a section title and wrong for the small sub-headings the
+   long documents use, which never reset it. On /terms, /privacy and
+   /disclaimer the numbered section titles were squeezed into a 182px box —
+   "Introduction, / Scope / and Acceptance" on three lines with the leading of
+   a poster — and the article body, the FAQ sections and the guide tracks broke
+   their headings early the same way. */
+.legal-section h2,
+.faq-section-title,
+.guide-track h2,
+.article-body h2,
+.article-faq > h2,
+.related-articles > h2 {
+  max-width: none;
+  line-height: 1.25;
+}
+
+/* The legal contents list: an ordered list whose numbers a reset had removed
+   while its 20px indent stayed, so every entry sat indented under "Contents"
+   for no visible reason. The numbers come back — they are the same numbers
+   the sections below carry — in the list's own muted tone. */
+.legal-toc ol {
+  list-style: decimal;
+  padding-left: 1.75rem;
+}
+.legal-toc li::marker {
+  font-variant-numeric: tabular-nums;
+}
+
+/* =============================================================== 404 */
+
+/* `.notfound { padding: 0 }` (page.css) came after `.page-hero--compact` and
+   zeroed it, so the "404 — Not found" label sat 14px under the floating bar.
+   The compact opener's own padding, restored. */
+.page-hero--compact.notfound {
+  padding: clamp(2.75rem, 5vw, 4rem) 0 clamp(2.5rem, 4vw, 3.25rem);
+}

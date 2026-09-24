@@ -3317,10 +3317,11 @@ p {
 }
 
 /* ---- Shell ---- */
-/* Carries more elevation than the FAQ browser beside it. Without that the two
-   read as interchangeable cards and nothing says which is the point of the page.
-   A column with a bounded height is what docks the composer at the bottom and
-   lets the conversation scroll behind it. */
+/* The same card material as the FAQ browser beside it: two sheets in one row
+   wear one shadow. The assistant leads by position, width and its tinted bar,
+   not by floating higher than its neighbour. A column with a bounded height is
+   what docks the composer at the bottom and lets the conversation scroll
+   behind it. */
 .assistant {
   display: flex;
   flex-direction: column;
@@ -3596,6 +3597,9 @@ p {
 }
 
 .assistant-question {
+  /* base.css caps every h2 at 18ch for display titles, which broke this one
+     line across two in a 600px panel. */
+  max-width: none;
   font-size: 1.35rem;
   line-height: 1.3;
   letter-spacing: -0.01em;
@@ -3971,12 +3975,16 @@ p {
   cursor: not-allowed;
 }
 
-/* ---- FAQ browser ---- */
+/* ---- FAQ browser ----
+   The assistant's shadow, so the pair reads as one material. The top padding
+   puts "Browse the FAQs" on the line of the "Platizio Support" bar title
+   beside it rather than 14px under it. */
 .help-browse {
   border: 1.5px solid var(--gray-200);
   border-radius: var(--radius-lg);
   background: var(--white);
-  padding: 1.65rem;
+  box-shadow: var(--shadow-lg);
+  padding: 1rem 1.65rem 1.65rem;
 }
 
 .help-browse h2 {
@@ -4007,7 +4015,7 @@ p {
 .help-browse-num {
   flex: none;
   width: 1.3em;
-  color: var(--gray-400);
+  color: var(--ink-3);
   font-size: 0.78rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -4016,7 +4024,7 @@ p {
 .help-browse-count {
   margin-left: auto;
   font-size: 0.78rem;
-  color: var(--gray-400);
+  color: var(--ink-3);
   font-variant-numeric: tabular-nums;
 }
 
@@ -4050,10 +4058,15 @@ p {
   .help-layout { grid-template-columns: 1fr; gap: 1.75rem; }
   /* Assistant first: it is why the page exists. */
   .help-browse { order: 2; }
+  /* Stacked, the panel sizes to what it holds. A fixed height cut the topic
+     list off under the docked composer and put a scrollbar inside a page
+     that already scrolls. Only a long conversation is capped, and it still
+     scrolls within the panel so the composer stays in reach. */
+  .assistant { height: auto; }
+  .assistant-body { max-height: 70svh; }
 }
 
 @media (max-width: 560px) {
-  .assistant { height: clamp(26rem, 72vh, 34rem); }
   .assistant-body { padding: 1.25rem 1.15rem 1.1rem; }
   .assistant-bar { padding: 0.75rem 1.15rem; }
   .assistant-composer { padding: 0.7rem 0.8rem; }

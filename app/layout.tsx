@@ -143,7 +143,12 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html:
               "try{var t=localStorage.getItem('pg-theme');" +
-              "if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}" +
+              "if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;" +
+              /* The folded news rail (components/terminal/rail-fold.ts), for
+                 the instrument skeleton that streams before the page's own
+                 copy of this line can run. */
+              "if(localStorage.getItem('pg-news-rail')==='collapsed')" +
+              "document.documentElement.setAttribute('data-news-rail','collapsed');}" +
               "catch(e){}",
           }}
         />

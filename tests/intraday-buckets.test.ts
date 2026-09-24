@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { bucketIntraday, SESSIONS_KEPT, sessionsAt, pickSessions, aggsToColumns, columnsToRows, withOfficialClose } from "../lib/market/intraday-buckets.ts";
+import { bucketIntraday, SESSIONS_KEPT, sessionsAt, pickSessions, aggsToColumns, columnsToRows, withOfficialClose, withOfficialCloses, startsInRegularSession } from "../lib/market/intraday-buckets.ts";
 import { mergeIntradaySessions } from "../lib/market/store/sections.ts";
 
 /* Minute bars reduced to the grid a chart can draw.
@@ -335,4 +335,102 @@ test("a session still running is not given a close", () => {
   assert.equal(withOfficialClose(live, "2026-09-24", 335.5, at1100).date.length, 2);
   const after = Date.parse("2026-09-24T20:30:00Z"); // 16:30 ET
   assert.equal(withOfficialClose(live, "2026-09-24", 335.5, after).date.length, 3);
+});
+
+/* ---------- half-days ---------- */
+
+/* On a half-day the regular session ends at 13:00 and the closing auction runs
+ * then. Measured on AAPL, Fri 28 Nov 2025: the 13:00 minute opened at 278.86
+ * against an official 278.85, and post-market printed from 16:00 to 16:59. A
+ * chart that kept everything before 16:00 drew the 13:00 bar as session. */
+
+/* Fri 27 Nov 2026 is a half-day, in EST: 13:00 ET = 18:00Z. */
+test("on a half-day only buckets that start before 13:00 are drawn", () => {
+  const c = aggsToColumns(
+    [
+      agg("2026-11-27T14:30:00Z"), // 09:30
+      agg("2026-11-27T17:30:00Z"), // 12:30 — its close is the last print before the auction
+      agg("2026-11-27T18:00:00Z"), // 13:00 — the auction and after
+      agg("2026-11-27T21:00:00Z"), // 16:00 — post-market
+    ],
+    ["2026-11-27"],
+  );
+  assert.deepEqual(c.date, ["2026-11-27T14:30:00.000Z", "2026-11-27T17:30:00.000Z"]);
+});
+
+test("a half-day session ends on its official close at 13:00 New York", () => {
+  const s = withOfficialClose(cols(["2026-11-27T17:59:00.000Z"], [278.86]), "2026-11-27", 278.85);
+  assert.equal(s.date.at(-1), "2026-11-27T18:00:00.000Z");
+  assert.equal(s.price.at(-1), 278.85);
+});
+
+test("a half-day's close is not drawn before 13:00, and is after it", () => {
+  const live = cols(["2026-11-27T14:30:00.000Z", "2026-11-27T17:00:00.000Z"], [280, 279]);
+  assert.equal(withOfficialClose(live, "2026-11-27", 278.85, Date.parse("2026-11-27T17:30:00Z")).date.length, 2, "12:30 ET");
+  assert.equal(withOfficialClose(live, "2026-11-27", 278.85, Date.parse("2026-11-27T18:05:00Z")).date.length, 3, "13:05 ET");
+});
+
+/* ---------- which rows count as the session ---------- */
+
+/* A row is judged by where it STARTS. The gateway's own 16:00 minute is a
+   post-market print, not the close (measured 23 Sep 2026), so it is dropped
+   with the rest of post-market and the official close is drawn in its place. */
+test("a row starting at the bell is post-market; 15:59 is the session's last", () => {
+  assert.equal(startsInRegularSession(Date.parse("2026-09-23T13:29:00Z")), false, "09:29");
+  assert.equal(startsInRegularSession(Date.parse("2026-09-23T13:30:00Z")), true, "09:30");
+  assert.equal(startsInRegularSession(Date.parse("2026-09-23T19:59:00Z")), true, "15:59");
+  assert.equal(startsInRegularSession(Date.parse("2026-09-23T20:00:00Z")), false, "16:00");
+  assert.equal(startsInRegularSession(Date.parse("2026-11-27T17:59:00Z")), true, "12:59 on a half-day");
+  assert.equal(startsInRegularSession(Date.parse("2026-11-27T18:00:00Z")), false, "13:00 on a half-day");
+  assert.equal(startsInRegularSession(Number.NaN), false);
+});
+
+/* ---------- every session of a multi-day range ends on its close ---------- */
+
+test("each drawn session gains its own close at its own bell", () => {
+  const series = cols(
+    [
+      "2026-09-22T13:30:00.000Z", "2026-09-22T19:30:00.000Z", // 22 Sep, 09:30 and 15:30
+      "2026-09-23T13:30:00.000Z", "2026-09-23T19:30:00.000Z", // 23 Sep
+    ],
+    [340.1, 339.6, 341, 336.95],
+  );
+  const s = withOfficialCloses(series, new Map([["2026-09-22", 339.75], ["2026-09-23", 337.02]]));
+  assert.deepEqual(s.date, [
+    "2026-09-22T13:30:00.000Z", "2026-09-22T19:30:00.000Z", "2026-09-22T20:00:00.000Z",
+    "2026-09-23T13:30:00.000Z", "2026-09-23T19:30:00.000Z", "2026-09-23T20:00:00.000Z",
+  ]);
+  assert.deepEqual(s.price, [340.1, 339.6, 339.75, 341, 336.95, 337.02]);
+  assert.equal(s.price.at(-1), 337.02, "the whole series ends on the last session's close");
+  assert.deepEqual(
+    [s.opening[2], s.high[2], s.low[2], s.volume[2]],
+    [339.75, 339.75, 339.75, 0],
+    "a point at the close, not a bar with a range",
+  );
+});
+
+test("a session with no known close is left as drawn", () => {
+  const series = cols(["2026-09-22T19:30:00.000Z", "2026-09-23T19:30:00.000Z"], [339.6, 336.95]);
+  const s = withOfficialCloses(series, new Map([["2026-09-23", 337.02]]));
+  assert.deepEqual(s.price, [339.6, 336.95, 337.02]);
+});
+
+test("a close for a day with nothing drawn does not become a lone point", () => {
+  const series = cols(["2026-09-23T19:30:00.000Z"], [336.95]);
+  const s = withOfficialCloses(series, new Map([["2026-09-22", 339.75], ["2026-09-23", 337.02]]));
+  assert.deepEqual(s.date, ["2026-09-23T19:30:00.000Z", "2026-09-23T20:00:00.000Z"]);
+});
+
+test("a session that already reaches its bell is left alone", () => {
+  const series = cols(["2026-09-23T19:59:00.000Z", "2026-09-23T20:00:00.000Z"], [336.95, 337.02]);
+  assert.equal(withOfficialCloses(series, new Map([["2026-09-23", 337.02]])).date.length, 2);
+});
+
+test("a half-day in a multi-day range closes at 13:00", () => {
+  const series = cols(["2026-11-25T20:30:00.000Z", "2026-11-27T17:30:00.000Z"], [280, 279]);
+  const s = withOfficialCloses(series, new Map([["2026-11-25", 280.5], ["2026-11-27", 278.85]]));
+  assert.deepEqual(s.date, [
+    "2026-11-25T20:30:00.000Z", "2026-11-25T21:00:00.000Z", // Wed 25 Nov, EST: 16:00 = 21:00Z
+    "2026-11-27T17:30:00.000Z", "2026-11-27T18:00:00.000Z", // Fri 27 Nov: 13:00 = 18:00Z
+  ]);
 });

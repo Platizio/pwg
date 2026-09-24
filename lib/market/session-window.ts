@@ -1,4 +1,4 @@
-import { isMarketHoliday } from "./session.ts";
+import { regularCloseMinute, tradingDay } from "./session.ts";
 
 /* Which trading days a chart range covers, as the gateway wants them asked.
  *
@@ -21,28 +21,24 @@ const ET = new Intl.DateTimeFormat("en-CA", {
   year: "numeric",
   month: "2-digit",
   day: "2-digit",
-  weekday: "short",
   hour: "2-digit",
   minute: "2-digit",
   second: "2-digit",
   hourCycle: "h23",
 });
 
-function eastern(ms: number): { day: string; weekday: string; seconds: number } {
+function eastern(ms: number): { day: string; seconds: number } {
   const parts = ET.formatToParts(ms);
   const get = (t: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === t)?.value ?? "";
   return {
     day: `${get("year")}-${get("month")}-${get("day")}`,
-    weekday: get("weekday"),
     seconds: Number(get("hour")) * 3600 + Number(get("minute")) * 60 + Number(get("second")),
   };
 }
 
-function isTradingDay(ms: number): boolean {
-  const { weekday } = eastern(ms);
-  if (weekday === "Sat" || weekday === "Sun") return false;
-  return !isMarketHoliday(Math.floor(ms / 1000));
-}
+/* Whether the Eastern date of `ms` trades — asked of the one calendar
+   (tradingDay in session.ts) that the phase, the pill and the worker read. */
+const isTradingDay = (ms: number): boolean => tradingDay(eastern(ms).day) !== null;
 
 /**
  * The last `count` trading days whose regular session has STARTED, oldest
@@ -70,8 +66,12 @@ export function tradingDays(nowMs: number, count: number): string[] {
   return out;
 }
 
-/** The gateway's `from`/`to` for those days: first open to last close. */
+/** The gateway's `from`/`to` for those days: first open to last close —
+    16:00, or 13:00 when the last day is a half-day. */
 export function windowFor(days: readonly string[]): { from: string; to: string } | null {
   if (days.length === 0) return null;
-  return { from: `${days[0]} 09:30:00`, to: `${days[days.length - 1]} 16:00:00` };
+  const last = days[days.length - 1];
+  const close = regularCloseMinute(last);
+  const hhmm = `${String(Math.floor(close / 60)).padStart(2, "0")}:${String(close % 60).padStart(2, "0")}`;
+  return { from: `${days[0]} 09:30:00`, to: `${last} ${hhmm}:00` };
 }

@@ -36,7 +36,10 @@
  */
 .legal-meta {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  /* Six facts. auto-fit at a 200px floor made five columns at 1440 and left
+     "Business hours" alone on a second row; the count is fixed, so the grid
+     is too — three by two, two by three, and one column on a phone. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-5) var(--space-6);
   padding: var(--space-6);
   background: var(--surface-sunken);
@@ -50,7 +53,7 @@
   font-weight: 600;
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
-  color: var(--gray-500);              /* 4.53:1 on --surface-sunken */
+  color: var(--gray-500);              /* --ink-3: 4.84:1 on --surface-sunken */
   margin-bottom: var(--space-2);
 }
 
@@ -106,7 +109,7 @@
   font-weight: 600;
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
-  color: var(--gray-500);              /* 4.83:1 on white */
+  color: var(--gray-500);              /* --ink-3: 5.34:1 on --surface */
   margin: 0 0 var(--space-4);
 }
 
@@ -165,7 +168,9 @@
   font-size: var(--text-xs);
   font-weight: 500;
   font-variant-numeric: tabular-nums lining-nums;
-  color: var(--accent-500);            /* 5.15:1 on white */
+  /* The text gold, not the fill gold: --accent-500 measured 3.25:1 on paper
+     at 12.5px. --gold-text is 5.49:1. */
+  color: var(--gold-text);
 }
 
 .legal-section p {
@@ -259,6 +264,14 @@
 }
 
 .legal-related a:hover { color: var(--accent-600); text-decoration-color: currentColor; }
+
+@media (min-width: 900px) {
+  .legal-meta { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 560px) {
+  .legal-meta { grid-template-columns: minmax(0, 1fr); }
+}
 
 @media (max-width: 640px) {
   .legal-toc ol { columns: 1; }

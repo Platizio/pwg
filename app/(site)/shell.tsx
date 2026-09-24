@@ -29,6 +29,12 @@ import "./styles/tokens.css";
 import "./styles/base.css";
 import "./styles/glass.css";
 import "./styles/home.css";
+/* Page-level corrections, after every page sheet and before the chrome so
+   they can never outrank it: the article page's frame, then the alignment
+   fixes the audit found across the rest (see the head of each). Neither
+   touches a chrome selector. */
+import "./styles/article.css";
+import "./styles/align.css";
 import "./styles/chrome.css";
 
 /* The one thing allowed after chrome.css, because it has to be and because it

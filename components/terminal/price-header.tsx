@@ -4,17 +4,15 @@ import { useLiveSession } from "@/components/home/use-session";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { useEffect, useRef } from "react";
-import { IconCandles } from "@/components/icons";
 import { money, pct } from "@/lib/market/format";
 import { RANGES } from "@/lib/market/ranges";
 import type { RangeId } from "@/lib/market/types";
-import { chartPath } from "@/lib/market/paths";
 import type { CompanyProfile } from "@/lib/api/normalize/profile";
 import { type Session } from "@/lib/market/session";
-import { liveness, livenessText } from "@/lib/market/liveness";
+import { livenessText } from "@/lib/market/liveness";
 import { C } from "@/lib/tokens";
 import { Segmented, SegmentedItem, cn } from "./ui";
-import { useLastTick, useLiveQuote, useNow } from "./live-provider";
+import { useShownQuote } from "./live-provider";
 
 /** Tick age in words. Short, because it sits inside a tooltip. */
 const ago = (ms: number) =>
@@ -40,35 +38,15 @@ export function PriceHeader({
 
      Price and change move together or not at all: a live price beside the
      snapshot's change would pair this second's number with an older basis and
-     quietly misstate the move. */
-  const tick = useLiveQuote(profile.id);
-  /* A tick that cannot supply both halves is not a live price, so it is not
-     treated as one anywhere below — including by the badge. */
-  const priced = tick !== null && tick.changePercent !== null ? tick : null;
+     quietly misstate the move.
 
-  /* One predicate decides the badge AND the number, so the two can never
-     disagree. The clock is half of it: live-provider's buffer never expires a
-     tick, so a feed that dies mid-session leaves its last one sitting there and
-     nothing re-renders to notice. Without `now` this would read "Live" over a
-     frozen price for as long as the tab stayed open. */
-  const now = useNow();
-  const live = liveness(priced, session.phase, now);
-  const showing = priced !== null && live.state === "live";
-
-  /* A company the feed will not price shows a dash rather than a zero: a zero
-     in this position reads as a real quote. */
-  /* When the live tick has aged out, the last real trade is still usually
-     NEWER than the price this page was rendered with. Showing the render-time
-     price then puts an older number on screen than the one the reader just
-     watched go past — overnight it presented a mid-session price as the
-     close. Use whichever is newer; price and change still travel together. */
-  const last = useLastTick(profile.id);
-  const lastPriced = last !== null && last.changePercent !== null ? last : null;
-  const fromLast =
-    !showing && lastPriced !== null && (profile.asOf === null || lastPriced.at > profile.asOf);
-
-  const price = showing ? priced.price : fromLast ? lastPriced.price : profile.price;
-  const chg = showing ? priced.changePercent : fromLast ? lastPriced.changePercent : profile.chg;
+     The choice itself lives in useShownQuote, so the cards that derive from
+     the price — the market cap, the previous close the change is struck from,
+     the Day's and 52-week ranges — read the very same one. The badge and the
+     number are still decided by one predicate there, clock included: a feed
+     that dies mid-session must not leave "Live" over a frozen price. A company
+     the feed will not price shows a dash rather than a zero. */
+  const { price, chg, live, fromLast } = useShownQuote(profile, session.phase);
   const up = (chg ?? 0) >= 0;
 
   const statusText = livenessText(live.state, session.phase, session.label);
@@ -174,7 +152,7 @@ export function PriceHeader({
             className="font-mono border px-3 py-1.5 text-[11.5px] tracking-[0.04em]"
             style={{
               color: up ? C.up : C.down,
-              borderColor: up ? "rgba(125,211,160,.35)" : "rgba(224,121,107,.35)",
+              borderColor: `color-mix(in srgb, var(${up ? "--color-up" : "--color-down"}) 35%, transparent)`,
             }}
           >
             {chg === null ? "—" : pct(chg)}
@@ -208,30 +186,10 @@ export function PriceHeader({
         </div>
       </div>
 
-      {/* Two tiers, separated by space rather than by boxes. The range is the
-          control reached for repeatedly, so it keeps the bordered strip.
-
-          CANDLES used to be the other half of an in-page AREA/CANDLES toggle.
-          It is now a departure: candlesticks live in TradingView's advanced
-          chart, which brings its own data and toolset rather than drawing our
-          delayed, minute-sparse feed. It is deliberately NOT the old quiet
-          toggle vocabulary — that styling carried no border and no fill, and
-          the owner could not find the control at all. A link that leaves the
-          page should look like one. */}
-      <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-5">
-        <a
-          href={chartPath(profile.id)}
-          target="_blank"
-          rel="noopener noreferrer"
-          title={`Open ${profile.id} candlesticks in TradingView`}
-          className="font-mono flex min-h-11 items-center gap-2 text-[11px] tracking-[0.1em] text-gold transition-colors hover:text-gold-hi md:min-h-0 md:py-2.5"
-        >
-          <IconCandles className="h-3.5 w-3.5" />
-          <span>CANDLES</span>
-          <span aria-hidden="true" className="text-[10px]">&#8599;</span>
-          <span className="sr-only"> (opens in a new tab)</span>
-        </a>
-
+      {/* The range is the control reached for repeatedly, so it keeps the
+          bordered strip. There is no candlestick link: the owner wants every
+          chart as a line ("i dont want any candle chart or bar chart"). */}
+      <div className="flex flex-wrap items-center justify-end gap-x-8 gap-y-5">
         <Segmented label="Time range">
           {RANGES.map((r) => (
             <SegmentedItem

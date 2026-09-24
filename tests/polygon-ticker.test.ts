@@ -20,5 +20,25 @@ test("a warrant is written with .WS", () => {
 });
 
 test("everything else is left exactly as it is", () => {
-  for (const s of ["AAPL", "BRK.B", "SPY", "AAC.UN", "A"]) assert.equal(polygonTicker(s), s);
+  for (const s of ["AAPL", "BRK.B", "SPY", "A", "GOOGL"]) assert.equal(polygonTicker(s), s);
+});
+
+test("units and rights take Polygon's spelling", () => {
+  assert.equal(polygonTicker("AAC.UN"), "AAC.U");
+  assert.equal(polygonTicker("AIIA.RT"), "AIIAr");
+  assert.equal(polygonTicker("BRK.B"), "BRK.B", "a dotted class is unchanged");
+});
+
+/* A preferred with no series letter is "X-" at the gateway and "Xp" at
+   Polygon. Left as "X-", Polygon does not refuse it: it answers with the
+   COMMON stock. Measured 24 Sep 2026, daily closes 21-23 Sep: "TY-" returned
+   TY's 35.05/34.96/34.60 while "TYp" returned 40.55/40.97/40.40 (quote
+   yesterdayClose 40.4); "DCOM-" returned DCOM at 39.95 while "DCOMp" is 16.52,
+   the quote's figure; "TFIN-" 61.37 against "TFINp" 21.93. Seven such symbols
+   in the tradable master: AXIA-, DCOM-, ETI-, PHXE-, TFIN-, TY-, ZVV-. */
+test("a preferred with no series letter is written with a bare lowercase p", () => {
+  assert.equal(polygonTicker("TY-"), "TYp");
+  assert.equal(polygonTicker("DCOM-"), "DCOMp");
+  assert.equal(polygonTicker("TFIN-"), "TFINp");
+  assert.notEqual(polygonTicker("TY-"), "TY-", "never sent as-is: Polygon reads it as the common");
 });

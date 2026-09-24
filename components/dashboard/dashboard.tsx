@@ -19,13 +19,19 @@ import type { CalendarEvent, Quote } from "@/lib/market/session";
 import { cn } from "@/lib/ui";
 import { MarketCard } from "./market-card";
 import { PopularRibbon } from "./popular-ribbon";
-import { instrumentPath, sectorPath } from "@/lib/market/paths";
+import { CALENDAR_PATH, WIRE_PATH, instrumentPath, sectorPath } from "@/lib/market/paths";
+import { CARD_X, ROW_BLEED } from "./inset";
+import { eventTime, newestFirst } from "./reading-order";
 
 /** Sectors shown before the reader asks for the rest. */
 const COLLAPSED = 4;
 
 /** Names on a sector card. The caption beside the heading says the same. */
 const PER_SECTOR = 4;
+
+/** Headlines the rail prints when it sits inline under the page, below `xl`;
+    the rest are a link away on the wire. */
+const INLINE_NEWS = 6;
 
 /**
  * The dashboard, composed to the marked-up wireframe.
@@ -54,10 +60,19 @@ export function Dashboard({ data }: { data: HomeSnapshot }) {
       >
         <TickerTape rows={data.tape.data} />
 
-        <div className="flex-1 px-4 pt-5 pb-10 sm:px-6 lg:overflow-y-auto lg:px-7">
+        {/* A size container: the boards below are laid out by the width of
+            this column, not the viewport's. The column already gives up 246px
+            to the sidebar and 340px to the rail at xl, so a viewport
+            breakpoint put three boards side by side exactly where each was
+            too narrow to hold a company name. */}
+        <div className="@container flex-1 px-4 pt-5 pb-10 sm:px-6 lg:overflow-y-auto lg:px-7">
           <MarketCard views={data.indices.data} />
 
-          <div className="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {/* Three across only once the column is wide enough to hold them
+              (62rem). Below that, two boards share a row and "Most active"
+              takes the whole row beneath, its list in two columns, rather than
+              sitting at half width beside an empty cell. */}
+          <div className="mt-5 grid gap-5 md:grid-cols-2 @min-[62rem]:grid-cols-3">
             <MoversCard title="Top gainers" panel={data.gainers} tone="up" />
             <MoversCard title="Top losers" panel={data.losers} tone="down" />
             <MoversCard
@@ -65,10 +80,11 @@ export function Dashboard({ data }: { data: HomeSnapshot }) {
               note="By value traded"
               panel={data.mostActive}
               metric="turnover"
+              wide
             />
           </div>
 
-          <Card lit className="mt-5 px-7 py-7">
+          <Card lit className={cn("mt-5 py-7", CARD_X)}>
             <div className="flex flex-wrap items-baseline justify-between gap-4">
               {/* "right now" went with the old relative-volume screen, which
                   really did change hour to hour. The ribbon is a curated list
@@ -102,22 +118,25 @@ export function Dashboard({ data }: { data: HomeSnapshot }) {
           <SectorCards panel={data.sectors} />
 
           {/* Below `xl` the rail is not a rail — it reads as the last part of
-              the page rather than a squeezed column. */}
-          <div className="mt-5 h-[860px] xl:hidden">
-            <Rail events={data.events} news={data.wire} />
+              the page rather than a squeezed column. It flows with the page
+              instead of being a fixed-height box with two scrollers inside
+              it, which on a phone stacked three scrolls on top of each other,
+              and it sits on the same edges as every card above it. */}
+          <div className="mt-5 xl:hidden">
+            <Rail events={data.events} news={data.wire} inline />
           </div>
 
           {/*
-            Not fine print, and not optional. The prices here are real and a
-            quarter of an hour old, and a public surface that looks this much
-            like a live quote screen has to say so where a visitor will
-            actually meet it.
+            What the figures are, and that they are not advice. The sentence
+            on the feed's fifteen-minute delay came out at the owner's request
+            (24 Sep 2026): no delay label on the terminal's home. The fund
+            proxy stays, because a reader comparing a tab against the index
+            itself is owed the reason they differ.
           */}
           <p className="mt-8 max-w-[70ch] text-[12.5px] leading-[1.75] text-ink-3">
-            Prices come from a US market feed and reach this page about fifteen
-            minutes behind the exchange. The index tabs are priced through the
-            funds that track them, so each level shown is the price of the fund
-            rather than of the index itself. Nothing here is advice.
+            The index tabs are priced through the funds that track them, so
+            each level shown is the price of the fund rather than of the index
+            itself. Nothing here is advice.
           </p>
         </div>
       </main>
@@ -166,11 +185,24 @@ function PanelNote({ panel, className }: { panel: Panel<unknown>; className?: st
     return null;
   }
 
+  /* No delay label on the terminal's home — the owner's call (24 Sep 2026).
+     A stale panel carried a "Delayed" badge over "Quotes run fifteen minutes
+     behind; …" (lib/market/home.ts, panelOf), and since every quote the feed
+     sends is flagged delayed, that was on every board, every day. It goes,
+     badge and sentence; the data and its status are untouched.
+
+     The one stale note that stays is the cold-start fallback, which is not
+     about delay: it says the live feed has not answered and names the date
+     the figures come from (lib/market/baseline.ts, describeBaseline). It is
+     recognised by its opening words; if that wording ever changes, the
+     notice falls silent rather than a delay label coming back. */
+  if (panel.status === "stale" && !panel.note.startsWith("Showing the last sweep")) return null;
+
   /* `cn` is a plain join rather than a merge, so the spacing is the caller's
      to state — a base margin here could not be overridden. */
   return (
     <div className={cn("flex flex-wrap items-center gap-2.5", className)}>
-      <Badge tone="outline">{panel.status === "stale" ? "Delayed" : "Partial"}</Badge>
+      {panel.status === "degraded" && <Badge tone="outline">Partial</Badge>}
       <p className="max-w-[46ch] text-[12.5px] leading-[1.6] text-ink-3">{panel.note}</p>
     </div>
   );
@@ -216,6 +248,7 @@ function MoversCard({
   panel,
   metric = "price",
   tone,
+  wide = false,
 }: {
   title: string;
   note?: string;
@@ -228,6 +261,10 @@ function MoversCard({
      ranked by value traded and contains both risers and fallers, so it stays
      on the common card. */
   tone?: "up" | "down";
+  /* Takes the whole row while the boards are two across, with its list in
+     two columns (read down, then across, as a ranking is). Three across, it
+     is one board among three again. */
+  wide?: boolean;
 }) {
   const rows = panel.data;
 
@@ -240,20 +277,37 @@ function MoversCard({
   const live = useMemo(() => rows.map((q) => freshen(q, ticks)), [rows, ticks]);
 
   return (
-    <Card tone={tone} className="px-5 py-6">
-      <div className="flex items-baseline justify-between gap-3 px-1">
-        <h2 className="font-serif text-[21px] leading-none text-ink-2">{title}</h2>
-        <p className="flex-none text-[12.5px] text-ink-3">{note}</p>
+    <Card
+      tone={tone}
+      className={cn("py-6", CARD_X, wide && "md:col-span-2 @min-[62rem]:col-span-1")}
+    >
+      {/* The title never wraps: a two-line title pushed one board's list
+          below its neighbours'. The note gives way instead. */}
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="font-serif text-[21px] leading-none whitespace-nowrap text-ink-2">
+          {title}
+        </h2>
+        <p className="min-w-0 truncate text-[12.5px] text-ink-3">{note}</p>
       </div>
 
       {rows.length === 0 ? (
-        <p className="mt-6 px-1 text-[13.5px] leading-[1.7] text-ink-3">
+        <p className="mt-6 text-[13.5px] leading-[1.7] text-ink-3">
           {emptyReason(panel, "Nothing moved that way this session.")}
         </p>
       ) : (
         <>
-          <PanelNote panel={panel} className="mt-4 px-1" />
-          <ul className="m-0 mt-6 flex list-none flex-col gap-1 p-0">
+          <PanelNote panel={panel} className="mt-4" />
+          <ul
+            className={cn(
+              "m-0 mt-6 flex list-none flex-col gap-1 p-0",
+              ROW_BLEED,
+              wide &&
+                "md:grid md:grid-flow-col md:grid-cols-2 md:gap-x-6 md:[grid-template-rows:repeat(var(--rows),auto)] @min-[62rem]:flex",
+            )}
+            style={
+              wide ? ({ "--rows": Math.ceil(live.length / 2) } as React.CSSProperties) : undefined
+            }
+          >
             {live.map((q) => {
               const body = (
                 <>
@@ -353,8 +407,8 @@ function SectorCards({ panel }: { panel: Panel<SectorGroup[]> }) {
 
           <div className="mt-4 grid gap-5 md:grid-cols-2 2xl:grid-cols-4">
             {shown.map((group) => (
-              <Card key={group.name} className="flex flex-col px-5 py-5">
-                <header className="flex items-baseline justify-between gap-3 px-1">
+              <Card key={group.name} className={cn("flex flex-col py-5", CARD_X)}>
+                <header className="flex items-baseline justify-between gap-3">
                   <h3 className="font-serif min-w-0 text-[20px] leading-tight text-balance">
                     {group.name}
                   </h3>
@@ -369,12 +423,12 @@ function SectorCards({ panel }: { panel: Panel<SectorGroup[]> }) {
                     the companies this terminal quotes. They measure different
                     things and they disagree often enough that a reader is owed
                     the reason rather than left to reconcile them. */}
-                <p className="mt-1.5 px-1 text-[11.5px] leading-[1.55] text-ink-3">
+                <p className="mt-1.5 text-[11.5px] leading-[1.55] text-ink-3">
                   {SECTOR_ETF[group.name as keyof typeof SECTOR_ETF] ?? "Fund"} ·{" "}
                   {signed(group.membersChg, 2)} across the {group.total} quoted here
                 </p>
 
-                <ul className="m-0 mt-4 mb-5 flex list-none flex-col gap-0.5 p-0">
+                <ul className={cn("m-0 mt-4 mb-5 flex list-none flex-col gap-0.5 p-0", ROW_BLEED)}>
                   {group.members.slice(0, PER_SECTOR).map((member) => {
                     /* The rows take ticks; the two figures above them do not.
                        `day` is the sector fund's own quote, and `membersChg` is
@@ -396,7 +450,7 @@ function SectorCards({ panel }: { panel: Panel<SectorGroup[]> }) {
                       </>
                     );
                     const inner =
-                      "flex min-h-[44px] items-center gap-2.5 rounded-[9px] px-1.5 transition-colors";
+                      "flex min-h-[44px] items-center gap-2.5 rounded-[9px] px-2 transition-colors";
 
                     return (
                       <li key={q.id}>
@@ -478,9 +532,14 @@ function when(event: CalendarEvent) {
 function Rail({
   events,
   news,
+  inline = false,
 }: {
   events: Panel<CalendarEvent[]>;
   news: Panel<WireItem[]>;
+  /* Below `xl`, where the rail is appended under the page: no frame padding,
+     no fixed halves, no inner scrollers — the two cards flow with the page
+     and the headlines stop at INLINE_NEWS with the wire a link away. */
+  inline?: boolean;
 }) {
   const [openEvent, setOpenEvent] = useState<CalendarEvent | null>(null);
   const [openNews, setOpenNews] = useState<WireItem | null>(null);
@@ -491,10 +550,28 @@ function Rail({
   const eventNote =
     events.data.length === 0 ? "None dated" : ahead > 0 ? `${ahead} ahead` : "All past";
 
+  /* The wire arrives ranked on relevance, which is how its stories were
+     chosen; under "Latest news" they read in time order. */
+  const headlines = newestFirst(news.data);
+  const shownNews = inline ? headlines.slice(0, INLINE_NEWS) : headlines;
+
   return (
     <>
-      <div className="grid h-full min-h-0 grid-rows-2 gap-4 p-4 sm:p-5">
-        <RailCard title="Key events" note={eventNote}>
+      <div
+        className={
+          inline ? "grid gap-5" : "grid h-full min-h-0 grid-rows-2 gap-4 p-4 sm:p-5"
+        }
+      >
+        <RailCard
+          title="Key events"
+          note={eventNote}
+          inline={inline}
+          more={
+            inline && events.data.length > 0
+              ? { href: CALENDAR_PATH, label: "Open the calendar" }
+              : undefined
+          }
+        >
           {/* An empty panel is a down panel, so the note and the empty line
               below can never state the same thing twice. */}
           <PanelNote panel={events} className="mb-2 px-2.5" />
@@ -506,6 +583,9 @@ function Rail({
             <ol className="m-0 flex list-none flex-col gap-1 p-0">
               {events.data.map((event) => {
                 const { date, relative } = when(event);
+                /* A corporate action's "time" is often the word already in
+                   its title ("ex-dividend"), and says it twice here. */
+                const time = eventTime(event);
                 return (
                   <li key={`${event.title}-${event.offset}`}>
                     <button
@@ -524,7 +604,8 @@ function Rail({
                           {event.title}
                         </span>
                         <span className="mt-1 block truncate text-[12.5px] text-ink-3">
-                          {relative} · {date} · {event.time}
+                          {relative} · {date}
+                          {time && ` · ${time}`}
                         </span>
                       </span>
                       <IconChevron
@@ -539,7 +620,22 @@ function Rail({
           )}
         </RailCard>
 
-        <RailCard title="Latest news" note="The wire">
+        <RailCard
+          title="Latest news"
+          note="The wire"
+          inline={inline}
+          more={
+            inline && news.data.length > 0
+              ? {
+                  href: WIRE_PATH,
+                  label:
+                    news.data.length > shownNews.length
+                      ? `Read all ${news.data.length} on the wire`
+                      : "Read the wire",
+                }
+              : undefined
+          }
+        >
           <PanelNote panel={news} className="mb-2 px-2.5" />
           {news.data.length === 0 ? (
             <p className="px-2.5 pt-1 text-[13.5px] leading-[1.7] text-ink-3">
@@ -547,7 +643,7 @@ function Rail({
             </p>
           ) : (
             <ul className="m-0 flex list-none flex-col p-0">
-              {news.data.map((item) => (
+              {shownNews.map((item) => (
                 <li key={item.id} className="border-t border-rule-list first:border-t-0">
                   <button
                     type="button"
@@ -588,8 +684,8 @@ function Rail({
             <>
               <Badge tone="quiet">{KIND_LABEL[openEvent.kind]}</Badge>
               <span className="text-[12.5px] text-ink-3">
-                {when(openEvent).relative} · {when(openEvent).date} ·{" "}
-                {openEvent.time}
+                {when(openEvent).relative} · {when(openEvent).date}
+                {eventTime(openEvent) && ` · ${eventTime(openEvent)}`}
               </span>
             </>
           )
@@ -664,24 +760,51 @@ function Rail({
   );
 }
 
-/** A rail half: a pinned heading over its own scroller. */
+/**
+ * A rail half: a pinned heading over its own scroller. Inline, below `xl`,
+ * the list flows with the page and ends on a link to the full page instead.
+ */
 function RailCard({
   title,
   note,
+  inline = false,
+  more,
   children,
 }: {
   title: string;
   note: string;
+  inline?: boolean;
+  more?: { href: string; label: string };
   children: React.ReactNode;
 }) {
   return (
     <Card className="flex min-h-0 flex-col">
-      <div className="flex flex-none items-baseline justify-between gap-3 px-5 pt-5 pb-3">
+      <div className={cn("flex flex-none items-baseline justify-between gap-3 pt-5 pb-3", CARD_X)}>
         <h2 className="font-serif text-[21px] leading-none text-ink-2">{title}</h2>
         <p className="flex-none text-[12.5px] text-ink-3">{note}</p>
       </div>
-      {/* The scroller, not the card. The heading above stays put. */}
-      <div className="min-h-0 flex-1 overflow-y-auto px-2.5 pb-4">{children}</div>
+      {/* The scroller, not the card. The heading above stays put. Its padding
+          plus the rows' own px-2.5 lands their text on CARD_X, the heading's
+          line. */}
+      <div
+        className={cn(
+          "px-2.5 pb-4 sm:px-3.5",
+          inline ? "overflow-visible" : "min-h-0 flex-1 overflow-y-auto",
+        )}
+      >
+        {children}
+      </div>
+      {more && (
+        <div className={cn("pb-5", CARD_X)}>
+          <Link
+            href={more.href}
+            className="flex min-h-11 items-center justify-between gap-2 rounded-[10px] border border-rule-control px-3 text-[12.5px] font-medium text-ink-3 transition-colors hover:border-gold hover:text-gold"
+          >
+            {more.label}
+            <IconChevron className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      )}
     </Card>
   );
 }

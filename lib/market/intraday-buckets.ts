@@ -1,4 +1,6 @@
 import type { RawHistoryPoint } from "../api/clients/quotes.ts";
+import { closingBell } from "./official-close.ts";
+import { regularCloseMinute } from "./session.ts";
 
 /* Minute bars, reduced to the grid a chart can actually draw.
  *
@@ -267,19 +269,46 @@ export function columnsToRows(c: IntradayColumns): RawHistoryPoint[] {
   })) as RawHistoryPoint[];
 }
 
-/* Bar START in [09:30, 16:00) New York. For an aggregate the stamp is where
-   the bucket begins, so a 16:00 bucket is post-market from its first second
-   and is dropped, while the 15:30 bucket's close is the closing print. */
-const AGG_ET = new Intl.DateTimeFormat("en-US", {
+/* A bar is judged by where it STARTS, in [09:30, the day's close) New York —
+   16:00, or 13:00 on a half-day. For an aggregate the stamp is where the
+   bucket begins, so a bucket starting at the bell is post-market from its
+   first second and is dropped, while the one before it closes on the last
+   continuous trade. The gateway's minute rows are judged the same way: its
+   16:00 row is a post-market print (measured 23 Sep 2026), not the close.
+   The official close is drawn at the bell by withOfficialCloses instead. */
+const ET_DAY_MINUTE = new Intl.DateTimeFormat("en-CA", {
   timeZone: "America/New_York",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
   hour: "2-digit",
   minute: "2-digit",
   hourCycle: "h23",
 });
-function startsInSession(ms: number): boolean {
-  const [h, m] = AGG_ET.format(ms).split(":").map(Number);
-  const mins = h * 60 + m;
-  return mins >= 9 * 60 + 30 && mins < 16 * 60;
+
+/* One format() and a regex rather than formatToParts: a year of 30-minute
+   bars is ~8,000 of them with extended hours, and on a shared CPU that
+   difference is the route's. The parts path stays as the fallback should the
+   locale ever print differently. */
+const STAMP = /^(\d{4})-(\d{2})-(\d{2})\D+(\d{2}):(\d{2})/;
+
+function easternStamp(ms: number): { day: string; minute: number } {
+  const m = STAMP.exec(ET_DAY_MINUTE.format(ms));
+  if (m) return { day: `${m[1]}-${m[2]}-${m[3]}`, minute: Number(m[4]) * 60 + Number(m[5]) };
+  const parts = ET_DAY_MINUTE.formatToParts(ms);
+  const get = (t: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === t)?.value ?? "";
+  return {
+    day: `${get("year")}-${get("month")}-${get("day")}`,
+    minute: Number(get("hour")) * 60 + Number(get("minute")),
+  };
+}
+
+const inSession = ({ day, minute }: { day: string; minute: number }) =>
+  minute >= 9 * 60 + 30 && minute < regularCloseMinute(day);
+
+/** Whether a bar starting at `ms` is inside that day's regular session. */
+export function startsInRegularSession(ms: number): boolean {
+  return Number.isFinite(ms) && inSession(easternStamp(ms));
 }
 
 /**
@@ -295,7 +324,10 @@ export function aggsToColumns(
   const seen = new Set<number>();
   const kept = bars
     .filter((b) => Number.isFinite(b?.t) && Number.isFinite(b?.c))
-    .filter((b) => startsInSession(b.t) && wanted.has(easternDay(new Date(b.t).toISOString())))
+    .filter((b) => {
+      const at = easternStamp(b.t);
+      return wanted.has(at.day) && inSession(at);
+    })
     .filter((b) => (seen.has(b.t) ? false : (seen.add(b.t), true)))
     .sort((a, b) => a.t - b.t);
   return {
@@ -308,32 +340,15 @@ export function aggsToColumns(
   };
 }
 
-const ET_HOUR = new Intl.DateTimeFormat("en-US", {
-  timeZone: "America/New_York",
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-});
-
-/* 16:00 New York on a given day, as an instant: 20:00Z in summer, 21:00Z in
-   winter. Tried rather than computed from a rule, so a DST change moves it. */
-function closingBell(day: string): number | null {
-  for (const utcHour of [20, 21]) {
-    const at = Date.parse(`${day}T${String(utcHour).padStart(2, "0")}:00:00Z`);
-    if (ET_HOUR.format(at) === "16:00") return at;
-  }
-  return null;
-}
-
 /**
  * A finished session, ended on its OFFICIAL close.
  *
  * Minute bars stop at 15:59, whose close is the last continuous trade; the
- * official close prints in the closing cross at 16:00:00 — the figure the
- * "Previous close" card shows. Without this point the day chart ended a few
- * cents away from the number printed beneath it (336.95 against 337.02 on
- * 23 Sep 2026). It is a real price at its real time, added only where the
- * series stops short of the bell.
+ * official close prints in the closing cross at 16:00:00 — 13:00 on a half-day
+ * — and is the figure the "Previous close" card shows. Without this point the
+ * day chart ended a few cents away from the number printed beneath it (336.95
+ * against 337.02 on 23 Sep 2026). It is a real price at its real time, added
+ * only where the series stops short of the bell.
  */
 export function withOfficialClose(
   series: IntradayColumns,
@@ -341,21 +356,57 @@ export function withOfficialClose(
   close: number | null,
   nowMs: number = Number.POSITIVE_INFINITY,
 ): IntradayColumns {
-  if (close === null || !Number.isFinite(close) || close <= 0) return series;
-  if (series.date.length === 0) return series;
+  if (close === null) return series;
   const bell = closingBell(day);
-  if (bell === null) return series;
   /* A session still running has no official close yet — a partial daily bar's
      "close" is just the latest trade. */
-  if (nowMs < bell) return series;
-  const last = Date.parse(series.date[series.date.length - 1]);
-  if (!(last < bell)) return series;
-  return {
-    date: [...series.date, new Date(bell).toISOString()],
-    price: [...series.price, close],
-    opening: [...series.opening, close],
-    high: [...series.high, close],
-    low: [...series.low, close],
-    volume: [...series.volume, 0],
+  if (bell === null || nowMs < bell) return series;
+  return withOfficialCloses(series, new Map([[day, close]]));
+}
+
+/**
+ * Every session in a series, each ended on its own official close at its own
+ * bell — what the week, month, quarter and year draw, so that no session in
+ * them ends on 15:59's last trade and the last one ends on the figure the page
+ * prints as the close.
+ *
+ * `closes` holds only closes that exist (officialCloses in official-close.ts
+ * decides, including "not yet" for a session still running). A day with a
+ * close and nothing drawn stays undrawn: one dot is not a session.
+ */
+export function withOfficialCloses(
+  series: IntradayColumns,
+  closes: ReadonlyMap<string, number>,
+): IntradayColumns {
+  if (closes.size === 0 || series.date.length === 0) return series;
+  const out = empty();
+  const push = (i: number) => {
+    out.date.push(series.date[i]);
+    out.price.push(series.price[i]);
+    out.opening.push(series.opening[i]);
+    out.high.push(series.high[i]);
+    out.low.push(series.low[i]);
+    out.volume.push(series.volume[i]);
   };
+  let added = 0;
+  let nextDay = easternDay(series.date[0]);
+  for (let i = 0; i < series.date.length; i += 1) {
+    push(i);
+    const day = nextDay;
+    nextDay = i + 1 < series.date.length ? easternDay(series.date[i + 1]) : "";
+    if (nextDay === day) continue;
+    /* The last point of this day's session. */
+    const close = closes.get(day);
+    const bell = closingBell(day);
+    if (close === undefined || !Number.isFinite(close) || close <= 0 || bell === null) continue;
+    if (!(Date.parse(series.date[i]) < bell)) continue;
+    out.date.push(new Date(bell).toISOString());
+    out.price.push(close);
+    out.opening.push(close);
+    out.high.push(close);
+    out.low.push(close);
+    out.volume.push(0);
+    added += 1;
+  }
+  return added > 0 ? out : series;
 }

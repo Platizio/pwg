@@ -339,7 +339,10 @@ function gatewayInputs(): InstrumentInputs {
       price: p.px,
       chg: p.chg,
       ret1y: p.ret1y,
-      marketCap: p.mcap,
+      /* Re-struck at the peer's last price on both paths: the stored cap is
+         the quote's, at the previous close, and px / previousClose is
+         1 + chg/100. */
+      marketCap: p.mcap === null || p.chg === null ? p.mcap : p.mcap * (1 + p.chg / 100),
       pe: p.pe !== null && p.pe > 0 ? p.pe : null,
     })),
     failures: [],
@@ -413,7 +416,11 @@ test("the peers arrive priced, with the trailing year the history job derived", 
   assert.equal(dis.id, "DIS");
   assert.equal(dis.price, 112.4);
   assert.equal(dis.ret1y, 8.2, "the store's own one-year figure, not a second call");
-  assert.equal(dis.marketCap, 2.05e11, "dollars, already multiplied out of millions");
+  assert.equal(
+    dis.marketCap,
+    2.05e11 * (1 - 0.4 / 100),
+    "dollars, already multiplied out of millions, and struck at the row's own price",
+  );
   assert.equal(dis.pe, 21.3);
   assert.equal(wbd.ret1y, -14.6);
   assert.equal(wbd.pe, null, "a loss-making peer shows a dash, not a negative multiple");

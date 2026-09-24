@@ -42,7 +42,20 @@
   background: color-mix(in srgb, var(--paper-2) 82%, transparent);
 }
 
-.logo { display: flex; align-items: center; }
+.logo { position: relative; display: flex; align-items: center; }
+
+/* The wordmark is 30px tall (26px on a phone), and it is the only way home.
+   The hit area is taken to 44px without the pill growing: an invisible band
+   centred on the mark, inside the link, so it is the link's own target. */
+.logo::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 44px;
+  transform: translateY(-50%);
+}
 .logo-img {
   display: block;
   height: 30px;
@@ -197,6 +210,19 @@
 }
 .menu-toggle:hover { background: var(--paper-3); border-color: var(--ink-3); }
 .menu-toggle svg { width: 20px; height: 20px; display: block; }
+
+/* The burger draws at 40px so it sits concentric in the end of the pill, but
+   it is the one control a phone reader must hit, and 40 is under the 44 a
+   finger needs. The target grows to 44px; the drawn circle and the pill's
+   height do not change. -3px, not -2: an absolute box is placed from inside
+   the 1px border, so the 38px padding box needs three a side to reach 44. */
+.menu-toggle { position: relative; }
+.menu-toggle::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+}
 
 .nav-cta-mobile { display: none; }
 

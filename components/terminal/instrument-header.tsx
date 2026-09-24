@@ -2,19 +2,23 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import type { CompanyProfile } from "@/lib/api/normalize/profile";
-import { C, EASE } from "@/lib/tokens";
+import { EASE } from "@/lib/tokens";
 import { GoldButton, cn } from "./ui";
+import { FollowButton } from "./watchlist/follow-button";
 
 export function InstrumentHeader({
   profile,
-  following,
-  onToggleFollow,
   onTrade,
   condensed = false,
 }: {
   profile: CompanyProfile;
-  following: boolean;
-  onToggleFollow: () => void;
+  /* Still accepted, and no longer read. Following used to be an in-memory
+     flag on the portfolio context that no list anywhere consulted; the button
+     is now bound to the reader's watchlists (watchlist/follow-button.tsx) and
+     owns its state. Kept optional so the page that renders this compiles
+     unchanged until it stops passing them. */
+  following?: boolean;
+  onToggleFollow?: () => void;
   onTrade: () => void;
   /* True once the reader has scrolled past the header. The block stays pinned
      either way; condensed, it gives the tabs back the height the full-size
@@ -80,18 +84,7 @@ export function InstrumentHeader({
             condensed && "hidden sm:flex",
           )}
         >
-          <motion.button
-            type="button"
-            onClick={onToggleFollow}
-            whileTap={{ scale: 0.98 }}
-            aria-pressed={following}
-            className={cn(
-              "min-h-11 border border-rule-control px-5 text-[11px] font-bold tracking-[0.16em] uppercase transition-colors hover:border-gold",
-            )}
-            style={{ color: following ? C.gold : C.ink2 }}
-          >
-            {following ? "Following" : "Follow"}
-          </motion.button>
+          <FollowButton symbol={profile.id} name={profile.short} />
 
           {/* A company with no current price can be read about but not traded.
               That state is newly reachable: the page used to 404 whenever the

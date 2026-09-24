@@ -72,7 +72,7 @@ export default function LoadingInstrument() {
   return (
     <div
       aria-busy="true"
-      className="grid min-w-0 lg:h-full lg:overflow-hidden xl:grid-cols-[minmax(0,1fr)_358px]"
+      className="grid min-w-0 lg:h-full lg:overflow-hidden xl:grid-cols-[minmax(0,1fr)_358px] xl:[:root[data-news-rail=collapsed]_&]:grid-cols-[minmax(0,1fr)_56px]"
     >
       <main
         id="terminal-main"
@@ -115,20 +115,24 @@ export default function LoadingInstrument() {
             </div>
 
             {/* The tab strip, at the widths the six words take, so the rule
-                under it lands where it is going to land. */}
-            <div className="no-scrollbar flex gap-8 overflow-x-auto border-b border-rule-section">
-              {[
-                "w-[72px]",
-                "w-[112px]",
-                "w-[124px]",
-                "w-[92px]",
-                "w-[108px]",
-                "w-[76px]",
-              ].map((width) => (
-                <div key={width} className="flex-none py-4">
-                  <Bar className={`h-4 ${width}`} />
-                </div>
-              ))}
+                under it lands where it is going to land. Spaced as tab-bar.tsx
+                spaces its labels: 24px apart on a narrow strip, 32px from a
+                736px column (its container is 24px wider, hence 760 there). */}
+            <div className="@container">
+              <div className="no-scrollbar flex gap-6 overflow-x-auto border-b border-rule-section @min-[736px]:gap-8">
+                {[
+                  "w-[72px]",
+                  "w-[112px]",
+                  "w-[124px]",
+                  "w-[92px]",
+                  "w-[108px]",
+                  "w-[76px]",
+                ].map((width) => (
+                  <div key={width} className="flex-none py-4">
+                    <Bar className={`h-4 ${width}`} />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -190,7 +194,11 @@ export default function LoadingInstrument() {
         aria-label="Reference"
         className="hidden border-l border-rule-section rail-lit xl:block xl:overflow-y-auto"
       >
-        <RailSkeleton />
+        {/* A reader who folded the rail (work-column.tsx) sees the 56px strip
+            here too, not a full rail that snaps shut when the page lands. */}
+        <div className="[:root[data-news-rail=collapsed]_&]:invisible">
+          <RailSkeleton />
+        </div>
       </aside>
     </div>
   );
