@@ -7,7 +7,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BUCKET_MINUTES, sessionsAt } from "@/lib/market/intraday-buckets";
 import { regularSessionOnly } from "@/lib/market/regular-session";
-import { DEFAULT_RANGE, parseFetchedRange } from "@/lib/market/ranges";
+import { DEFAULT_RANGE, parseFetchedRange, spacingLabel } from "@/lib/market/ranges";
 import type { RangeId, TabId } from "@/lib/market/types";
 import type { InstrumentSnapshot } from "@/lib/market/instrument";
 import { usePortfolio } from "@/lib/portfolio";
@@ -242,7 +242,7 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
       intradayLong;
     if (fromStore) {
       const m = barMinutes(storedSession);
-      return m ? `${m}-minute bars` : `${BUCKET_MINUTES}-minute bars`;
+      return spacingLabel(m ?? BUCKET_MINUTES);
     }
     return undefined;
   }, [range, weekIsWhole, liveSession.length, storedSession, intradayLong]);

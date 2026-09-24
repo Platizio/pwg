@@ -106,7 +106,7 @@ test("a daily range names its interval, its real count and its real span", () =>
   assert.match(c, /21 daily closes/);
   assert.match(
     rangeCaption(getRange("1M"), AUG_4, SEP_1, 546, "America/New_York"),
-    /546 15-minute bars/,
+    /546 prices, every 15 minutes/,
     "and when its intraday bars arrive, it says so",
   );
   assert.match(
@@ -262,4 +262,12 @@ test("and India is recognisably India", () => {
    beats empty. */
 test("UTC keeps the only name it has", () => {
   assert.ok(zoneLabel("UTC", SEP_1).length > 0);
+});
+
+/* Every range is a line, and the caption must not call its points "bars" —
+   that reads as a bar chart. */
+test("the caption names a line's spacing without calling it bars", () => {
+  for (const r of ["1D", "1W", "1M", "3M", "1Y", "5Y"]) {
+    assert.doesNotMatch(getRange(r as never).interval, /bar|candle/i, r);
+  }
 });

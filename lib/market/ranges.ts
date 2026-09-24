@@ -12,7 +12,7 @@ import type { RangeDef, RangeId } from "./types";
    that slice contains. Only the day needs its own call, because minute bars
    come from a different endpoint. */
 export const RANGES: RangeDef[] = [
-  { id: "1D", label: "1D", source: "intraday", intraday: true, interval: "1-minute bars" },
+  { id: "1D", label: "1D", source: "intraday", intraday: true, interval: "prices, one a minute" },
   /* Five daily closes until 2026-09-21 — five points for a week, which is the
      straight line readers kept reporting. It is a week of ten-minute buckets
      now, fetched from the stored sessions: no `sessions` slice, because the
@@ -24,10 +24,10 @@ export const RANGES: RangeDef[] = [
      calling itself 1W. The week arrives already being exactly a week.
      The five-close fallback, for before the store has intraday sessions to
      draw from, is sized in instrument-view.tsx where the choice is made. */
-  { id: "1W", label: "1W", source: "daily", intraday: false, interval: "5-minute bars" },
-  { id: "1M", label: "1M", source: "daily", sessions: 21, intraday: false, interval: "15-minute bars" },
-  { id: "3M", label: "3M", source: "daily", sessions: 64, intraday: false, interval: "30-minute bars" },
-  { id: "1Y", label: "1Y", source: "daily", sessions: 252, intraday: false, interval: "30-minute bars" },
+  { id: "1W", label: "1W", source: "daily", intraday: false, interval: "prices, every 5 minutes" },
+  { id: "1M", label: "1M", source: "daily", sessions: 21, intraday: false, interval: "prices, every 15 minutes" },
+  { id: "3M", label: "3M", source: "daily", sessions: 64, intraday: false, interval: "prices, every 30 minutes" },
+  { id: "1Y", label: "1Y", source: "daily", sessions: 252, intraday: false, interval: "prices, every 30 minutes" },
   { id: "5Y", label: "5Y", source: "daily", intraday: false, interval: "daily closes" },
 ];
 
@@ -255,4 +255,14 @@ export function parseFetchedRange(value: string | null | undefined): FetchedRang
   return typeof value === "string" && (FETCHED_RANGES as readonly string[]).includes(value)
     ? (value as FetchedRange)
     : null;
+}
+
+/**
+ * How the caption names the spacing of a line's points.
+ *
+ * "Prices, every 15 minutes" rather than "15-minute bars": every range is drawn
+ * as a LINE, and "bars" read to a reader as a bar chart — which this is not.
+ */
+export function spacingLabel(minutes: number): string {
+  return minutes <= 1 ? "prices, one a minute" : `prices, every ${minutes} minutes`;
 }

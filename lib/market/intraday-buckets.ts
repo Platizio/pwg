@@ -213,53 +213,58 @@ export function lastSession(series: IntradayColumns): IntradayColumns {
  * may still be whole there. Covered minutes decide it: a bucket covers its
  * width, a gateway bar covers one minute.
  *
- * `gateway` rows and `stored` columns are expected already limited to the
- * regular session; the result is rows, ready for bucketIntraday.
+ * Each source's rows are expected already limited to the regular session and
+ * listed finest first; the result is rows, ready for bucketIntraday.
  */
 export function pickSessions(
   days: readonly string[],
-  gateway: readonly RawHistoryPoint[],
-  stored: IntradayColumns | null,
+  sources: ReadonlyArray<{ rows: readonly RawHistoryPoint[]; width: number }>,
 ): RawHistoryPoint[] {
-  const byDay = new Map<string, RawHistoryPoint[]>();
-  for (const row of gateway) {
-    const at = Date.parse(String(row?.date ?? ""));
-    if (!Number.isFinite(at)) continue;
-    const day = easternDay(new Date(at).toISOString());
-    (byDay.get(day) ?? byDay.set(day, []).get(day)!).push(row);
-  }
-
-  const storedByDay = new Map<string, RawHistoryPoint[]>();
-  if (stored) {
-    for (let i = 0; i < stored.date.length; i += 1) {
-      const date = stored.date[i];
-      const day = easternDay(date);
-      (storedByDay.get(day) ?? storedByDay.set(day, []).get(day)!).push({
-        date,
-        price: stored.price[i],
-        opening: stored.opening[i],
-        high: stored.high[i],
-        low: stored.low[i],
-        volume: stored.volume[i],
-      } as RawHistoryPoint);
+  const split = (rows: readonly RawHistoryPoint[]) => {
+    const byDay = new Map<string, RawHistoryPoint[]>();
+    for (const row of rows) {
+      const at = Date.parse(String(row?.date ?? ""));
+      if (!Number.isFinite(at)) continue;
+      const day = easternDay(new Date(at).toISOString());
+      (byDay.get(day) ?? byDay.set(day, []).get(day)!).push(row);
     }
-  }
+    return byDay;
+  };
+  const byDay = sources.map((src) => ({ width: src.width, days: split(src.rows) }));
 
   const out: RawHistoryPoint[] = [];
   for (const day of days) {
-    const g = byDay.get(day) ?? [];
-    const s = storedByDay.get(day) ?? [];
-    /* Minutes each source SPANS. n buckets span (n - 1) widths plus the last
-       bar's minute: a full session is 40 ten-minute buckets, 09:30 to 16:00,
-       which is 391 minutes — the same as the gateway's 391 one-minute bars.
-       Counting n x width instead scored that full stored day at 400, above a
-       complete archive day, and swapped every day's minutes for buckets. Ties
-       and near-ties go to the gateway, the finer source; the store wins only
-       when the archive holds clearly less of the day. */
-    const storeMinutes = s.length > 0 ? (s.length - 1) * BUCKET_MINUTES + 1 : 0;
-    out.push(...(g.length >= storeMinutes * 0.9 ? g : s));
+    /* Minutes each source SPANS: n rows w minutes apart span (n - 1) x w + 1.
+       A full session is 391 whether it is 391 one-minute rows or 40 ten-minute
+       buckets; counting n x w instead once scored forty buckets at 400 and
+       swapped a whole week of minutes for buckets. Sources are listed finest
+       first, and a later one wins only when it covers CLEARLY more (10%) —
+       the hole it exists to fill, not a rounding difference. */
+    let best: RawHistoryPoint[] = [];
+    let bestSpan = 0;
+    for (const src of byDay) {
+      const rows = src.days.get(day) ?? [];
+      const span = rows.length > 0 ? (rows.length - 1) * src.width + 1 : 0;
+      if (best.length === 0 ? span > 0 : span > bestSpan * 1.1) {
+        best = rows;
+        bestSpan = span;
+      }
+    }
+    out.push(...best);
   }
   return out;
+}
+
+/** Columns back into rows, for merging with row-shaped sources. */
+export function columnsToRows(c: IntradayColumns): RawHistoryPoint[] {
+  return c.date.map((date, i) => ({
+    date,
+    price: c.price[i],
+    opening: c.opening[i],
+    high: c.high[i],
+    low: c.low[i],
+    volume: c.volume[i],
+  })) as RawHistoryPoint[];
 }
 
 /* Bar START in [09:30, 16:00) New York. For an aggregate the stamp is where

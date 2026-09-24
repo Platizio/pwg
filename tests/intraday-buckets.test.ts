@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { bucketIntraday, SESSIONS_KEPT, sessionsAt, pickSessions, aggsToColumns } from "../lib/market/intraday-buckets.ts";
+import { bucketIntraday, SESSIONS_KEPT, sessionsAt, pickSessions, aggsToColumns, columnsToRows } from "../lib/market/intraday-buckets.ts";
 import { mergeIntradaySessions } from "../lib/market/store/sections.ts";
 
 /* Minute bars reduced to the grid a chart can draw.
@@ -221,7 +221,7 @@ test("a complete archive day beats a complete stored day", () => {
   const g = Array.from({ length: 391 }, (_, i) => minute(new Date(Date.parse("2026-09-15T13:30:00Z") + i * 60_000).toISOString()));
   const b = Array.from({ length: 40 }, (_, i) => new Date(Date.parse("2026-09-15T13:30:00Z") + i * 600_000).toISOString());
   const stored = { date: b, price: b.map(() => 1), opening: b.map(() => 1), high: b.map(() => 1), low: b.map(() => 1), volume: b.map(() => 1) };
-  const out = pickSessions(["2026-09-15"], g as never, stored);
+  const out = pickSessions(["2026-09-15"], [{ rows: g as never, width: 1 }, { rows: columnsToRows(stored), width: 10 }]);
   assert.equal(out.length, 391, "the one-minute bars, not the forty buckets");
 });
 
@@ -229,18 +229,18 @@ test("a day the archive lost is drawn from the store instead", () => {
   const thin = [minute("2026-09-16T13:32:00Z"), minute("2026-09-16T19:44:00Z")];
   const buckets = Array.from({ length: 39 }, (_, i) => new Date(Date.parse("2026-09-16T13:30:00Z") + i * 600_000).toISOString());
   const stored = { date: buckets, price: buckets.map(() => 2), opening: buckets.map(() => 2), high: buckets.map(() => 2), low: buckets.map(() => 2), volume: buckets.map(() => 1) };
-  const out = pickSessions(["2026-09-16"], thin as never, stored);
+  const out = pickSessions(["2026-09-16"], [{ rows: thin as never, width: 1 }, { rows: columnsToRows(stored), width: 10 }]);
   assert.equal(out.length, 39, "39 ten-minute buckets cover more than 2 stray minutes");
 });
 
 test("with nothing better, a thin day is still drawn rather than dropped", () => {
   const thin = [minute("2026-09-16T13:32:00Z"), minute("2026-09-16T19:44:00Z")];
-  assert.equal(pickSessions(["2026-09-16"], thin as never, null).length, 2);
+  assert.equal(pickSessions(["2026-09-16"], [{ rows: thin as never, width: 1 }, { rows: [], width: 10 }]).length, 2);
 });
 
 test("only the requested sessions come back, in order", () => {
   const rows = [minute("2026-09-14T14:00:00Z"), minute("2026-09-15T14:00:00Z"), minute("2026-09-16T14:00:00Z")];
-  const out = pickSessions(["2026-09-15", "2026-09-16"], rows as never, null);
+  const out = pickSessions(["2026-09-15", "2026-09-16"], [{ rows: rows as never, width: 1 }, { rows: [], width: 10 }]);
   assert.deepEqual(out.map((r) => r.date), ["2026-09-15T14:00:00Z", "2026-09-16T14:00:00Z"]);
 });
 
@@ -268,4 +268,27 @@ test("only the requested trading days, in order, without the chunks' overlaps", 
     ["2026-09-21", "2026-09-22"],
   );
   assert.deepEqual(c.price, [1, 2]);
+});
+
+/* Polygon leads for the day and the week: it has every minute, where the
+   archive lags a day and has holes. A complete Polygon day is drawn from it
+   even when the archive holds the same day in full. */
+test("of three complete sources, the first listed draws the day", () => {
+  const minutes = (price: number) => Array.from({ length: 391 }, (_, i) => minute(new Date(Date.parse("2026-09-23T13:30:00Z") + i * 60_000).toISOString(), price));
+  const out = pickSessions(["2026-09-23"], [
+    { rows: minutes(1) as never, width: 1 },
+    { rows: minutes(2) as never, width: 1 },
+    { rows: [], width: 10 },
+  ]);
+  assert.equal(out.length, 391);
+  assert.equal(out[0].price, 1, "the first source");
+});
+
+test("a day the first source lacks is taken from the next one that has it", () => {
+  const minutes = Array.from({ length: 391 }, (_, i) => minute(new Date(Date.parse("2026-09-23T13:30:00Z") + i * 60_000).toISOString(), 2));
+  const out = pickSessions(["2026-09-23"], [
+    { rows: [], width: 1 },
+    { rows: minutes as never, width: 1 },
+  ]);
+  assert.equal(out.length, 391);
 });

@@ -7,7 +7,9 @@ import {
   SESSIONS_KEPT,
   bucketIntraday,
   easternDay,
+  BUCKET_MINUTES,
   aggsToColumns,
+  columnsToRows,
   lastSession,
   pickSessions,
   type IntradayColumns,
@@ -118,9 +120,24 @@ export async function GET(
     const days = tradingDays(Date.now(), range === "1D" ? 1 : SESSIONS_KEPT);
     const window = windowFor(days);
     if (window) {
-      /* Both sources at once; each session is then taken from whichever
-         covers more of it (pickSessions) — the archive has holes. */
-      const [res, storedRows] = await Promise.all([
+      /* Three sources at once; each session is then taken from whichever
+         covers it (pickSessions), finest first. Polygon's aggregates lead: they
+         have every minute for years, where the intraday archive has holes
+         (16 Sep 2026 held 18 of 391 bars) and lags a day behind (on 24 Sep it
+         had not yet filled the 23rd, and the day chart fell back to forty
+         ten-minute buckets). The archive and our own captures remain behind
+         it, so one source failing never blanks a day. */
+      const width = range === "1D" ? 1 : 5;
+      const DAY_MS = 86_400_000;
+      const [poly, res, storedRows] = await Promise.all([
+        fetchAggs(
+          symbol,
+          width,
+          "minute",
+          Date.parse(`${days[0]}T00:00:00Z`),
+          Date.parse(`${days[days.length - 1]}T00:00:00Z`) + DAY_MS + 6 * 3_600_000,
+          300,
+        ).catch(() => null),
         fetchIntradayRange(symbol, window.from, window.to, 300, [`history:${symbol}`]).catch(
           () => null,
         ),
@@ -129,6 +146,9 @@ export async function GET(
       const wanted = new Set(days);
       const inWindow = (ms: number) =>
         inRegularSession(ms) && wanted.has(easternDay(new Date(ms).toISOString()));
+      const polyRows = columnsToRows(
+        aggsToColumns(poly?.ok && Array.isArray(poly.data?.results) ? poly.data.results : [], days),
+      );
       const gatewayRows =
         res?.ok && Array.isArray(res.data)
           ? res.data.filter((row) => inWindow(Date.parse(String(row?.date ?? ""))))
@@ -140,9 +160,13 @@ export async function GET(
       const storedInWindow = stored
         ? keepColumns(stored, (iso) => inWindow(Date.parse(iso)))
         : null;
-      const rows = pickSessions(days, gatewayRows, storedInWindow);
+      const rows = pickSessions(days, [
+        { rows: polyRows, width },
+        { rows: gatewayRows, width: 1 },
+        { rows: storedInWindow ? columnsToRows(storedInWindow) : [], width: BUCKET_MINUTES },
+      ]);
       if (rows.length > 0) {
-        const series = bucketIntraday(rows, range === "1D" ? 1 : 5);
+        const series = bucketIntraday(rows, width);
         if (series.date.length > 0) {
           return Response.json(
             { range, series, sessions: days.length },
