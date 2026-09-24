@@ -90,11 +90,20 @@ import {
 /** What market_seed_symbols is documented to take per call. */
 const SEED_CHUNK = 2_000;
 
-/* Quotes carry the whole raw quote alongside the row, so a chunk is roughly
-   two megabytes of JSON at this size. Larger is one fewer round trip and a
-   request body PostgREST has to buffer whole; smaller is more round trips to
-   Mumbai for no gain. */
-const QUOTE_CHUNK = 500;
+/* Quotes carry the whole raw quote alongside the row, so a 500-row chunk was
+   about two megabytes of JSON — uploaded from a home connection to Mumbai.
+   While autovacuum was busy on market.quotes (observed 24 Sep 2026, a 97s
+   VACUUM ANALYZE), every such chunk overran the store client's 8s timeout and
+   was aborted mid-write; an aborted write leaves PostgREST's transaction open,
+   and enough of those exhausted the pool once already. 200 rows is ~0.8MB:
+   more round trips, each short enough to finish. */
+const QUOTE_CHUNK = 200;
+
+/* The worker's writes get a long budget. Eight seconds is right for a page
+   read, where a reader is waiting; a background write has nobody waiting, and
+   abandoning one half-way costs more than letting it complete — an orphaned
+   server transaction, a failed chunk, and the same data sent again later. */
+const WRITE_TIMEOUT_MS = 30_000;
 
 /* Enrolment is symbols × sections rows in one statement: a thousand names on
    six sections is six thousand inserts, which is a comfortable statement and
@@ -503,7 +512,7 @@ export function startRefresher(opts: RefresherOptions = {}): Refresher {
         ...row,
         raw: row.raw ?? null,
       }));
-      const res = await upsertQuotes(rows, sweptAt);
+      const res = await upsertQuotes(rows, sweptAt, { timeoutMs: WRITE_TIMEOUT_MS });
       if (!res.ok) {
         failed += 1;
         log(`refresh quotes chunk=${rows.length} error=${res.error}`);
@@ -524,7 +533,7 @@ export function startRefresher(opts: RefresherOptions = {}): Refresher {
       const list = hotList(snap, hot);
       if (list) {
         hot = list;
-        const res = await setHot(list);
+        const res = await setHot(list, { timeoutMs: WRITE_TIMEOUT_MS });
         if (!res.ok) log(`refresh hot error=${res.error}`);
       } else {
         /* The sweep was not a reading of the market — it lost chunks, or came
@@ -566,7 +575,7 @@ export function startRefresher(opts: RefresherOptions = {}): Refresher {
          rows rather than the old blob. A failed build is one line and the
          previous blob stays; the page never sees an empty answer. */
       const buildStarted = Date.now();
-      const built = await buildHome(HOME_STRIP_SYMBOLS);
+      const built = await buildHome(HOME_STRIP_SYMBOLS, { timeoutMs: WRITE_TIMEOUT_MS });
       if (built.ok) {
         log(
           `refresh home built rows=${built.data.rows} bytes=${built.data.bytes} ` +

@@ -194,12 +194,16 @@ test("a --once run sweeps and then claims, rather than going down between the tw
      from are written and before the claim that would otherwise delay it. A
      rewrite that built it from the page, or skipped it, or built it before the
      upsert, would pass every other assertion here. */
-  assert.equal(stub.calls.market_upsert_quotes, 1, "one priced chunk is written once");
+  /* The stub answers each of the sweep's ~276 quote requests with the same
+     row, so how many CHUNKS that makes depends only on QUOTE_CHUNK — it was
+     one at 500 and is two at 200. What matters is that the rows are written,
+     and that EVERY write lands before the blob is built from them. */
+  assert.ok(stub.calls.market_upsert_quotes >= 1, "the priced rows are written");
   assert.equal(stub.calls.market_build_home, 1, "and the home blob is rebuilt exactly once");
   assert.ok(
-    stub.order.indexOf("market_upsert_quotes") < stub.order.indexOf("market_build_home") &&
+    stub.order.lastIndexOf("market_upsert_quotes") < stub.order.indexOf("market_build_home") &&
       stub.order.indexOf("market_build_home") < stub.order.indexOf("market_claim_due"),
-    `upsert, then build, then claim; the order was ${stub.order.join(" > ")}`,
+    `every upsert, then build, then claim; the order was ${stub.order.join(" > ")}`,
   );
   assert.match(log, /refresh home built rows=/);
 
