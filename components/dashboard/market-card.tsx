@@ -74,7 +74,7 @@ export function MarketCard({ views }: { views: IndexView[] }) {
     );
   }
 
-  const { index, breadth, sample, proxyTicker } = view;
+  const { index, breadth, proxyTicker } = view;
 
   /* The level and the percent move together or not at all, on the same terms
      as the rows below. A proxy the stream never mentions leaves the headline
@@ -184,21 +184,17 @@ export function MarketCard({ views }: { views: IndexView[] }) {
               <span className="font-mono text-[12.5px] tracking-[0.04em] text-ink-3 max-lg:text-[12px]">
                 {signed(head.level - prev, 2)} today
               </span>
+              {/* The figure is the fund's price, not the index level: said by
+                  naming the fund, not by a sentence under it. */}
+              <span className="font-mono text-[11px] tracking-[0.06em] text-ink-3 lg:hidden">
+                via {proxyTicker}
+              </span>
             </div>
           </div>
 
-          <p className="mt-5 max-w-[38ch] text-[13.5px] leading-[1.7] text-ink-3 max-lg:hidden">
-            {index.note}
-          </p>
-          {/* The same caveat in one line for a phone: the ticker under the
-              level and the paragraph above fold into it. */}
-          <p className="mt-1.5 truncate text-[11.5px] text-ink-3 lg:hidden">
-            <span className="font-mono tracking-[0.06em] text-ink-2">{proxyTicker}</span>{" "}
-            ETF price, not the index level
-          </p>
         </div>
 
-        <Breadth index={index} breadth={breadth} basis={sample.basis} />
+        <Breadth index={index} breadth={breadth} />
       </div>
 
         {/* The captions point back at the sample the breadth tile describes,
@@ -206,20 +202,8 @@ export function MarketCard({ views }: { views: IndexView[] }) {
             membership for Manulife, Shinhan and Arm, and the sample is drawn
             by market value, not by index (see `basis`). */}
         <div className="mt-7 grid gap-x-8 gap-y-7 border-t border-rule-section pt-6 sm:grid-cols-2 max-lg:mt-3.5 max-lg:grid-cols-2 max-lg:gap-x-4 max-lg:gap-y-1.5 max-lg:pt-3">
-          <MoverStrip
-            title="Biggest gains today"
-            caption={`Of the ${breadth.total} names above, those that rose most`}
-            rows={leaders}
-          />
-          <MoverStrip
-            title="Biggest falls today"
-            caption={`Of the ${breadth.total} names above, those that fell most`}
-            rows={laggards}
-          />
-          {/* Below `lg` the strips sit side by side and share one caption. */}
-          <p className="col-span-2 text-[11px] leading-[1.5] text-ink-3 lg:hidden">
-            Of the {breadth.total} names above, those that rose and fell most
-          </p>
+          <MoverStrip title="Biggest gains today" rows={leaders} />
+          <MoverStrip title="Biggest falls today" rows={laggards} />
         </div>
       </div>
     </Card>
@@ -262,19 +246,14 @@ function freshen(rows: Quote[] | undefined, ticks: ReadonlyMap<string, Tick>): Q
 function Breadth({
   index,
   breadth,
-  basis,
 }: {
   index: MarketIndex;
   breadth: { total: number; up: number; down: number; flat: number; unreported: number };
-  /* How the sample was drawn, supplied by the data. The count moves with the
-     sweep, and the wording must never harden into a claim of membership. */
-  basis: string;
 }) {
   /* Among the names that moved, not among the sample: an unreported name is not
      a decline, and the bar must not draw it as one. */
   const moved = breadth.up + breadth.down;
   const upShare = moved ? (breadth.up / moved) * 100 : 0;
-  const reported = breadth.up + breadth.down + breadth.flat;
 
   return (
     /* Below `lg` the tile gives up its frame for a hairline: a thin bar and
@@ -283,49 +262,38 @@ function Breadth({
     <div className="min-w-0 rounded-[var(--radius-tile)] border border-rule-section bg-[linear-gradient(140deg,var(--c-tile-from),var(--c-tile-to))] p-5 max-lg:rounded-none max-lg:border-x-0 max-lg:border-b-0 max-lg:bg-none max-lg:p-0 max-lg:pt-3">
       <p className="card-label max-lg:text-[12.5px]!">How the {index.short} moved today</p>
 
-      {/* One combed bar, hard-split at the advancing share. On a phone it is
-          a solid 5px rule; the comb needs height to read as ticks. */}
+      {/* One combed bar, hard-split at the advancing share: thin vertical
+          ticks, 12px tall on a phone. */}
       <div
         aria-hidden="true"
-        className="tick-split mt-4 h-[22px] w-full max-lg:mt-2 max-lg:h-[5px] max-lg:rounded-full max-lg:[mask-image:none]! max-lg:[-webkit-mask-image:none]!"
+        className="tick-split mt-4 h-[22px] w-full max-lg:mt-2.5 max-lg:h-[12px]"
         style={{
           background: `linear-gradient(90deg, ${C.up} 0 ${upShare}%, ${C.down} ${upShare}% 100%)`,
         }}
       />
 
-      <div className="mt-3 flex items-baseline justify-between gap-4 max-lg:mt-1.5">
+      <div className="mt-3 flex items-baseline justify-between gap-4 max-lg:mt-2">
         <span className="font-mono text-[17px] max-lg:text-[12.5px]" style={{ color: C.up }}>
           {breadth.up} rose
         </span>
+        {breadth.flat > 0 && (
+          <span className="font-mono text-[12px] text-ink-3 max-lg:text-[11px]">
+            {breadth.flat} unchanged
+          </span>
+        )}
         <span className="font-mono text-[17px] max-lg:text-[12.5px]" style={{ color: C.down }}>
           {breadth.down} fell
         </span>
       </div>
-
-      <p className="font-mono mt-4 border-t border-rule-section pt-3.5 text-[12px] leading-[1.6] text-ink-3 max-lg:mt-1 max-lg:border-t-0 max-lg:pt-0 max-lg:text-[11px]">
-        <span className="text-ink-2">{reported}</span> of {breadth.total} reported
-        {breadth.flat > 0 && <> · {breadth.flat} unchanged</>}
-        {breadth.unreported > 0 && <> · {breadth.unreported} sent no change</>}
-      </p>
-      <p className="mt-1.5 text-[12px] leading-[1.55] text-ink-3 max-lg:mt-0 max-lg:text-[11px] max-lg:leading-[1.5]">{basis}.</p>
     </div>
   );
 }
 
 /** Three names, each one a door into its instrument page. */
-function MoverStrip({
-  title,
-  caption,
-  rows,
-}: {
-  title: string;
-  caption: string;
-  rows: Quote[];
-}) {
+function MoverStrip({ title, rows }: { title: string; rows: Quote[] }) {
   return (
     <div className="min-w-0">
       <p className="card-label max-lg:text-[12.5px]!">{title}</p>
-      <p className="mt-1 text-[12.5px] text-ink-3 max-lg:hidden">{caption}</p>
       {/* Pulled out by the rows' own px-2.5, so the monograms and prices land
           on CARD_X under the label while the hover tint gets room either side.
 

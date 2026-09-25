@@ -124,10 +124,8 @@ export function Dashboard({ data }: { data: HomeSnapshot }) {
             proxy stays, because a reader comparing a tab against the index
             itself is owed the reason they differ.
           */}
-          <p className="mt-8 max-w-[70ch] text-[12.5px] leading-[1.75] text-ink-3">
-            The index tabs are priced through the funds that track them, so
-            each level shown is the price of the fund rather than of the index
-            itself. Nothing here is advice.
+          <p className="mt-8 text-[12px] text-ink-3">
+            Index figures are the prices of the funds that track them. Not investment advice.
           </p>
         </div>
       </main>
@@ -508,11 +506,6 @@ function SectorCards({ panel }: { panel: Panel<SectorGroup[]> }) {
           this heading at 20px, which matched neither. */}
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h2 className="font-serif text-[21px] leading-none text-ink-2 max-lg:text-[18px]">By sector</h2>
-        {groups.length > 0 && (
-          <p className="text-[12.5px] text-ink-3">
-            {groups.length} sectors · four largest movers each
-          </p>
-        )}
       </div>
 
       {groups.length === 0 ? (
