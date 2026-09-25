@@ -99,11 +99,11 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
   const term = query.trim().toLowerCase();
   const narrow = useSyncExternalStore(
     (notify) => {
-      const mq = window.matchMedia("(max-width: 639px)");
+      const mq = window.matchMedia("(max-width: 1023px)");
       mq.addEventListener("change", notify);
       return () => mq.removeEventListener("change", notify);
     },
-    () => window.matchMedia("(max-width: 639px)").matches,
+    () => window.matchMedia("(max-width: 1023px)").matches,
     () => false,
   );
   const universe = data.universe;
@@ -445,8 +445,8 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
              a figure stating something untrue about the market rather than
              about the box. */
           placeholder={
-            /* The count does not fit a phone's box beside Invest: it read
-               "Search 900 stock" cut off at the edge. */
+            /* The count does not fit the box beside the menu, the session pill
+               and Invest below desktop width: it read "Search 900 sto". */
             universe.length > 0 && !narrow
               ? `Search ${COUNT_FMT.format(universe.length)} stocks`
               : "Search stocks"
