@@ -40,8 +40,9 @@ export function FollowButton({
 }: {
   symbol: string;
   name?: string | null;
-  /* A 40px square with the glyph alone, for the phone header, where the
-     label's 212px would push the name onto a second line. */
+  /* The phone header's version: a short pill, "+ Follow" / "✓ Following",
+     instead of the 212px "Add to watchlist" box. A glyph alone read as a
+     button with no purpose. */
   compact?: boolean;
 }) {
   const state = useWatchlists();
@@ -149,7 +150,7 @@ export function FollowButton({
         title={hydrated ? where : undefined}
         className={cn(
           compact
-            ? "grid h-10 w-10 place-items-center rounded-[10px] border transition-colors"
+            ? "inline-flex h-10 items-center gap-1.5 rounded-[10px] border px-3 text-[10.5px] font-bold tracking-[0.12em] uppercase transition-colors"
             : cn(
                 "inline-flex min-h-11 w-full items-center justify-center gap-2 border px-4 text-[11px] font-bold tracking-[0.16em] uppercase transition-colors sm:w-auto",
                 LABEL_BOX,
@@ -164,11 +165,11 @@ export function FollowButton({
             arrive. */}
         <span className={cn("inline-flex items-center gap-2 whitespace-nowrap", !hydrated && "invisible")}>
           {following ? (
-            <GlyphCheck className={cn("flex-none", compact ? "h-[18px] w-[18px]" : "h-3.5 w-3.5")} />
+            <GlyphCheck className="h-3.5 w-3.5 flex-none" />
           ) : (
-            <IconPlus className={cn("flex-none", compact ? "h-[18px] w-[18px]" : "h-3.5 w-3.5")} />
+            <IconPlus className="h-3.5 w-3.5 flex-none" />
           )}
-          {compact ? <span className="sr-only">{label}</span> : label}
+          {compact ? (following ? "Following" : "Follow") : label}
           {!single && !compact && (
             <GlyphCaret
               className={cn("h-3.5 w-3.5 flex-none transition-transform duration-300", open && "rotate-180")}

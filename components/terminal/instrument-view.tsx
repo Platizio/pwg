@@ -465,10 +465,10 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
      transformed box would put the jump below out by that much. */
   const panelLeadRef = useRef<HTMLDivElement>(null);
   const [condensed, setCondensed] = useState(false);
-  /* The pinned, condensing header is a desktop behaviour; below lg the header
+  /* The pinned, condensing header is a desktop behaviour; below sm the header
      scrolls away and the tabs pin instead, so condensing it would only make
      the page jump under the reader's thumb. */
-  const wide = useMinWidth(1024);
+  const wide = useMinWidth(640);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -586,7 +586,8 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
     >
       <div ref={sentinelRef} aria-hidden="true" className="h-px" />
 
-      {/* Below lg the page is laid out like a phone app: name, price, a tall
+      {/* Below sm (a phone; an unfolded foldable or a tablet gets the desktop
+          layout) the page is laid out like a phone app: name, price, a tall
           chart, the range under it, then the tabs, pinned once they reach the
           top. The DOM keeps the desktop order and each block takes its phone
           place with `order`; the pinned block dissolves into this column
@@ -629,7 +630,7 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
       <div
         ref={blockRef}
         className={cn(
-          "max-lg:contents sticky top-[69px] z-20 -mx-4 px-4 pt-4 sm:-mx-6 sm:px-6 lg:top-0 lg:-mx-7 lg:px-7",
+          "max-sm:contents sticky top-[73px] z-20 -mx-4 px-4 pt-4 sm:-mx-6 sm:px-6 lg:top-0 lg:-mx-7 lg:px-7",
           condensed &&
             "bg-shell before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-6 before:bg-shell before:content-['']",
           condensed && PIN_SHADOW,
@@ -643,14 +644,14 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
           condensed={condensed && wide}
         />
 
-        <div className="max-lg:sticky max-lg:top-[65px] max-lg:z-20 max-lg:order-5 max-lg:-mx-4 max-lg:bg-shell max-lg:px-4 sm:max-lg:-mx-6 sm:max-lg:px-6">
+        <div className="max-sm:sticky max-sm:top-[65px] max-sm:z-20 max-sm:order-5 max-sm:-mx-4 max-sm:bg-shell max-sm:px-4">
           <TabBar active={tab} onChange={selectTab} />
         </div>
       </div>
 
-      <div className="pt-7 max-lg:hidden" />
+      <div className="pt-7 max-sm:hidden" />
 
-      <div className="max-lg:order-2 max-lg:pt-4">
+      <div className="max-sm:order-2 max-sm:pt-4">
         <PriceHeader
           profile={stock}
           session={snapshot.session}
@@ -661,7 +662,7 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
 
       {/* Taller on a phone than anywhere else: the chart is what the page is
           for, and at 240px it was a strip under a 56px name block. */}
-      <div className="h-[clamp(300px,50vh,440px)] max-lg:order-3 max-lg:mt-3 sm:h-[340px] lg:h-[340px]">
+      <div className="h-[clamp(300px,50vh,440px)] max-sm:order-3 max-sm:mt-3 sm:h-[300px] lg:h-[340px]">
         <PriceChart
           history={chartHistory}
           range={range}
@@ -675,11 +676,11 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
 
       {/* The space above the panel, as an element so selectTab can measure
           where the panel starts without its entrance transform. */}
-      <div className="pt-3 pb-1 max-lg:order-4 lg:hidden">
+      <div className="pt-3 pb-1 max-sm:order-4 sm:hidden">
         <RangePills range={range} onRange={setRange} />
       </div>
 
-      <div ref={panelLeadRef} aria-hidden="true" className="h-8 max-lg:order-6 max-lg:h-5" />
+      <div ref={panelLeadRef} aria-hidden="true" className="h-8 max-sm:order-6 max-sm:h-5" />
 
       {/* Keyed entrance rather than AnimatePresence: the outgoing panel has
           nothing to say on its way out, and `mode="wait"` would hold the
@@ -693,7 +694,7 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: EASE }}
-        className="focus-visible:outline-offset-8 max-lg:order-7 max-sm:pb-24"
+        className="focus-visible:outline-offset-8 max-sm:order-7 max-sm:pb-24"
       >
         {panels[tab]}
       </motion.div>

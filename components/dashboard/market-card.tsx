@@ -66,7 +66,7 @@ export function MarketCard({ views }: { views: IndexView[] }) {
      than the gap. */
   if (views.length === 0) {
     return (
-      <Card lit className={cn("py-7 max-lg:py-4", CARD_X)}>
+      <Card lit className={cn("py-7 max-sm:py-4", CARD_X)}>
         <p className="text-[13.5px] leading-[1.7] text-ink-3">
           No index is quoting. The tabs return when the tracking funds do.
         </p>
@@ -74,7 +74,7 @@ export function MarketCard({ views }: { views: IndexView[] }) {
     );
   }
 
-  const { index, breadth, proxyTicker } = view;
+  const { index, breadth, sample, proxyTicker } = view;
 
   /* The level and the percent move together or not at all, on the same terms
      as the rows below. A proxy the stream never mentions leaves the headline
@@ -115,7 +115,7 @@ export function MarketCard({ views }: { views: IndexView[] }) {
   return (
     /* The dashboard's one inset (CARD_X), so the tabs, the level and the
        movers share a left line with every card below. */
-    <Card lit className={cn("py-7 max-lg:py-4", CARD_X)}>
+    <Card lit className={cn("py-7 max-sm:py-4", CARD_X)}>
       <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
         <div
           ref={tabsRef}
@@ -125,7 +125,7 @@ export function MarketCard({ views }: { views: IndexView[] }) {
           /* Below `lg` the pills sit in one segmented track that spans the
              card, three equal thirds at 30px, so the switcher reads as a
              control rather than three buttons and costs one short line. */
-          className="flex flex-wrap items-center gap-2 max-lg:grid max-lg:w-full max-lg:max-w-[26rem] max-lg:grid-cols-3 max-lg:gap-0 max-lg:rounded-full max-lg:border max-lg:border-rule-control max-lg:p-[3px]"
+          className="flex flex-wrap items-center gap-2 max-sm:grid max-sm:w-full max-sm:max-w-[26rem] max-sm:grid-cols-3 max-sm:gap-0 max-sm:rounded-full max-sm:border max-sm:border-rule-control max-sm:p-[3px]"
         >
           {views.map(({ index: i }) => {
             const selected = i.id === index.id;
@@ -142,10 +142,10 @@ export function MarketCard({ views }: { views: IndexView[] }) {
                   "min-h-11 rounded-full px-5 text-[13.5px] font-medium whitespace-nowrap transition-all duration-300",
                   /* 30px to the eye, 44px to the thumb: the pseudo-element
                      carries the hit area into the track's padding. */
-                  "max-lg:relative max-lg:h-[30px] max-lg:min-h-0 max-lg:px-2 max-lg:text-[12px] max-lg:before:absolute max-lg:before:inset-x-0 max-lg:before:-inset-y-[7px]",
+                  "max-sm:relative max-sm:h-[30px] max-sm:min-h-0 max-sm:px-2 max-sm:text-[12px] max-sm:before:absolute max-sm:before:inset-x-0 max-sm:before:-inset-y-[7px]",
                   selected
-                    ? "bg-[image:var(--cta-buy)] text-on-gold shadow-[0_10px_26px_-12px_rgba(217,189,139,0.6)] max-lg:shadow-[0_6px_16px_-10px_rgba(217,189,139,0.6)]"
-                    : "border border-rule-control text-ink-3 hover:border-[rgba(217,189,139,0.3)] hover:text-ink max-lg:border-transparent max-lg:hover:border-transparent",
+                    ? "bg-[image:var(--cta-buy)] text-on-gold shadow-[0_10px_26px_-12px_rgba(217,189,139,0.6)] max-sm:shadow-[0_6px_16px_-10px_rgba(217,189,139,0.6)]"
+                    : "border border-rule-control text-ink-3 hover:border-[rgba(217,189,139,0.3)] hover:text-ink max-sm:border-transparent max-sm:hover:border-transparent",
                 )}
               >
                 {i.short}
@@ -161,49 +161,60 @@ export function MarketCard({ views }: { views: IndexView[] }) {
         role="tabpanel"
         aria-labelledby={`market-tab-${index.id}`}
         tabIndex={0}
-        className="mt-7 focus-visible:outline-offset-8 max-lg:mt-4"
+        className="mt-7 focus-visible:outline-offset-8 max-sm:mt-4"
       >
-      <div className="grid gap-x-10 gap-y-8 max-lg:gap-y-3.5 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)]">
+      <div className="grid gap-x-10 gap-y-8 max-sm:gap-y-3.5 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)]">
         <div className="min-w-0">
           {/* Below `lg`: the level and the day's move on one line. */}
-          <div className="flex flex-wrap items-end gap-x-8 gap-y-4 max-lg:items-baseline max-lg:gap-x-3 max-lg:gap-y-1">
+          <div className="flex flex-wrap items-end gap-x-8 gap-y-4 max-sm:items-baseline max-sm:gap-x-3 max-sm:gap-y-1">
             <div className="min-w-0">
-              <p className="font-mono text-[clamp(2.5rem,5vw,3.75rem)] leading-none font-light tracking-[-0.03em] text-ink max-lg:text-[28px]">
+              <p className="font-mono text-[clamp(2.5rem,5vw,3.75rem)] leading-none font-light tracking-[-0.03em] text-ink max-sm:text-[28px]">
                 {money(head.level)}
               </p>
               {/* The figure is a fund's share price, and at a glance a large
                   number under an index heading reads as the index. Naming the
                   fund here means the paragraph below confirms rather than
                   corrects. */}
-              <p className="font-mono mt-2 text-[11.5px] tracking-[0.08em] text-ink-3 max-lg:hidden">
+              <p className="font-mono mt-2 text-[11.5px] tracking-[0.08em] text-ink-3 max-sm:hidden">
                 {proxyTicker}
               </p>
             </div>
-            <div className="mb-1.5 flex flex-col gap-1.5 max-lg:mb-0 max-lg:flex-row max-lg:items-baseline max-lg:gap-2.5">
-              <Delta value={head.chg} size="text-[17px] max-lg:text-[14px]" />
-              <span className="font-mono text-[12.5px] tracking-[0.04em] text-ink-3 max-lg:text-[12px]">
+            <div className="mb-1.5 flex flex-col gap-1.5 max-sm:mb-0 max-sm:flex-row max-sm:items-baseline max-sm:gap-2.5">
+              <Delta value={head.chg} size="text-[17px] max-sm:text-[14px]" />
+              <span className="font-mono text-[12.5px] tracking-[0.04em] text-ink-3 max-sm:text-[12px]">
                 {signed(head.level - prev, 2)} today
               </span>
               {/* The figure is the fund's price, not the index level: said by
                   naming the fund, not by a sentence under it. */}
-              <span className="font-mono text-[11px] tracking-[0.06em] text-ink-3 lg:hidden">
+              <span className="font-mono text-[11px] tracking-[0.06em] text-ink-3 sm:hidden">
                 via {proxyTicker}
               </span>
             </div>
           </div>
 
+          <p className="mt-5 max-w-[38ch] text-[13.5px] leading-[1.7] text-ink-3 max-sm:hidden">
+            {index.note}
+          </p>
         </div>
 
-        <Breadth index={index} breadth={breadth} />
+        <Breadth index={index} breadth={breadth} basis={sample.basis} />
       </div>
 
         {/* The captions point back at the sample the breadth tile describes,
             not at the index. "The S&P 500 names that rose most" claimed
             membership for Manulife, Shinhan and Arm, and the sample is drawn
             by market value, not by index (see `basis`). */}
-        <div className="mt-7 grid gap-x-8 gap-y-7 border-t border-rule-section pt-6 sm:grid-cols-2 max-lg:mt-3.5 max-lg:grid-cols-2 max-lg:gap-x-4 max-lg:gap-y-1.5 max-lg:pt-3">
-          <MoverStrip title="Biggest gains today" rows={leaders} />
-          <MoverStrip title="Biggest falls today" rows={laggards} />
+        <div className="mt-7 grid gap-x-8 gap-y-7 border-t border-rule-section pt-6 sm:grid-cols-2 max-sm:mt-3.5 max-sm:grid-cols-2 max-sm:gap-x-4 max-sm:gap-y-1.5 max-sm:pt-3">
+          <MoverStrip
+            title="Biggest gains today"
+            caption={`Of the ${breadth.total} names above, those that rose most`}
+            rows={leaders}
+          />
+          <MoverStrip
+            title="Biggest falls today"
+            caption={`Of the ${breadth.total} names above, those that fell most`}
+            rows={laggards}
+          />
         </div>
       </div>
     </Card>
@@ -246,94 +257,115 @@ function freshen(rows: Quote[] | undefined, ticks: ReadonlyMap<string, Tick>): Q
 function Breadth({
   index,
   breadth,
+  basis,
 }: {
   index: MarketIndex;
   breadth: { total: number; up: number; down: number; flat: number; unreported: number };
+  /* How the sample was drawn, supplied by the data. The count moves with the
+     sweep, and the wording must never harden into a claim of membership. */
+  basis: string;
 }) {
   /* Among the names that moved, not among the sample: an unreported name is not
      a decline, and the bar must not draw it as one. */
   const moved = breadth.up + breadth.down;
   const upShare = moved ? (breadth.up / moved) * 100 : 0;
+  const reported = breadth.up + breadth.down + breadth.flat;
 
   return (
     /* Below `lg` the tile gives up its frame for a hairline: a thin bar and
        one line of counts, so the breadth reads at a glance and costs a
        fifth of the height. */
-    <div className="min-w-0 rounded-[var(--radius-tile)] border border-rule-section bg-[linear-gradient(140deg,var(--c-tile-from),var(--c-tile-to))] p-5 max-lg:rounded-none max-lg:border-x-0 max-lg:border-b-0 max-lg:bg-none max-lg:p-0 max-lg:pt-3">
-      <p className="card-label max-lg:text-[12.5px]!">How the {index.short} moved today</p>
+    <div className="min-w-0 rounded-[var(--radius-tile)] border border-rule-section bg-[linear-gradient(140deg,var(--c-tile-from),var(--c-tile-to))] p-5 max-sm:rounded-none max-sm:border-x-0 max-sm:border-b-0 max-sm:bg-none max-sm:p-0 max-sm:pt-3">
+      <p className="card-label max-sm:text-[12.5px]!">How the {index.short} moved today</p>
 
       {/* One combed bar, hard-split at the advancing share: thin vertical
           ticks, 12px tall on a phone. */}
       <div
         aria-hidden="true"
-        className="tick-split mt-4 h-[22px] w-full max-lg:mt-2.5 max-lg:h-[12px]"
+        className="tick-split mt-4 h-[22px] w-full max-sm:mt-2.5 max-sm:h-[12px]"
         style={{
           background: `linear-gradient(90deg, ${C.up} 0 ${upShare}%, ${C.down} ${upShare}% 100%)`,
         }}
       />
 
-      <div className="mt-3 flex items-baseline justify-between gap-4 max-lg:mt-2">
-        <span className="font-mono text-[17px] max-lg:text-[12.5px]" style={{ color: C.up }}>
+      <div className="mt-3 flex items-baseline justify-between gap-4 max-sm:mt-2">
+        <span className="font-mono text-[17px] max-sm:text-[12.5px]" style={{ color: C.up }}>
           {breadth.up} rose
         </span>
         {breadth.flat > 0 && (
-          <span className="font-mono text-[12px] text-ink-3 max-lg:text-[11px]">
+          <span className="font-mono text-[11px] text-ink-3 sm:hidden">
             {breadth.flat} unchanged
           </span>
         )}
-        <span className="font-mono text-[17px] max-lg:text-[12.5px]" style={{ color: C.down }}>
+        <span className="font-mono text-[17px] max-sm:text-[12.5px]" style={{ color: C.down }}>
           {breadth.down} fell
         </span>
       </div>
+
+      <p className="font-mono mt-4 border-t border-rule-section pt-3.5 text-[12px] leading-[1.6] text-ink-3 max-sm:hidden">
+        <span className="text-ink-2">{reported}</span> of {breadth.total} reported
+        {breadth.flat > 0 && <> · {breadth.flat} unchanged</>}
+        {breadth.unreported > 0 && <> · {breadth.unreported} sent no change</>}
+      </p>
+      <p className="mt-1.5 text-[12px] leading-[1.55] text-ink-3 max-sm:hidden">{basis}.</p>
     </div>
   );
 }
 
 /** Three names, each one a door into its instrument page. */
-function MoverStrip({ title, rows }: { title: string; rows: Quote[] }) {
+function MoverStrip({
+  title,
+  caption,
+  rows,
+}: {
+  title: string;
+  caption: string;
+  rows: Quote[];
+}) {
   return (
     <div className="min-w-0">
-      <p className="card-label max-lg:text-[12.5px]!">{title}</p>
+      <p className="card-label max-sm:text-[12.5px]!">{title}</p>
+      <p className="mt-1 text-[12.5px] text-ink-3 max-sm:hidden">{caption}</p>
       {/* Pulled out by the rows' own px-2.5, so the monograms and prices land
           on CARD_X under the label while the hover tint gets room either side.
 
           Below `lg` each row is a two-line cell in half the card: symbol over
           name on the left, move over price on the right, no monogram. */}
-      <ul className="m-0 mt-4 -mx-2.5 flex list-none flex-col gap-1 p-0 max-lg:mt-1 max-lg:-mx-2 max-lg:gap-0">
+      <ul className="m-0 mt-4 -mx-2.5 flex list-none flex-col gap-1 p-0 max-sm:mt-1 max-sm:-mx-2 max-sm:gap-0">
         {rows.map((q) => {
           const body = (
             <>
               <span
                 aria-hidden="true"
                 /* Sized from its tile, per the monogram rule. */
-                className="font-serif grid h-9 w-9 flex-none place-items-center rounded-[10px] border border-[rgba(217,189,139,0.14)] max-lg:hidden"
+                className="font-serif grid h-9 w-9 flex-none place-items-center rounded-[10px] border border-[rgba(217,189,139,0.14)] max-sm:hidden"
                 style={{ color: q.color, fontSize: 17 }}
               >
                 {q.mark}
               </span>
-              <span className="min-w-0 flex-1 max-lg:flex max-lg:flex-col">
+              <span className="min-w-0 flex-1 max-sm:flex max-sm:flex-col">
                 {/* Two lines, as on the boards: a fund's distinguishing word
                     is usually the last one. On a phone the symbol leads and
                     the name is one truncated line under it. */}
-                <span className="line-clamp-2 text-[13.5px] font-medium break-words text-ink max-lg:mt-0.5 max-lg:block max-lg:truncate max-lg:text-[11px] max-lg:font-normal max-lg:text-ink-3">
+                <span className="line-clamp-2 text-[13.5px] font-medium break-words text-ink max-sm:mt-0.5 max-sm:block max-sm:truncate max-sm:text-[11px] max-sm:font-normal max-sm:text-ink-3">
                   {q.name}
                 </span>
-                <span className="font-mono mt-0.5 block text-[12px] tracking-[0.05em] text-ink-3 max-lg:order-first max-lg:mt-0 max-lg:text-[12.5px] max-lg:font-medium max-lg:text-ink">
+                <span className="font-mono mt-0.5 block text-[12px] tracking-[0.05em] text-ink-3 max-sm:order-first max-sm:mt-0 max-sm:text-[12.5px] max-sm:font-medium max-sm:text-ink">
                   {q.id}
                 </span>
               </span>
-              <span className="flex-none text-right max-lg:flex max-lg:flex-col max-lg:items-end">
-                <span className="font-mono block text-[13.5px] text-ink-2 max-lg:mt-0.5 max-lg:text-[11px] max-lg:text-ink-3">
+              <span className="flex-none text-right max-sm:flex max-sm:flex-col max-sm:items-end">
+                <span className="font-mono block text-[13.5px] text-ink-2 max-sm:mt-0.5 max-sm:text-[11px] max-sm:text-ink-3">
                   {money(q.price)}
                 </span>
-                <span className="mt-1 flex justify-end max-lg:order-first max-lg:mt-0">
-                  <Delta value={q.chg} size="text-[12px] max-lg:gap-1" />
+                <span className="mt-1 flex justify-end max-sm:order-first max-sm:mt-0">
+                  <Delta value={q.chg} size="text-[12px] max-sm:gap-1" />
                 </span>
               </span>
             </>
           );
           const inner =
-            "flex min-h-[56px] items-center gap-3 rounded-[var(--radius-tile)] px-2.5 transition-colors max-lg:min-h-11 max-lg:gap-2 max-lg:px-2 max-lg:py-1";
+            "flex min-h-[56px] items-center gap-3 rounded-[var(--radius-tile)] px-2.5 transition-colors max-sm:min-h-11 max-sm:gap-2 max-sm:px-2 max-sm:py-1";
 
           return (
             <li key={q.id}>

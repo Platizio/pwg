@@ -134,7 +134,7 @@ export function PriceHeader({
      second line. Given the full width they read as one toolbar under the
      price. */
   return (
-    <div className="flex flex-col gap-6 lg:mb-6">
+    <div className="flex flex-col gap-6 sm:mb-6">
       <div>
         <p className="eyebrow eyebrow-wide mb-2.5 hidden sm:block">Last traded price · USD</p>
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1.5 sm:gap-x-4 sm:gap-y-3">
@@ -197,9 +197,9 @@ export function PriceHeader({
       {/* The range is the control reached for repeatedly, so it keeps the
           bordered strip. There is no candlestick link: the owner wants every
           chart as a line ("i dont want any candle chart or bar chart"). */}
-      {/* Below lg the range sits under the chart as small pills (RangePills,
+      {/* On a phone the range sits under the chart as small pills (RangePills,
           placed by instrument-view.tsx), the way a phone app sets it. */}
-      <div className="hidden flex-wrap items-center gap-x-8 gap-y-5 sm:justify-end lg:flex">
+      <div className="hidden flex-wrap items-center gap-x-8 gap-y-5 sm:flex sm:justify-end">
         {/* Full width on a phone, six equal cells between the gutters; its
             natural width, at the right, from sm up. */}
         <Segmented label="Time range" className="w-full sm:w-auto">
