@@ -294,7 +294,62 @@ async function open(): Promise<void> {
   });
 }
 
+/* Release the account's one connection before the process dies.
+ *
+ * Measured 25 Sep 2026: Render replaced the instance for a deploy at 09:05 UTC,
+ * the old process went down without a close frame, and ViewTrade went on
+ * counting its socket. The new instance was refused with connection_limit on
+ * every retry for more than an hour: live prices stopped for every reader.
+ * A container that is torn down never sends a FIN, so the only reliable
+ * goodbye is a WebSocket close frame sent while the process can still write.
+ *
+ * Next registers its own SIGTERM/SIGINT handlers at startup and exits from
+ * them at once, which would cut the frame off. This module loads later (on the
+ * first stream request), so it takes those listeners over: close the socket
+ * first, give the frame up to two seconds to leave, then run Next's handlers
+ * exactly as they were. Render allows 30 s between SIGTERM and SIGKILL. */
+const SHUTDOWN_CLOSE_MS = 2_000;
+let shutdownHooked = false;
+
+function hookShutdown() {
+  if (shutdownHooked || typeof process === "undefined" || typeof process.once !== "function") return;
+  shutdownHooked = true;
+  for (const signal of ["SIGTERM", "SIGINT"] as const) {
+    const theirs = process.listeners(signal) as Array<(s: NodeJS.Signals) => void>;
+    process.removeAllListeners(signal);
+    process.once(signal, () => {
+      void closeForShutdown().finally(() => {
+        if (theirs.length === 0) process.exit(0);
+        for (const listener of theirs) listener(signal);
+      });
+    });
+  }
+}
+
+function closeForShutdown(): Promise<void> {
+  closedForGood = true;
+  if (reconnectTimer) clearTimeout(reconnectTimer);
+  reconnectTimer = null;
+  disarmWatchdog();
+  const ws = socket;
+  if (!ws || ws.readyState >= 2) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, SHUTDOWN_CLOSE_MS);
+    ws.addEventListener("close", () => {
+      clearTimeout(timer);
+      resolve();
+    });
+    try {
+      ws.close(1000, "server shutting down");
+    } catch {
+      clearTimeout(timer);
+      resolve();
+    }
+  });
+}
+
 async function ensureConnected(): Promise<void> {
+  hookShutdown();
   if (socket?.readyState === 1) return;
   if (connecting) return connecting;
   connecting = open()
