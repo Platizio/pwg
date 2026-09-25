@@ -190,13 +190,15 @@ export function PriceHeader({
           bordered strip. There is no candlestick link: the owner wants every
           chart as a line ("i dont want any candle chart or bar chart"). */}
       <div className="flex flex-wrap items-center justify-end gap-x-8 gap-y-5">
-        <Segmented label="Time range">
+        {/* Full width on a phone, six equal cells between the gutters; its
+            natural width, at the right, from sm up. */}
+        <Segmented label="Time range" className="w-full sm:w-auto">
           {RANGES.map((r) => (
             <SegmentedItem
               key={r.id}
               active={range === r.id}
               onClick={() => onRange(r.id)}
-              className="px-3.5"
+              className="flex-1 px-3.5 sm:flex-none"
             >
               {r.label}
             </SegmentedItem>

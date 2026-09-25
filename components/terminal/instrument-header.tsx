@@ -80,7 +80,10 @@ export function InstrumentHeader({
             top. */}
         <div
           className={cn(
-            "ms-auto flex flex-wrap items-center gap-3",
+            /* On a phone the pair wraps under the name: there it spans the
+               gutters, two equal halves, instead of hanging off the right
+               edge with a gap on the left that lines up with nothing. */
+            "flex w-full items-center gap-3 sm:ms-auto sm:w-auto sm:flex-wrap [&>*]:flex-1 sm:[&>*]:flex-none",
             condensed && "hidden sm:flex",
           )}
         >

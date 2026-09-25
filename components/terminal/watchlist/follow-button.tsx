@@ -108,7 +108,7 @@ export function FollowButton({ symbol, name }: { symbol: string; name?: string |
         }
         title={where}
         className={cn(
-          "inline-flex min-h-11 items-center justify-center gap-2 border px-4 text-[11px] font-bold tracking-[0.16em] uppercase transition-colors",
+          "inline-flex min-h-11 w-full items-center justify-center gap-2 border px-4 text-[11px] font-bold tracking-[0.16em] uppercase transition-colors sm:w-auto",
           single ? LABEL_BOX.single : LABEL_BOX.picker,
           following
             ? "border-[rgba(var(--c-gold-rgb),0.4)] text-gold hover:border-gold"

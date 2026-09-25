@@ -62,7 +62,7 @@ export function RightRail({
         <header className="mb-4 flex items-center gap-4">
           <div className="flex min-w-0 flex-1 items-baseline justify-between gap-3">
             <h3 className="font-serif text-[24px]">Newswire</h3>
-            <CapsLink href={WIRE_PATH}>See more</CapsLink>
+            <CapsLink href={WIRE_PATH} className="inline-flex min-h-11 items-center md:min-h-0">See more</CapsLink>
           </div>
           <RailFoldToggle />
         </header>
