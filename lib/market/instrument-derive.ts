@@ -4,8 +4,10 @@
 import { C, PEER_COLORS, trend } from "../tokens.ts";
 import { marketCap as capOf, money, pct, ratio, usd } from "./format.ts";
 import { regularCloseMinute, tradingDay } from "./session.ts";
+import { periodReturn } from "../api/normalize/performance.ts";
 import { easternDay, shiftYears, sinceLabel } from "../api/normalize/returns.ts";
 import type { PricePoint } from "../api/normalize/series.ts";
+import { throughCardSession } from "./prior-close.ts";
 /* Type-only: profile.ts imports the 2.4MB symbol master, and this module is
    read by client panels. Nothing at runtime may come from it here. */
 import type { CompanyProfile } from "../api/normalize/profile.ts";
@@ -414,16 +416,21 @@ export function insights(s: InstrumentSnapshot) {
   }));
 }
 
-/** Percent change across the last `sessions` trading days of the series. */
-function over(points: PricePoint[], sessions: number): number | null {
-  if (points.length < sessions + 1) return null;
-  const last = points[points.length - 1].price;
-  const prev = points[points.length - 1 - sessions].price;
-  return prev > 0 ? (last / prev - 1) * 100 : null;
-}
-
+/**
+ * The Overview's four returns, measured the way the Performance tab measures
+ * the same rows, to the same session.
+ *
+ * They used to disagree under the same labels on two tabs of one page — AAPL
+ * on 25 Sep 2026: 1 month +8.6% here against +8.4% there, 6 months +33.9%
+ * against +33.0% — because these ran to the page's daily bars, which end a
+ * session behind the card, and those to the last completed session. Both now
+ * end on the card's close (throughCardSession, as the chart does), the month
+ * and six months are the Performance tab's own window arithmetic
+ * (periodReturn), and the 1-year and 5-year figures arrive measured through
+ * the same session from the server (instrument.ts).
+ */
 export function returns(s: InstrumentSnapshot) {
-  const pts = s.history.daily;
+  const pts = throughCardSession(s.history.daily, s.profile);
   const rows: Array<[string, number | null]> = [
     /* Withheld with the split record, the same way 1Y and 5Y already are
        (returnsAgainst). Without it the bars are unrepaired, and a split inside
@@ -431,8 +438,8 @@ export function returns(s: InstrumentSnapshot) {
        year figures below were already dashes in that case; these two went on
        printing confident numbers beside them. `!== false` so a snapshot built
        before the field existed keeps its figures. */
-    ["1 month", s.splitsKnown !== false ? over(pts, 21) : null],
-    ["6 months", s.splitsKnown !== false ? over(pts, 126) : null],
+    ["1 month", s.splitsKnown !== false ? periodReturn(pts, 21) : null],
+    ["6 months", s.splitsKnown !== false ? periodReturn(pts, 126) : null],
     /* Named by the first close when the record opens after the anchor, as
        META's does (a renamed ticker Polygon cannot lead into): "5 years" over
        a base a session late printed +110.8% for a +115.1% five years. The

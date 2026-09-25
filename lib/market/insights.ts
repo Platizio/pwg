@@ -452,11 +452,26 @@ function legsFor(input: InsightInput, dayOf: (at: number) => string): { market: 
   return { market, sector };
 }
 
-function relativeInsight(ticker: string, bars: Bar[], market: Leg | null, sector: Leg | null): StockInsight | null {
-  if (bars.length < 2) return null;
+function relativeInsight(ticker: string, all: Bar[], market: Leg | null, sector: Leg | null): StockInsight | null {
+  if (all.length < 2) return null;
   const self = ticker.trim().toUpperCase();
   const legs = [market, sector].filter((l): l is Leg => l !== null && l.bars.length > 0);
   if (legs.length === 0) return null;
+
+  /* Measured to the last session a benchmark has. The subject's bars can run
+     a session past the funds' — carried to the card's official close
+     (throughCardSession) while SPY's and the sector fund's still end the day
+     before — and a stock measured to Thursday beside a fund measured to
+     Wednesday is two windows under one heading. Only within the alignment
+     slack: benchmarks further behind than that are stale, and barAt refuses
+     them below exactly as it did. */
+  const reach = Math.max(...legs.map((l) => l.bars[l.bars.length - 1].at));
+  let end = all.length - 1;
+  if (all[end].at - reach <= ALIGN_SLACK_MS) {
+    while (end > 0 && all[end].at > reach) end -= 1;
+  }
+  const bars = end === all.length - 1 ? all : all.slice(0, end + 1);
+  if (bars.length < 2) return null;
 
   const last = bars[bars.length - 1];
   type Row = { window: Window; stock: number; bench: Array<{ leg: Leg; ret: number; rel: number } | null> };
@@ -771,7 +786,17 @@ function weekdayOf(day: string): string {
   return WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
 }
 
-function volumeInsight(bars: Bar[], market: Leg | null): StockInsight | null {
+function volumeInsight(all: Bar[], market: Leg | null): StockInsight | null {
+  /* Read to the session before a close-only bar. The card's official close,
+     carried onto the bars by throughCardSession, is a session with a price and
+     nothing else: no range, no turnover. It is not the incoherent feed the
+     check below refuses, and read as one it would drop this insight whenever
+     the bars had been carried to the card. Only that shape is stepped over; a
+     feed bar with a range and no volume still fails the check. */
+  const tail = all[all.length - 1];
+  const closeOnly =
+    tail !== undefined && tail.volume === null && tail.high === tail.price && tail.low === tail.price;
+  const bars = closeOnly ? all.slice(0, -1) : all;
   if (bars.length < VOLUME_WINDOW + 2) return null;
   const turnover = turnoverOf(bars);
   const multiples = relativeVolume(bars, VOLUME_WINDOW);

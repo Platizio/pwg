@@ -3,6 +3,8 @@ import { IconCalendar } from "@/components/icons";
 import { Badge, Card } from "@/components/ui/surface";
 import { calendarDate, type CalendarEvent } from "@/lib/market/session";
 import { instrumentPath } from "@/lib/market/paths";
+import { cn } from "@/lib/ui";
+import { CARD_X } from "./inset";
 import { eventTime } from "./reading-order";
 
 const KIND_LABEL = {
@@ -19,6 +21,8 @@ const KIND_NOTE = {
   corporate: "A dividend or a split at one company.",
 } as const;
 
+type Day = { offset: number; label: string; date: string; events: CalendarEvent[] };
+
 /**
  * The calendar, in full.
  *
@@ -32,15 +36,23 @@ const KIND_NOTE = {
  * person holds a week in their head, not "offset 3".
  */
 export function CalendarView({ events }: { events: CalendarEvent[] }) {
-  /* Group by day so the reader sees a week, not a queue. Events arrive in
-     offset order, so a running comparison is enough — no sort needed. */
-  const days: { offset: number; label: string; date: string; events: CalendarEvent[] }[] = [];
+  /* Group by day so the reader sees a week, not a queue. Events arrive grouped
+     by offset, so a running comparison is enough — no sort needed. */
+  const days: Day[] = [];
   for (const event of events) {
     const { date, relative } = calendarDate(event);
     const last = days[days.length - 1];
     if (last && last.offset === event.offset) last.events.push(event);
     else days.push({ offset: event.offset, label: relative, date, events: [event] });
   }
+
+  /* The feed keeps recent ex-dividends so the page is never empty out of
+     season. They used to follow "In 78 days" with no break, styled exactly
+     like what is coming and still telling the reader when to buy. They now
+     have their own section after the upcoming ones, with no "What to watch"
+     block, because that block is advice about a date that has already passed. */
+  const upcoming = days.filter((day) => day.offset >= 0);
+  const past = days.filter((day) => day.offset < 0);
 
   return (
     <main id="terminal-main" className="flex min-w-0 flex-col overflow-hidden lg:h-full">
@@ -55,75 +67,28 @@ export function CalendarView({ events }: { events: CalendarEvent[] }) {
       </header>
 
       <div className="flex-1 px-4 pt-5 pb-10 sm:px-6 lg:overflow-y-auto lg:px-7">
-        {days.map((day) => (
-          <section key={day.offset} aria-label={`${day.label}, ${day.date}`} className="mt-6 first:mt-0">
-            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-1">
-              <h2 className="font-serif text-[21px] leading-none text-ink-2">{day.label}</h2>
-              <p className="text-[12.5px] text-ink-3">{day.date}</p>
-            </div>
+        {upcoming.map((day) => (
+          <DaySection key={day.offset} day={day} />
+        ))}
 
-            <div className="mt-3 flex flex-col gap-3">
-              {day.events.map((event) => {
-                /* A corporate action's "time" is usually the word already in
-                   its title; the mono line is kept for a real time only. */
-                const time = eventTime(event);
-                return (
-                  <Card key={`${event.title}-${event.offset}`} className="px-6 py-6">
-                    <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-                      <div className="flex min-w-0 items-start gap-3.5">
-                        <span
-                          aria-hidden="true"
-                          className="tile grid h-10 w-10 flex-none place-items-center text-gold"
-                        >
-                          <IconCalendar className="h-[18px] w-[18px]" />
-                        </span>
-                        <div className="min-w-0">
-                          <h3 className="font-serif text-[20px] leading-[1.35] text-pretty text-ink">
-                            {event.title}
-                          </h3>
-                          {time && (
-                            <p className="font-mono mt-1.5 text-[12.5px] tracking-[0.04em] text-ink-3">
-                              {time}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <Badge tone="quiet">{KIND_LABEL[event.kind]}</Badge>
-                    </div>
-
-                    <p className="mt-5 max-w-[68ch] text-[13.5px] leading-[1.75] text-ink-3">
-                      {event.summary}
-                    </p>
-
-                    <div className="mt-5 border-t border-rule-section pt-4">
-                      <p className="card-label">What to watch</p>
-                      <p className="mt-2 max-w-[68ch] text-[13.5px] leading-[1.75] text-ink-2">
-                        {event.watch}
-                      </p>
-                    </div>
-
-                    {/* The note explains the kind; the link is an action. They
-                        were one sentence, which made the action a 16px target
-                        hanging off the end of prose. */}
-                    <div className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-                      <p className="text-[12.5px] leading-[1.6] text-ink-3">
-                        {KIND_NOTE[event.kind]}
-                      </p>
-                      {event.ticker && (
-                        <Link
-                          href={instrumentPath(event.ticker)}
-                          className="-mx-2 inline-flex min-h-9 items-center rounded-full px-2 text-[12.5px] text-gold transition-colors hover:bg-[rgba(217,189,139,0.06)] hover:text-ink"
-                        >
-                          Open {event.ticker}
-                        </Link>
-                      )}
-                    </div>
-                  </Card>
-                );
-              })}
+        {past.length > 0 && (
+          <section
+            aria-labelledby="calendar-past"
+            className={cn(upcoming.length > 0 && "mt-10 border-t border-rule-section pt-8")}
+          >
+            <h2 id="calendar-past" className="font-serif text-[21px] leading-none text-ink-2">
+              Recently passed
+            </h2>
+            <p className="mt-2 max-w-[62ch] text-[12.5px] leading-[1.6] text-ink-3">
+              Recent dates, kept for reference.
+            </p>
+            <div className="mt-6">
+              {past.map((day) => (
+                <DaySection key={day.offset} day={day} past />
+              ))}
             </div>
           </section>
-        ))}
+        )}
 
         {/* This used to say every date here was "simulated for demonstration"
             and that the terminal "is not connected to a market feed". Both
@@ -143,5 +108,97 @@ export function CalendarView({ events }: { events: CalendarEvent[] }) {
         </p>
       </div>
     </main>
+  );
+}
+
+/**
+ * One day's events. Text outside the cards (the day heading) sits on the page
+ * gutter, under the h1. Text inside a card sits on CARD_X, the dashboard's
+ * inset. The old px-1 and px-6 gave two more lines, at 20px and 41px.
+ */
+function DaySection({ day, past = false }: { day: Day; past?: boolean }) {
+  /* Under "Recently passed" the day is a level down, and so are its events. */
+  const DayHeading = past ? "h3" : "h2";
+  const EventHeading = past ? "h4" : "h3";
+
+  return (
+    <section aria-label={`${day.label}, ${day.date}`} className="mt-6 first:mt-0">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <DayHeading className="font-serif text-[21px] leading-none text-ink-2">
+          {day.label}
+        </DayHeading>
+        <p className="text-[12.5px] text-ink-3">{day.date}</p>
+      </div>
+
+      <div className="mt-3 flex flex-col gap-3">
+        {day.events.map((event) => {
+          /* A corporate action's "time" is usually the word already in
+             its title; the mono line is kept for a real time only. */
+          const time = eventTime(event);
+          return (
+            <Card key={`${event.title}-${event.offset}`} className={cn("py-6", CARD_X)}>
+              <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+                <div className="flex min-w-0 items-start gap-3.5">
+                  <span
+                    aria-hidden="true"
+                    className="tile grid h-10 w-10 flex-none place-items-center text-gold"
+                  >
+                    <IconCalendar className="h-[18px] w-[18px]" />
+                  </span>
+                  <div className="min-w-0">
+                    <EventHeading
+                      className={cn(
+                        "font-serif text-[20px] leading-[1.35] text-pretty",
+                        past ? "text-ink-3" : "text-ink",
+                      )}
+                    >
+                      {event.title}
+                    </EventHeading>
+                    {time && (
+                      <p className="font-mono mt-1.5 text-[12.5px] tracking-[0.04em] text-ink-3">
+                        {time}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <Badge tone="quiet">{KIND_LABEL[event.kind]}</Badge>
+              </div>
+
+              <p className="mt-5 max-w-[68ch] text-[13.5px] leading-[1.75] text-ink-3">
+                {event.summary}
+              </p>
+
+              {!past && (
+                <div className="mt-5 border-t border-rule-section pt-4">
+                  <p className="card-label">What to watch</p>
+                  <p className="mt-2 max-w-[68ch] text-[13.5px] leading-[1.75] text-ink-2">
+                    {event.watch}
+                  </p>
+                </div>
+              )}
+
+              {/* The note explains the kind; the link is an action. The row
+                  does not wrap. With wrapping, whether "Open X" fitted beside
+                  the note depended on the ticker's length, so at 375px six
+                  cards dropped it to the left edge and thirty-four kept it on
+                  the right. The note gives way instead. */}
+              <div className="mt-4 flex items-center justify-between gap-x-6">
+                <p className="min-w-0 flex-1 text-[12.5px] leading-[1.6] text-ink-3">
+                  {KIND_NOTE[event.kind]}
+                </p>
+                {event.ticker && (
+                  <Link
+                    href={instrumentPath(event.ticker)}
+                    className="-mx-2 inline-flex min-h-11 flex-none items-center rounded-full px-2 text-[12.5px] whitespace-nowrap text-gold transition-colors hover:bg-[rgba(217,189,139,0.06)] hover:text-ink"
+                  >
+                    Open {event.ticker}
+                  </Link>
+                )}
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+    </section>
   );
 }

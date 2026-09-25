@@ -9,6 +9,7 @@ import {
   historyAnswered,
   historyNextFetch,
   rangeCaption,
+  rangeCaptionParts,
   spacingLabel,
   zoneLabel,
 } from "../lib/market/ranges.ts";
@@ -354,4 +355,45 @@ test("only a 200 is an answer", () => {
   for (const status of [204, 206, 304, 400, 429, 500, 502]) {
     assert.equal(historyAnswered(status), false, String(status));
   }
+});
+
+/* ---------- the caption as parts, and the day that has ended ---------- */
+
+/* Joined, the caption wrapped after a separator on a phone — "…Sep 25, 2026 ·"
+   on one line, "India Time" alone on the next — so it is handed over as parts
+   the chart can keep whole, each separator travelling with the part after it. */
+test("the caption comes apart into the pieces it is joined from", () => {
+  const parts = rangeCaptionParts(getRange("1M"), AUG_4, SEP_1, 546, "Asia/Kolkata", SEP_1);
+  assert.equal(parts[0], "1M");
+  assert.equal(parts[1], "546 prices, every 15 minutes");
+  assert.equal(parts.at(-1), zoneLabel("Asia/Kolkata", SEP_1));
+  assert.equal(
+    rangeCaption(getRange("1M"), AUG_4, SEP_1, 546, "Asia/Kolkata", SEP_1),
+    parts.join(" · "),
+  );
+  assert.ok(parts.every((p) => !p.includes("·")), "no separator inside a part");
+});
+
+/* Before the bell the day chart is the last completed session, drawn against
+   the close before it, under a header measuring the pre-market price against
+   that session's close: AAPL's red line under a green +0.04% on 25 Sep 2026. */
+const OPEN_24 = Date.UTC(2026, 8, 24, 13, 30); // 09:30 New York
+const BELL_24 = Date.UTC(2026, 8, 24, 20, 0); // 16:00 New York
+const PRE_25 = Date.UTC(2026, 8, 25, 8, 45); // 04:45 New York, 14:15 in India
+
+test("a day chart of a session that has ended says it is the last session", () => {
+  const parts = rangeCaptionParts(getRange("1D"), OPEN_24, BELL_24, 391, "Asia/Kolkata", PRE_25);
+  assert.deepEqual(parts.slice(0, 3), ["1D", "Last session", "391 prices, one a minute"]);
+});
+
+test("a day chart of the session still trading does not", () => {
+  const midSession = Date.UTC(2026, 8, 24, 17, 0);
+  const parts = rangeCaptionParts(getRange("1D"), OPEN_24, midSession, 211, "Asia/Kolkata", midSession);
+  assert.ok(!parts.includes("Last session"), parts.join(" | "));
+});
+
+test("only the day is labelled so; a year ending yesterday is simply a year", () => {
+  const parts = rangeCaptionParts(getRange("1Y"), AUG_4, BELL_24, 252, "Asia/Kolkata", PRE_25);
+  assert.ok(!parts.includes("Last session"));
+  assert.ok(!rangeCaptionParts(getRange("1D"), null, null, 0, "Asia/Kolkata", PRE_25).includes("Last session"));
 });

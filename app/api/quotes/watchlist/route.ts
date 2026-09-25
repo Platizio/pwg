@@ -1,4 +1,3 @@
-import type { NextRequest } from "next/server";
 import { refusePublic } from "@/lib/api/public-guard";
 import { fetchQuotes } from "@/lib/api/clients/quotes";
 import { toSweepRow, type SweepRow } from "@/lib/api/sweep";
@@ -8,6 +7,7 @@ import { storeConfigured } from "@/lib/market/store/client";
 import { readHomeUntagged } from "@/lib/market/store/reads";
 import { NAME_BY_SYMBOL, presentation } from "@/lib/market/universe";
 import { parseSymbolParam } from "@/lib/market/watchlists";
+import { createWatchQuotes, serverTiming } from "./answer.ts";
 
 /* Prices for a reader's watchlist.
 
@@ -18,13 +18,11 @@ import { parseSymbolParam } from "@/lib/market/watchlists";
    here, after hydration, for the names it has no figure for, and the live
    feed patches them from then on exactly as it patches the six.
 
-   THE STORE FIRST, the gateway only for what the store has not got. The
-   refresh worker writes a quote for every liquid name every five minutes,
-   and the layout's own `market_home` read already holds them: that entry is
-   cached, so answering from it costs no upstream call at all. What is left —
-   a small listing the hot list does not cover — is one gateway call of at
-   most fifty symbols, cached by Next's data cache for the sweep's own five
-   minutes.
+   THE STORE FIRST, the gateway only for what the store has not got, and
+   neither allowed to hold the answer: see answer.ts for the budget, the
+   caches and the measurements behind them. The store here is the layout's own
+   `market_home` entry — the same quotes the tape and the boards show — read
+   into this process once a minute rather than parsed again on every request.
 
    Anonymous surface, bounded like app/api/search: our own pages only, at a
    human rate, and a symbol the tradable universe does not hold is refused
@@ -32,7 +30,7 @@ import { parseSymbolParam } from "@/lib/market/watchlists";
    gateway credentials. */
 
 /* Deliberately NOT `dynamic = "force-dynamic"`. That is fetchCache
-   force-no-store, which would send every miss below straight to the gateway
+   force-no-store, which would send every gateway call below straight upstream
    and ignore the five-minute revalidate on it. Reading the request already
    makes this handler run per request; the data cache still applies. */
 
@@ -65,20 +63,38 @@ function toWatchQuote(row: SweepRow): WatchQuote {
   };
 }
 
-/* The store's rows for the symbols asked about. Null when the store is not
-   configured or did not answer — the gateway covers everything then. */
-async function fromStore(wanted: readonly string[]): Promise<Map<string, SweepRow> | null> {
-  if (!storeConfigured()) return null;
-  const home = await readHomeUntagged();
-  if (!home.ok) return null;
-  const want = new Set(wanted);
-  const rows = homeInputsFrom(home.data, [], Date.now()).snapshot.rows;
-  const found = new Map<string, SweepRow>();
-  for (const row of rows) if (want.has(row.s)) found.set(row.s, row);
-  return found;
-}
+/* One engine for the process: the store index, the answers and the flights
+   it holds are the point of it. */
+const quotes = createWatchQuotes<SweepRow>({
+  /* The hot rows the layout already reads, by symbol. Null when the store is
+     not configured or did not answer — the gateway covers everything then. */
+  async loadIndex() {
+    if (!storeConfigured()) return null;
+    const home = await readHomeUntagged();
+    if (!home.ok) return null;
+    const index = new Map<string, SweepRow>();
+    for (const row of homeInputsFrom(home.data, [], Date.now()).snapshot.rows) index.set(row.s, row);
+    return index;
+  },
+  /* One call of at most fifty symbols (parseSymbolParam caps the list), held
+     by Next's data cache for the sweep's five minutes. The list arrives
+     sorted, so the same names in any order are one cache entry. A symbol the
+     gateway does not price is left out of the map, which reads as "no quote". */
+  async fetchGap(symbols) {
+    const result = await fetchQuotes(symbols, TTL.sweep, [TAGS.quotes]);
+    if (!result.ok || !Array.isArray(result.data)) return null;
+    const asked = new Set(symbols);
+    const rows = new Map<string, SweepRow>();
+    for (const raw of result.data) {
+      const row = toSweepRow(raw);
+      if (row && asked.has(row.s)) rows.set(row.s, row);
+    }
+    return rows;
+  },
+});
 
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
+  const started = Date.now();
   const refused = refusePublic(request.headers, {
     route: "quotes-watchlist",
     limit: 30,
@@ -87,44 +103,57 @@ export async function GET(request: NextRequest) {
   if (refused) return refused;
 
   const { symbols, refused: notTradable } = parseSymbolParam(
-    request.nextUrl.searchParams.get("symbols"),
+    new URL(request.url).searchParams.get("symbols"),
     (symbol) => NAME_BY_SYMBOL.has(symbol),
   );
 
   if (symbols.length === 0) {
     return Response.json(
-      { quotes: [], refused: notTradable, missing: [] },
+      { quotes: [], refused: notTradable, missing: [], pending: [] },
       { headers: { "Cache-Control": CACHE } },
     );
   }
 
-  const rows = (await fromStore(symbols)) ?? new Map<string, SweepRow>();
+  const answer = await quotes.answer(symbols);
+  const totalMs = Date.now() - started;
+  const partial = answer.pending.length > 0;
 
-  const gap = symbols.filter((s) => !rows.has(s));
-  let gatewayFailed = false;
-  if (gap.length > 0) {
-    const result = await fetchQuotes(gap, TTL.sweep, [TAGS.quotes]);
-    if (result.ok && Array.isArray(result.data)) {
-      for (const raw of result.data) {
-        const row = toSweepRow(raw);
-        if (row && gap.includes(row.s)) rows.set(row.s, row);
-      }
-    } else {
-      gatewayFailed = true;
-    }
+  /* `missing`: an upstream answered that it has no quote — worth
+     remembering. `pending`: nothing answered in time, or the call failed —
+     worth asking again. The flight this request started is not cancelled:
+     it lands in this process's answer cache (thirty seconds) and the gateway
+     call in Next's data cache (five minutes), so the retry is answered from
+     memory. */
+  const body = {
+    quotes: answer.rows.map(toWatchQuote),
+    refused: notTradable,
+    missing: answer.missing,
+    pending: answer.pending,
+  };
+
+  const headers: Record<string, string> = {
+    /* A partial answer is still an answer — the names that priced are shown
+       and the rest keep a dash — but it is not one to hold at any cache, or
+       an upstream blip would be remembered past its own end. */
+    "Cache-Control": partial ? "no-store" : CACHE,
+    "Server-Timing": serverTiming(answer, totalMs),
+  };
+
+  if (partial) {
+    console.warn(
+      `quotes-watchlist: partial answer ms=${totalMs} priced=${answer.rows.length} ` +
+        `pending=${answer.pending.length} store=${answer.storeMs ?? "-"}ms ` +
+        `gateway=${answer.gatewayMs ?? "-"}ms asked=${answer.gatewaySymbols}`,
+    );
   }
 
-  const quotes = symbols.flatMap((s) => {
-    const row = rows.get(s);
-    return row ? [toWatchQuote(row)] : [];
-  });
-  const missing = symbols.filter((s) => !rows.has(s));
+  /* Nothing priced and something still owed: 503, so the browser treats it as
+     a failed request and asks again in a minute, rather than remembering
+     every name as quoteless for five. */
+  if (partial && answer.rows.length === 0) {
+    headers["Retry-After"] = "5";
+    return Response.json(body, { status: 503, headers });
+  }
 
-  /* A partial answer is still an answer — the names that priced are shown and
-     the rest keep a dash — but it is not one to hold at a shared cache for a
-     minute, or a gateway blip would be remembered past its own end. */
-  return Response.json(
-    { quotes, refused: notTradable, missing },
-    { headers: { "Cache-Control": gatewayFailed ? "no-store" : CACHE } },
-  );
+  return Response.json(body, { headers });
 }

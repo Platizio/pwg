@@ -15,7 +15,9 @@ import {
 import type { RawCorporateActions, RawFundamentals } from "../api/clients/fundamentals.ts";
 import type { RawFinancials } from "../api/clients/financials.ts";
 import { fetchAnalystConsensus } from "../api/clients/analysts.ts";
+import { returnsOver } from "../api/normalize/returns.ts";
 import { toPricePoints } from "../api/normalize/series.ts";
+import { throughCardSession } from "./prior-close.ts";
 import { repairAgainst, returnsAgainst, splitRecord, type ActionsRecord } from "./split-record.ts";
 import { TAGS, TTL } from "../api/ttl.ts";
 import type { ApiResult } from "../api/errors.ts";
@@ -206,12 +208,38 @@ async function sectorBenchmark(sector: string | null, ticker: string): Promise<B
   }
 }
 
+/**
+ * The page's measurements taken through the session its card closes.
+ *
+ * The daily bars run a session behind the "Previous close" card (see
+ * throughCardSession), and the insights and the 1-year and 5-year returns were
+ * measured off them: before the bell on 25 Sep 2026 AAPL's first insight read
+ * "Closed at $337.02 on 23 Sep 2026" beside a card showing the 24th's $335.92,
+ * and its returns disagreed with the Performance tab, which measures to the
+ * 24th. Both are measured here through the card's session instead.
+ *
+ * The SHIPPED bars are left as they are. The added bar has a close and no
+ * range or volume, and the Technicals tab reads the day's high, low and
+ * turnover off the last bar; the chart carries the bars to the card's close
+ * itself, on the client.
+ */
 function withInsights(full: InstrumentSnapshot, sector: Benchmark | null, now: number): InstrumentSnapshot {
+  const daily = throughCardSession(full.history.daily, full.profile, now);
+  const reached: InstrumentSnapshot =
+    daily === full.history.daily
+      ? full
+      : {
+          ...full,
+          history: { ...full.history, daily },
+          /* Withheld with the split record, as returnsAgainst withholds it. */
+          returns: full.splitsKnown ? returnsOver(daily) : full.returns,
+        };
+  const measured = reached === full ? full : { ...full, returns: reached.returns };
   try {
-    return { ...full, insights: stockInsights(insightInputFrom(full, { now, sector })) };
+    return { ...measured, insights: stockInsights(insightInputFrom(reached, { now, sector })) };
   } catch (e) {
     console.warn(`instrument ${full.profile.id}: insights skipped: ${e instanceof Error ? e.message : String(e)}`);
-    return full;
+    return measured;
   }
 }
 

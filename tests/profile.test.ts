@@ -301,7 +301,7 @@ test("a curated symbol takes its monogram and colour from presentation", () => {
   const p = toCompanyProfile({ ticker: "AAPL", quote: quote() });
   assert.equal(p.short, "Apple");
   assert.equal(p.mark, "A");
-  assert.equal(p.color, "#E5DDD1");
+  assert.equal(p.color, "var(--c-mark-1)");
 });
 
 test("an uncurated symbol is derived, never invented", () => {
@@ -311,7 +311,7 @@ test("an uncurated symbol is derived, never invented", () => {
   });
   assert.equal(p.short, "Zebra");
   assert.equal(p.mark, "Z");
-  assert.match(p.color, /^#[0-9A-Fa-f]{6}$/);
+  assert.match(p.color, /^var\(--c-mark-[1-5]\)$/);
 });
 
 test("the heading takes the full legal name, and falls back to the short one", () => {

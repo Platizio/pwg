@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { WireItem } from "@/lib/market/home";
 import { Card } from "@/components/ui/surface";
 import { instrumentPath } from "@/lib/market/paths";
+import { cn } from "@/lib/ui";
+import { CARD_X } from "./inset";
 import { newestFirst } from "./reading-order";
 
 /**
@@ -39,28 +41,30 @@ export function WireView({ stories }: { stories: WireItem[] }) {
       </header>
 
       <div className="flex-1 px-4 pt-5 pb-10 sm:px-6 lg:overflow-y-auto lg:px-7">
-        <p className="px-1 text-[12.5px] text-ink-3">
+        {/* Text outside a card sits on the page gutter, under the h1. Text
+            inside a card sits on CARD_X, as it does on the dashboard. */}
+        <p className="text-[12.5px] text-ink-3">
           {stories.length} stories
         </p>
 
         <ol className="m-0 mt-3 flex list-none flex-col gap-3 p-0">
           {ordered.map((item) => (
             <li key={`${item.ticker}-${item.title}`}>
-              <Card className="px-6 py-6">
+              <Card className={cn("py-6", CARD_X)}>
                 <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
                   <span className="text-[12px] font-semibold text-gold-dim">
                     {item.source}
                   </span>
                   <span aria-hidden="true" className="h-2.5 w-px bg-rule-mono" />
-                  <Link
-                    href={instrumentPath(item.ticker)}
-                    /* -mx-1.5 keeps the row's rhythm while the padding takes
-                       the hit area past the 24px minimum. */
-                    className="font-mono -mx-1.5 inline-flex min-h-6 items-center px-1.5 text-[12px] tracking-[0.06em] transition-opacity hover:opacity-80"
+                  {/* A label, not a link. "Open {company}" at the foot of
+                      the card goes to the same page with a 44px target, and
+                      a 24px duplicate here made forty small targets. */}
+                  <span
+                    className="font-mono text-[12px] tracking-[0.06em]"
                     style={{ color: item.color }}
                   >
                     {item.ticker}
-                  </Link>
+                  </span>
                   <span aria-hidden="true" className="h-2.5 w-px bg-rule-mono" />
                   <span className="text-[12px] text-ink-3">{item.time}</span>
                   <span aria-hidden="true" className="h-2.5 w-px bg-rule-mono" />
@@ -78,7 +82,7 @@ export function WireView({ stories }: { stories: WireItem[] }) {
                 <p className="mt-5 border-t border-rule-section pt-4 text-[12.5px]">
                   <Link
                     href={instrumentPath(item.ticker)}
-                    className="-mx-2 inline-flex min-h-9 items-center rounded-full px-2 text-gold transition-colors hover:bg-[rgba(217,189,139,0.06)] hover:text-ink"
+                    className="-mx-2 inline-flex min-h-11 items-center rounded-full px-2 text-gold transition-colors hover:bg-[rgba(217,189,139,0.06)] hover:text-ink"
                   >
                     Open {item.company}
                   </Link>

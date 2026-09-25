@@ -9,6 +9,8 @@ import { marketCap, money, ratio } from "@/lib/market/format";
 import type { SectorRow, SectorSnapshot } from "@/lib/market/sector";
 import { cn } from "@/lib/ui";
 import { instrumentPath } from "@/lib/market/paths";
+import { CARD_X } from "./inset";
+import { withTick } from "./same-session";
 
 /**
  * One sector, in full.
@@ -26,18 +28,32 @@ type Column = {
   key: "name" | "price" | "mcap" | "pe" | "ret1y" | "cagr5y";
   label: string;
   numeric: boolean;
+  /* Whether the column shows below `sm`. A phone gets Name and Price only.
+     All six columns inside a 301px scroller cut the Price figure mid-number
+     at rest ("160."), and after a sideways scroll there was no name left to
+     say which company a row was. */
+  phone: boolean;
   /** Sorting a column of dashes is meaningless; absent values sink. */
   value: (r: SectorRow) => number | string | null;
 };
 
 const COLUMNS: Column[] = [
-  { key: "name", label: "Name", numeric: false, value: (r) => r.name.toLowerCase() },
-  { key: "price", label: "Price", numeric: true, value: (r) => r.price },
-  { key: "mcap", label: "Market Cap", numeric: true, value: (r) => r.mcap },
-  { key: "pe", label: "P/E Ratio", numeric: true, value: (r) => r.pe },
-  { key: "ret1y", label: "1Y Returns", numeric: true, value: (r) => r.ret1y },
-  { key: "cagr5y", label: "5Y CAGR", numeric: true, value: (r) => r.cagr5y },
+  { key: "name", label: "Name", numeric: false, phone: true, value: (r) => r.name.toLowerCase() },
+  { key: "price", label: "Price", numeric: true, phone: true, value: (r) => r.price },
+  { key: "mcap", label: "Market Cap", numeric: true, phone: false, value: (r) => r.mcap },
+  { key: "pe", label: "P/E Ratio", numeric: true, phone: false, value: (r) => r.pe },
+  { key: "ret1y", label: "1Y Returns", numeric: true, phone: false, value: (r) => r.ret1y },
+  { key: "cagr5y", label: "5Y CAGR", numeric: true, phone: false, value: (r) => r.cagr5y },
 ];
+
+/* Hides a desktop-only cell below `sm`. */
+const DESKTOP_CELL = "hidden sm:table-cell";
+
+/* The table's outer cells lose their outer padding, so the first column's
+   text, the last column's figures and every row rule sit on CARD_X, the same
+   line as the toolbar above. Below `sm` the last visible column is Price,
+   not the DOM's last cell. */
+const PRICE_EDGE = "max-sm:pr-0";
 
 const PAGE = 50;
 const COUNT_FMT = new Intl.NumberFormat("en-US");
@@ -95,17 +111,12 @@ export function SectorView({ sector }: { sector: SectorSnapshot }) {
   const symbols = useMemo(() => shown.map((r) => r.id), [shown]);
   const ticks = useLive(symbols);
 
+  /* A tick is taken whole, and only when it measures from the same previous
+     close as the row (same-session.ts). A price with no previous close, or one
+     measured from a newer session's close, would pair this second's number
+     with a different basis. */
   const visible = useMemo(
-    () =>
-      shown.map((r) => {
-        const t = ticks.get(r.id.toUpperCase());
-        if (!t) return r;
-        /* changePercent is null when the feed sent no previous close. A live
-           price beside the snapshot's change would pair this second's number
-           with an older basis, so the whole tick is dropped. */
-        if (t.changePercent === null) return r;
-        return { ...r, price: t.price, chg: t.changePercent };
-      }),
+    () => shown.map((r) => withTick(r, ticks.get(r.id.toUpperCase()))),
     [shown, ticks],
   );
 
@@ -127,7 +138,9 @@ export function SectorView({ sector }: { sector: SectorSnapshot }) {
       </header>
 
       <div className="flex-1 px-4 pt-5 pb-10 sm:px-6 lg:overflow-y-auto lg:px-7">
-        <Card className="px-7 py-7">
+        {/* CARD_X, the dashboard's inset, so content lines do not jump from
+            page to page (this card was px-7, the table card px-5 + px-2). */}
+        <Card className={cn("py-7", CARD_X)}>
           {/* Top-aligned, so the three labels share one line over figures of
               different sizes. On a phone the row is a two-column grid rather
               than a wrapping flex row, which had thrown the second figure to
@@ -197,8 +210,8 @@ export function SectorView({ sector }: { sector: SectorSnapshot }) {
           </p>
         </Card>
 
-        <Card className="mt-5 px-5 py-6">
-          <div className="flex flex-wrap items-center justify-between gap-4 px-2">
+        <Card className={cn("mt-5 py-6", CARD_X)}>
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div
               role="tablist"
               aria-label="Stock type"
@@ -220,9 +233,9 @@ export function SectorView({ sector }: { sector: SectorSnapshot }) {
                     setPage(0);
                   }}
                   className={cn(
-                    "min-h-9 rounded-full px-4 text-[13px] font-medium transition-all duration-300",
+                    "min-h-11 rounded-full px-4 text-[13px] font-medium transition-all duration-300",
                     tab === key
-                      ? "bg-[linear-gradient(140deg,#f6e6c6,#dcbb8a)] text-on-gold"
+                      ? "bg-[image:var(--cta-buy)] text-on-gold"
                       : "text-ink-3 hover:text-ink",
                   )}
                 >
@@ -236,34 +249,38 @@ export function SectorView({ sector }: { sector: SectorSnapshot }) {
                 aria-hidden="true"
                 className="pointer-events-none absolute left-3 h-4 w-4 text-ink-3"
               />
-              <span className="sr-only">Search this sector</span>
+              <span className="sr-only">Filter this sector</span>
               <input
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
                   setPage(0);
                 }}
-                placeholder="Search any stock"
-                className="min-h-10 w-full rounded-full border border-rule-control bg-transparent pr-3 pl-9 text-[13.5px] text-ink placeholder:text-ink-3 focus:border-[rgba(217,189,139,0.35)] focus:outline-none"
+                /* It filters this sector's rows only; "Search any stock" sent
+                   readers after tickers the table cannot hold. 16px below
+                   `sm`, because iOS Safari zooms the page into any field set
+                   smaller. */
+                placeholder="Filter this sector"
+                className="min-h-11 w-full rounded-full border border-rule-control bg-transparent pr-3 pl-9 text-[16px] text-ink placeholder:text-ink-3 focus:border-[rgba(217,189,139,0.35)] focus:outline-none sm:text-[13.5px]"
               />
             </label>
           </div>
 
-          <p className="mt-4 px-2 text-[12.5px] text-ink-3">
+          <p className="mt-4 text-[12.5px] text-ink-3">
             {COUNT_FMT.format(rows.length)}{" "}
             {tab === "stocks" ? (rows.length === 1 ? "stock" : "stocks") : rows.length === 1 ? "fund" : "funds"}
             {query && ` matching “${query}”`}
           </p>
 
           {visible.length === 0 ? (
-            <p className="px-2 py-10 text-center text-[13.5px] text-ink-3">
+            <p className="py-10 text-center text-[13.5px] text-ink-3">
               {tab === "funds"
                 ? "No sector funds were matched. Funds carry no sector classification, so these are found by name."
                 : "Nothing here matches that search."}
             </p>
           ) : (
             <div className="mt-3 overflow-x-auto">
-              <table className="w-full min-w-[760px] border-collapse text-left">
+              <table className="w-full border-collapse text-left sm:min-w-[760px]">
                 <thead>
                   <tr className="border-b border-rule">
                     {COLUMNS.map((c) => (
@@ -273,16 +290,20 @@ export function SectorView({ sector }: { sector: SectorSnapshot }) {
                         aria-sort={
                           sort === c.key ? (desc ? "descending" : "ascending") : "none"
                         }
+                        /* py-1 around a 44px button keeps the header row at
+                           the 52px it was with py-2.5 around a 32px one. */
                         className={cn(
-                          "px-3 py-2.5 text-[12px] font-medium tracking-[0.04em] text-ink-3",
+                          "px-3 py-1 text-[12px] font-medium tracking-[0.04em] text-ink-3 first:pl-0 last:pr-0",
                           c.numeric && "text-right",
+                          c.key === "price" && PRICE_EDGE,
+                          !c.phone && DESKTOP_CELL,
                         )}
                       >
                         <button
                           type="button"
                           onClick={() => press(c.key)}
                           className={cn(
-                            "inline-flex min-h-8 items-center gap-1.5 transition-colors hover:text-ink",
+                            "inline-flex min-h-11 items-center gap-1.5 transition-colors hover:text-ink",
                             sort === c.key && "text-ink-2",
                           )}
                         >
@@ -305,12 +326,12 @@ export function SectorView({ sector }: { sector: SectorSnapshot }) {
           )}
 
           {pages > 1 && (
-            <div className="mt-5 flex items-center justify-center gap-3 px-2">
+            <div className="mt-5 flex items-center justify-center gap-3">
               <button
                 type="button"
                 onClick={() => setPage((p) => Math.max(0, p - 1))}
                 disabled={current === 0}
-                className="min-h-9 rounded-full border border-rule-control px-4 text-[12.5px] text-ink-3 transition-colors enabled:hover:text-ink disabled:opacity-40"
+                className="min-h-11 rounded-full border border-rule-control px-4 text-[12.5px] text-ink-3 transition-colors enabled:hover:text-ink disabled:opacity-40"
               >
                 Previous
               </button>
@@ -321,7 +342,7 @@ export function SectorView({ sector }: { sector: SectorSnapshot }) {
                 type="button"
                 onClick={() => setPage((p) => Math.min(pages - 1, p + 1))}
                 disabled={current === pages - 1}
-                className="min-h-9 rounded-full border border-rule-control px-4 text-[12.5px] text-ink-3 transition-colors enabled:hover:text-ink disabled:opacity-40"
+                className="min-h-11 rounded-full border border-rule-control px-4 text-[12.5px] text-ink-3 transition-colors enabled:hover:text-ink disabled:opacity-40"
               >
                 Next
               </button>
@@ -396,16 +417,23 @@ function Row({ row }: { row: SectorRow }) {
       onMouseEnter={() => setWanted(true)}
       className="border-b border-rule/60 transition-colors hover:bg-[rgba(217,189,139,0.04)]"
     >
-      <td className="px-3 py-3">
+      {/* The link carries the cell's padding, so the whole cell, the full
+          height of the row, is the tap target. It used to cover only the name
+          block, 39.5px inside a 64px row.
+
+          Below `sm` this column takes whatever Price leaves (w-full), and
+          max-w-0 lets a long name truncate instead of pushing Price out of
+          the card. */}
+      <td className="p-0 max-sm:w-full max-sm:max-w-0">
         <Link
           href={instrumentPath(row.id)}
           prefetch={wanted ? null : false}
-          className="block"
+          className="block py-3 pr-3"
         >
           {identity}
         </Link>
       </td>
-      <td className={cell}>
+      <td className={cn(cell, PRICE_EDGE)}>
         <span className="block">{money(row.price)}</span>
         <span className="mt-0.5 flex justify-end">
           {/* A dash, not "+0.00%", when the gateway priced the name but sent no
@@ -414,12 +442,12 @@ function Row({ row }: { row: SectorRow }) {
           {row.chg === null ? "—" : <Delta value={row.chg} size="text-[11.5px]" />}
         </span>
       </td>
-      <td className={cell}>{marketCap(row.mcap)}</td>
-      <td className={cell}>{ratio(row.pe)}</td>
-      <td className={cell}>
+      <td className={cn(cell, DESKTOP_CELL)}>{marketCap(row.mcap)}</td>
+      <td className={cn(cell, DESKTOP_CELL)}>{ratio(row.pe)}</td>
+      <td className={cn(cell, DESKTOP_CELL)}>
         {row.ret1y === null ? "—" : <Delta value={row.ret1y} size="text-[13.5px]" />}
       </td>
-      <td className={cell}>
+      <td className={cn(cell, DESKTOP_CELL, "pr-0")}>
         {row.cagr5y === null ? "—" : <Delta value={row.cagr5y} size="text-[13.5px]" />}
       </td>
     </tr>

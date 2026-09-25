@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { IconFall, IconRise } from "@/components/icons";
-import { pct } from "@/lib/market/format";
+import { IconFall, IconFlat, IconRise } from "@/components/icons";
+import { isFlat, pct, pctOrFlat } from "@/lib/market/format";
 import { C } from "@/lib/tokens";
 import { cn } from "@/lib/ui";
 
@@ -115,7 +115,9 @@ export function DeltaPill({
   );
 }
 
-/** A bare signed figure, for dense rows where a pill would be too much. */
+/** A bare signed figure, for dense rows where a pill would be too much.
+    A change that prints as nought is neutral: tertiary ink, a level bar where
+    the caret goes, and no sign. */
 export function Delta({
   value,
   digits = 2,
@@ -127,15 +129,16 @@ export function Delta({
   size?: string;
   className?: string;
 }) {
+  const flat = isFlat(value, digits);
   const up = value >= 0;
-  const Caret = up ? IconRise : IconFall;
+  const Caret = flat ? IconFlat : up ? IconRise : IconFall;
   return (
     <span
       className={cn("font-mono inline-flex items-center gap-1.5", size, className)}
-      style={{ color: up ? C.up : C.down }}
+      style={{ color: flat ? C.ink3 : up ? C.up : C.down }}
     >
       <Caret className="h-3 w-3 flex-none" />
-      {pct(value, digits)}
+      {pctOrFlat(value, digits)}
     </span>
   );
 }

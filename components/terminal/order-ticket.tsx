@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { IconClose, IconSwap } from "@/components/icons";
 import { Card } from "@/components/ui/surface";
 import { money, pct, usd } from "@/lib/market/format";
@@ -10,6 +10,7 @@ import { usePortfolio, type TicketQuote } from "@/lib/portfolio";
 import { C, EASE } from "@/lib/tokens";
 import { usePresence } from "@/lib/use-presence";
 import { Monogram, cn } from "./ui";
+import { SCRIM } from "@/lib/ui";
 
 const EXIT_MS = 380;
 
@@ -17,6 +18,27 @@ const ORDER_TYPES: OrderType[] = ["Market", "Limit", "Stop"];
 
 /** What a reader is most likely to spend, rather than what they must. */
 const AMOUNT_PRESETS = [100, 500, 1000, 5000];
+
+/* Below Tailwind's `sm`, where the ticket is a sheet rising from the bottom
+   rather than a drawer from the right. The same query the classes use, so the
+   motion and the layout cannot disagree about which one is on screen. */
+const SHEET_QUERY = "(width < 40rem)";
+
+function subscribeSheet(onChange: () => void): () => void {
+  const mq = window.matchMedia(SHEET_QUERY);
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+}
+
+/* The server renders no ticket, so its answer is never drawn; false keeps the
+   drawer as the default everywhere a query cannot be asked. */
+function useSheet(): boolean {
+  return useSyncExternalStore(
+    subscribeSheet,
+    () => window.matchMedia(SHEET_QUERY).matches,
+    () => false,
+  );
+}
 
 /**
  * The desk.
@@ -65,6 +87,7 @@ export function OrderTicket({
   const uid = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const sheet = useSheet();
 
   /* The instrument clears the moment the ticket is dismissed, but the panel
      stays mounted for its exit. Holding the last one keeps the drawer's
@@ -174,26 +197,31 @@ export function OrderTicket({
         type="button"
         aria-label="Close order ticket"
         onClick={onClose}
-        className="absolute inset-0 h-full w-full cursor-default bg-[rgba(6,5,4,0.78)] backdrop-blur-[7px]"
+        className={cn("absolute inset-0 h-full w-full cursor-default backdrop-blur-[7px]", SCRIM)}
       />
 
-      {/* Bottom sheet on phones, right-hand drawer from `sm` up. */}
+      {/* Bottom sheet on phones, right-hand drawer from `sm` up — and it
+          moves like one: it rose from the right on a phone too, so the sheet
+          arrived sideways from under the edge it did not sit against. */}
       <motion.div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label={`Order ticket for ${instrument.name}`}
-        initial={{ x: "100%" }}
-        animate={{ x: open ? 0 : "100%" }}
+        initial={sheet ? { y: "100%" } : { x: "100%" }}
+        animate={sheet ? { y: open ? 0 : "100%" } : { x: open ? 0 : "100%" }}
         transition={{ duration: EXIT_MS / 1000, ease: EASE }}
         className={cn(
           /* `[&>*]:shrink-0` is load-bearing, not tidiness. A column flex
              container shrinks its children by default, so on a phone — where
              the ticket is taller than the sheet — every block was squeezed
              instead of the sheet scrolling, and the amount card's preset row
-             was sliced in half by its own bottom edge. */
+             was sliced in half by its own bottom edge.
+
+             No bottom padding on a phone: the pinned action row below carries
+             its own, down to the home indicator. */
           "absolute inset-x-0 top-14 bottom-0 flex flex-col overflow-y-auto [&>*]:shrink-0",
-          "border-t border-rule-raised bg-shell p-5",
+          "border-t border-rule-raised bg-shell px-5 pt-5",
           "sm:inset-y-0 sm:right-0 sm:left-auto sm:top-0 sm:w-[430px] sm:max-w-full",
           "sm:border-t-0 sm:border-l sm:p-6",
           "shadow-[-40px_0_100px_rgba(0,0,0,0.7)]",
@@ -217,7 +245,7 @@ export function OrderTicket({
 
         {/* The name and what it last traded at. The price is the page's own —
             the desk states no figure the instrument behind it would contradict. */}
-        <Card className="mt-5 flex items-center gap-3.5 px-4 py-4">
+        <Card className="mt-4 flex items-center gap-3.5 px-4 py-4 sm:mt-5">
           <Monogram
             mark={instrument.mark}
             color={instrument.color}
@@ -251,7 +279,7 @@ export function OrderTicket({
         <div
           role="group"
           aria-label="Order side"
-          className="mt-4 flex overflow-hidden rounded-[10px] border border-rule"
+          className="mt-3 flex overflow-hidden rounded-[10px] border border-rule sm:mt-4"
         >
           {(["buy", "sell"] as const).map((s) => {
             const active = side === s;
@@ -284,7 +312,7 @@ export function OrderTicket({
           in both directions — "spend five hundred dollars" is a whole order,
           and rounding it to a share count would refuse the instruction.
         */}
-        <Card lit className="mt-4 px-5 py-5">
+        <Card lit className="mt-3 px-5 py-5 sm:mt-4">
           <div className="flex items-start gap-4">
             <Leg
               id={mode === "amount" ? amountId : sharesId}
@@ -301,7 +329,10 @@ export function OrderTicket({
               aria-label={
                 mode === "amount" ? "Enter a quantity instead" : "Enter an amount instead"
               }
-              className="mt-6 grid h-9 w-9 flex-none place-items-center rounded-[10px] border border-rule-control text-ink-3 transition-colors hover:border-gold hover:text-gold"
+              /* 44px on a phone, where it was 36 and the only way to change
+                 between dollars and shares; set 28px down so its centre meets
+                 the field's (a 19.6px label, 8px of gap, a 44px field). */
+              className="mt-7 grid h-11 w-11 flex-none place-items-center rounded-[10px] border border-rule-control text-ink-3 transition-colors hover:border-gold hover:text-gold sm:mt-6 sm:h-9 sm:w-9"
             >
               <IconSwap className="h-4 w-4" />
             </button>
@@ -348,7 +379,7 @@ export function OrderTicket({
           )}
         </Card>
 
-        <div className="mt-4">
+        <div className="mt-3 sm:mt-4">
           <p className="eyebrow eyebrow-wide mb-3">Order type</p>
           <div role="group" aria-label="Order type" className="flex gap-2">
             {ORDER_TYPES.map((o) => {
@@ -439,48 +470,65 @@ export function OrderTicket({
           {notice?.text ?? ""}
         </p>
 
-        {/* No nested AnimatePresence here. One inside a drawer that is itself
-            exiting leaves the outer exit waiting on a child that never
-            resolves, and the whole panel stays mounted off-screen. The notice
-            only needs an entrance, so `key` replays it. */}
-        {notice && (
-          <motion.p
-            key={notice.text}
-            aria-hidden="true"
-            initial={{ opacity: 0, scale: 0.94 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.32 }}
-            className={cn(
-              "mt-5 rounded-[10px] border p-3.5 text-center text-[12px] font-bold tracking-[0.1em] uppercase",
-              notice.ok
-                ? "border-rule-raised bg-[var(--tint-gold-soft)] text-gold"
-                : "border-[rgba(224,121,107,.4)] bg-[var(--tint-down)] text-down",
-            )}
-          >
-            {notice.text}
-          </motion.p>
-        )}
+        {/* The action, pinned to the foot of the sheet on a phone.
 
-        <motion.button
-          type="button"
-          onClick={place}
-          whileHover={{ y: -2 }}
-          whileTap={{ scale: 0.99 }}
-          transition={{ duration: 0.2 }}
+            The ticket is taller than an iPhone's sheet — 858px of content in
+            756 at 375x812 — and the button it exists for sat at 813, below
+            the fold, and half cut at 390x844. Pinned, it is on screen however
+            far the reader has scrolled, on the sheet's own ground with a rule
+            above it so the rows scrolling beneath read as passing under it.
+            From `sm` up the drawer is tall enough and this is an ordinary
+            block with the spacing it always had. A column, so the button keeps
+            the full width it had as a child of the sheet. */}
+        <div
           className={cn(
-            "mt-5 rounded-[10px] px-4 py-4 text-[11px] font-extrabold tracking-[0.14em] uppercase",
-            "shadow-[0_10px_34px_rgba(0,0,0,0.4)] transition-shadow hover:shadow-[0_14px_40px_rgba(217,189,139,0.28)]",
-            buy ? "cta-buy" : "cta-sell",
+            "sticky bottom-0 z-10 -mx-5 mt-3 flex flex-col gap-3 border-t border-rule bg-shell px-5 pt-3 pb-[max(16px,env(safe-area-inset-bottom))]",
+            "sm:static sm:mx-0 sm:mt-0 sm:gap-0 sm:border-t-0 sm:p-0",
           )}
         >
-          {/* The button states the order, not the verb. Before anything is
-              entered it says so, rather than offering to trade nothing. */}
-          {resolved.shares > 0
-            ? `${buy ? "Buy" : "Sell"} ${formatShares(resolved.shares)} ${instrument.id} · ${usd(resolved.amount)}`
-            : `${buy ? "Buy" : "Sell"} ${instrument.id}`}
-        </motion.button>
+          {/* No nested AnimatePresence here. One inside a drawer that is itself
+              exiting leaves the outer exit waiting on a child that never
+              resolves, and the whole panel stays mounted off-screen. The notice
+              only needs an entrance, so `key` replays it. */}
+          {notice && (
+            <motion.p
+              key={notice.text}
+              aria-hidden="true"
+              initial={{ opacity: 0, scale: 0.94 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.32 }}
+              className={cn(
+                "rounded-[10px] border p-3.5 text-center text-[12px] font-bold tracking-[0.1em] uppercase sm:mt-5",
+                notice.ok
+                  ? "border-rule-raised bg-[var(--tint-gold-soft)] text-gold"
+                  : "border-[rgba(224,121,107,.4)] bg-[var(--tint-down)] text-down",
+              )}
+            >
+              {notice.text}
+            </motion.p>
+          )}
 
-        <p className="eyebrow mt-4 text-center">Simulated order · no funds are moved</p>
+          <motion.button
+            type="button"
+            onClick={place}
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.99 }}
+            transition={{ duration: 0.2 }}
+            className={cn(
+              "rounded-[10px] px-4 py-4 text-[11px] font-extrabold tracking-[0.14em] uppercase sm:mt-5",
+              "shadow-[0_10px_34px_rgba(0,0,0,0.4)] transition-shadow hover:shadow-[0_14px_40px_rgba(217,189,139,0.28)]",
+              buy ? "cta-buy" : "cta-sell",
+            )}
+          >
+            {/* The button states the order, not the verb. Before anything is
+                entered it says so, rather than offering to trade nothing. */}
+            {resolved.shares > 0
+              ? `${buy ? "Buy" : "Sell"} ${formatShares(resolved.shares)} ${instrument.id} · ${usd(resolved.amount)}`
+              : `${buy ? "Buy" : "Sell"} ${instrument.id}`}
+          </motion.button>
+
+          <p className="eyebrow text-center sm:mt-4">Simulated order · no funds are moved</p>
+        </div>
       </motion.div>
     </motion.div>
   );
@@ -521,7 +569,8 @@ function Leg({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="0"
-          className="font-mono w-full min-w-0 bg-transparent text-[26px] text-ink placeholder:text-ink-4 focus:outline-none disabled:text-ink-4"
+          /* 44px tall on a phone, where it measured 39. */
+          className="font-mono min-h-11 w-full min-w-0 bg-transparent text-[26px] text-ink placeholder:text-ink-4 focus:outline-none disabled:text-ink-4 sm:min-h-0"
         />
       </div>
     </div>
@@ -538,7 +587,7 @@ function Row({
   color?: string;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 py-2.5">
+    <div className="flex items-baseline justify-between gap-3 py-2 sm:py-2.5">
       <dt className="text-[11.5px] font-semibold tracking-[0.13em] text-ink-3 uppercase">
         {label}
       </dt>

@@ -1,4 +1,4 @@
-import { bellOf } from "./regular-session.ts";
+import { bellOf, easternDayOf } from "./regular-session.ts";
 import { easternTime } from "./session.ts";
 import { tradingDays } from "./session-window.ts";
 import type { RangeDef, RangeId } from "./types";
@@ -192,24 +192,51 @@ function spanOf(firstMs: number | null, lastMs: number | null, zone: string): st
   return `${sameYear ? DAY.format(firstMs) : DAY_YEAR.format(firstMs)} \u2013 ${DAY_YEAR.format(lastMs)}`;
 }
 
-/**
- * One line under the chart saying exactly what is drawn:
+/* Whether the day chart is showing a session that has already ended.
  *
- *     1M \u00b7 21 daily closes \u00b7 Aug 4 \u2013 Sep 1, 2026 \u00b7 IST
+ * Before the bell the day chart is the last completed session, drawn red or
+ * green against the close before IT, while the header above it measures the
+ * pre-market price against that session's close. Measured 25 Sep 2026: AAPL's
+ * day chart was a red line under a green +0.04%, and nothing said the two were
+ * about different sessions. Read off the drawn points and the calendar, not a
+ * phase flag: the session is over once its own bell (13:00 on a half-day) has
+ * rung. */
+function sessionEnded(def: RangeDef, lastMs: number | null, nowMs: number): boolean {
+  if (!def.intraday || lastMs === null || !Number.isFinite(lastMs) || !Number.isFinite(nowMs)) {
+    return false;
+  }
+  const bell = bellOf(easternDayOf(lastMs));
+  return bell !== null && nowMs >= bell;
+}
+
+/**
+ * What is drawn, as the separate parts of one caption:
+ *
+ *     1M \u00b7 21 daily closes \u00b7 Aug 4 \u2013 Sep 1, 2026 \u00b7 India Time
+ *
+ * PARTS, not a joined line, so each can be kept whole when a phone wraps it.
+ * Joined, the line broke after a separator: "\u2026Sep 25, 2026 \u00b7" on one line and
+ * "India Time" alone on the next, on 1M, 3M and 1Y but not the other three \u2014
+ * so the plot above lost a line of height only on some ranges and jumped as
+ * the reader switched between them (measured at 375 and 390, 25 Sep 2026).
  *
  * `count` is the number of points actually plotted, not the range's nominal
  * `sessions` \u2014 a short feed draws fewer, and claiming 252 while drawing 200 is
  * the same class of untruth the rest of this file exists to avoid.
  */
-export function rangeCaption(
+export function rangeCaptionParts(
   def: RangeDef,
   firstMs: number | null,
   lastMs: number | null,
   count: number,
   /* Injected so a test can pin a zone rather than inherit the machine's. */
   zone: string = readerZone(),
-): string {
+  /* Injected for the same reason: whether the day's session has ended. */
+  nowMs: number = Date.now(),
+): string[] {
   const parts: string[] = [def.label];
+
+  if (sessionEnded(def, lastMs, nowMs)) parts.push("Last session");
 
   parts.push(count > 0 ? `${COUNT.format(count)} ${def.interval}` : def.interval);
 
@@ -221,7 +248,19 @@ export function rangeCaption(
     parts.push(zoneLabel(zone, lastMs ?? undefined));
   }
 
-  return parts.join(" \u00b7 ");
+  return parts;
+}
+
+/** The same caption as one line of prose, for the chart's text alternative. */
+export function rangeCaption(
+  def: RangeDef,
+  firstMs: number | null,
+  lastMs: number | null,
+  count: number,
+  zone: string = readerZone(),
+  nowMs: number = Date.now(),
+): string {
+  return rangeCaptionParts(def, firstMs, lastMs, count, zone, nowMs).join(" \u00b7 ");
 }
 
 /* What each range is called in a sentence. */

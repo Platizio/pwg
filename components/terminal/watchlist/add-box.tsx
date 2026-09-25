@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { IconPlus, IconSearch } from "@/components/icons";
+import { IconClose, IconPlus, IconSearch } from "@/components/icons";
 import { cn } from "@/lib/ui";
 import { GlyphCheck } from "./glyphs";
+import { onAddBoxAsked } from "./paths";
 
 /** A name the box can offer: the search corpus's row, or a remote match. */
 export type Candidate = {
@@ -115,7 +116,7 @@ export function AddBox({
               id: hit.id,
               name: hit.name,
               mark: hit.id.slice(0, 1),
-              color: "#B0BFCB",
+              color: "var(--c-mark-4)",
             })),
           });
         })
@@ -130,14 +131,33 @@ export function AddBox({
     };
   }, [term, local.length]);
 
-  /* Arriving from an "Add stocks" link lands here ready to type. */
+  /* Arriving from an "Add stocks" link lands here ready to type.
+
+     Three ways in. From another page, the link navigates and the hash is
+     already #add when this mounts. From this page, the link only changes the
+     hash, with pushState — no `hashchange` — so the link announces itself
+     (askForAddBox) and focus is taken inside that same tap: synchronously, so
+     iOS raises the keyboard, and once more a frame later in case the drawer
+     the link sat in took focus back as it closed. And a real hash change
+     (typed, or back and forward) still arrives as `hashchange`. */
   useEffect(() => {
-    const focusIfAsked = () => {
-      if (window.location.hash === "#add") inputRef.current?.focus({ preventScroll: true });
+    const focus = () => inputRef.current?.focus({ preventScroll: true });
+    const focusIfHashed = () => {
+      if (window.location.hash === "#add") focus();
     };
-    focusIfAsked();
-    window.addEventListener("hashchange", focusIfAsked);
-    return () => window.removeEventListener("hashchange", focusIfAsked);
+    const asked = () => {
+      focus();
+      requestAnimationFrame(() => {
+        if (document.activeElement !== inputRef.current) focus();
+      });
+    };
+    focusIfHashed();
+    window.addEventListener("hashchange", focusIfHashed);
+    const stopAsked = onAddBoxAsked(asked);
+    return () => {
+      window.removeEventListener("hashchange", focusIfHashed);
+      stopAsked();
+    };
   }, []);
 
   useEffect(() => {
@@ -189,12 +209,9 @@ export function AddBox({
         if (!rootRef.current?.contains(e.relatedTarget as Node | null)) setOpen(false);
       }}
     >
-      <label htmlFor={inputId} className="sr-only">
-        Add a stock to {listName}
-      </label>
       <div
         className={cn(
-          "flex min-h-11 items-center gap-2.5 rounded-full border px-4 transition-colors duration-300",
+          "flex min-h-11 items-center rounded-full border transition-colors duration-300",
           full
             ? "border-rule-control opacity-60"
             : showPanel
@@ -202,32 +219,68 @@ export function AddBox({
               : "border-rule-control hover:border-[rgba(var(--c-gold-rgb),0.24)]",
         )}
       >
-        <IconSearch
-          aria-hidden="true"
-          className={cn("h-4 w-4 flex-none", showPanel ? "text-gold-dim" : "text-ink-3")}
-        />
-        <input
-          ref={inputRef}
-          id={inputId}
-          type="search"
-          value={query}
-          disabled={full}
-          autoComplete="off"
-          spellCheck={false}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          onKeyDown={onKeyDown}
-          role="combobox"
-          aria-expanded={showPanel}
-          aria-controls={listId}
-          aria-autocomplete="list"
-          aria-activedescendant={showPanel && activeRow ? `${uid}-${activeRow.id}` : undefined}
-          placeholder={full ? "This list is full at 100 stocks" : `Add a stock to ${listName}`}
-          className="w-full min-w-0 bg-transparent py-2.5 text-[13.5px] text-ink placeholder:text-ink-3 focus:outline-none disabled:cursor-not-allowed"
-        />
+        {/* The label is the pill's whole left side, glass and padding
+            included, so a tap anywhere on the pill but the clear control puts
+            the caret in the field. It used to be a visually hidden label beside
+            a plain box, and only the 40px input inside the 44px pill took a
+            tap. */}
+        <label
+          htmlFor={inputId}
+          className={cn(
+            "flex min-w-0 flex-1 items-center gap-2.5 self-stretch pl-4",
+            query && !full ? "pr-1" : "pr-4",
+            full ? "cursor-not-allowed" : "cursor-text",
+          )}
+        >
+          <IconSearch
+            aria-hidden="true"
+            className={cn("h-4 w-4 flex-none", showPanel ? "text-gold-dim" : "text-ink-3")}
+          />
+          <span className="sr-only">Add a stock to {listName}</span>
+          <input
+            ref={inputRef}
+            id={inputId}
+            type="search"
+            value={query}
+            disabled={full}
+            autoComplete="off"
+            spellCheck={false}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setOpen(true);
+            }}
+            onFocus={() => setOpen(true)}
+            onKeyDown={onKeyDown}
+            role="combobox"
+            aria-expanded={showPanel}
+            aria-controls={listId}
+            aria-autocomplete="list"
+            aria-activedescendant={showPanel && activeRow ? `${uid}-${activeRow.id}` : undefined}
+            placeholder={full ? "This list is full at 100 stocks" : `Add a stock to ${listName}`}
+            /* 16px below `sm`, as the header search: iOS zooms the page into
+               any field set smaller the moment it takes focus. The native clear
+               glyph is off for the reason search.tsx gives; the pill draws its
+               own. */
+            className="w-full min-w-0 bg-transparent py-2.5 text-[16px] text-ink placeholder:text-ink-3 focus:outline-none disabled:cursor-not-allowed sm:text-[13.5px] [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:hidden"
+          />
+        </label>
+        {query && !full && (
+          /* -my-px keeps the 44px target from growing the 44px pill past its
+             border; the glyph sits as far in from the right edge as the glass
+             does from the left. */
+          <button
+            type="button"
+            aria-label="Clear"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              setQuery("");
+              inputRef.current?.focus();
+            }}
+            className="-my-px mr-0.5 grid h-11 w-11 flex-none place-items-center rounded-full text-ink-3 transition-colors hover:text-ink"
+          >
+            <IconClose className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       {showPanel && (
@@ -275,7 +328,10 @@ export function AddBox({
                       {c.mark}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13.5px] font-medium text-ink">
+                      {/* Two lines, not an ellipsis, as in the header search: fund
+                          names differ at the end ("…Vanguard Dividend
+                          Appreciation"), which is where truncation cut them. */}
+                      <span className="line-clamp-2 text-[13.5px] font-medium break-words text-ink">
                         {c.name}
                       </span>
                       <span className="font-mono mt-0.5 block text-[11.5px] tracking-[0.05em] text-ink-3">

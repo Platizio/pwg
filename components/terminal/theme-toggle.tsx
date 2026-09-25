@@ -86,8 +86,10 @@ export default function ThemeToggle({ collapsed = false }: { collapsed?: boolean
         /* w-full, not w-fit: the sidebar footer sets this beside the language
            control in two equal grid tracks, so the pair share both edges and
            the rail's own. Sized to its own content they were 102px and 123px
-           and never lined up. */
-        collapsed ? "w-11 justify-center px-0" : "w-full min-w-0 px-3.5",
+           and never lined up. pl-[9px] rather than 14px: with the 1px
+           border the glyph lands on the icon column the nav tiles and
+           monograms above share, instead of 5px right of it. */
+        collapsed ? "w-11 justify-center px-0" : "w-full min-w-0 pr-3.5 pl-[9px]",
       )}
     >
       {isLight ? (

@@ -15,6 +15,7 @@ import { notableMoves } from "@/lib/market/instrument-derive";
 import type { InstrumentSnapshot } from "@/lib/market/instrument";
 import { C, trend } from "@/lib/tokens";
 import { Meter, Section } from "../ui";
+import { dayLabelAt } from "./day-label";
 
 /**
  * How the instrument has actually done.
@@ -54,16 +55,6 @@ const tone = (n: number | null) => (n === null ? C.ink4 : trend(n >= 0));
 /* Sage for a fall would be absurd and terracotta for no fall would be alarmist,
    so a drawdown of nought takes the neutral ink instead of either. */
 const fallTone = (n: number | null) => (n === null ? C.ink4 : n === 0 ? C.ink2 : C.down);
-
-/* Fixed en-US and UTC, like every other formatter in this repo: the visitor's
-   own locale would make the server and the client disagree and blow up
-   hydration. */
-const LONG_DATE = new Intl.DateTimeFormat("en-US", {
-  timeZone: "UTC",
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-});
 
 const TH = "py-2 text-[11px] font-semibold tracking-[0.14em] text-ink-3 uppercase";
 
@@ -225,7 +216,7 @@ export function PerformancePanel({ snapshot }: { snapshot: InstrumentSnapshot })
   const moves = notableMoves(snapshot);
 
   const marketLabel = market?.symbol ?? "Market";
-  const asOf = LONG_DATE.format(points[points.length - 1].at);
+  const asOf = dayLabelAt(points[points.length - 1].at);
   const oneYear = rows.find((r) => r.key === "1y");
 
   /* Built once. The two paths share a scale, and deriving them twice in the
@@ -297,7 +288,7 @@ export function PerformancePanel({ snapshot }: { snapshot: InstrumentSnapshot })
       note:
         risk.maxDrawdownAt === null
           ? "Across the record"
-          : `Trough ${LONG_DATE.format(risk.maxDrawdownAt)}`,
+          : `Trough ${dayLabelAt(risk.maxDrawdownAt)}`,
     },
     {
       label: "Beta",
@@ -315,13 +306,15 @@ export function PerformancePanel({ snapshot }: { snapshot: InstrumentSnapshot })
           1440 — lowers the whole row's figure line, not its own figure alone.
           The rules are each cell's top and left edges, and the wrapper clips
           the ones that land on the strip's outer edge, so no column count
-          leaves a stray rule at the right or a doubled one at the foot. */}
+          leaves a stray rule at the right or a doubled one at the foot. The
+          odd fifth cell takes the rest of its row wherever the columns do not
+          divide five, so no row ends in an empty, unruled half. */}
       <div className="overflow-hidden border-t border-b border-rule-section">
         <dl className="-mt-px -ml-px grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5">
           {summary.map((s) => (
             <div
               key={s.label}
-              className="row-span-3 grid grid-rows-subgrid border-t border-l border-rule-section px-5 py-5"
+              className="row-span-3 grid grid-rows-subgrid border-t border-l border-rule-section px-5 py-5 last:col-span-2 xl:last:col-span-1"
             >
               <dt className="eyebrow mb-3 self-end">{s.label}</dt>
               <dd
@@ -409,25 +402,40 @@ export function PerformancePanel({ snapshot }: { snapshot: InstrumentSnapshot })
             <p className="mt-4 max-w-[62ch] text-[12.5px] leading-[1.7] text-ink-3">
               Price returns, adjusted for splits &mdash; dividends are not
               included. Measured close to close, to the last completed session on{" "}
-              {asOf}. The comparison column is {marketLabel}, the fund that tracks
-              the S&amp;P 500 &mdash; no index instrument is available on this
-              account. The last column compounds the two rather than subtracting
-              them, so it reads as a return rather than a gap in percentage
-              points.
+              {asOf}.
+              {/* On the benchmark's own page there is no comparison column to
+                  describe, and a note naming one reads as a table that failed
+                  to draw. */}
+              {!isBenchmark && (
+                <>
+                  {" "}
+                  The comparison column is {marketLabel}, the fund that tracks
+                  the S&amp;P 500 &mdash; no index instrument is available on this
+                  account. The last column compounds the two rather than
+                  subtracting them, so it reads as a return rather than a gap in
+                  percentage points.
+                </>
+              )}
             </p>
           </Section>
 
           <Section
             title="Calendar years"
-            eyebrow={`First close to last close · gold marks ${marketLabel}`}
+            eyebrow={
+              isBenchmark
+                ? "First close to last close"
+                : `First close to last close · gold marks ${marketLabel}`
+            }
           >
             <div className="flex items-center gap-4 border-b border-rule pb-2">
               <span className="eyebrow w-[62px] flex-none">Year</span>
               <span className="min-w-0 flex-1" />
               <span className="eyebrow w-[76px] flex-none text-right">{profile.id}</span>
-              <span className="eyebrow hidden w-[68px] flex-none text-right sm:block">
-                {marketLabel}
-              </span>
+              {!isBenchmark && (
+                <span className="eyebrow hidden w-[68px] flex-none text-right sm:block">
+                  {marketLabel}
+                </span>
+              )}
             </div>
 
             <ul className="m-0 flex list-none flex-col p-0">
@@ -441,7 +449,7 @@ export function PerformancePanel({ snapshot }: { snapshot: InstrumentSnapshot })
                     <span className="min-w-0 flex-1">
                       <DivergingBar
                         value={y.stock}
-                        mark={y.market}
+                        mark={isBenchmark ? null : y.market}
                         scale={yearScale}
                         delay={i * 0.04}
                       />
@@ -452,9 +460,11 @@ export function PerformancePanel({ snapshot }: { snapshot: InstrumentSnapshot })
                     >
                       {signed(y.stock)}
                     </span>
-                    <span className="font-mono hidden w-[68px] flex-none text-right text-[13px] text-ink-3 sm:block">
-                      {signed(y.market)}
-                    </span>
+                    {!isBenchmark && (
+                      <span className="font-mono hidden w-[68px] flex-none text-right text-[13px] text-ink-3 sm:block">
+                        {signed(y.market)}
+                      </span>
+                    )}
                   </div>
                 </li>
               ))}
@@ -503,7 +513,7 @@ export function PerformancePanel({ snapshot }: { snapshot: InstrumentSnapshot })
                   Every session, as a fall from the highest close before it. The
                   line touches the top wherever the instrument set a new high.
                   {risk.maxDrawdownAt !== null && (
-                    <> Deepest {fall(risk.maxDrawdown)} on {LONG_DATE.format(risk.maxDrawdownAt)}.</>
+                    <> Deepest {fall(risk.maxDrawdown)} on {dayLabelAt(risk.maxDrawdownAt)}.</>
                   )}
                 </figcaption>
               </figure>

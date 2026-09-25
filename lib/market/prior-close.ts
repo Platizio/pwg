@@ -1,3 +1,5 @@
+import type { PricePoint } from "../api/normalize/series.ts";
+import { endOnClose } from "./regular-session.ts";
 import { tradingDays } from "./session-window.ts";
 
 /* The close a session is measured against: the one before it.
@@ -169,4 +171,31 @@ export function sessionClose(
   if (card !== null && Number.isFinite(card) && card > 0 && cardDay === day) return card;
   if (cardDay !== null && day > cardDay) return null;
   return closeOnDay(src.daily, day);
+}
+
+/**
+ * Daily bars carried to the session the card's close describes.
+ *
+ * The daily series runs a session behind the card. Measured 25 Sep 2026
+ * before the bell: AAPL's bars ended on the 23rd at 337.02 while "Previous
+ * close" read the 24th's official 335.92, so everything measured "to the last
+ * completed session" off the bars — the Overview's returns, its insights —
+ * stopped a session short of the card beside it, while the chart and the
+ * Performance tab reached the 24th. The card's close IS that session's bar:
+ * appended at New York midnight as the feed stamps its bars, or written over
+ * the bar's price when the series already has the session (endOnClose).
+ *
+ * The bar carries a close and nothing else — its high and low are the close
+ * and it has no volume — so the result is for measuring from closes, never
+ * for a session's range or turnover.
+ */
+export function throughCardSession(
+  daily: PricePoint[],
+  card: { asOf: number | null; previousClose: number | null },
+  nowMs: number = Number.POSITIVE_INFINITY,
+): PricePoint[] {
+  const day = quoteCloseDay(card.asOf);
+  if (day === null || daily.length === 0) return daily;
+  const close = sessionClose(day, { daily, previousClose: card.previousClose, cardDay: day });
+  return endOnClose(daily, close, nowMs, { daily: true, day }) as PricePoint[];
 }

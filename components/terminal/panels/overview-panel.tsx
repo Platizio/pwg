@@ -7,15 +7,14 @@ import { useLiveSnapshot, useNow, useShownQuote } from "../live-provider";
 import type { InstrumentSnapshot } from "@/lib/market/instrument";
 import { Meter, Section } from "../ui";
 import type { InsightTone } from "@/lib/market/insights";
-
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+import { dayLabel } from "./day-label";
 
 /* "as of 23 Sep 2026" from "2026-09-23": locale-free, so the server and the
    browser print the same text. (insights.ts has the same helper; importing it
    would pull the whole ranking module into the client bundle for one line.) */
 function asOfLabel(day: string | null): string | null {
-  const m = day ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(day) : null;
-  return m ? `as of ${Number(m[3])} ${MONTHS[Number(m[2]) - 1]} ${m[1]}` : null;
+  const label = dayLabel(day);
+  return label === null ? null : `as of ${label}`;
 }
 
 const TONE: Record<InsightTone, string> = {
@@ -63,6 +62,13 @@ export function OverviewPanel({ snapshot }: { snapshot: InstrumentSnapshot }) {
      Until hydration this is the server's own object, so nothing mismatches. */
   const live = useLiveSnapshot(snapshot);
   const stats = dayStats(live);
+  /* Before the bell the day's open, high and low have not happened, and three
+     bare dashes in five cells read as a broken feed. Each says when it will
+     fill instead, on the India clock the pill already uses. Only in the
+     pre-market: that is when the next opening is today's bell, and not a
+     pre-market two days off across a weekend. */
+  const bell =
+    session.phase === "pre-market" && session.opens ? `Opens ${session.opens.time} IST` : null;
   const rows = insights(live);
   /* The ranked, dated insights from lib/market/insights.ts, computed on the
      server from five years of official closes; the older three-line list
@@ -73,25 +79,35 @@ export function OverviewPanel({ snapshot }: { snapshot: InstrumentSnapshot }) {
   return (
     <div className="flex flex-col gap-8">
       {/* Ruled strip, not cards — Lux draws structure with lines only. */}
-      <dl className="grid grid-cols-2 border-t border-b border-rule-section sm:grid-cols-3 xl:grid-cols-5">
-        {stats.map((s) => (
-          <div
-            key={s.label}
-            /* No hover tint: these five are readouts, not controls, and a
-               highlight on something that cannot be clicked reads as broken. */
-            /* A column whose value sits on the cell's floor: at 1440 "Previous
-               close" wraps to two lines, and a value placed under its label
-               dropped 16px below the other four. The grid stretches every
-               cell in a row to one height, so every value shares one line. */
-            className="flex flex-col border-r border-b border-rule-section px-5 py-5 last:border-r-0 xl:border-b-0"
-          >
-            <dt className="eyebrow mb-3">{s.label}</dt>
-            <dd className="font-serif m-0 mt-auto text-[24px] tracking-[0.01em] sm:text-[24px]">
-              {s.value}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      {/* The rules are each cell's top and left edges, and the wrapper clips
+          the ones that land on the strip's outer edge — the Performance
+          strip's pattern. The old right-and-bottom rules were written for the
+          five-across desktop row: in two columns they closed the box on the
+          right only and doubled the rule under Day's low. The odd fifth cell
+          takes the rest of its row wherever the columns do not divide five. */}
+      <div className="overflow-hidden border-t border-b border-rule-section">
+        <dl className="-mt-px -ml-px grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5">
+          {stats.map((s) => {
+            const note = bell !== null && s.value === "—" && s.label.startsWith("Day's") ? bell : null;
+            return (
+              <div
+                key={s.label}
+                /* No hover tint: these five are readouts, not controls, and a
+                   highlight on something that cannot be clicked reads as broken. */
+                /* Three rows of a subgrid (label, figure, note): at 1440
+                   "Previous close" wraps to two lines, and a value placed under
+                   its own label dropped 16px below the other four. Sharing the
+                   rows keeps every value in a row on one line, and every note. */
+                className="row-span-3 grid grid-rows-subgrid border-t border-l border-rule-section px-5 py-5 last:col-span-2 xl:last:col-span-1"
+              >
+                <dt className="eyebrow mb-3">{s.label}</dt>
+                <dd className="font-serif m-0 text-[24px] tracking-[0.01em]">{s.value}</dd>
+                {note && <p className="mt-2 text-[11.5px] leading-[1.5] text-ink-3">{note}</p>}
+              </div>
+            );
+          })}
+        </dl>
+      </div>
 
       <div className="grid gap-8 xl:grid-cols-[1.4fr_1fr] xl:gap-[34px]">
         {/* This read "Updated 4 min ago" — a string literal, identical on every
@@ -104,7 +120,13 @@ export function OverviewPanel({ snapshot }: { snapshot: InstrumentSnapshot }) {
         <Section
           title="Insights"
           eyebrow={
-            <span className="block truncate" title={note ?? undefined}>
+            /* Held to one line only where the two lists sit side by side.
+               Below xl there is no neighbour to line up with, and a nowrap
+               line here set the single column's minimum width: once hydrated,
+               "…the last tick arrived 48m ago." pushed the column to 500px
+               and the page scrolled sideways at 375. Wrapping there says it
+               all instead of cutting it off. */
+            <span className="block xl:truncate" title={note ?? undefined}>
               {note ?? (ranked ? "Ranked, dated, and sourced" : "From the latest prices")}
             </span>
           }

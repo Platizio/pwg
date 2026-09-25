@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { marketCap, ratio } from "../lib/market/format.ts";
+import { isFlat, marketCap, pctOrFlat, ratio } from "../lib/market/format.ts";
 
 test("market cap reads in the unit a column has room for", () => {
   assert.equal(marketCap(4_623_874_049_400), "$4.62T");
@@ -15,4 +15,18 @@ test("an absent figure is a dash, never a zero", () => {
   assert.equal(ratio(null), "—");
   assert.equal(ratio(Number.NaN), "—");
   assert.equal(ratio(40.79), "40.79");
+});
+
+/* A change that prints as nought has no direction. AAPL before the bell read
+   a green, rising "+0.00%" in the watchlist: an up signal for no move. */
+test("a change that rounds to nought is flat, and prints unsigned", () => {
+  assert.equal(isFlat(0), true);
+  assert.equal(isFlat(0.004), true);
+  assert.equal(isFlat(-0.0049), true);
+  assert.equal(isFlat(0.006), false);
+  assert.equal(isFlat(0.04, 1), true, "at one place, 0.04 prints as 0.0");
+  assert.equal(pctOrFlat(0.003), "0.00%");
+  assert.equal(pctOrFlat(-0.003), "0.00%");
+  assert.equal(pctOrFlat(0.26), "+0.26%");
+  assert.equal(pctOrFlat(-1.5, 1), "−1.5%");
 });

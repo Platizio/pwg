@@ -665,11 +665,22 @@ function civilDate(iso: string): string | null {
  * month old. And it meant the formatter's zone was load-bearing in a way
  * nothing marked: any change to it silently moved every row a day.
  *
- * `relative` is a gloss on the date beside it, and `offset` is now measured
- * against the READER's day (lib/api/normalize/calendar.ts), so the word and
- * the date can no longer contradict what the reader's own calendar says.
+ * `relative` is a gloss on the date beside it, measured against the READER's
+ * day in India, so the word and the date can no longer contradict what the
+ * reader's own calendar says.
+ *
+ * WHICH DAY IS TODAY. `event.offset` was counted when the event was
+ * normalised, on the server, and a cached page carries it for as long as the
+ * page lives: on Friday 25 Sep 2026 at 14:15 IST the calendar headed its first
+ * section "Tomorrow · Fri, Sep 25", said "In 6 days" of the 30th and "3 days
+ * ago" of the 21st — every word a day behind. So `today` ("yyyy-mm-dd", from
+ * `readerDay` on the reader's own clock) re-counts the offset from the event's
+ * own date, and the returned `offset` is the one to group and split by.
+ * Without it — on the server, and in the first render that must match the
+ * server's — the stored offset stands.
  */
-export function calendarDate(event: CalendarEvent) {
+export function calendarDate(event: CalendarEvent, today?: string | null) {
+  const offset = offsetFrom(event, today);
   return {
     /* The raw string rather than nothing, if it ever arrives malformed: a
        reader can still read "2026-09-24", and a blank cell tells them less
@@ -681,16 +692,50 @@ export function calendarDate(event: CalendarEvent) {
        case. The dashboard rail had its own wrapper for this; the full page
        never got one, so the reading now lives here for both. */
     relative:
-      event.offset === 0
+      offset === 0
         ? "Today"
-        : event.offset === 1
+        : offset === 1
           ? "Tomorrow"
-          : event.offset === -1
+          : offset === -1
             ? "Yesterday"
-            : event.offset > 0
-              ? `In ${event.offset} days`
-              : `${Math.abs(event.offset)} days ago`,
+            : offset > 0
+              ? `In ${offset} days`
+              : `${Math.abs(offset)} days ago`,
+    offset,
   };
+}
+
+/* The reader's day. A named zone, as in lib/api/normalize/calendar.ts where
+   the stored offset is counted: this audience's calendar, and one answer on
+   every machine that asks. */
+const READER_DAY = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Kolkata",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+/** The reader's calendar day at `nowMs`, "yyyy-mm-dd", for `calendarDate`. */
+export function readerDay(nowMs: number): string | null {
+  return Number.isFinite(nowMs) ? READER_DAY.format(nowMs) : null;
+}
+
+/* A "yyyy-mm-dd" as a whole day number, so two of them subtract to whole days
+   whatever the offset or the season. */
+function dayIndex(iso: string): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (m === null) return null;
+  const at = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return Number.isFinite(at) ? Math.round(at / 86_400_000) : null;
+}
+
+/** Whole days from `today` to the event's own date; the stored offset when
+    there is no today or either date cannot be read. */
+export function offsetFrom(event: CalendarEvent, today?: string | null): number {
+  if (!today) return event.offset;
+  const from = dayIndex(today);
+  const to = dayIndex(event.date);
+  return from === null || to === null ? event.offset : to - from;
 }
 
 /* ------------------------------------------------------------------ */
@@ -787,44 +832,44 @@ export type Quote = {
   leads somewhere and does not is worse than a row that plainly doesn't.
 */
 const TAPE: Array<Omit<Quote, "covered">> = [
-  { id: "GOOGL", name: "Alphabet", mark: "G", color: "#B0BFCB", price: 176.5, chg: 2.41, seed: 41, sector: "Communication services" },
-  { id: "META", name: "Meta Platforms", mark: "M", color: "#93C7A8", price: 502.3, chg: 1.86, seed: 53, sector: "Communication services" },
-  { id: "NFLX", name: "Netflix", mark: "N", color: "#C9A88A", price: 664.18, chg: -0.74, seed: 67, sector: "Communication services" },
-  { id: "AMD", name: "Advanced Micro Devices", mark: "A", color: "#E5DDD1", price: 158.42, chg: 4.62, seed: 71, sector: "Information technology" },
-  { id: "AVGO", name: "Broadcom", mark: "B", color: "#93C7A8", price: 1642.9, chg: 2.18, seed: 83, sector: "Information technology" },
-  { id: "ORCL", name: "Oracle", mark: "O", color: "#B0BFCB", price: 141.06, chg: -1.32, seed: 97, sector: "Information technology" },
-  { id: "CRM", name: "Salesforce", mark: "S", color: "#C9A88A", price: 264.71, chg: -2.87, seed: 103, sector: "Information technology" },
-  { id: "XOM", name: "Exxon Mobil", mark: "X", color: "#C9A88A", price: 118.44, chg: 1.94, seed: 109, sector: "Energy" },
-  { id: "CVX", name: "Chevron", mark: "C", color: "#E5DDD1", price: 156.82, chg: 1.21, seed: 127, sector: "Energy" },
-  { id: "SLB", name: "SLB", mark: "S", color: "#93C7A8", price: 44.18, chg: -1.68, seed: 137, sector: "Energy" },
-  { id: "COP", name: "ConocoPhillips", mark: "C", color: "#B0BFCB", price: 109.35, chg: 0.86, seed: 149, sector: "Energy" },
-  { id: "JPM", name: "JPMorgan Chase", mark: "J", color: "#E5DDD1", price: 214.6, chg: 0.74, seed: 157, sector: "Financials" },
-  { id: "GS", name: "Goldman Sachs", mark: "G", color: "#C9A88A", price: 486.12, chg: -0.41, seed: 163, sector: "Financials" },
-  { id: "BRK.B", name: "Berkshire Hathaway", mark: "B", color: "#B0BFCB", price: 441.28, chg: 0.32, seed: 173, sector: "Financials" },
-  { id: "V", name: "Visa", mark: "V", color: "#93C7A8", price: 276.94, chg: -1.09, seed: 179, sector: "Financials" },
-  { id: "LLY", name: "Eli Lilly", mark: "L", color: "#93C7A8", price: 892.4, chg: 3.12, seed: 191, sector: "Health care" },
-  { id: "UNH", name: "UnitedHealth", mark: "U", color: "#B0BFCB", price: 512.77, chg: -3.44, seed: 197, sector: "Health care" },
-  { id: "JNJ", name: "Johnson & Johnson", mark: "J", color: "#E5DDD1", price: 158.9, chg: 0.28, seed: 211, sector: "Health care" },
-  { id: "PFE", name: "Pfizer", mark: "P", color: "#C9A88A", price: 28.64, chg: -2.06, seed: 223, sector: "Health care" },
-  { id: "F", name: "Ford Motor", mark: "F", color: "#B0BFCB", price: 12.1, chg: -1.94, seed: 229, sector: "Consumer discretionary" },
-  { id: "HD", name: "Home Depot", mark: "H", color: "#C9A88A", price: 362.18, chg: 0.61, seed: 233, sector: "Consumer discretionary" },
+  { id: "GOOGL", name: "Alphabet", mark: "G", color: "var(--c-mark-4)", price: 176.5, chg: 2.41, seed: 41, sector: "Communication services" },
+  { id: "META", name: "Meta Platforms", mark: "M", color: "var(--c-mark-3)", price: 502.3, chg: 1.86, seed: 53, sector: "Communication services" },
+  { id: "NFLX", name: "Netflix", mark: "N", color: "var(--c-mark-5)", price: 664.18, chg: -0.74, seed: 67, sector: "Communication services" },
+  { id: "AMD", name: "Advanced Micro Devices", mark: "A", color: "var(--c-mark-1)", price: 158.42, chg: 4.62, seed: 71, sector: "Information technology" },
+  { id: "AVGO", name: "Broadcom", mark: "B", color: "var(--c-mark-3)", price: 1642.9, chg: 2.18, seed: 83, sector: "Information technology" },
+  { id: "ORCL", name: "Oracle", mark: "O", color: "var(--c-mark-4)", price: 141.06, chg: -1.32, seed: 97, sector: "Information technology" },
+  { id: "CRM", name: "Salesforce", mark: "S", color: "var(--c-mark-5)", price: 264.71, chg: -2.87, seed: 103, sector: "Information technology" },
+  { id: "XOM", name: "Exxon Mobil", mark: "X", color: "var(--c-mark-5)", price: 118.44, chg: 1.94, seed: 109, sector: "Energy" },
+  { id: "CVX", name: "Chevron", mark: "C", color: "var(--c-mark-1)", price: 156.82, chg: 1.21, seed: 127, sector: "Energy" },
+  { id: "SLB", name: "SLB", mark: "S", color: "var(--c-mark-3)", price: 44.18, chg: -1.68, seed: 137, sector: "Energy" },
+  { id: "COP", name: "ConocoPhillips", mark: "C", color: "var(--c-mark-4)", price: 109.35, chg: 0.86, seed: 149, sector: "Energy" },
+  { id: "JPM", name: "JPMorgan Chase", mark: "J", color: "var(--c-mark-1)", price: 214.6, chg: 0.74, seed: 157, sector: "Financials" },
+  { id: "GS", name: "Goldman Sachs", mark: "G", color: "var(--c-mark-5)", price: 486.12, chg: -0.41, seed: 163, sector: "Financials" },
+  { id: "BRK.B", name: "Berkshire Hathaway", mark: "B", color: "var(--c-mark-4)", price: 441.28, chg: 0.32, seed: 173, sector: "Financials" },
+  { id: "V", name: "Visa", mark: "V", color: "var(--c-mark-3)", price: 276.94, chg: -1.09, seed: 179, sector: "Financials" },
+  { id: "LLY", name: "Eli Lilly", mark: "L", color: "var(--c-mark-3)", price: 892.4, chg: 3.12, seed: 191, sector: "Health care" },
+  { id: "UNH", name: "UnitedHealth", mark: "U", color: "var(--c-mark-4)", price: 512.77, chg: -3.44, seed: 197, sector: "Health care" },
+  { id: "JNJ", name: "Johnson & Johnson", mark: "J", color: "var(--c-mark-1)", price: 158.9, chg: 0.28, seed: 211, sector: "Health care" },
+  { id: "PFE", name: "Pfizer", mark: "P", color: "var(--c-mark-5)", price: 28.64, chg: -2.06, seed: 223, sector: "Health care" },
+  { id: "F", name: "Ford Motor", mark: "F", color: "var(--c-mark-4)", price: 12.1, chg: -1.94, seed: 229, sector: "Consumer discretionary" },
+  { id: "HD", name: "Home Depot", mark: "H", color: "var(--c-mark-5)", price: 362.18, chg: 0.61, seed: 233, sector: "Consumer discretionary" },
   { id: "RIVN", name: "Rivian", mark: "R", color: "#E0796B", price: 13.7, chg: -4.86, seed: 239, sector: "Consumer discretionary" },
-  { id: "CAT", name: "Caterpillar", mark: "C", color: "#E5DDD1", price: 338.5, chg: 1.42, seed: 251, sector: "Industrials" },
+  { id: "CAT", name: "Caterpillar", mark: "C", color: "var(--c-mark-1)", price: 338.5, chg: 1.42, seed: 251, sector: "Industrials" },
   { id: "BA", name: "Boeing", mark: "B", color: "#E0796B", price: 178.24, chg: -3.91, seed: 257, sector: "Industrials" },
-  { id: "GE", name: "GE Aerospace", mark: "G", color: "#93C7A8", price: 172.63, chg: 0.94, seed: 263, sector: "Industrials" },
-  { id: "KO", name: "Coca-Cola", mark: "K", color: "#C9A88A", price: 63.42, chg: -0.18, seed: 269, sector: "Consumer staples" },
-  { id: "PG", name: "Procter & Gamble", mark: "P", color: "#E5DDD1", price: 167.85, chg: -0.36, seed: 271, sector: "Consumer staples" },
-  { id: "NEE", name: "NextEra Energy", mark: "N", color: "#B0BFCB", price: 71.29, chg: -0.52, seed: 277, sector: "Utilities" },
-  { id: "AMT", name: "American Tower", mark: "A", color: "#C9A88A", price: 196.4, chg: -1.14, seed: 281, sector: "Real estate" },
-  { id: "LIN", name: "Linde", mark: "L", color: "#93C7A8", price: 462.9, chg: 0.44, seed: 283, sector: "Materials" },
+  { id: "GE", name: "GE Aerospace", mark: "G", color: "var(--c-mark-3)", price: 172.63, chg: 0.94, seed: 263, sector: "Industrials" },
+  { id: "KO", name: "Coca-Cola", mark: "K", color: "var(--c-mark-5)", price: 63.42, chg: -0.18, seed: 269, sector: "Consumer staples" },
+  { id: "PG", name: "Procter & Gamble", mark: "P", color: "var(--c-mark-1)", price: 167.85, chg: -0.36, seed: 271, sector: "Consumer staples" },
+  { id: "NEE", name: "NextEra Energy", mark: "N", color: "var(--c-mark-4)", price: 71.29, chg: -0.52, seed: 277, sector: "Utilities" },
+  { id: "AMT", name: "American Tower", mark: "A", color: "var(--c-mark-5)", price: 196.4, chg: -1.14, seed: 281, sector: "Real estate" },
+  { id: "LIN", name: "Linde", mark: "L", color: "var(--c-mark-3)", price: 462.9, chg: 0.44, seed: 283, sector: "Materials" },
   /* Small caps. Without them the Russell tab would have almost nothing in it,
      and a tab that opens on an empty room is worse than no tab. */
-  { id: "SOFI", name: "SoFi Technologies", mark: "S", color: "#93C7A8", price: 8.42, chg: 3.28, seed: 293, sector: "Financials" },
+  { id: "SOFI", name: "SoFi Technologies", mark: "S", color: "var(--c-mark-3)", price: 8.42, chg: 3.28, seed: 293, sector: "Financials" },
   { id: "CHPT", name: "ChargePoint", mark: "C", color: "#E0796B", price: 1.36, chg: -5.42, seed: 307, sector: "Industrials" },
   { id: "PLUG", name: "Plug Power", mark: "P", color: "#E0796B", price: 2.18, chg: -3.86, seed: 311, sector: "Industrials" },
-  { id: "RUN", name: "Sunrun", mark: "R", color: "#C9A88A", price: 11.74, chg: 2.64, seed: 313, sector: "Utilities" },
-  { id: "FUBO", name: "fuboTV", mark: "F", color: "#B0BFCB", price: 1.92, chg: 1.58, seed: 317, sector: "Communication services" },
-  { id: "CELH", name: "Celsius Holdings", mark: "C", color: "#93C7A8", price: 32.66, chg: -2.14, seed: 331, sector: "Consumer staples" },
+  { id: "RUN", name: "Sunrun", mark: "R", color: "var(--c-mark-5)", price: 11.74, chg: 2.64, seed: 313, sector: "Utilities" },
+  { id: "FUBO", name: "fuboTV", mark: "F", color: "var(--c-mark-4)", price: 1.92, chg: 1.58, seed: 317, sector: "Communication services" },
+  { id: "CELH", name: "Celsius Holdings", mark: "C", color: "var(--c-mark-3)", price: 32.66, chg: -2.14, seed: 331, sector: "Consumer staples" },
 ];
 
 /*

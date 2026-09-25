@@ -2,7 +2,8 @@
 
 import { motion } from "motion/react";
 import Link from "next/link";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useHydrated } from "@/components/home/use-session";
 import { IconPlus } from "@/components/icons";
 import { MAX_LISTS, listsContaining, nextListName } from "@/lib/market/watchlists";
 import { cn } from "@/lib/ui";
@@ -13,9 +14,14 @@ import { moveMenuFocus, useDismiss } from "./use-dismiss";
 
 /* Wide enough for the longer of the two labels at this size and tracking
    ("Add to watchlist", plus the caret when there is a picker to open), so
-   pressing it never shrinks the button out from under the pointer. The group
-   is right-aligned, so Trade beside it never moves either way. */
-const LABEL_BOX = { single: "min-w-[12rem]", picker: "min-w-[13.25rem]" } as const;
+   pressing it never shrinks the button out from under the pointer.
+
+   One box for both states, not one per state. The server always renders the
+   seeded single list, and a reader with two or more lists gets the picker a
+   moment after hydration — which, with a box per state, widened the button by
+   20px after first paint and, on a phone where Follow and Trade share the row,
+   moved Trade's edge with it. */
+const LABEL_BOX = "min-w-[13.25rem]";
 
 /**
  * The instrument page's watchlist control.
@@ -29,6 +35,11 @@ const LABEL_BOX = { single: "min-w-[12rem]", picker: "min-w-[13.25rem]" } as con
  */
 export function FollowButton({ symbol, name }: { symbol: string; name?: string | null }) {
   const state = useWatchlists();
+  /* The server knows only the seeded list, so until the reader's own lists are
+     in, the label and caret would state the seed's answer — "Following" for a
+     stock the reader may never have added. The box is drawn and held at its
+     size; what it says waits for the real lists. */
+  const hydrated = useHydrated();
   const holding = listsContaining(state, symbol);
   const following = holding.length > 0;
   const single = state.lists.length === 1 ? state.lists[0] : null;
@@ -40,6 +51,7 @@ export function FollowButton({ symbol, name }: { symbol: string; name?: string |
 
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
   const inputId = useId();
 
@@ -48,6 +60,24 @@ export function FollowButton({ symbol, name }: { symbol: string; name?: string |
     setCreating(false);
   }, []);
   useDismiss(open, close, rootRef, triggerRef);
+
+  /* A guard under the anchoring below, not a replacement for it: if the row
+     this button sits in is ever laid out so the panel would cross a 16px
+     gutter, it is nudged back on screen before it paints rather than clipped. */
+  useLayoutEffect(() => {
+    const el = panelRef.current;
+    if (!open || !el) return;
+    el.style.transform = "";
+    const rect = el.getBoundingClientRect();
+    const gutter = 16;
+    const shift =
+      rect.left < gutter
+        ? gutter - rect.left
+        : rect.right > window.innerWidth - gutter
+          ? window.innerWidth - gutter - rect.right
+          : 0;
+    if (shift !== 0) el.style.transform = `translateX(${shift}px)`;
+  }, [open, single]);
 
   /* A refusal is said once and then gets out of the way. */
   useEffect(() => {
@@ -106,39 +136,60 @@ export function FollowButton({ symbol, name }: { symbol: string; name?: string |
              "AAPL in My watchlist, toggle button, pressed". */
           single ? `${symbol} in ${single.name}` : `${label}. ${where}. Choose watchlists`
         }
-        title={where}
+        title={hydrated ? where : undefined}
         className={cn(
           "inline-flex min-h-11 w-full items-center justify-center gap-2 border px-4 text-[11px] font-bold tracking-[0.16em] uppercase transition-colors sm:w-auto",
-          single ? LABEL_BOX.single : LABEL_BOX.picker,
-          following
+          LABEL_BOX,
+          hydrated && following
             ? "border-[rgba(var(--c-gold-rgb),0.4)] text-gold hover:border-gold"
             : "border-rule-control text-ink-2 hover:border-gold hover:text-ink",
         )}
       >
-        {following ? (
-          <GlyphCheck className="h-3.5 w-3.5 flex-none" />
-        ) : (
-          <IconPlus className="h-3.5 w-3.5 flex-none" />
-        )}
-        {label}
-        {!single && (
-          <GlyphCaret
-            className={cn("h-3.5 w-3.5 flex-none transition-transform duration-300", open && "rotate-180")}
-          />
-        )}
+        {/* Held but invisible until hydration, so the button keeps the height
+            and width it will have and nothing beside it moves when the words
+            arrive. */}
+        <span className={cn("inline-flex items-center gap-2 whitespace-nowrap", !hydrated && "invisible")}>
+          {following ? (
+            <GlyphCheck className="h-3.5 w-3.5 flex-none" />
+          ) : (
+            <IconPlus className="h-3.5 w-3.5 flex-none" />
+          )}
+          {label}
+          {!single && (
+            <GlyphCaret
+              className={cn("h-3.5 w-3.5 flex-none transition-transform duration-300", open && "rotate-180")}
+            />
+          )}
+        </span>
       </motion.button>
 
       {notice && !open && (
-        <p
-          role="status"
-          className="card edge-lit absolute top-[calc(100%+8px)] right-0 z-30 w-[260px] px-3.5 py-3 text-[12.5px] leading-[1.55] text-ink-2"
-        >
-          {notice}
-        </p>
+        /* The float is on a wrapper: `.edge-lit` declares `position: relative`
+           later in the cascade than Tailwind's `absolute`, so on the card
+           itself the notice fell back into the flow and pushed the whole
+           header down for the four seconds it was up. Anchored like the
+           panel below: from the left on a phone, from the right from `sm`. */
+        <div className="absolute top-[calc(100%+8px)] right-auto left-0 z-30 w-[min(260px,calc(100vw-32px))] sm:right-0 sm:left-auto">
+          <p
+            role="status"
+            className="card edge-lit px-3.5 py-3 text-[12.5px] leading-[1.55] text-ink-2"
+          >
+            {notice}
+          </p>
+        </div>
       )}
 
       {open && !single && (
-        <div className="absolute top-[calc(100%+8px)] right-0 z-30 w-[min(300px,calc(100vw-32px))]">
+        /* Anchored to the button's LEFT edge on a phone. There Follow is the
+           first of two controls sharing the row, so it starts on the page's
+           left gutter and ends mid-screen; a 300px panel hung from its right
+           edge ran 49px off the left of the screen, taking every checkbox and
+           the start of every list name with it. From `sm` the pair sits at the
+           right of the header and the panel hangs from the right as before. */
+        <div
+          ref={panelRef}
+          className="absolute top-[calc(100%+8px)] right-auto left-0 z-30 w-[min(300px,calc(100vw-32px))] sm:right-0 sm:left-auto"
+        >
           <div
             id={panelId}
             role="dialog"
@@ -208,11 +259,13 @@ export function FollowButton({ symbol, name }: { symbol: string; name?: string |
                     value={draft}
                     maxLength={40}
                     onChange={(e) => setDraft(e.target.value)}
-                    className="min-h-10 w-full min-w-0 rounded-[8px] border border-rule-control bg-transparent px-2.5 text-[13px] text-ink focus:border-[rgba(var(--c-gold-rgb),0.45)] focus:outline-none"
+                    /* 16px below `lg`: iOS zooms the page into any field
+                       set smaller the moment it takes focus. */
+                    className="min-h-11 w-full min-w-0 rounded-[8px] border border-rule-control bg-transparent px-2.5 text-[16px] text-ink focus:border-[rgba(var(--c-gold-rgb),0.45)] focus:outline-none lg:text-[13px]"
                   />
                   <button
                     type="submit"
-                    className="min-h-10 flex-none rounded-[8px] bg-[linear-gradient(140deg,#f6e6c6,#dcbb8a)] px-3 text-[12px] font-bold text-on-gold transition-[filter] hover:brightness-[1.04]"
+                    className="min-h-11 flex-none rounded-[8px] bg-[image:var(--cta-buy)] px-3 text-[12px] font-bold text-on-gold transition-[filter] hover:brightness-[1.04]"
                   >
                     Create
                   </button>

@@ -32,7 +32,10 @@ export function Section({
   return (
     <section className={className}>
       {(title || action) && (
-        <header className="mb-4 flex items-baseline justify-between gap-4">
+        /* Stacked on a phone. Side by side at 375px, "Peer comparison" was
+           squeezed to 156px beside a 171px "INFORMATION TECHNOLOGY", and both
+           broke onto two ragged lines; from `sm` up there is room for both. */
+        <header className="mb-4 flex flex-col gap-1.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
           <div>
             {title && (
               <h3 className={cn("font-serif text-[24px] leading-tight", headingClassName)}>
@@ -251,8 +254,11 @@ export function CapsLink({
   external?: boolean;
   className?: string;
 }) {
+  /* A 44px target by default. Bare eyebrow text was 17px tall, which is what
+     "See more" measured on a phone; a caller that sits in a header row and
+     wants the row kept short can take the height back from `md` up. */
   const classes = cn(
-    "eyebrow eyebrow-gold transition-colors hover:text-gold",
+    "eyebrow eyebrow-gold inline-flex min-h-11 items-center transition-colors hover:text-gold",
     className,
   );
 

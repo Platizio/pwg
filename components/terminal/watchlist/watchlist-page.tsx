@@ -50,6 +50,24 @@ export function WatchlistPage({ corpus }: { corpus: readonly CorpusQuote[] }) {
 
   const bySymbol = useMemo(() => new Map(corpus.map((q) => [q.id, q])), [corpus]);
 
+  /* On a phone the tabs are one row that scrolls sideways (see the strip
+     below), so the open list's tab can be out of view — the eighth of eight,
+     say, opened from the rail. It is brought in by scrolling the strip alone:
+     scrollIntoView would also scroll the page to the strip, from wherever the
+     reader was. From `sm` the strip is `display: contents`, has no box, and
+     this does nothing. */
+  const stripRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const strip = stripRef.current;
+    const tab = document.getElementById(`tab-${list.id}`);
+    if (!strip || !tab || strip.scrollWidth <= strip.clientWidth) return;
+    const box = strip.getBoundingClientRect();
+    const at = tab.getBoundingClientRect();
+    const inset = 16;
+    if (at.left < box.left + inset) strip.scrollLeft -= box.left + inset - at.left;
+    else if (at.right > box.right - inset) strip.scrollLeft += at.right - (box.right - inset);
+  }, [list.id]);
+
   const startCreate = () => {
     setDraft(nextListName(state));
     setCreateError(null);
@@ -78,54 +96,95 @@ export function WatchlistPage({ corpus }: { corpus: readonly CorpusQuote[] }) {
       </header>
 
       <div className="flex-1 px-4 pt-5 pb-12 sm:px-6 lg:overflow-y-auto lg:px-7">
-        {/* ---- the lists ---- */}
+        {/* ---- the lists ----
+
+            Below `sm` the tabs and "New list" are ONE row that scrolls
+            sideways, bled to the screen's edges and padded back to the
+            gutter. Wrapped, eight lists stood four rows deep, ragged at the
+            right, and pushed the list the reader came to see to the bottom of
+            the first screen; at the twenty-list limit it would have been
+            eleven rows. The vertical padding, cancelled by the margin, is room
+            for a tab's focus ring inside the scroller's clip. From `sm` the
+            strip is `display: contents` and the tabs wrap as they always
+            have. */}
         <div className="flex flex-wrap items-center gap-2">
-          <div role="tablist" aria-label="Your watchlists" className="flex flex-wrap items-center gap-2">
-            {state.lists.map((l) => {
-              const on = l.id === list.id;
-              return (
-                <button
-                  key={l.id}
-                  type="button"
-                  role="tab"
-                  id={`tab-${l.id}`}
-                  aria-selected={on}
-                  aria-controls="watchlist-panel"
-                  onClick={() => watchlists.activate(l.id)}
-                  onKeyDown={(e) => {
-                    const i = state.lists.findIndex((x) => x.id === l.id);
-                    const step =
-                      e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
-                    if (!step) return;
-                    e.preventDefault();
-                    const next = state.lists[(i + step + state.lists.length) % state.lists.length];
-                    watchlists.activate(next.id);
-                    document.getElementById(`tab-${next.id}`)?.focus();
-                  }}
-                  tabIndex={on ? 0 : -1}
-                  className={cn(
-                    "inline-flex min-h-11 max-w-[260px] items-center gap-2 rounded-full border px-4 text-[13px] font-medium transition-all duration-300 lg:min-h-10",
-                    on
-                      ? "border-transparent bg-[linear-gradient(140deg,#f6e6c6,#dcbb8a)] text-on-gold"
-                      : "border-rule-control text-ink-2 hover:border-[rgba(var(--c-gold-rgb),0.34)] hover:text-ink",
-                  )}
-                >
-                  <span className="truncate">{l.name}</span>
-                  <span
+          <div
+            ref={stripRef}
+            className="no-scrollbar -mx-4 -my-1.5 flex w-[calc(100%+2rem)] flex-nowrap items-center gap-2 overflow-x-auto px-4 py-1.5 sm:contents"
+          >
+            <div
+              role="tablist"
+              aria-label="Your watchlists"
+              className="flex flex-none items-center gap-2 sm:flex-initial sm:flex-wrap"
+            >
+              {state.lists.map((l) => {
+                const on = l.id === list.id;
+                return (
+                  <button
+                    key={l.id}
+                    type="button"
+                    role="tab"
+                    id={`tab-${l.id}`}
+                    aria-selected={on}
+                    aria-controls="watchlist-panel"
+                    onClick={() => watchlists.activate(l.id)}
+                    onKeyDown={(e) => {
+                      const i = state.lists.findIndex((x) => x.id === l.id);
+                      const step =
+                        e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+                      if (!step) return;
+                      e.preventDefault();
+                      const next = state.lists[(i + step + state.lists.length) % state.lists.length];
+                      watchlists.activate(next.id);
+                      document.getElementById(`tab-${next.id}`)?.focus();
+                    }}
+                    tabIndex={on ? 0 : -1}
                     className={cn(
-                      "font-mono text-[11.5px] tabular-nums",
-                      on ? "text-on-gold/70" : "text-ink-3",
+                      "inline-flex min-h-11 max-w-[260px] flex-none items-center gap-2 rounded-full border px-4 text-[13px] font-medium transition-all duration-300 lg:min-h-10",
+                      /* The themed CTA gradient, not the dark theme's champagne
+                         written out: on the light page that one measured 1.09:1
+                         against the ground and the active pill lost its edge. */
+                      on
+                        ? "border-transparent bg-[image:var(--cta-buy)] text-on-gold"
+                        : "border-rule-control text-ink-2 hover:border-[rgba(var(--c-gold-rgb),0.34)] hover:text-ink",
                     )}
                   >
-                    {l.symbols.length}
-                  </span>
-                </button>
-              );
-            })}
+                    <span className="truncate">{l.name}</span>
+                    <span
+                      className={cn(
+                        "font-mono text-[11.5px] tabular-nums",
+                        on ? "text-on-gold/70" : "text-ink-3",
+                      )}
+                    >
+                      {l.symbols.length}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {!creating && (
+              <button
+                type="button"
+                onClick={startCreate}
+                disabled={state.lists.length >= MAX_LISTS}
+                title={state.lists.length >= MAX_LISTS ? "You can keep up to 20 lists." : undefined}
+                className="inline-flex min-h-11 flex-none items-center gap-2 rounded-full border border-dashed border-rule-control px-4 text-[13px] text-ink-2 transition-colors enabled:hover:border-gold enabled:hover:text-ink disabled:opacity-45 lg:min-h-10"
+              >
+                <IconPlus className="h-4 w-4 text-gold" />
+                New list
+              </button>
+            )}
           </div>
 
-          {creating ? (
-            <form onSubmit={submitCreate} className="flex flex-wrap items-center gap-2">
+          {/* A line of its own on a phone, outside the scrolling strip, with
+              the field taking whatever Create and Cancel leave it — a fixed
+              200px field used to push Cancel onto a row by itself. */}
+          {creating && (
+            <form
+              onSubmit={submitCreate}
+              className="flex w-full flex-wrap items-center gap-2 sm:w-auto"
+            >
               <label htmlFor={newInputId} className="sr-only">
                 New list name
               </label>
@@ -143,18 +202,20 @@ export function WatchlistPage({ corpus }: { corpus: readonly CorpusQuote[] }) {
                 }}
                 aria-invalid={createError !== null}
                 aria-describedby={createError ? newErrorId : undefined}
-                className="min-h-11 w-[200px] rounded-full border border-[rgba(var(--c-gold-rgb),0.34)] bg-transparent px-4 text-[13px] text-ink focus:border-gold focus:outline-none lg:min-h-10"
+                /* 16px below `sm`: iOS zooms the page into any field set
+                   smaller the moment it takes focus. */
+                className="min-h-11 min-w-0 flex-1 rounded-full border border-[rgba(var(--c-gold-rgb),0.34)] bg-transparent px-4 text-[16px] text-ink focus:border-gold focus:outline-none sm:w-[200px] sm:flex-none sm:text-[13px] lg:min-h-10"
               />
               <button
                 type="submit"
-                className="min-h-11 rounded-full bg-[linear-gradient(140deg,#f6e6c6,#dcbb8a)] px-4 text-[12.5px] font-bold text-on-gold transition-[filter] hover:brightness-[1.04] lg:min-h-10"
+                className="min-h-11 flex-none rounded-full bg-[image:var(--cta-buy)] px-4 text-[12.5px] font-bold text-on-gold transition-[filter] hover:brightness-[1.04] lg:min-h-10"
               >
                 Create
               </button>
               <button
                 type="button"
                 onClick={() => setCreating(false)}
-                className="min-h-11 rounded-full px-3 text-[12.5px] text-ink-3 transition-colors hover:text-ink lg:min-h-10"
+                className="min-h-11 flex-none rounded-full px-3 text-[12.5px] text-ink-3 transition-colors hover:text-ink lg:min-h-10"
               >
                 Cancel
               </button>
@@ -164,17 +225,6 @@ export function WatchlistPage({ corpus }: { corpus: readonly CorpusQuote[] }) {
                 </p>
               )}
             </form>
-          ) : (
-            <button
-              type="button"
-              onClick={startCreate}
-              disabled={state.lists.length >= MAX_LISTS}
-              title={state.lists.length >= MAX_LISTS ? "You can keep up to 20 lists." : undefined}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-dashed border-rule-control px-4 text-[13px] text-ink-2 transition-colors enabled:hover:border-gold enabled:hover:text-ink disabled:opacity-45 lg:min-h-10"
-            >
-              <IconPlus className="h-4 w-4 text-gold" />
-              New list
-            </button>
           )}
         </div>
 
@@ -286,7 +336,9 @@ function ListPanel({
         role="tabpanel"
         aria-labelledby={`tab-${list.id}`}
       >
-        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        {/* `relative`: on a phone the delete confirmation anchors to this row,
+            so it spans the card's content edges (see DeleteList). */}
+        <div className="relative flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
           {renaming ? (
             <form onSubmit={saveName} className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
               <label htmlFor={renameId} className="sr-only">
@@ -310,7 +362,7 @@ function ListPanel({
               />
               <button
                 type="submit"
-                className="min-h-11 rounded-full bg-[linear-gradient(140deg,#f6e6c6,#dcbb8a)] px-4 text-[12.5px] font-bold text-on-gold transition-[filter] hover:brightness-[1.04]"
+                className="min-h-11 rounded-full bg-[image:var(--cta-buy)] px-4 text-[12.5px] font-bold text-on-gold transition-[filter] hover:brightness-[1.04]"
               >
                 Save
               </button>
@@ -329,7 +381,13 @@ function ListPanel({
             </form>
           ) : (
             <div className="min-w-0">
-              <h2 className="font-serif truncate text-[26px] leading-tight text-ink">{list.name}</h2>
+              {/* Wraps rather than truncating: this is the one page that
+                  exists to manage lists, and a long name cut to "…infr…" left
+                  the full name nowhere on screen. Names stop at 40
+                  characters, so it is two lines at most. */}
+              <h2 className="font-serif text-[26px] leading-tight [overflow-wrap:anywhere] text-ink">
+                {list.name}
+              </h2>
               <p className="mt-1 text-[12.5px] text-ink-3">
                 {list.symbols.length} of {MAX_SYMBOLS_PER_LIST} stocks
               </p>
@@ -337,7 +395,12 @@ function ListPanel({
           )}
 
           {!renaming && (
-            <div className="flex flex-wrap items-center gap-1">
+            /* The quiet actions carry 12px of padding each side. Wrapped
+               under the title on a phone, that stood the first icon 12px in
+               from the title's edge, so the row is pulled back by it; on one
+               line with the title from `sm`, it is pulled out to the right so
+               the last label ends on the content edge instead. */
+            <div className="flex flex-wrap items-center gap-1 max-sm:-ml-3 sm:-mr-3">
               <QuietAction
                 onClick={() => {
                   setNameDraft(list.name);
@@ -353,7 +416,9 @@ function ListPanel({
                   onClick={() => setReorder((v) => !v)}
                   pressed={reorder}
                   icon={<GlyphGrip className="h-4 w-4" />}
-                  className="md:hidden"
+                  /* Held at the wider label's width, so "Reorder" giving way
+                     to "Done" does not slide "Delete list" sideways. */
+                  className="min-w-[5.875rem] justify-center md:hidden"
                 >
                   {reorder ? "Done" : "Reorder"}
                 </QuietAction>
@@ -452,7 +517,12 @@ function DeleteList({
   const count = list.symbols.length;
 
   return (
-    <div ref={rootRef} className="relative">
+    /* Positioned only from `sm`. On a phone the confirmation anchors to the
+       card's header row instead (the nearest positioned box above this), so
+       it runs edge to edge of the card's content; hung from this button's
+       right edge it floated at 30–330, on neither the card's edges nor the
+       page's. */
+    <div ref={rootRef} className="sm:relative">
       <button
         ref={triggerRef}
         type="button"
@@ -468,7 +538,7 @@ function DeleteList({
       </button>
 
       {open && (
-        <div className="absolute top-[calc(100%+8px)] right-0 z-30 w-[min(300px,calc(100vw-48px))]">
+        <div className="absolute inset-x-0 top-[calc(100%+8px)] z-30 sm:left-auto sm:w-[min(300px,calc(100vw-48px))]">
           <div
             id={panelId}
             role="alertdialog"
@@ -492,7 +562,7 @@ function DeleteList({
                   setOpen(false);
                   triggerRef.current?.focus();
                 }}
-                className="min-h-10 rounded-full px-4 text-[12.5px] text-ink-2 transition-colors hover:text-ink"
+                className="min-h-11 rounded-full px-4 text-[12.5px] text-ink-2 transition-colors hover:text-ink lg:min-h-10"
               >
                 Keep it
               </button>
@@ -501,9 +571,16 @@ function DeleteList({
                 onClick={() => {
                   const out = watchlists.remove(list.id);
                   setOpen(false);
-                  if (!out.error) onAnnounce(`Deleted ${list.name}.`);
+                  if (out.error) return;
+                  onAnnounce(`Deleted ${list.name}.`);
+                  /* This button goes with the list, and focus left on a
+                     removed element falls to <body> — the top of the
+                     document for a keyboard or switch user. It goes to the
+                     tab of the list that is open now. */
+                  const next = out.state.activeId;
+                  requestAnimationFrame(() => document.getElementById(`tab-${next}`)?.focus());
                 }}
-                className="min-h-10 rounded-full px-4 text-[12.5px] font-bold text-on-down transition-[filter] hover:brightness-110"
+                className="min-h-11 rounded-full px-4 text-[12.5px] font-bold text-on-down transition-[filter] hover:brightness-110 lg:min-h-10"
                 style={{ background: C.down }}
               >
                 Delete
@@ -527,7 +604,7 @@ function EmptyList({ name }: { name: string }) {
       <button
         type="button"
         onClick={() => document.getElementById("add")?.querySelector("input")?.focus()}
-        className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-full bg-[linear-gradient(140deg,#f6e6c6,#dcbb8a)] px-5 text-[12px] font-extrabold tracking-[0.1em] text-on-gold uppercase transition-[filter] hover:brightness-[1.04]"
+        className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-full bg-[image:var(--cta-buy)] px-5 text-[12px] font-extrabold tracking-[0.1em] text-on-gold uppercase transition-[filter] hover:brightness-[1.04]"
       >
         <IconPlus className="h-4 w-4" />
         Add stocks
@@ -622,7 +699,17 @@ function SymbolTable({
             <th scope="col" className="hidden w-7 md:table-cell">
               <span className="sr-only">Drag to reorder</span>
             </th>
-            <th scope="col" className={head}>
+            {/* The Stock column takes the width the figures leave and its
+                names truncate inside it (w-full with max-w-0 on the cells is
+                what lets a table cell shrink below its content). Without it one
+                long fund name set the column's floor, and the table grew past
+                the card — every row's Remove button off a phone's screen. Not
+                needed from `xl`, where the natural widths fit with room over,
+                so a wide screen keeps its proportions. No left padding below
+                `md`, where the grip column is hidden and this is the first:
+                the header and monograms stand on the card's content edge with
+                the title and the add box. */}
+            <th scope="col" className={cn(head, "max-md:pl-0 max-xl:w-full")}>
               Stock
             </th>
             <th scope="col" className={cn(head, "text-right", reorder && "hidden md:table-cell")}>
@@ -670,7 +757,9 @@ function SymbolTable({
                 }}
                 onDragEnd={() => setDrag(null)}
                 className={cn(
-                  "group border-b border-rule/60 transition-colors hover:bg-[rgba(var(--c-gold-rgb),0.035)]",
+                  /* The last row gives up its rule: the card's own border is
+                     20px below it, and the two read as a doubled line. */
+                  "group border-b border-rule/60 transition-colors last:border-b-0 hover:bg-[rgba(var(--c-gold-rgb),0.035)]",
                   dragging && "opacity-40",
                   lineBefore && "shadow-[inset_0_2px_0_var(--color-gold)]",
                   lineAfter && "shadow-[inset_0_-2px_0_var(--color-gold)]",
@@ -684,7 +773,7 @@ function SymbolTable({
                     <GlyphGrip className="h-4 w-4" />
                   </span>
                 </td>
-                <td className="px-2 py-2.5">
+                <td className="py-2.5 pr-2 pl-0 max-xl:w-full max-xl:max-w-0 md:pl-2">
                   <Link
                     href={instrumentPath(symbol)}
                     draggable={false}
@@ -701,7 +790,7 @@ function SymbolTable({
                       <span className="font-mono block text-[13px] font-medium tracking-[0.05em] text-ink">
                         {symbol}
                       </span>
-                      <span className="mt-0.5 block max-w-[34ch] truncate text-[12.5px] text-ink-3">
+                      <span className="mt-0.5 block truncate text-[12.5px] text-ink-3 sm:max-w-[34ch]">
                         {look.name ?? " "}
                       </span>
                     </span>

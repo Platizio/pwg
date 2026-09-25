@@ -178,14 +178,15 @@ test("toQuote takes name, mark and colour from presentation()", () => {
   assert.equal(seeded.id, "AAPL");
   assert.equal(seeded.name, "Apple");
   assert.equal(seeded.mark, "A");
-  assert.equal(seeded.color, "#E5DDD1");
+  assert.equal(seeded.color, "var(--c-mark-1)");
   assert.equal(seeded.covered, true);
 
   // Uncurated names still render: a derived monogram and a palette colour.
   const derived = toQuote(row({ s: "ZWDG", name: "ZETA WIDGETS INC" }), null);
   assert.equal(derived.name, "Zeta Widgets");
   assert.equal(derived.mark, "Z");
-  assert.match(derived.color, /^#[0-9A-F]{6}$/i);
+  // A theme token, not a literal: the light theme sets these five darker.
+  assert.match(derived.color, /^var\(--c-mark-[1-5]\)$/);
   assert.equal(derived.covered, false);
 });
 

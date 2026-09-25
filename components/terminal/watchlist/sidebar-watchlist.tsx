@@ -9,7 +9,7 @@ import { instrumentPath } from "@/lib/market/paths";
 import { C } from "@/lib/tokens";
 import { cn } from "@/lib/ui";
 import { ListSwitcher } from "./list-switcher";
-import { WATCHLIST_ADD_PATH } from "./paths";
+import { WATCHLIST_ADD_PATH, askForAddBox } from "./paths";
 import { lookOf, useWatchFigures, type SeedQuote } from "./quotes";
 import { useWatchlists } from "./store";
 
@@ -72,6 +72,7 @@ export function SidebarWatchlist({
           <ListSwitcher />
           <Link
             href={WATCHLIST_ADD_PATH}
+            onClick={askForAddBox}
             aria-label={`Add stocks to ${list.name}`}
             title="Add stocks"
             className="grid h-11 w-11 flex-none place-items-center rounded-[10px] border border-rule-control text-ink-3 transition-colors hover:border-gold hover:text-gold lg:h-9 lg:w-9"
@@ -93,6 +94,7 @@ export function SidebarWatchlist({
           collapsed ? (
             <Link
               href={WATCHLIST_ADD_PATH}
+              onClick={askForAddBox}
               aria-label={`${list.name} is empty. Add stocks`}
               title="Add stocks"
               className="mx-auto grid h-11 w-11 place-items-center rounded-[10px] border border-dashed border-rule-control text-ink-3 transition-colors hover:border-gold hover:text-gold"
@@ -107,7 +109,8 @@ export function SidebarWatchlist({
               </p>
               <Link
                 href={WATCHLIST_ADD_PATH}
-                className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full border border-[rgba(var(--c-gold-rgb),0.34)] px-3.5 text-[12.5px] font-medium text-ink transition-colors hover:border-gold hover:bg-[rgba(var(--c-gold-rgb),0.06)]"
+                onClick={askForAddBox}
+                className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-full border border-[rgba(var(--c-gold-rgb),0.34)] px-3.5 text-[12.5px] font-medium text-ink transition-colors hover:border-gold hover:bg-[rgba(var(--c-gold-rgb),0.06)] lg:min-h-10"
               >
                 <IconPlus className="h-3.5 w-3.5 text-gold" />
                 Add stocks

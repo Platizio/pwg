@@ -9,15 +9,25 @@ import { cn } from "./ui";
 export const TABS: Array<{ id: TabId; label: string }> = [
   { id: "overview", label: "OVERVIEW" },
   { id: "performance", label: "PERFORMANCE" },
-  { id: "analysts", label: "ANALYSTS" },
   { id: "fundamentals", label: "FUNDAMENTALS" },
   { id: "technicals", label: "TECHNICALS" },
   { id: "competitors", label: "COMPETITORS" },
   { id: "holdings", label: "HOLDINGS" },
+  /* Last, not third: until the analyst feed is enabled on the account it
+     reads "not available" for every stock, and a dead end in the third slot
+     is the first thing a phone reader taps. */
+  { id: "analysts", label: "ANALYSTS" },
 ];
 
 /* Width of the edge fade, and how far clear of it a tab is brought to rest. */
 const FADE = 28;
+
+/* How far the strip is bled past the column on each side (`-mx-3` below). The
+   fade starts at the column's edge, inside the bleed, so nothing scrolled into
+   those 12px shows in the page margin. A tab's own padding is the same 12px,
+   so a tab resting FADE clear of the strip's edge has its label clear of the
+   fade exactly. */
+const BLEED = 12;
 
 /* Quick and fully damped: the bar arrives under the new label without
    overshooting it, so it reads as a precise move rather than a bounce. */
@@ -133,13 +143,14 @@ export function TabBar({
     tabRefs.current[next]?.focus({ preventScroll: true });
   }
 
-  const mask = edgeMask(edges, FADE);
+  const mask = edgeMask(edges, FADE, BLEED);
 
   return (
     /* Bled 12px past the column on each side so the tabs can carry padding for
        their hit area and focus ring while the first label still starts on the
        column's edge. The hairline is inset back to the column's width, so it
-       lines up with the rule the header draws above it.
+       lines up with the rule the header draws above it, and so is the fade
+       (BLEED): a scrolled label is cut at the gutter, not at the screen edge.
 
        Labels sit 32px apart where the strip has room for that and 24px where
        it does not, decided by the strip's own width rather than the viewport's,

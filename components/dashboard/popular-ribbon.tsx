@@ -10,6 +10,7 @@ import { money } from "@/lib/market/format";
 import type { Quote } from "@/lib/market/session";
 import { cn } from "@/lib/ui";
 import { instrumentPath } from "@/lib/market/paths";
+import { withTick } from "./same-session";
 
 /**
  * The popular names, rotating.
@@ -24,7 +25,18 @@ import { instrumentPath } from "@/lib/market/paths";
  * reading or tabbing through it cannot be used, and the whole strip is inert
  * under `prefers-reduced-motion`.
  */
-export function PopularRibbon({ rows }: { rows: Quote[] }) {
+export function PopularRibbon({
+  rows,
+  className,
+}: {
+  rows: Quote[];
+  /* Padding for the clipping box. Padding goes here rather than on a parent:
+     `overflow-hidden` clips at this box's padding edge, so cells stay visible
+     as they slide through the padding and are cut only at its outer edge. The
+     track's -50% loop is measured on the track, so the padding cannot shift
+     the seam. */
+  className?: string;
+}) {
   const scope = useRef<HTMLDivElement>(null);
   const track = useRef<HTMLDivElement>(null);
 
@@ -37,17 +49,11 @@ export function PopularRibbon({ rows }: { rows: Quote[] }) {
   const symbols = useMemo(() => rows.map((r) => r.id), [rows]);
   const ticks = useLive(symbols);
 
+  /* A tick is taken whole, and only when it measures from the same previous
+     close as the row (same-session.ts). Otherwise the ribbon would mix sessions
+     with the boards beside it. */
   const live = useMemo(
-    () =>
-      rows.map((r) => {
-        const t = ticks.get(r.id.toUpperCase());
-        if (!t) return r;
-        /* changePercent is null when the feed sent no previous close. A live
-           price beside the snapshot's change would pair this second's number
-           with an older basis, so the whole tick is dropped. */
-        if (t.changePercent === null) return r;
-        return { ...r, price: t.price, chg: t.changePercent };
-      }),
+    () => rows.map((r) => withTick(r, ticks.get(r.id.toUpperCase()))),
     [rows, ticks],
   );
 
@@ -104,7 +110,7 @@ export function PopularRibbon({ rows }: { rows: Quote[] }) {
   const doubled = live.concat(live);
 
   return (
-    <div ref={scope} className="overflow-hidden">
+    <div ref={scope} className={cn("overflow-hidden", className)}>
       <div ref={track} className="flex w-max gap-3 will-change-transform">
         {doubled.map((quote, i) => (
           <RibbonCell

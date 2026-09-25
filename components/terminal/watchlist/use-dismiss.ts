@@ -21,6 +21,11 @@ export function useDismiss(
     const onDown = (e: PointerEvent) => {
       if (!root.current?.contains(e.target as Node)) close();
     };
+    /* Capture phase, and marked handled. Inside the mobile drawer the
+       drawer's own Escape listener sits on the same document and was
+       registered first, so in the bubble phase it ran first and one Escape
+       closed the popover AND the drawer. Heard on the way down, the popover
+       answers first and the drawer sees `defaultPrevented` and stays. */
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       e.preventDefault();
@@ -29,10 +34,10 @@ export function useDismiss(
     };
 
     document.addEventListener("pointerdown", onDown);
-    document.addEventListener("keydown", onKey);
+    document.addEventListener("keydown", onKey, true);
     return () => {
       document.removeEventListener("pointerdown", onDown);
-      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("keydown", onKey, true);
     };
   }, [open, close, root, trigger]);
 }

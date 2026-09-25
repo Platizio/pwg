@@ -67,10 +67,11 @@ export function Sidebar({
     },
     /* A destination of its own now. It used to open whichever stock was on
        screen (or Apple), which made "Watch list" a second name for the stock
-       page and left no place to manage a list at all. */
+       page and left no place to manage a list at all. One word, as the
+       section under it, the Follow button and the page all spell it. */
     {
       key: "watchlist",
-      label: "Watch list",
+      label: "Watchlist",
       Icon: IconWatchlist,
       href: WATCHLIST_PATH,
       active: pathname === WATCHLIST_PATH,
@@ -107,7 +108,9 @@ export function Sidebar({
       <div
         className={cn(
           "flex flex-none gap-3",
-          collapsed ? "flex-col items-center" : "items-start justify-between px-2",
+          /* px-2.5, the nav rows' own inset, so the logo tile stands on the
+             same left edge as the icon tiles and monograms beneath it. */
+          collapsed ? "flex-col items-center" : "items-start justify-between px-2.5",
         )}
       >
         <Link
@@ -266,18 +269,23 @@ function LanguagePicker({ collapsed }: { collapsed: boolean }) {
     const onDown = (e: PointerEvent) => {
       if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
     };
+    /* Heard in the capture phase and marked handled, so that inside the
+       mobile drawer Escape closes this panel and only this panel: the
+       drawer's own listener sits on the same document, was registered first,
+       and would otherwise close the drawer on the same keystroke. */
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      e.preventDefault();
       setOpen(false);
       buttonRef.current?.focus();
     };
 
     document.addEventListener("pointerdown", onDown);
-    document.addEventListener("keydown", onKey);
+    document.addEventListener("keydown", onKey, true);
     window.addEventListener("resize", close);
     return () => {
       document.removeEventListener("pointerdown", onDown);
-      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("keydown", onKey, true);
       window.removeEventListener("resize", close);
     };
   }, [open, close]);
@@ -331,7 +339,9 @@ function LanguagePicker({ collapsed }: { collapsed: boolean }) {
         title={collapsed ? "Language · English" : undefined}
         className={cn(
           "flex min-h-11 items-center gap-2 rounded-full border text-[13px] font-medium transition-colors",
-          collapsed ? "w-11 justify-center px-0" : "w-full min-w-0 px-3.5",
+          /* pl-[9px]: with the 1px border, the globe lands on the icon
+             column the nav tiles and monograms above share. */
+          collapsed ? "w-11 justify-center px-0" : "w-full min-w-0 pr-3.5 pl-[9px]",
           open
             ? "border-[rgba(var(--c-gold-rgb),0.34)] text-ink"
             : "border-rule-control text-ink-2 hover:border-gold hover:text-ink",

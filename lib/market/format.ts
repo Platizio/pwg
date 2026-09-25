@@ -16,6 +16,17 @@ export const usd = (n: number) => `$${money(n)}`;
 export const pct = (n: number, digits = 2) =>
   `${n >= 0 ? "+" : "−"}${Math.abs(n).toFixed(digits)}%`;
 
+/**
+ * Whether a change prints as nought at `digits` places. Such a figure has no
+ * direction, and colouring it green with a rising caret — AAPL at +0.00%
+ * before the bell — shows an up signal for no move at all.
+ */
+export const isFlat = (n: number, digits = 2) => Math.abs(n) < 0.5 * 10 ** -digits;
+
+/** A change as `pct` prints it, and unsigned when it is flat: "0.00%". */
+export const pctOrFlat = (n: number, digits = 2) =>
+  isFlat(n, digits) ? `${(0).toFixed(digits)}%` : pct(n, digits);
+
 export const signed = (n: number, digits = 1) =>
   `${n >= 0 ? "+" : "−"}${Math.abs(n).toFixed(digits)}`;
 

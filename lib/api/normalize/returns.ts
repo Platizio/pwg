@@ -263,11 +263,23 @@ export function returnsFrom(points: readonly RawHistoryPoint[]): Returns {
     if (at === null || !(p.price > 0)) continue;
     series.push({ at, price: p.price });
   }
-  if (series.length < 2) return EMPTY;
-
   /* Sorted rather than trusted: the gateway's polygon endpoints document a
      descending order elsewhere, and order is not worth assuming. */
   series.sort((a, b) => a.at - b.at);
+  return returnsOver(series);
+}
+
+/**
+ * The same three figures over a series already in hand: ascending by `at`,
+ * every price positive, as toPricePoints hands them over.
+ *
+ * Separate from returnsFrom so a series that has been carried a session
+ * further than the feed's — the instrument page ends its daily bars on the
+ * card's official close, as the chart and the Performance tab do — is
+ * measured by exactly the rule the feed's own series is.
+ */
+export function returnsOver(series: readonly Point[]): Returns {
+  if (series.length < 2) return EMPTY;
 
   const pct = (from: number, to: number) => (to / from - 1) * 100;
 

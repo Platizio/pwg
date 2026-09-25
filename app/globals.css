@@ -179,6 +179,14 @@
   --c-down-rgb: 224, 121, 107;
   --c-shadow-rgb: 0, 0, 0;
   --c-cream-rgb: 252, 240, 214;
+
+  /* The five colours a ticker's monogram and symbol are set in (PALETTE in
+     lib/market/universe.ts). Pastels on the dark ground, 7.6:1 or better. */
+  --c-mark-1: #e5ddd1;
+  --c-mark-2: #d9bd8b;
+  --c-mark-3: #93c7a8;
+  --c-mark-4: #b0bfcb;
+  --c-mark-5: #c9a88a;
 }
 
 /*
@@ -263,6 +271,16 @@
   --c-down-rgb: 176, 57, 44;
   --c-shadow-rgb: 26, 18, 7;
   --c-cream-rgb: 95, 73, 38;
+
+  /* The same five hues, deepened for paper. The dark set measured 1.19:1 to
+     1.97:1 on the cream shell, so "MCD" and a "P" monogram all but vanished;
+     each of these holds 4.4:1 or better on every light ground, 5:1 on the
+     shell. */
+  --c-mark-1: #6b5a44;
+  --c-mark-2: #7e6238;
+  --c-mark-3: #2f6f4c;
+  --c-mark-4: #4d6070;
+  --c-mark-5: #7a5234;
 }
 
 @media (prefers-color-scheme: light) {
@@ -343,6 +361,12 @@
     --c-down-rgb: 176, 57, 44;
     --c-shadow-rgb: 26, 18, 7;
     --c-cream-rgb: 95, 73, 38;
+
+    --c-mark-1: #6b5a44;
+    --c-mark-2: #7e6238;
+    --c-mark-3: #2f6f4c;
+    --c-mark-4: #4d6070;
+    --c-mark-5: #7a5234;
   }
 }
 
@@ -418,22 +442,30 @@
     color: var(--color-on-gold);
   }
 
-  ::-webkit-scrollbar {
-    width: 7px;
-    height: 7px;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: var(--c-scrollbar);
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: var(--color-rule-mono);
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  * {
-    scrollbar-color: var(--c-scrollbar) transparent;
-    scrollbar-width: thin;
+  /* Styled scrollbars for a mouse only. Styling ::-webkit-scrollbar turns a
+     touch browser's overlay scrollbars into classic ones, so on a phone every
+     ledger drew a permanent 7px bar under itself, bleeding out through the
+     full-bleed scroller to the screen's edge, and the order ticket drew
+     another down its side. A touch screen keeps its own, which appear only
+     while scrolling. */
+  @media (pointer: fine) {
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--c-scrollbar);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--color-rule-mono);
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    * {
+      scrollbar-color: var(--c-scrollbar) transparent;
+      scrollbar-width: thin;
+    }
   }
 }
 
@@ -894,16 +926,10 @@
     display: none;
   }
 
-  /* Drop cap via ::first-letter, so the paragraph keeps one unbroken text node
-     and screen readers never hear the opening letter split off. */
-  .about-drop::first-letter {
-    font-family: var(--font-serif);
-    font-size: 40px;
-    line-height: 0.86;
-    color: var(--color-gold);
-    float: left;
-    padding: 2px 9px 0 0;
-  }
+  /* `.about-drop`, the About paragraph's 40px gold drop cap, is gone: an
+     ornament in a register that takes its luxury from material rather than
+     pattern, and it indented the paragraph's first two lines unevenly. The
+     class name on that paragraph now styles nothing. */
 }
 
 @keyframes gold-pulse {

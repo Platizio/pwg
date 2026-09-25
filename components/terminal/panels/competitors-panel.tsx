@@ -49,12 +49,16 @@ export function CompetitorsPanel({ snapshot }: { snapshot: InstrumentSnapshot })
                 list is pulled out by the same amount, so the columns stay on
                 the page's content edge while the gold of the subject's row
                 (and a peer's hover) frames its content instead of clipping
-                it. */}
+                it.
+
+                The hairline under each block is drawn inset by that same
+                12px, so it stops on the gutters like every other rule on the
+                page; only the tint runs past them. */}
             <ul className="-mx-3 flex list-none flex-col p-0 sm:hidden">
               {peers.map((c) => (
                 <li
                   key={c.id}
-                  className="border-b border-rule-table px-3 py-4"
+                  className="relative px-3 py-4 after:pointer-events-none after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-rule-table after:content-['']"
                   style={c.isSelf ? { background: "var(--tint-gold-faint)" } : undefined}
                 >
                   <div className="mb-3 flex items-center gap-3.5">
@@ -75,10 +79,15 @@ export function CompetitorsPanel({ snapshot }: { snapshot: InstrumentSnapshot })
                         <Identity name={c.name} id={c.id} />
                       </>
                     )}
+                    {/* Named, as the table's "1Y return" column is: this block
+                        has no header row, and a bare coloured percentage was
+                        the most prominent figure in it with nothing saying
+                        what it measured. */}
                     <span
-                      className="font-mono ms-auto text-[11.5px]"
+                      className="font-mono ms-auto flex-none text-[11.5px] whitespace-nowrap"
                       style={{ color: c.retColor }}
                     >
+                      <span className="eyebrow me-1.5">1Y</span>
                       {c.ret}
                     </span>
                   </div>

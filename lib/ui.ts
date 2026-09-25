@@ -20,3 +20,14 @@ export function cn(...parts: Array<string | false | null | undefined>) {
  * parent.
  */
 export const REGISTER_X = "px-4 sm:px-5 lg:px-[26px]";
+
+/**
+ * The backdrop behind a modal layer: the drawer, the order ticket, the news
+ * reader. Near-black on the dark theme; on the light theme the theme's own
+ * shadow colour at a third, because the dark one dropped a black slab over
+ * the cream page. Both of the light theme's entry points — a pinned choice and
+ * an unpinned light system — are spelled out the way globals.css spells them,
+ * and written here in full because Tailwind reads class names as literal text.
+ */
+export const SCRIM =
+  "bg-[rgba(6,5,4,0.78)] [:root[data-theme=light]_&]:bg-[rgba(var(--c-shadow-rgb),0.34)] [@media(prefers-color-scheme:light)]:[:root:not([data-theme=dark])_&]:bg-[rgba(var(--c-shadow-rgb),0.34)]";

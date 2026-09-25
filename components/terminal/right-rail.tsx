@@ -44,7 +44,13 @@ export function RightRail({
   const [story, setStory] = useState<WireItem | null>(null);
 
   return (
-    <div className="flex flex-col gap-8 px-6 py-6 lg:gap-9">
+    /* Horizontal padding only where the rail is a column of its own. Below
+       `xl` this same component is appended inside the working column, which
+       already pads the page's gutters, and its own px-6 on top of them put the
+       whole foot of the page on a second, 24px-deeper grid — stepped in from
+       the rule drawn above it. The xl aside has no padding of its own, so it
+       keeps its 24px inset from here. */
+    <div className="flex flex-col gap-8 py-6 lg:gap-9 xl:px-6">
       {/* Newswire leads the rail.
 
           It used to come last, after About and Notable moves. Below the xl
@@ -128,11 +134,15 @@ export function RightRail({
             wrapped ones cannot. */}
         <ul className="m-0 flex list-none flex-col p-0">
           {news.map((n: WireItem) => (
-            <li key={n.id} className="border-t border-rule-list first:border-t-0">
+            /* The first item's missing top padding is keyed off the <li>.
+               It used to be `first:pt-0` on the button, and every button is
+               the first child of its own <li>, so every headline lost its top
+               padding and each source line sat on the rule above it. */
+            <li key={n.id} className="group/news border-t border-rule-list first:border-t-0">
               <button
                 type="button"
                 onClick={() => setStory(n)}
-                className="group block w-full py-4 text-left first:pt-0"
+                className="group block w-full py-4 text-left group-first/news:pt-0"
               >
                 <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
                   <span className="eyebrow eyebrow-gold">{n.source}</span>
@@ -168,7 +178,11 @@ export function RightRail({
             homepage twice. */}
         {snapshot.profile.site && (
           <div className="mt-4 flex border-t border-rule-section">
-            <CapsLink href={snapshot.profile.site} external className="flex-1 py-3 text-left">
+            <CapsLink
+              href={snapshot.profile.site}
+              external
+              className="flex min-h-11 flex-1 items-center py-3 text-left"
+            >
               Website
             </CapsLink>
           </div>
@@ -176,26 +190,29 @@ export function RightRail({
       </section>
 
 
-      <section>
-        <header className="mb-3.5 flex items-baseline justify-between gap-3">
-          <h3 className="font-serif text-[24px]">Notable moves</h3>
-        </header>
-        <ul className="flex list-none flex-col p-0">
-          {moves.map((b) => (
-            /* Static reference data. The hover indent that used to be here
-               promised a destination the row has never had. */
-            <li key={b.date} className="rule-t flex items-center gap-3.5 py-4">
-              <div className="flex-1">
-                <p className="eyebrow mb-1">Date</p>
-                <p className="text-[13.5px] font-semibold">{b.date}</p>
-              </div>
-              <span className="font-mono text-[13px]" style={{ color: b.color }}>
-                {b.chg}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
+      {/* Withheld when the snapshot published no moves (see notableMoves),
+          rather than a heading over nothing. */}
+      {moves.length > 0 && (
+        <section>
+          <header className="mb-3.5 flex items-baseline justify-between gap-3">
+            <h3 className="font-serif text-[24px]">Notable moves</h3>
+          </header>
+          <ul className="flex list-none flex-col p-0">
+            {moves.map((b) => (
+              /* Static reference data. The hover indent that used to be here
+                 promised a destination the row has never had. Each row used
+                 to repeat a "Date" eyebrow over its date; a date reads as one
+                 without being told, and the label tripled the list's noise. */
+              <li key={b.date} className="rule-t flex items-center gap-3.5 py-4">
+                <p className="flex-1 text-[13.5px] font-semibold">{b.date}</p>
+                <span className="font-mono text-[13px]" style={{ color: b.color }}>
+                  {b.chg}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
 
       <Reader

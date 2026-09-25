@@ -128,7 +128,19 @@ export type SeedEntry = {
   covered: boolean;
 };
 
-const PALETTE = ["#E5DDD1", "#D9BD8B", "#93C7A8", "#B0BFCB", "#C9A88A"] as const;
+/* Custom properties, not literals, so a ticker's colour follows the theme the
+   way every token in lib/tokens.ts does. The pastels these were are the dark
+   theme's values; on the cream light theme they measured 1.19:1 to 1.97:1 and
+   "MCD" in gold or a "P" monogram in cream all but vanished. globals.css
+   holds a deeper set of the same five hues for paper. Every consumer writes
+   them into an inline style, which resolves var() natively. */
+const PALETTE = [
+  "var(--c-mark-1)",
+  "var(--c-mark-2)",
+  "var(--c-mark-3)",
+  "var(--c-mark-4)",
+  "var(--c-mark-5)",
+] as const;
 
 /* Who the rail asks.
 
@@ -210,46 +222,46 @@ export const POPULAR_TICKERS = [
 export const COVERED = ["AAPL", "TSLA", "NVDA", "AMZN", "SPOT", "MSFT"] as const;
 
 const SEED: Record<string, SeedEntry> = {
-  AAPL: { name: "Apple", mark: "A", color: "#E5DDD1", covered: true },
-  MSFT: { name: "Microsoft", mark: "M", color: "#B0BFCB", covered: true },
-  NVDA: { name: "Nvidia", mark: "N", color: "#93C7A8", covered: true },
-  AMZN: { name: "Amazon", mark: "A", color: "#D9BD8B", covered: true },
-  TSLA: { name: "Tesla", mark: "T", color: "#C9A88A", covered: true },
-  SPOT: { name: "Spotify", mark: "S", color: "#93C7A8", covered: true },
-  GOOGL: { name: "Alphabet", mark: "G", color: "#B0BFCB", covered: false },
-  META: { name: "Meta Platforms", mark: "M", color: "#B0BFCB", covered: false },
-  NFLX: { name: "Netflix", mark: "N", color: "#C9A88A", covered: false },
-  JPM: { name: "JPMorgan Chase", mark: "J", color: "#D9BD8B", covered: false },
-  V: { name: "Visa", mark: "V", color: "#E5DDD1", covered: false },
-  MA: { name: "Mastercard", mark: "M", color: "#C9A88A", covered: false },
-  BRK: { name: "Berkshire Hathaway", mark: "B", color: "#B0BFCB", covered: false },
-  LLY: { name: "Eli Lilly", mark: "L", color: "#93C7A8", covered: false },
-  UNH: { name: "UnitedHealth", mark: "U", color: "#93C7A8", covered: false },
-  XOM: { name: "Exxon Mobil", mark: "E", color: "#C9A88A", covered: false },
-  CVX: { name: "Chevron", mark: "C", color: "#C9A88A", covered: false },
-  WMT: { name: "Walmart", mark: "W", color: "#D9BD8B", covered: false },
-  COST: { name: "Costco", mark: "C", color: "#D9BD8B", covered: false },
-  HD: { name: "Home Depot", mark: "H", color: "#C9A88A", covered: false },
-  PG: { name: "Procter & Gamble", mark: "P", color: "#E5DDD1", covered: false },
-  JNJ: { name: "Johnson & Johnson", mark: "J", color: "#93C7A8", covered: false },
-  AVGO: { name: "Broadcom", mark: "B", color: "#93C7A8", covered: false },
-  AMD: { name: "AMD", mark: "A", color: "#93C7A8", covered: false },
-  ORCL: { name: "Oracle", mark: "O", color: "#B0BFCB", covered: false },
-  CRM: { name: "Salesforce", mark: "S", color: "#B0BFCB", covered: false },
-  ADBE: { name: "Adobe", mark: "A", color: "#B0BFCB", covered: false },
-  INTC: { name: "Intel", mark: "I", color: "#B0BFCB", covered: false },
-  DIS: { name: "Disney", mark: "D", color: "#D9BD8B", covered: false },
-  BA: { name: "Boeing", mark: "B", color: "#B0BFCB", covered: false },
-  KO: { name: "Coca-Cola", mark: "K", color: "#C9A88A", covered: false },
-  PEP: { name: "PepsiCo", mark: "P", color: "#C9A88A", covered: false },
-  MCD: { name: "McDonald's", mark: "M", color: "#D9BD8B", covered: false },
-  NKE: { name: "Nike", mark: "N", color: "#E5DDD1", covered: false },
-  SBUX: { name: "Starbucks", mark: "S", color: "#93C7A8", covered: false },
-  UBER: { name: "Uber", mark: "U", color: "#E5DDD1", covered: false },
-  ABNB: { name: "Airbnb", mark: "A", color: "#C9A88A", covered: false },
-  PLTR: { name: "Palantir", mark: "P", color: "#B0BFCB", covered: false },
-  COIN: { name: "Coinbase", mark: "C", color: "#D9BD8B", covered: false },
-  SHOP: { name: "Shopify", mark: "S", color: "#93C7A8", covered: false },
+  AAPL: { name: "Apple", mark: "A", color: "var(--c-mark-1)", covered: true },
+  MSFT: { name: "Microsoft", mark: "M", color: "var(--c-mark-4)", covered: true },
+  NVDA: { name: "Nvidia", mark: "N", color: "var(--c-mark-3)", covered: true },
+  AMZN: { name: "Amazon", mark: "A", color: "var(--c-mark-2)", covered: true },
+  TSLA: { name: "Tesla", mark: "T", color: "var(--c-mark-5)", covered: true },
+  SPOT: { name: "Spotify", mark: "S", color: "var(--c-mark-3)", covered: true },
+  GOOGL: { name: "Alphabet", mark: "G", color: "var(--c-mark-4)", covered: false },
+  META: { name: "Meta Platforms", mark: "M", color: "var(--c-mark-4)", covered: false },
+  NFLX: { name: "Netflix", mark: "N", color: "var(--c-mark-5)", covered: false },
+  JPM: { name: "JPMorgan Chase", mark: "J", color: "var(--c-mark-2)", covered: false },
+  V: { name: "Visa", mark: "V", color: "var(--c-mark-1)", covered: false },
+  MA: { name: "Mastercard", mark: "M", color: "var(--c-mark-5)", covered: false },
+  BRK: { name: "Berkshire Hathaway", mark: "B", color: "var(--c-mark-4)", covered: false },
+  LLY: { name: "Eli Lilly", mark: "L", color: "var(--c-mark-3)", covered: false },
+  UNH: { name: "UnitedHealth", mark: "U", color: "var(--c-mark-3)", covered: false },
+  XOM: { name: "Exxon Mobil", mark: "E", color: "var(--c-mark-5)", covered: false },
+  CVX: { name: "Chevron", mark: "C", color: "var(--c-mark-5)", covered: false },
+  WMT: { name: "Walmart", mark: "W", color: "var(--c-mark-2)", covered: false },
+  COST: { name: "Costco", mark: "C", color: "var(--c-mark-2)", covered: false },
+  HD: { name: "Home Depot", mark: "H", color: "var(--c-mark-5)", covered: false },
+  PG: { name: "Procter & Gamble", mark: "P", color: "var(--c-mark-1)", covered: false },
+  JNJ: { name: "Johnson & Johnson", mark: "J", color: "var(--c-mark-3)", covered: false },
+  AVGO: { name: "Broadcom", mark: "B", color: "var(--c-mark-3)", covered: false },
+  AMD: { name: "AMD", mark: "A", color: "var(--c-mark-3)", covered: false },
+  ORCL: { name: "Oracle", mark: "O", color: "var(--c-mark-4)", covered: false },
+  CRM: { name: "Salesforce", mark: "S", color: "var(--c-mark-4)", covered: false },
+  ADBE: { name: "Adobe", mark: "A", color: "var(--c-mark-4)", covered: false },
+  INTC: { name: "Intel", mark: "I", color: "var(--c-mark-4)", covered: false },
+  DIS: { name: "Disney", mark: "D", color: "var(--c-mark-2)", covered: false },
+  BA: { name: "Boeing", mark: "B", color: "var(--c-mark-4)", covered: false },
+  KO: { name: "Coca-Cola", mark: "K", color: "var(--c-mark-5)", covered: false },
+  PEP: { name: "PepsiCo", mark: "P", color: "var(--c-mark-5)", covered: false },
+  MCD: { name: "McDonald's", mark: "M", color: "var(--c-mark-2)", covered: false },
+  NKE: { name: "Nike", mark: "N", color: "var(--c-mark-1)", covered: false },
+  SBUX: { name: "Starbucks", mark: "S", color: "var(--c-mark-3)", covered: false },
+  UBER: { name: "Uber", mark: "U", color: "var(--c-mark-1)", covered: false },
+  ABNB: { name: "Airbnb", mark: "A", color: "var(--c-mark-5)", covered: false },
+  PLTR: { name: "Palantir", mark: "P", color: "var(--c-mark-4)", covered: false },
+  COIN: { name: "Coinbase", mark: "C", color: "var(--c-mark-2)", covered: false },
+  SHOP: { name: "Shopify", mark: "S", color: "var(--c-mark-3)", covered: false },
 };
 
 /* Funds, trusts and notes, recognised by name.

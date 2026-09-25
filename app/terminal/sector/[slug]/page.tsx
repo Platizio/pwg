@@ -12,6 +12,12 @@ export function generateStaticParams() {
   return SECTOR_NAMES.map((name) => ({ slug: sectorSlug(name) }));
 }
 
+/* Nothing outside that set exists, so the router answers 404 itself. Left
+   open, an unknown slug (/terminal/sector/technology) was rendered on demand
+   through the terminal layout's snapshot read, and it hung for over a minute
+   before the page could call notFound(). The articles routes do the same. */
+export const dynamicParams = false;
+
 /* Matching the dashboard's own window: the sector table is drawn from the same
    sweep, so a shorter one would re-fetch quotes that cannot have changed. */
 export const revalidate = 300;

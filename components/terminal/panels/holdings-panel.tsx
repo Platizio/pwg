@@ -5,6 +5,7 @@ import { shortInterestIsCurrent } from "@/lib/market/short-interest-age";
 import type { InstrumentSnapshot } from "@/lib/market/instrument";
 import { useLiveSnapshot } from "../live-provider";
 import { GoldButton, Section } from "../ui";
+import { dayLabel } from "./day-label";
 
 export function HoldingsPanel({
   snapshot,
@@ -33,20 +34,24 @@ export function HoldingsPanel({
 
   return (
     <div className="grid gap-8 xl:grid-cols-[1.3fr_1fr] xl:gap-11">
-      <Section title="Short interest and dividends">
+      <Section title="Short interest">
         {/* The institutional-holders table here was invented. Ownership data
             lives behind the insight endpoints, which this account cannot
-            reach. These two are real, and they are what the record does
-            carry about who holds the stock and what it pays. */}
+            reach, and a sentence saying so was an empty section about our
+            entitlements rather than about the stock; it is gone. So is the
+            dividend list that sat here: it repeated the Fundamentals tab's
+            "Recent payments" line for line, and that tab is where the
+            dividend record is read in full. */}
         <dl className="m-0 grid grid-cols-2 gap-x-6 gap-y-4">
           <div>
-            <dt className="card-label">Shares short</dt>
+            {/* Tracked-caps, as every other panel labels its figures. */}
+            <dt className="eyebrow">Shares short</dt>
             <dd className="font-mono mt-2 text-[15px] text-ink-2">
               {sharesShort === null ? "—" : sharesShort.toLocaleString("en-US")}
             </dd>
           </div>
           <div>
-            <dt className="card-label">Days to cover</dt>
+            <dt className="eyebrow">Days to cover</dt>
             <dd className="font-mono mt-2 text-[15px] text-ink-2">
               {daysToCover === null ? "—" : daysToCover.toFixed(2)}
             </dd>
@@ -55,36 +60,15 @@ export function HoldingsPanel({
         {short.settlementDate &&
           (shortCurrent ? (
             <p className="mt-3 text-[12px] text-ink-3">
-              As at settlement on {short.settlementDate}.
+              As at settlement on {dayLabel(short.settlementDate) ?? short.settlementDate}.
             </p>
           ) : (
             <p className="mt-3 max-w-[46ch] text-[12px] leading-[1.6] text-ink-3">
-              No current filing. The latest on record settled on {short.settlementDate}, too
-              long ago to show as today&rsquo;s position.
+              No current filing. The latest on record settled on{" "}
+              {dayLabel(short.settlementDate) ?? short.settlementDate}, too long ago to show as
+              today&rsquo;s position.
             </p>
           ))}
-
-        <p className="card-label mt-7">Recent dividends</p>
-        {snapshot.dividends.length === 0 ? (
-          <p className="mt-3 text-[13.5px] text-ink-3">
-            No dividend has been recorded for this company.
-          </p>
-        ) : (
-          <ul className="m-0 mt-3 flex list-none flex-col p-0">
-            {snapshot.dividends.map((d) => (
-              <li key={d.exDate} className="rule-t flex items-baseline justify-between gap-3 py-3">
-                <span className="text-[13.5px] text-ink-2">Ex-dividend {d.exDate}</span>
-                <span className="font-mono text-[13px] text-ink">
-                  ${d.amount.toFixed(4).replace(/0+$/, "").replace(/\.$/, "")}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <p className="mt-6 max-w-[46ch] text-[12.5px] leading-[1.7] text-ink-3">
-          Institutional ownership is not available on this account.
-        </p>
       </Section>
 
       {/* Titled the way the left column is, so the two headings share a top

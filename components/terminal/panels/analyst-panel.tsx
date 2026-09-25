@@ -584,18 +584,13 @@ export function AnalystPanel({ model, ticker }: { model: AnalystModel; ticker: s
   if (model.state === "loading") return <Loading />;
 
   if (model.state === "not-entitled") {
+    /* One neutral line. This used to spend two paragraphs on the vendor
+       refusing the request, which is plumbing a reader cannot act on. "Yet"
+       keeps the one claim that matters: this says nothing about whether
+       anyone covers the company. */
     return (
-      <StateSection eyebrow="Not available on this account">
-        <p className="m-0">
-          Analyst ratings, price targets and rating changes are not available on
-          this account yet. Our data provider refuses the request, so there is
-          nothing here to show.
-        </p>
-        <p className="m-0">
-          That is a limit on what we can see, and nothing more. It is{" "}
-          <span className="text-ink-2">not</span> a statement that no analyst
-          covers {ticker}, and it should not be read as one.
-        </p>
+      <StateSection eyebrow="Not available">
+        <p className="m-0">Analyst coverage isn&rsquo;t available yet.</p>
       </StateSection>
     );
   }

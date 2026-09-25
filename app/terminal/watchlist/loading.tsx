@@ -23,9 +23,10 @@ export default function WatchlistLoading() {
         <Bar className="mt-4 h-3.5 w-[min(420px,80%)]" />
       </header>
       <div className="flex-1 px-4 pt-5 pb-12 sm:px-6 lg:px-7">
+        {/* The tabs' own heights: 44px below `lg`, 40px from it. */}
         <div className="flex flex-wrap gap-2">
-          <Bar className="h-10 w-36 rounded-full" />
-          <Bar className="h-10 w-28 rounded-full" />
+          <Bar className="h-11 w-36 rounded-full lg:h-10" />
+          <Bar className="h-11 w-28 rounded-full lg:h-10" />
         </div>
         <div className="mt-8 flex flex-col gap-4">
           <Bar className="h-7 w-52" />

@@ -7,6 +7,7 @@ import {
   LineStyle,
   createChart,
   type AutoscaleInfoProvider,
+  type BarPrice,
   type IChartApi,
   type IPriceLine,
   type ISeriesApi,
@@ -17,9 +18,9 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import { motion, useReducedMotion } from "motion/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatStamp, money } from "@/lib/market/format";
-import { emptyChartText, rangeCaption, readerZone, viewShowsAll } from "@/lib/market/ranges";
+import { emptyChartText, rangeCaptionParts, readerZone, viewShowsAll } from "@/lib/market/ranges";
 import { chartReference } from "@/lib/market/prior-close";
 import { getRange } from "@/lib/market/ranges";
 import type { RangeId } from "@/lib/market/types";
@@ -60,6 +61,10 @@ function useChartPalette(): ChartPalette {
   return palette;
 }
 
+/* How close, in pixels between centres, an axis label may come to the
+   prev-close tag before it is left out: half the tag (about 14px tall at the
+   axis's 10px type), half a label, and a few pixels of air. */
+const TAG_CLEARANCE = 15;
 
 export function PriceChart({
   history,
@@ -108,6 +113,8 @@ export function PriceChart({
   const chartRef = useRef<IChartApi | null>(null);
   const mainRef = useRef<ISeriesApi<SeriesType> | null>(null);
   const prevLineRef = useRef<IPriceLine | null>(null);
+  /* The price the prev-close tag sits at on the axis, or null with no line. */
+  const tagRef = useRef<number | null>(null);
   /* How many points the series held after its last setData — what the
      visible window is measured against to tell a fitted view from a zoomed
      one (viewShowsAll). */
@@ -282,9 +289,11 @@ export function PriceChart({
      timezone. None of this was stated anywhere before — six buttons labelled
      1D through 5Y and nothing distinguishing five daily closes from a week of
      minutes. */
-  const caption = useMemo(
+  /* In parts, so the visible line can keep each one whole where a phone wraps
+     it (rangeCaptionParts); joined, for the text alternative. */
+  const captionParts = useMemo(
     () =>
-      rangeCaption(
+      rangeCaptionParts(
         intervalLabel ? { ...rangeDef, interval: intervalLabel } : rangeDef,
         data.firstAt,
         data.lastAt,
@@ -292,6 +301,7 @@ export function PriceChart({
       ),
     [rangeDef, intervalLabel, data.firstAt, data.lastAt, data.values.length],
   );
+  const caption = captionParts.join(" · ");
 
   const last = data.values.at(-1) ?? 0;
   const up = last >= data.basis;
@@ -534,6 +544,31 @@ export function PriceChart({
     drawnRef.current = count;
   }, [data, tone, up, P]);
 
+  /* The ladder's labels, less any the prev-close tag would cover.
+   *
+   * The tag is drawn over the axis labels, not beside them, so a tick within
+   * a few pixels of the previous close came out half hidden behind it: on
+   * AAPL at 375px, "350.00" under the 335.92 tag on 5Y, "340.00" on 3M, and
+   * on 1M and 1Y labels touching its edges. The tick itself and its gridline
+   * stay; only the words that would collide are left out, and the tag says
+   * where the scale is at that height anyway.
+   *
+   * Stable, reading the tag through a ref, because the library holds on to
+   * whatever it is handed; the price-line effect hands it over again whenever
+   * the tag moves, which is what makes the labels be redone. */
+  const ladderLabels = useCallback((prices: BarPrice[]): string[] => {
+    const series = mainRef.current;
+    if (!series) return prices.map((p) => p.toFixed(2));
+    const labels = series.priceFormatter().formatTickmarks(prices);
+    const tag = tagRef.current;
+    const tagY = tag === null ? null : series.priceToCoordinate(tag);
+    if (tagY === null) return labels;
+    return labels.map((label, i) => {
+      const y = series.priceToCoordinate(prices[i]);
+      return y !== null && Math.abs(y - tagY) < TAG_CLEARANCE ? "" : label;
+    });
+  }, []);
+
   /* The dashed prev-close marker the Lux design adds. A native price line
      rather than an absolutely-positioned div, so it tracks the scale.
 
@@ -553,16 +588,27 @@ export function PriceChart({
       series.removePriceLine(prevLineRef.current);
       prevLineRef.current = null;
     }
-    if (data.empty || data.prev === null) return;
-    prevLineRef.current = series.createPriceLine({
-      price: data.prev,
-      color: P.goldDeep,
-      lineWidth: 1,
-      lineStyle: LineStyle.Dashed,
-      axisLabelVisible: true,
-      title: "PREV CLOSE",
-    });
-  }, [data.empty, data.prev, P]);
+    tagRef.current = null;
+    if (!(data.empty || data.prev === null)) {
+      /* No title. With the ladder on the left the library draws a line's
+         title as a filled tag inside the plot, beside the axis, and at 375px
+         that tag sat on the first 70px of the day's and the week's line and
+         half over the axis labels on the longer ranges. The axis keeps the
+         figure; the caption under the chart says what the dashed line is. */
+      prevLineRef.current = series.createPriceLine({
+        price: data.prev,
+        color: P.goldDeep,
+        lineWidth: 1,
+        lineStyle: LineStyle.Dashed,
+        axisLabelVisible: true,
+      });
+      tagRef.current = data.prev;
+    }
+    /* The ladder's labels were formatted against the old tag, and the
+       library keeps them until its scale changes, which a new previous close
+       alone need not do. Handing the formatter over again makes it redo them. */
+    chartRef.current?.applyOptions({ localization: { tickmarksPriceFormatter: ladderLabels } });
+  }, [data.empty, data.prev, P, ladderLabels]);
 
   /* Reset the time window. The price axis needs no resetting: it is pinned to
      the range's own extremes by the provider above, so it never drifted. */
@@ -702,8 +748,35 @@ export function PriceChart({
             — truncated, it lost the zone, the one word saying which clock the
             axis reads. Two lines on a phone cost the plot a line of height;
             one cut line cost the reader the clock. */}
-        <p className="font-mono shrink-0 pt-1.5 text-[10.5px] leading-[1.45] tracking-[0.04em] text-pretty text-ink-4">
-          {caption}
+        {/* The separator rides inside each part's no-wrap span, so a line
+            never ends on a dangling "·". On a phone the caption keeps two
+            lines' height on every range, so switching range never makes the
+            plot above it jump. */}
+        <p className="font-mono min-h-[calc(2.9em+0.375rem)] shrink-0 pt-1.5 text-[10.5px] leading-[1.45] tracking-[0.04em] text-pretty text-ink-4 sm:min-h-0">
+          {captionParts.map((part, i) => (
+            <Fragment key={i}>
+              {i > 0 && " "}
+              <span className="whitespace-nowrap">
+                {i > 0 && "· "}
+                {part}
+              </span>
+            </Fragment>
+          ))}
+          {/* The dashed line's key, out here rather than as a title on the
+              canvas, where it covered the line it was naming. Kept whole so
+              the swatch never wraps away from its words. */}
+          {!data.empty && data.prev !== null && (
+            <>
+              {" · "}
+              <span className="whitespace-nowrap">
+                <span
+                  aria-hidden="true"
+                  className="mr-1.5 inline-block w-3.5 border-t border-dashed border-gold-deep align-middle"
+                />
+                Previous close {money(data.prev)}
+              </span>
+            </>
+          )}
         </p>
         <span className="sr-only">
         <table>

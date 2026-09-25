@@ -173,3 +173,57 @@ test("a company with no coverage yields nothing rather than filler", () => {
   );
   assert.deepEqual(items, []);
 });
+
+/* ------------------------------------------------------------------ */
+/* One card per story, in the page's language                          */
+/* ------------------------------------------------------------------ */
+
+/* The id check catches one article filed under several tickers. It could not
+   catch one story under two ids: on 25 Sep 2026 "Earnings Outlook Remains
+   Upbeat: A Closer Look" filled two GOOGL cards back to back. */
+test("the same story under two ids appears once", () => {
+  const a = { ...article("g-1", "GOOGL", 17), title: "Earnings Outlook Remains Upbeat: A Closer Look" };
+  const b = { ...article("g-2", "GOOGL", 17), title: "Earnings Outlook Remains Upbeat — A Closer Look" };
+  const items = toWireItems([{ ticker: "GOOGL", news: [a, b] }], NOW, 8);
+  assert.equal(items.length, 1);
+});
+
+test("the same address under two ids appears once", () => {
+  const a = { ...article("u-1", "MSFT", 2), article_url: "https://example.com/story" };
+  const b = { ...article("u-2", "JPM", 3), article_url: "https://example.com/story" };
+  const items = toWireItems(
+    [
+      { ticker: "MSFT", news: [a] },
+      { ticker: "JPM", news: [b] },
+    ],
+    NOW,
+    8,
+  );
+  assert.equal(items.length, 1);
+});
+
+/* And Meta's Connect glasses story arrived twice the same morning, once in
+   English and once as "EssilorLuxottica et Meta continuent…". */
+test("a story in another language does not reach an English wire", () => {
+  const english = {
+    ...article("en", "META", 2),
+    title: "Meta and EssilorLuxottica extend their smart-glasses partnership",
+    description: "The companies said the deal runs for another decade as demand for the glasses grows.",
+  };
+  const french = {
+    ...article("fr", "META", 2),
+    title: "EssilorLuxottica et Meta continuent leur partenariat",
+    description: "Le groupe franco-italien et Meta prolongent leur accord sur les lunettes connectées.",
+  };
+  const items = toWireItems([{ ticker: "META", news: [english, french] }], NOW, 8);
+  assert.deepEqual(items.map((i) => i.id), ["en"]);
+});
+
+test("an English headline that borrows a foreign word is still English", () => {
+  const story = {
+    ...article("lv", "AAPL", 2),
+    title: "Apple opens its Las Vegas store as Los Angeles sales slow",
+    description: "",
+  };
+  assert.equal(toWireItems([{ ticker: "AAPL", news: [story] }], NOW, 8).length, 1);
+});

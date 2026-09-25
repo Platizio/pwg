@@ -88,7 +88,7 @@ async function request(symbols: string[]) {
       `/api/quotes/watchlist?symbols=${encodeURIComponent(symbols.join(","))}`,
     );
     if (!response.ok) throw new Error(`quotes ${response.status}`);
-    const body = (await response.json()) as { quotes?: WatchQuote[] };
+    const body = (await response.json()) as { quotes?: WatchQuote[]; pending?: unknown };
     const learned: Record<string, string> = {};
     const priced = new Set<string>();
     for (const q of body.quotes ?? []) {
@@ -97,9 +97,25 @@ async function request(symbols: string[]) {
       priced.add(q.id);
       if (typeof q.name === "string") learned[q.id] = q.name;
     }
+    /* `pending`: the route ran out of its time budget before an upstream
+       answered for these (app/api/quotes/watchlist/answer.ts). That is not
+       "no quote" — the answer is on its way into the server's cache — so they
+       are kept as a failed ask and asked again after RETRY_MS, not blanked for
+       the full FRESH_MS. */
+    const pending = new Set(
+      Array.isArray(body.pending) ? body.pending.filter((s): s is string => typeof s === "string") : [],
+    );
     /* Asked and not priced — not tradable, or no quote today. Remembered as
        such, so the row shows a dash rather than asking again on every render. */
-    for (const s of symbols) if (!priced.has(s)) cache.set(s, { quote: null, at, failed: false });
+    for (const s of symbols) {
+      if (priced.has(s)) continue;
+      cache.set(
+        s,
+        pending.has(s)
+          ? { quote: cache.get(s)?.quote ?? null, at, failed: true }
+          : { quote: null, at, failed: false },
+      );
+    }
     watchlists.learn(learned);
   } catch {
     for (const s of symbols) {
@@ -124,8 +140,10 @@ const AUTHORED = new Map(INSTRUMENTS.map((i) => [i.id, i]));
 
 /* The palette the server's `presentation()` draws from, for a symbol whose
    look has not arrived yet. Neutral rather than guessed, so nothing changes
-   colour when the real answer lands for anything but a curated name. */
-const NEUTRAL = "#B0BFCB";
+   colour when the real answer lands for anything but a curated name. The
+   palette's own custom property, so it deepens on the light theme as every
+   answered monogram does (globals.css). */
+const NEUTRAL = "var(--c-mark-4)";
 
 /**
  * How a symbol's row looks: the authored look for the six covered names (the

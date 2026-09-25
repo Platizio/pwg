@@ -12,6 +12,7 @@ import { C } from "@/lib/tokens";
 import { cn } from "@/lib/ui";
 import { instrumentPath } from "@/lib/market/paths";
 import { CARD_X } from "./inset";
+import { withTick } from "./same-session";
 
 /**
  * The market, one index at a time.
@@ -140,7 +141,7 @@ export function MarketCard({ views }: { views: IndexView[] }) {
                 className={cn(
                   "min-h-11 rounded-full px-3.5 text-[13.5px] font-medium whitespace-nowrap transition-all duration-300 sm:px-5",
                   selected
-                    ? "bg-[linear-gradient(140deg,#f6e6c6,#dcbb8a)] text-on-gold shadow-[0_10px_26px_-12px_rgba(217,189,139,0.6)]"
+                    ? "bg-[image:var(--cta-buy)] text-on-gold shadow-[0_10px_26px_-12px_rgba(217,189,139,0.6)]"
                     : "border border-rule-control text-ink-3 hover:border-[rgba(217,189,139,0.3)] hover:text-ink",
                 )}
               >
@@ -190,15 +191,19 @@ export function MarketCard({ views }: { views: IndexView[] }) {
         <Breadth index={index} breadth={breadth} basis={sample.basis} />
       </div>
 
+        {/* The captions point back at the sample the breadth tile describes,
+            not at the index. "The S&P 500 names that rose most" claimed
+            membership for Manulife, Shinhan and Arm, and the sample is drawn
+            by market value, not by index (see `basis`). */}
         <div className="mt-7 grid gap-x-8 gap-y-7 border-t border-rule-section pt-6 sm:grid-cols-2">
           <MoverStrip
             title="Biggest gains today"
-            caption={`The ${index.short} names that rose most`}
+            caption={`Of the ${breadth.total} names above, those that rose most`}
             rows={leaders}
           />
           <MoverStrip
             title="Biggest falls today"
-            caption={`The ${index.short} names that fell most`}
+            caption={`Of the ${breadth.total} names above, those that fell most`}
             rows={laggards}
           />
         </div>
@@ -210,20 +215,16 @@ export function MarketCard({ views }: { views: IndexView[] }) {
 /**
  * The server's rows, with a live price written over each one that ticked.
  *
- * A tick missing its change percent is refused whole rather than half-taken:
- * this second's price beside the snapshot's percent would state today's move
- * against yesterday's basis. And the order is left exactly as it arrived — the
+ * A tick is taken whole, and only when it measures from the same previous close
+ * as the row (same-session.ts). The strips are ranked on one session's move.
+ * Before this check, a pre-market tick put "+4.01%" under "Biggest falls
+ * today". And the order is left exactly as it arrived — the
  * ranking that chose these names was drawn over a sample this component does
  * not hold, so a strip that resorted itself under "the names that rose most"
  * would be ranking three names against a field it cannot see.
  */
 function freshen(rows: Quote[] | undefined, ticks: ReadonlyMap<string, Tick>): Quote[] {
-  return (rows ?? []).map((q) => {
-    const t = ticks.get(q.id.toUpperCase());
-    if (!t) return q;
-    if (t.changePercent === null) return q;
-    return { ...q, price: t.price, chg: t.changePercent };
-  });
+  return (rows ?? []).map((q) => withTick(q, ticks.get(q.id.toUpperCase())));
 }
 
 /**
@@ -307,7 +308,9 @@ function MoverStrip({
     <div className="min-w-0">
       <p className="card-label">{title}</p>
       <p className="mt-1 text-[12.5px] text-ink-3">{caption}</p>
-      <ul className="m-0 mt-4 flex list-none flex-col gap-1 p-0">
+      {/* Pulled out by the rows' own px-2.5, so the monograms and prices land
+          on CARD_X under the label while the hover tint gets room either side. */}
+      <ul className="m-0 mt-4 -mx-2.5 flex list-none flex-col gap-1 p-0">
         {rows.map((q) => {
           const body = (
             <>
@@ -320,7 +323,9 @@ function MoverStrip({
                 {q.mark}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13.5px] font-medium text-ink">
+                {/* Two lines, as on the boards: a fund's distinguishing word
+                    is usually the last one. */}
+                <span className="line-clamp-2 text-[13.5px] font-medium break-words text-ink">
                   {q.name}
                 </span>
                 <span className="font-mono mt-0.5 block text-[12px] tracking-[0.05em] text-ink-3">

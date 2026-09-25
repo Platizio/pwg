@@ -1,17 +1,18 @@
 "use client";
 
-import { useLiveQuote } from "./live-provider";
+import { useLiveQuote, useNow } from "./live-provider";
 
 import { tickerFromPath } from "@/lib/market/paths";
 
-import { useLiveSession } from "@/components/home/use-session";
+import { useHydrated, useLiveSession } from "@/components/home/use-session";
 
 import { MotionConfig, motion } from "motion/react";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { IconClose, IconMenu } from "@/components/icons";
+import { TICK_MAX_AGE_MS } from "@/lib/api/stream/tick";
 import { money, pct } from "@/lib/market/format";
-import { sessionAt, type Session } from "@/lib/market/session";
+import { pricesMove, sessionAt, type Session } from "@/lib/market/session";
 import { C, EASE } from "@/lib/tokens";
 import { usePortfolio } from "@/lib/portfolio";
 import { usePresence } from "@/lib/use-presence";
@@ -22,6 +23,7 @@ import { OrderTicket } from "./order-ticket";
 import { InstrumentSearch, type SearchData } from "./search";
 import { Sidebar } from "./sidebar";
 import { cn } from "./ui";
+import { SCRIM } from "@/lib/ui";
 
 const NAV_EXIT_MS = 340;
 
@@ -72,6 +74,25 @@ export function Shell({
   const drawerRef = useRef<HTMLDivElement>(null);
   const drawerCloseRef = useRef<HTMLButtonElement>(null);
 
+  /* When the snapshot behind the compact bar's lead figure was taken: the
+     proxy fund's own quote time if the sweep carried it, else the newest
+     quote time anywhere in the snapshot the layout handed down. The boards
+     are where it is reliably found — the search corpus crosses the wire
+     without its timestamps — and the most active names print all session,
+     pre- and post-market included, so their newest stamp is the sweep's
+     own. Epoch ms, or null when nothing in the snapshot says. */
+  const leadAsOf = useMemo(() => {
+    if (!lead || !search) return null;
+    const rows = [...search.mostActive, ...search.gainers, ...search.losers, ...search.universe];
+    const own = rows.find((q) => q.id === lead.proxy && q.asOf)?.asOf;
+    if (own) return own;
+    let newest: number | null = null;
+    for (const q of rows) {
+      if (q.asOf && (newest === null || q.asOf > newest)) newest = q.asOf;
+    }
+    return newest;
+  }, [lead, search]);
+
   /*
     The drawer declares `aria-modal`, so it has to behave like one: move focus
     in, keep Tab inside it, close on Escape, and hand focus back to whatever
@@ -85,6 +106,7 @@ export function Shell({
     if (!navOpen) return;
 
     const opener = document.activeElement as HTMLElement | null;
+    const drawer = drawerRef.current;
     drawerCloseRef.current?.focus();
 
     const { overflow } = document.body.style;
@@ -92,6 +114,10 @@ export function Shell({
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        /* A popover inside the drawer (the list switcher, the language
+           panel) hears Escape first, in the capture phase, and marks it
+           handled. That keystroke was for the popover, not the drawer. */
+        if (e.defaultPrevented) return;
         e.preventDefault();
         setNavOpen(false);
         return;
@@ -118,7 +144,12 @@ export function Shell({
     return () => {
       document.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = overflow;
-      opener?.focus?.();
+      /* Focus goes back to the opener only if the drawer still has it (or
+         nobody does). A link in the drawer that hands focus somewhere on
+         purpose — "Add stocks" puts it in the watchlist's add box — would
+         otherwise have it pulled back to the menu button as the drawer shut. */
+      const active = document.activeElement;
+      if (!active || active === document.body || drawer?.contains(active)) opener?.focus?.();
     };
   }, [navOpen]);
 
@@ -163,6 +194,7 @@ export function Shell({
             navOpen={navOpen}
             session={session}
             lead={lead}
+            leadAsOf={leadAsOf}
           />
 
           {/* Full height beside both rows, so the search heads the working
@@ -193,7 +225,7 @@ export function Shell({
                 type="button"
                 aria-label="Close navigation"
                 onClick={() => setNavOpen(false)}
-                className="absolute inset-0 h-full w-full cursor-default bg-[rgba(6,5,4,0.78)] backdrop-blur-[7px]"
+                className={cn("absolute inset-0 h-full w-full cursor-default backdrop-blur-[7px]", SCRIM)}
               />
               <motion.div
                 ref={drawerRef}
@@ -217,7 +249,11 @@ export function Shell({
                   type="button"
                   onClick={() => setNavOpen(false)}
                   aria-label="Close navigation"
-                  className="absolute top-4 right-4 z-10 grid h-11 w-11 place-items-center border border-rule text-ink-3 transition-colors hover:border-gold hover:text-ink"
+                  /* On the brand block's centre line (20px inset plus half of
+                     its 66.5px, less half of this 44px), and drawn as the
+                     drawer's other tiles are: a 10px radius and the control
+                     rule, not a sharp square. */
+                  className="absolute top-[31px] right-4 z-10 grid h-11 w-11 place-items-center rounded-[10px] border border-rule-control text-ink-3 transition-colors hover:border-gold hover:text-ink"
                 >
                   <IconClose className="h-4 w-4" />
                 </button>
@@ -339,11 +375,14 @@ function CompactBar({
      to fall back to. A plausible wrong price is worse than a blank one. */
   session: rendered = sessionAt(),
   lead,
+  leadAsOf = null,
 }: {
   onOpenNav: () => void;
   navOpen: boolean;
   session?: Session;
   lead?: Lead;
+  /** When the snapshot behind `lead` was taken, epoch ms; null if unknown. */
+  leadAsOf?: number | null;
 }) {
   /* Live, not the value frozen at render — see useLiveSession. */
   const session = useLiveSession(rendered);
@@ -363,6 +402,28 @@ function CompactBar({
   const leadTick = useLiveQuote(lead?.proxy ?? "");
   const leadLive = leadTick && leadTick.changePercent !== null ? leadTick : null;
 
+  /* Whether the SNAPSHOT's lead figure may be shown before a tick arrives.
+
+     The layout's figure comes from an ISR page, and a page that has failed to
+     revalidate goes on serving the render it has — which put yesterday's SPY,
+     red, in this bar on first paint, flipping to today's, green, a few seconds
+     later: a price that changed sign on screen. So the snapshot figure is
+     trusted only once the reader's own clock can judge it: never before
+     hydration (the HTML may be any age), and afterwards only if prices are
+     not moving right now or the snapshot is inside the same fifteen minutes a
+     tick is held to. Otherwise the slot holds a neutral dash until the first
+     tick. The phase is read off that same clock rather than the live session,
+     which lands an effect later and would let the stale figure through for a
+     frame. A snapshot with no timestamp at all cannot be judged and is shown,
+     as it always was. */
+  const hydrated = useHydrated();
+  const now = useNow();
+  const snapshotShown =
+    hydrated &&
+    (leadAsOf === null ||
+      !pricesMove(sessionAt(now / 1000).phase) ||
+      now - leadAsOf <= TICK_MAX_AGE_MS);
+
   /* On an instrument route the bar names the instrument and shows no figure.
      It sits above the page in the tree, so it cannot see the snapshot, and it
      used to fill the gap from the authored instruments file — which is how a
@@ -377,12 +438,16 @@ function CompactBar({
         chg: null,
       }
     : lead
-      ? {
-          key: lead.proxy,
-          sub: session.label,
-          value: money(leadLive ? leadLive.price : lead.level),
-          chg: leadLive ? (leadLive.changePercent as number) : lead.chg,
-        }
+      ? leadLive
+        ? {
+            key: lead.proxy,
+            sub: session.label,
+            value: money(leadLive.price),
+            chg: leadLive.changePercent as number,
+          }
+        : snapshotShown
+          ? { key: lead.proxy, sub: session.label, value: money(lead.level), chg: lead.chg }
+          : { key: lead.proxy, sub: session.label, value: null, chg: null, pending: true }
       : { key: "Platizio Global", sub: session.label, value: null, chg: null };
 
   return (
@@ -396,7 +461,9 @@ function CompactBar({
         onClick={onOpenNav}
         aria-label="Open navigation and watchlist"
         aria-expanded={navOpen}
-        className="grid h-11 w-11 flex-none place-items-center border border-rule text-ink-3 transition-colors hover:border-gold hover:text-ink"
+        /* Rounded and ruled like every other tile in the frame; it was the
+           one sharp square on the bar. */
+        className="grid h-11 w-11 flex-none place-items-center rounded-[10px] border border-rule-control text-ink-3 transition-colors hover:border-gold hover:text-ink"
       >
         <IconMenu className="h-4 w-4" />
       </button>
@@ -412,7 +479,20 @@ function CompactBar({
           there is genuinely no lead figure to show. */}
       {!routeTicker && (
         <div className="text-right">
-          {headline.value === null || headline.chg === null ? (
+          {"pending" in headline ? (
+            /* Two lines, like the figure it stands in for, so the bar does
+               not change height when the tick lands. Uncoloured: a dash says
+               "not yet", where a stale signed figure said something false. */
+            <>
+              <p className="font-serif text-[21px] leading-none text-ink-3">
+                <span aria-hidden="true">—</span>
+                <span className="sr-only">Price updating</span>
+              </p>
+              <p aria-hidden="true" className="font-mono mt-1 text-[11px]">
+                &nbsp;
+              </p>
+            </>
+          ) : headline.value === null || headline.chg === null ? (
             <p className="font-mono text-[11px] text-ink-3">No quote</p>
           ) : (
             <>

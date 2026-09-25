@@ -158,7 +158,15 @@ export function PriceHeader({
             {chg === null ? "—" : pct(chg)}
           </span>
 
-          <span className="eyebrow flex items-center gap-2.5" title={statusTitle}>
+          {/* Its own line on a phone, whatever it says. Whether it fitted
+              beside the price used to depend on the words: "Delayed" did and
+              "Live · Pre-market" did not, so the feed changing its state after
+              load wrapped the row and dropped the range, the chart and
+              everything under them by about 30px. */}
+          <span
+            className="eyebrow flex basis-full items-center gap-2.5 sm:basis-auto"
+            title={statusTitle}
+          >
             {/* The dot follows the FEED, not the calendar.
 
                 It used to pulse on pricesMove(phase) alone, which asks whether
@@ -189,7 +197,7 @@ export function PriceHeader({
       {/* The range is the control reached for repeatedly, so it keeps the
           bordered strip. There is no candlestick link: the owner wants every
           chart as a line ("i dont want any candle chart or bar chart"). */}
-      <div className="flex flex-wrap items-center justify-end gap-x-8 gap-y-5">
+      <div className="flex flex-wrap items-center gap-x-8 gap-y-5 sm:justify-end">
         {/* Full width on a phone, six equal cells between the gutters; its
             natural width, at the right, from sm up. */}
         <Segmented label="Time range" className="w-full sm:w-auto">

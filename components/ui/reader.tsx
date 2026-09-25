@@ -5,7 +5,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { IconClose } from "@/components/icons";
 import { EASE } from "@/lib/tokens";
 import { usePresence } from "@/lib/use-presence";
-import { cn } from "@/lib/ui";
+import { SCRIM, cn } from "@/lib/ui";
 
 const EXIT_MS = 260;
 
@@ -104,7 +104,7 @@ export function Reader({
         type="button"
         aria-label="Close"
         onClick={onClose}
-        className="absolute inset-0 h-full w-full cursor-default bg-[rgba(6,5,4,0.78)] backdrop-blur-[6px]"
+        className={cn("absolute inset-0 h-full w-full cursor-default backdrop-blur-[6px]", SCRIM)}
       />
 
       <motion.div
@@ -140,7 +140,9 @@ export function Reader({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="grid h-10 w-10 flex-none place-items-center rounded-full border border-rule-control text-ink-3 transition-colors hover:border-gold hover:text-gold"
+            /* 44px wherever a finger may be the pointer; the 40px it was is
+               kept for the desktop layout. */
+            className="grid h-11 w-11 flex-none place-items-center rounded-full border border-rule-control text-ink-3 transition-colors hover:border-gold hover:text-gold lg:h-10 lg:w-10"
           >
             <IconClose className="h-4 w-4" />
           </button>

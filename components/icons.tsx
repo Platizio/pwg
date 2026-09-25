@@ -98,6 +98,14 @@ export const IconFall = (p: IconProps) => (
   </Icon>
 );
 
+/* No move at the precision printed: a level bar at the carets' weight, so a
+   flat figure keeps a marker in the carets' place without claiming a side. */
+export const IconFlat = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 7h10v2H3Z" fill="currentColor" stroke="none" />
+  </Icon>
+);
+
 export const IconArrow = (p: IconProps) => (
   <Icon {...p}>
     <path d="M3 8h10M9 4l4 4-4 4" />

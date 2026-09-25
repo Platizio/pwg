@@ -87,13 +87,24 @@ export function overflowEdges(
  * beyond it. A mask rather than a painted gradient because the strip sits on
  * the shell's champagne wash, and on a solid ground only once the header pins:
  * no single colour matches both, but fading the content itself needs none.
+ *
+ * `inset` is how far the strip is bled past the page's gutter on each side.
+ * The fade is measured from the gutter, not from the strip's own edge, and the
+ * bleed beyond it is cut clean: a label scrolled into those pixels was sitting
+ * in the page margin, off the grid every other block keeps to (measured at
+ * 375px: "FUND" running to x=371 against a gutter at 359).
  */
 export function edgeMask(
   edges: { start: boolean; end: boolean },
   fade: number,
+  inset = 0,
 ): string | undefined {
   if (!edges.start && !edges.end) return undefined;
-  const head = edges.start ? `transparent 0, #000 ${fade}px` : "#000 0";
-  const tail = edges.end ? `#000 calc(100% - ${fade}px), transparent 100%` : "#000 100%";
+  const head = edges.start
+    ? `transparent ${inset ? `${inset}px` : "0"}, #000 ${inset + fade}px`
+    : "#000 0";
+  const tail = edges.end
+    ? `#000 calc(100% - ${inset + fade}px), transparent ${inset ? `calc(100% - ${inset}px)` : "100%"}`
+    : "#000 100%";
   return `linear-gradient(to right, ${head}, ${tail})`;
 }

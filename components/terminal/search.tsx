@@ -2,8 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { IconSearch } from "@/components/icons";
+import { IconClose, IconSearch } from "@/components/icons";
 import { Delta } from "@/components/ui/surface";
+import { withTick } from "@/components/dashboard/same-session";
+import { useLiveQuote } from "./live-provider";
 import { money } from "@/lib/market/format";
 import type { Quote } from "@/lib/market/session";
 import { cn } from "@/lib/ui";
@@ -36,8 +38,14 @@ export type SearchData = {
 };
 
 /* Keys are section-scoped: a name can be both most active and a big mover,
-   and two options sharing a DOM id would break aria-activedescendant. */
-type Row = { quote: Quote; key: string };
+   and two options sharing a DOM id would break aria-activedescendant.
+   `live` marks a board row, whose figures follow the tape. */
+type Row = { quote: Quote; key: string; live?: boolean };
+
+/* Lighter under the light theme, where a 70% shadow reads as a smudge on the
+   cream; spelled out per entry point for the reason shell.tsx gives. */
+const PANEL_SHADOW =
+  "shadow-[0_16px_34px_rgba(0,0,0,0.7)] [:root[data-theme=light]_&]:shadow-[0_16px_34px_rgba(var(--c-shadow-rgb),0.16)] [@media(prefers-color-scheme:light)]:[:root:not([data-theme=dark])_&]:shadow-[0_16px_34px_rgba(var(--c-shadow-rgb),0.16)]";
 type Group = { label: string | null; rows: Row[] };
 
 /**
@@ -151,11 +159,11 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
         label: "Most active today",
         rows: data.mostActive
           .slice(0, BOARD_LIMIT)
-          .map((q) => ({ quote: q, key: `active-${q.id}` })),
+          .map((q) => ({ quote: q, key: `active-${q.id}`, live: true })),
       },
       {
         label: "Biggest movers",
-        rows: movers.map((q) => ({ quote: q, key: `mover-${q.id}` })),
+        rows: movers.map((q) => ({ quote: q, key: `mover-${q.id}`, live: true })),
       },
     ].filter((group) => group.rows.length > 0);
   }, [data.gainers, data.losers, data.mostActive, results, term]);
@@ -190,7 +198,7 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
               id: hit.id,
               name: hit.name,
               mark: hit.id.slice(0, 1),
-              color: "#B0BFCB",
+              color: "var(--c-mark-4)",
               price: 0,
               chg: 0,
               seed: 0,
@@ -384,7 +392,9 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
 
         h-12 is the height, not a minimum: the icon, the text and the shortcut
         are centred on it geometrically rather than floated by padding, which
-        is what keeps the three on one line.
+        is what keeps the three on one line. On a phone Invest is its only
+        neighbour and takes the same 48px (invest-button.tsx), so the two
+        pills share a top and a bottom edge.
       */}
       <div
         className={cn(
@@ -432,9 +442,32 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
           }
           /* 16px below `sm`: iOS zooms the page into any field set smaller the
              moment it takes focus, and a terminal that lurches sideways on the
-             first tap reads as broken. */
-          className="h-full w-full min-w-0 bg-transparent text-[16px] leading-none text-ink placeholder:text-ink-3 focus:outline-none sm:text-[14.5px]"
+             first tap reads as broken.
+
+             The native clear glyph is switched off — a bright white × in
+             Chrome, a different grey one on iOS, off-palette in both themes
+             and about 16px to hit — and the box draws its own below. */
+          className="h-full w-full min-w-0 bg-transparent text-[16px] leading-none text-ink placeholder:text-ink-3 focus:outline-none sm:text-[14.5px] [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:hidden"
         />
+        {/* The box's own clear control: 44px to hit, the icon on the same
+            inset from the pill's edge as the glass at the other end.
+            Pressing it keeps focus in the input (mousedown is not allowed to
+            take it), so a phone keeps its keyboard up for the next word. */}
+        {query && (
+          <button
+            type="button"
+            aria-label="Clear search"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              setQuery("");
+              setOpen(true);
+              inputRef.current?.focus();
+            }}
+            className="-mr-3.5 grid h-11 w-11 flex-none place-items-center rounded-full text-ink-3 transition-colors hover:text-ink"
+          >
+            <IconClose className="h-4 w-4" />
+          </button>
+        )}
         {/* The shortcut, stated where the control is, behind the same hairline
             divider the clock sits behind opposite. It had a bordered cap of
             its own, which put a box inside a box; the divider says the same
@@ -445,7 +478,7 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
             Both sit in 18px boxes, the icon's own size, and are centred in
             them rather than left on the text's line box, so the glass at one
             end and the slash at the other share a centre line exactly. */}
-        {!open && (
+        {!open && !query && (
           <>
             <span
               aria-hidden="true"
@@ -482,10 +515,12 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
             ref={listRef}
             /* The one place a shadow is earned here: the panel is displaced over
              the page, and the vocabulary's tooltip lift is what marks that. */
-            className="card edge-lit max-h-[min(70vh,560px)] overflow-y-auto p-2 shadow-[0_16px_34px_rgba(0,0,0,0.7)]"
+            className={cn("card edge-lit max-h-[min(70vh,560px)] overflow-y-auto p-2", PANEL_SHADOW)}
             role="listbox"
             id={listId}
-            aria-label={term ? "Stock results" : "Watch list"}
+            /* Not "Watch list": the terminal has a real watchlist now, and
+               these are the session's boards. */
+            aria-label={term ? "Stock results" : "Most active and biggest movers"}
           >
             {rows.length === 0 ? (
               <p className="px-4 py-5 text-[13.5px] leading-[1.7] text-ink-3">
@@ -561,7 +596,7 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
                               "bg-[rgba(var(--c-gold-rgb),0.12)] shadow-[inset_2px_0_0_rgba(var(--c-gold-rgb),0.7)]",
                           )}
                         >
-                          <Hit quote={row.quote} />
+                          {row.live ? <LiveHit quote={row.quote} /> : <Hit quote={row.quote} />}
                         </button>
                       );
                     })}
@@ -574,6 +609,30 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
       )}
     </div>
   );
+}
+
+/**
+ * A board row with this second's figures in it.
+ *
+ * The boards are the layout's snapshot, and on their own they contradicted the
+ * tape and the dashboard on the same screen — SOXL −6.32% here, +5.07% on the
+ * tape behind it. The ranking stays as the sweep froze it (a board is a screen
+ * that ran, not a live leaderboard); only the figures move, by the dashboard's
+ * rule (components/dashboard/same-session.ts): a tick is taken whole or not
+ * at all, because a live price beside a snapshot change pairs this second's
+ * number with an older basis, and only when it measures from the same previous
+ * close as the row. A board ranks one session's move; the next morning's
+ * pre-market tick measures from that session's close instead, and taking it
+ * put today's figures under yesterday's "Biggest movers" while the
+ * dashboard's boards, which refuse it, still showed yesterday's.
+ *
+ * Mounted only while the panel is open, so a closed search subscribes to
+ * nothing. Typed matches are not subscribed: they are whatever the reader
+ * types, and each keystroke would be a subscription change upstream.
+ */
+function LiveHit({ quote }: { quote: Quote }) {
+  const tick = useLiveQuote(quote.id);
+  return <Hit quote={withTick(quote, tick ?? undefined)} />;
 }
 
 /** One name: its monogram, what it is called, and where it stands today. */
@@ -593,8 +652,10 @@ function Hit({ quote }: { quote: Quote }) {
       <span className="min-w-0 flex-1">
         {/* Two lines, not an ellipsis: on a phone a single truncated line cut
             names to a few characters, and the name is what the reader is
-            choosing between. */}
-        <span className="line-clamp-2 block text-[13.5px] font-medium break-words text-ink">
+            choosing between. No `block` beside the clamp: it comes later in
+            the stylesheet, replaced the clamp's -webkit-box, and the "two
+            lines" were in fact every line the name ran to. */}
+        <span className="line-clamp-2 text-[13.5px] font-medium break-words text-ink">
           {quote.name}
         </span>
         <span className="font-mono mt-0.5 block text-[12px] tracking-[0.05em] text-ink-3">

@@ -112,13 +112,15 @@ export function chartFontFamily(): string {
   return getComputedStyle(document.documentElement).getPropertyValue("--font-mono").trim() || fallback;
 }
 
-/** Peers borrow from this rotation — the Lux source gives them no colour of their own. */
+/** Peers borrow from this rotation — the Lux source gives them no colour of
+    their own. The ticker palette's five custom properties (globals.css), so a
+    peer's monogram follows the theme like every other ticker's. */
 export const PEER_COLORS = [
-  "#E5DDD1",
-  "#D9BD8B",
-  "#93C7A8",
-  "#B0BFCB",
-  "#C9A88A",
+  "var(--c-mark-1)",
+  "var(--c-mark-2)",
+  "var(--c-mark-3)",
+  "var(--c-mark-4)",
+  "var(--c-mark-5)",
 ] as const;
 
 /** Market-share segments, light to dark. */

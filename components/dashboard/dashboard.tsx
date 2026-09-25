@@ -8,7 +8,7 @@ import { TickerTape } from "@/components/terminal/ticker-tape";
 import { Reader } from "@/components/ui/reader";
 import { Badge, Card, Delta } from "@/components/ui/surface";
 import type { Tick } from "@/lib/api/stream/tick";
-import { money, signed } from "@/lib/market/format";
+import { money, pct } from "@/lib/market/format";
 /* From sectors.ts, NOT universe.ts. universe.ts imports a 2.4 MB symbol
    master that no bundler can tree-shake, and this is a client component: the
    one constant below was shipping all 30,809 tickers to the browser. */
@@ -20,8 +20,9 @@ import { cn } from "@/lib/ui";
 import { MarketCard } from "./market-card";
 import { PopularRibbon } from "./popular-ribbon";
 import { CALENDAR_PATH, WIRE_PATH, instrumentPath, sectorPath } from "@/lib/market/paths";
-import { CARD_X, ROW_BLEED } from "./inset";
+import { CARD_BLEED, CARD_X, ROW_BLEED } from "./inset";
 import { eventTime, newestFirst } from "./reading-order";
+import { withTick } from "./same-session";
 
 /** Sectors shown before the reader asks for the rest. */
 const COLLAPSED = 4;
@@ -108,8 +109,12 @@ export function Dashboard({ data }: { data: HomeSnapshot }) {
             ) : (
               <>
                 <PanelNote panel={data.popular} className="mt-4" />
-                <div className="mt-7">
-                  <PopularRibbon rows={data.popular.data} />
+                {/* The strip runs out to the card's edge, so moving cells are
+                    cut by the card border rather than by a hard line inside
+                    it. Its padding puts the first cell back on CARD_X at
+                    rest. */}
+                <div className={cn("mt-7", CARD_BLEED)}>
+                  <PopularRibbon rows={data.popular.data} className={CARD_X} />
                 </div>
               </>
             )}
@@ -225,10 +230,11 @@ function traded(quote: Quote): string {
 /**
  * A row with this second's numbers in it, or the row the server rendered.
  *
- * The tick is taken whole or not at all. `changePercent` is null whenever the
- * feed sent no previous close, and a live price beside the snapshot's change
- * would pair this second's number with an older basis and misstate the move —
- * so a tick that cannot supply both supplies neither.
+ * The tick is taken whole or not at all, and only when it measures from the
+ * same previous close as the row (see same-session.ts). A board is ranked on
+ * one session's move. Before this check, the morning's pre-market tick was
+ * written into boards ranked on the previous session, and "Top gainers"
+ * printed red rows.
  *
  * `turnoverM` is deliberately left alone. Nothing on the wire carries money
  * traded, and it is the figure the "most active" board is ranked on: a stale
@@ -237,9 +243,7 @@ function traded(quote: Quote): string {
  * ever ran on.
  */
 function freshen(quote: Quote, ticks: ReadonlyMap<string, Tick>): Quote {
-  const tick = ticks.get(quote.id.toUpperCase());
-  if (!tick || tick.changePercent === null) return quote;
-  return { ...quote, price: tick.price, chg: tick.changePercent };
+  return withTick(quote, ticks.get(quote.id.toUpperCase()));
 }
 
 function MoversCard({
@@ -320,7 +324,11 @@ function MoversCard({
                     {q.mark}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13.5px] font-medium text-ink">
+                    {/* Two lines, not one. SOXL and SOXS are both "Direxion
+                        Daily Semiconductor Bull/Bear 3x ETF", and one line cut
+                        off "Bull" and "Bear", the only words that tell them
+                        apart. line-clamp sets its own display, so no `block`. */}
+                    <span className="line-clamp-2 text-[13.5px] font-medium break-words text-ink">
                       {q.name}
                     </span>
                     <span className="font-mono mt-1 block text-[12px] tracking-[0.05em] text-ink-3">
@@ -388,7 +396,10 @@ function SectorCards({ panel }: { panel: Panel<SectorGroup[]> }) {
 
   return (
     <section className="mt-5">
-      <div className="flex flex-wrap items-baseline justify-between gap-3 px-1">
+      {/* Text outside a card sits on the page gutter, like the footnote at the
+          foot of the page. Text inside a card sits on CARD_X. The old px-1 put
+          this heading at 20px, which matched neither. */}
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h2 className="font-serif text-[21px] leading-none text-ink-2">By sector</h2>
         {groups.length > 0 && (
           <p className="text-[12.5px] text-ink-3">
@@ -398,12 +409,12 @@ function SectorCards({ panel }: { panel: Panel<SectorGroup[]> }) {
       </div>
 
       {groups.length === 0 ? (
-        <p className="mt-4 px-1 text-[13.5px] leading-[1.7] text-ink-3">
+        <p className="mt-4 text-[13.5px] leading-[1.7] text-ink-3">
           {emptyReason(panel, "No sector is quoting just now.")}
         </p>
       ) : (
         <>
-          <PanelNote panel={panel} className="mt-4 px-1" />
+          <PanelNote panel={panel} className="mt-4" />
 
           <div className="mt-4 grid gap-5 md:grid-cols-2 2xl:grid-cols-4">
             {shown.map((group) => (
@@ -425,7 +436,7 @@ function SectorCards({ panel }: { panel: Panel<SectorGroup[]> }) {
                     the reason rather than left to reconcile them. */}
                 <p className="mt-1.5 text-[11.5px] leading-[1.55] text-ink-3">
                   {SECTOR_ETF[group.name as keyof typeof SECTOR_ETF] ?? "Fund"} ·{" "}
-                  {signed(group.membersChg, 2)} across the {group.total} quoted here
+                  {pct(group.membersChg, 2)} across the {group.total} quoted here
                 </p>
 
                 <ul className={cn("m-0 mt-4 mb-5 flex list-none flex-col gap-0.5 p-0", ROW_BLEED)}>
@@ -550,8 +561,11 @@ function Rail({
   const eventNote =
     events.data.length === 0 ? "None dated" : ahead > 0 ? `${ahead} ahead` : "All past";
 
-  /* The wire arrives ranked on relevance, which is how its stories were
-     chosen; under "Latest news" they read in time order. */
+  /* The rail's stories are the wire's top cut by relevance and impact
+     (lib/api/normalize/wire.ts), not its newest. The card is headed "Top
+     stories" for that reason; "Latest news" over a list whose newest item was
+     16 hours old promised something it did not hold. Inside the cut, they read
+     in time order. */
   const headlines = newestFirst(news.data);
   const shownNews = inline ? headlines.slice(0, INLINE_NEWS) : headlines;
 
@@ -621,19 +635,14 @@ function Rail({
         </RailCard>
 
         <RailCard
-          title="Latest news"
+          title="Top stories"
           note="The wire"
           inline={inline}
           more={
-            inline && news.data.length > 0
-              ? {
-                  href: WIRE_PATH,
-                  label:
-                    news.data.length > shownNews.length
-                      ? `Read all ${news.data.length} on the wire`
-                      : "Read the wire",
-                }
-              : undefined
+            /* No count. `news.data` is the rail's cut, not the wire, which
+               holds several times as many stories, so "Read all 8" undercounted
+               the page it opened. */
+            inline && news.data.length > 0 ? { href: WIRE_PATH, label: "Read the wire" } : undefined
           }
         >
           <PanelNote panel={news} className="mb-2 px-2.5" />
@@ -643,8 +652,14 @@ function Rail({
             </p>
           ) : (
             <ul className="m-0 flex list-none flex-col p-0">
-              {shownNews.map((item) => (
-                <li key={item.id} className="border-t border-rule-list first:border-t-0">
+              {shownNews.map((item, i) => (
+                <li key={item.id}>
+                  {/* The rule sits on the text line, inset by the rows' own
+                      px-2.5. Drawn on the <li>, it ran 10px past the headlines
+                      on both sides and matched neither the text nor the card. */}
+                  {i > 0 && (
+                    <span aria-hidden="true" className="mx-2.5 block border-t border-rule-list" />
+                  )}
                   <button
                     type="button"
                     onClick={() => setOpenNews(item)}

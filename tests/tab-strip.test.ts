@@ -123,3 +123,16 @@ test("the mask fades only the side that has more", () => {
     "linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%)",
   );
 });
+
+test("a bled strip fades from the gutter and hides the bleed", () => {
+  // The strip runs 12px past the column each side; nothing may show there.
+  assert.equal(
+    edgeMask({ start: true, end: true }, 28, 12),
+    "linear-gradient(to right, transparent 12px, #000 40px, #000 calc(100% - 40px), transparent calc(100% - 12px))",
+  );
+  // A side with nothing beyond it keeps its bleed, for the focus ring.
+  assert.equal(
+    edgeMask({ start: false, end: true }, 28, 12),
+    "linear-gradient(to right, #000 0, #000 calc(100% - 40px), transparent calc(100% - 12px))",
+  );
+});

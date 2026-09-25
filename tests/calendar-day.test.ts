@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { toCalendarEvents } from "../lib/api/normalize/calendar.ts";
-import { calendarDate } from "../lib/market/session.ts";
+import { calendarDate, readerDay } from "../lib/market/session.ts";
 
 /* Which day the calendar thinks it is.
  *
@@ -87,4 +87,30 @@ test("the same event reads the same however often it is asked", () => {
 /* A malformed date must not render as "Invalid Date" in an h2. */
 test("a date the feed mangles is shown raw rather than as nonsense", () => {
   assert.equal(calendarDate({ ...only(TWO_AM_IST_MON_21, "2026-09-24"), date: "nonsense" }).date, "nonsense");
+});
+
+/* A cached page carries the offsets it was built with. At 14:15 IST on Friday
+   25 Sep 2026 the calendar headed its first section "Tomorrow · Fri, Sep 25",
+   called the 30th "In 6 days" and the 21st "3 days ago", all a day behind.
+   Given the reader's own day, the word is re-counted from the event's date. */
+test("given the reader's day, the word is counted from the event's own date", () => {
+  const built = only(Date.parse("2026-09-24T08:45:00Z"), "2026-09-25"); // a page built on the 24th
+  assert.equal(calendarDate(built).relative, "Tomorrow", "what the cached page says without a day");
+
+  const today = readerDay(Date.parse("2026-09-25T08:45:00Z")); // 14:15 IST on the 25th
+  assert.equal(today, "2026-09-25");
+  assert.deepEqual(
+    [calendarDate(built, today).relative, calendarDate(built, today).offset],
+    ["Today", 0],
+  );
+  assert.equal(calendarDate({ ...built, date: "2026-09-30" }, today).relative, "In 5 days");
+  assert.equal(calendarDate({ ...built, date: "2026-09-21" }, today).relative, "4 days ago");
+});
+
+test("without a day, or with one it cannot read, the stored offset stands", () => {
+  const e = only(TWO_AM_IST_MON_21, "2026-09-22");
+  assert.equal(calendarDate(e).relative, "Tomorrow");
+  assert.equal(calendarDate(e, null).relative, "Tomorrow");
+  assert.equal(calendarDate(e, "nonsense").offset, e.offset);
+  assert.equal(calendarDate({ ...e, date: "nonsense" }, "2026-09-21").offset, e.offset);
 });

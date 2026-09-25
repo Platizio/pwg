@@ -63,6 +63,23 @@ import { WorkColumn } from "./work-column";
  * ones — the bug that let one captured session pass for a week. */
 const WEEK_CLOSES = 7;
 
+/* How much of a newly selected panel must already be on screen for the page
+   to be left where it is: a heading and a row, roughly. Less than that and the
+   reader cannot see that anything changed. */
+const PANEL_IN_VIEW = 120;
+
+/* The pinned header's lift: the theme's shadow colour, strong on the dark
+   page and a quarter of that on the cream one, where the dark strength read as
+   a grey smear under the tab strip. Keyed on the theme the way globals.css
+   applies it — an explicit choice, else the system's — because the only
+   difference is the strength, and no token carries one. Spelled out in full
+   because Tailwind reads class names as literal text. */
+const PIN_SHADOW = [
+  "shadow-[0_18px_28px_-24px_rgba(var(--c-shadow-rgb),0.95)]",
+  "[:root[data-theme=light]_&]:shadow-[0_18px_28px_-24px_rgba(var(--c-shadow-rgb),0.28)]",
+  "[@media(prefers-color-scheme:light)]:[:root:not([data-theme=dark])_&]:shadow-[0_18px_28px_-24px_rgba(var(--c-shadow-rgb),0.28)]",
+].join(" ");
+
 const PriceChart = dynamic(
   () => import("./price-chart").then((m) => m.PriceChart),
   {
@@ -400,7 +417,13 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
   /* The quote the desk trades on is the one this page is showing, handed over
      whole. It used to pass an id, which the desk looked up in the six mock
      names — so a ticket on a $310 Apple opened at 147.04, and a ticket on
-     anything outside those six opened as Apple. */
+     anything outside those six opened as Apple.
+
+     "Showing" means the header's figure, `shown`, not the page's own. The
+     page's is the cached snapshot's: measured pre-market, the header read
+     $336.05 +0.04% live while the ticket opened at 337.57 +0.16%, the
+     snapshot's move off the close before last. `shown` falls back to the
+     page's figure itself when there is no tick. */
   const trade = useCallback(
     () =>
       openTrade({
@@ -409,10 +432,10 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
         exchange: stock.exchange ?? "",
         mark: stock.mark,
         color: stock.color,
-        price: stock.price ?? 0,
-        chg: stock.chg ?? 0,
+        price: shown.price ?? 0,
+        chg: shown.chg ?? 0,
       }),
-    [openTrade, stock],
+    [openTrade, stock, shown.price, shown.chg],
   );
 
   /* A zero-height sentinel above the header, watched so the block knows the
@@ -426,13 +449,21 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
 
      The root is shrunk by the distance between the two, because they are not
      in the same place. The sentinel leaves the scrollport at its very top edge,
-     while the block pins lower — by its own `top` (62px under the compact bar
+     while the block pins lower — by its own `top` (69px under the compact bar
      on a phone, 0 on a desktop) plus whatever top padding the scroller holds,
      since a sticky element pins against the padding edge and not the
      scrollport. Left unshrunk, the flag lagged the pin by those 24px, and for
      that scroll the header floated over the page with nothing behind it. */
   const sentinelRef = useRef<HTMLDivElement>(null);
   const blockRef = useRef<HTMLDivElement>(null);
+  /* Whatever scrolls this page: the column below `lg`'s shell is the document
+     (null here), and from `lg` up it is the column's own scroller. Found by
+     the observer below, which needs it too. */
+  const scrollerRef = useRef<Element | null>(null);
+  /* The 32px above the panel, which the panel starts under. Measured rather
+     than the panel itself because the panel enters from 16px lower, and a
+     transformed box would put the jump below out by that much. */
+  const panelLeadRef = useRef<HTMLDivElement>(null);
   const [condensed, setCondensed] = useState(false);
 
   useEffect(() => {
@@ -462,6 +493,7 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
           break;
         }
       }
+      scrollerRef.current = root;
       const offset = Math.round(
         (parseFloat(getComputedStyle(block).top) || 0) + padding,
       );
@@ -480,6 +512,42 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
       observer?.disconnect();
     };
   }, []);
+
+  /* A tab pressed in the PINNED strip brings its panel into view.
+   *
+   * The panels differ in height by thousands of pixels, and swapping one left
+   * the scroll where it was: from deep in Performance (scrollY 2600 at 375px),
+   * Analysts clamped the page to 1345 with the whole panel above the screen,
+   * and the reader landed in the newswire under a tab they had not asked
+   * for. So when the panel's first line is not on screen under the pinned
+   * header, the page is moved so that it is, with the page's own 32px above
+   * it. When it is already in view — the reader is just past the header,
+   * looking at the chart — nothing moves.
+   *
+   * Only while pinned: at the top of the page the tabs sit over the chart,
+   * and pressing one there should not carry the reader away from it.
+   *
+   * A frame later, so the new panel has been committed and laid out and the
+   * browser has done any clamping of its own. Instant, because the content
+   * has already changed under the reader; gliding over it helps no one. */
+  const selectTab = useCallback(
+    (id: TabId) => {
+      setTab(id);
+      if (!condensed) return;
+      requestAnimationFrame(() => {
+        const block = blockRef.current;
+        const lead = panelLeadRef.current;
+        if (!block || !lead) return;
+        const scroller = scrollerRef.current;
+        const pinned = block.getBoundingClientRect().bottom;
+        const { top, bottom: panelTop } = lead.getBoundingClientRect();
+        const floor = scroller ? scroller.getBoundingClientRect().bottom : window.innerHeight;
+        if (panelTop >= pinned && panelTop <= floor - PANEL_IN_VIEW) return;
+        (scroller ?? window).scrollBy({ top: top - pinned, behavior: "instant" });
+      });
+    },
+    [condensed],
+  );
 
   const panels: Record<TabId, React.ReactNode> = {
     overview: <OverviewPanel snapshot={snapshot} />,
@@ -523,9 +591,16 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
 
           The negative margins pull the opaque ground out to the column edges;
           the scroller owns the horizontal padding, so without them content
-          would scroll visibly through the gutters. `top-[62px]` clears the
+          would scroll visibly through the gutters. `top-[69px]` clears the
           compact bar on mobile, which only became sticky when the shell's
-          overflow was scoped to `lg`.
+          overflow was scoped to `lg`: 12px of padding each side of its 44px
+          menu button and a 1px rule (shell.tsx). It read 62, which tucked 7px
+          of this block's top padding under the bar.
+
+          The shadow is the theme's shadow colour at a strength per theme
+          (PIN_SHADOW). At one strength black enough to lift the block off the
+          dark page, it laid a grey band the width of the screen across the
+          cream one.
 
           The `::before` band is the vertical half of the same problem. A
           sticky element pins against its scroller's *padding* edge, not its
@@ -543,9 +618,10 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
       <div
         ref={blockRef}
         className={cn(
-          "sticky top-[62px] z-20 -mx-4 px-4 pt-4 sm:-mx-6 sm:px-6 lg:top-0 lg:-mx-7 lg:px-7",
+          "sticky top-[69px] z-20 -mx-4 px-4 pt-4 sm:-mx-6 sm:px-6 lg:top-0 lg:-mx-7 lg:px-7",
           condensed &&
-            "bg-shell shadow-[0_18px_28px_-24px_rgba(0,0,0,0.95)] before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-6 before:bg-shell before:content-['']",
+            "bg-shell before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-6 before:bg-shell before:content-['']",
+          condensed && PIN_SHADOW,
         )}
       >
         <InstrumentHeader
@@ -556,7 +632,7 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
           condensed={condensed}
         />
 
-        <TabBar active={tab} onChange={setTab} />
+        <TabBar active={tab} onChange={selectTab} />
       </div>
 
       <div className="pt-7" />
@@ -580,6 +656,10 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
         />
       </div>
 
+      {/* The space above the panel, as an element so selectTab can measure
+          where the panel starts without its entrance transform. */}
+      <div ref={panelLeadRef} aria-hidden="true" className="h-8" />
+
       {/* Keyed entrance rather than AnimatePresence: the outgoing panel has
           nothing to say on its way out, and `mode="wait"` would hold the
           incoming one back behind an exit that never resolves in this stack. */}
@@ -592,7 +672,7 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: EASE }}
-        className="mt-8 focus-visible:outline-offset-8"
+        className="focus-visible:outline-offset-8"
       >
         {panels[tab]}
       </motion.div>

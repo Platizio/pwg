@@ -20,6 +20,8 @@ import { TRADING_PLATFORM_URL } from "@/src/constants";
  *
  * The anatomy is the chrome bar's own — min-h-11, rounded-full, one hairline
  * border, a label, a divider, a mono tail — so it sits beside the session pill
+ * (on a phone, where the pill is gone and the search is its only neighbour, it
+ * takes the search's 48px instead, so the two share a top and a bottom edge)
  * and opposite the search as a third member of the same family rather than a
  * button dropped onto their bar. What separates it from the other two is that
  * it is warm at rest. Both of them are neutral until something happens (the box
@@ -39,7 +41,7 @@ export function InvestButton() {
       target="_blank"
       rel="noopener noreferrer"
       title="Open the Platizio Global trading platform"
-      className="flex min-h-11 flex-none items-center gap-2.5 rounded-full border border-gold-deep bg-[var(--tint-gold)] px-4 text-gold transition-colors hover:border-gold hover:text-gold-hi"
+      className="flex min-h-12 flex-none items-center gap-2.5 rounded-full border border-gold-deep bg-[var(--tint-gold)] px-4 text-gold transition-colors hover:border-gold hover:text-gold-hi sm:min-h-11"
     >
       <span className="text-[13px] font-semibold whitespace-nowrap">Invest</span>
       <span aria-hidden="true" className="h-3 w-px flex-none bg-rule-mono" />
