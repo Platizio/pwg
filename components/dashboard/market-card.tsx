@@ -139,7 +139,7 @@ export function MarketCard({ views }: { views: IndexView[] }) {
                 tabIndex={selected ? 0 : -1}
                 onClick={() => setActive(i.id)}
                 className={cn(
-                  "min-h-11 rounded-full px-5 text-[13.5px] font-medium whitespace-nowrap transition-all duration-300",
+                  "min-h-11 rounded-full px-5 text-[13.5px] font-medium whitespace-nowrap transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-300",
                   /* 30px to the eye, 44px to the thumb: the pseudo-element
                      carries the hit area into the track's padding. */
                   "max-sm:relative max-sm:h-[30px] max-sm:min-h-0 max-sm:px-2 max-sm:text-[12px] max-sm:before:absolute max-sm:before:inset-x-0 max-sm:before:-inset-y-[7px]",

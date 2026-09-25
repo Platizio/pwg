@@ -182,7 +182,7 @@ export function PillButton({
   const classes = cn(
     "inline-flex min-h-11 flex-none items-center gap-2.5 rounded-full bg-[linear-gradient(140deg,#f6e6c6,#dcbb8a)] pr-4 pl-2 sm:gap-3 sm:pr-6 sm:pl-2.5",
     "text-[12px] font-extrabold tracking-[0.1em] text-on-gold uppercase sm:tracking-[0.12em]",
-    "shadow-[0_12px_30px_-10px_rgba(217,189,139,0.55)] transition-all duration-300",
+    "shadow-[0_12px_30px_-10px_rgba(217,189,139,0.55)] transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-300",
     "hover:shadow-[0_18px_40px_-10px_rgba(217,189,139,0.7)] hover:brightness-[1.04]",
     className,
   );

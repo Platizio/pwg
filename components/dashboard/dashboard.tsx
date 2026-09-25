@@ -316,7 +316,7 @@ function BoardSwitch({
             aria-pressed={selected}
             onClick={() => onChange(key)}
             className={cn(
-              "relative h-[30px] rounded-full px-2 text-[12px] font-medium whitespace-nowrap transition-all duration-300 before:absolute before:inset-x-0 before:-inset-y-[7px]",
+              "relative h-[30px] rounded-full px-2 text-[12px] font-medium whitespace-nowrap transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-300 before:absolute before:inset-x-0 before:-inset-y-[7px]",
               selected
                 ? "bg-[image:var(--cta-buy)] text-on-gold shadow-[0_6px_16px_-10px_rgba(217,189,139,0.6)]"
                 : "text-ink-3 hover:text-ink",

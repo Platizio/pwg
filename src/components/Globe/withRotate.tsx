@@ -24,11 +24,22 @@ export function withRotate<P extends HTMLAttributes<HTMLDivElement>>(
       }
 
       let rafId: number
+      let last: number | null = null
 
-      const tick = () => {
+      /* Radians per second, not per frame. It was 0.004 a frame, which is
+         0.24 rad/s on a 60Hz screen but twice that at 120Hz and more than
+         three times at 200Hz: the globe spun faster the better the display.
+         The step is now scaled by the time since the last frame, so every
+         refresh rate turns it at the 60Hz speed. A long gap (a hidden tab,
+         a stalled frame) is capped so the globe never jumps. */
+      const RAD_PER_SECOND = 0.24
+
+      const tick = (now: number) => {
+        const dt = last === null ? 0 : Math.min((now - last) / 1000, 1 / 15)
+        last = now
         // Pause rotation while the user is hovering or dragging
         if (!globeState.isHovering && !globeState.isDragging) {
-          globeState.phi += 0.004
+          globeState.phi += RAD_PER_SECOND * dt
         }
         rafId = requestAnimationFrame(tick)
       }

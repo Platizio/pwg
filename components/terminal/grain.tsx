@@ -14,7 +14,10 @@ export function Grain() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 z-[9] opacity-[0.09] mix-blend-overlay"
+      /* Its own compositor layer (translateZ): the overlay blend over the
+         whole frame is then done on the GPU as the content under it scrolls,
+         instead of repainting the grain on the main thread each frame. */
+      className="pointer-events-none absolute inset-0 z-[9] opacity-[0.09] mix-blend-overlay [transform:translateZ(0)]"
       style={{ backgroundImage: NOISE_URI, backgroundRepeat: "repeat" }}
     />
   );

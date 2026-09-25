@@ -182,7 +182,7 @@ export function Sidebar({
             aria-current={item.active ? "page" : undefined}
             title={collapsed ? item.label : undefined}
             className={cn(
-              "group flex min-h-12 items-center gap-3.5 rounded-[12px] text-[14px] font-medium transition-all duration-300",
+              "group flex min-h-12 items-center gap-3.5 rounded-[12px] text-[14px] font-medium transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-300",
               collapsed ? "w-11 justify-center px-0" : "px-2.5",
               item.active
                 ? "bg-[linear-gradient(140deg,rgba(var(--c-gold-rgb),0.13),rgba(var(--c-gold-rgb),0.04))] text-ink shadow-[inset_0_1px_0_rgba(var(--c-gold-hi-rgb),0.08)]"

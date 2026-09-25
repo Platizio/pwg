@@ -140,7 +140,7 @@ export function WatchlistPage({ corpus }: { corpus: readonly CorpusQuote[] }) {
                     }}
                     tabIndex={on ? 0 : -1}
                     className={cn(
-                      "inline-flex min-h-11 max-w-[260px] flex-none items-center gap-2 rounded-full border px-4 text-[13px] font-medium transition-all duration-300 lg:min-h-10",
+                      "inline-flex min-h-11 max-w-[260px] flex-none items-center gap-2 rounded-full border px-4 text-[13px] font-medium transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-300 lg:min-h-10",
                       /* The themed CTA gradient, not the dark theme's champagne
                          written out: on the light page that one measured 1.09:1
                          against the ground and the active pill lost its edge. */

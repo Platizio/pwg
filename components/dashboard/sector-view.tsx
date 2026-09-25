@@ -233,7 +233,7 @@ export function SectorView({ sector }: { sector: SectorSnapshot }) {
                     setPage(0);
                   }}
                   className={cn(
-                    "min-h-11 rounded-full px-4 text-[13px] font-medium transition-all duration-300",
+                    "min-h-11 rounded-full px-4 text-[13px] font-medium transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-300",
                     tab === key
                       ? "bg-[image:var(--cta-buy)] text-on-gold"
                       : "text-ink-3 hover:text-ink",

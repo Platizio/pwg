@@ -93,7 +93,25 @@ const GlobeBase = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
         canvas.style.display = 'none'
       }
 
+      /* cobe redraws every frame. While the globe is scrolled out of view or
+         the tab is hidden nobody can see those frames, and on a 120-200Hz
+         screen they compete with the page's own scrolling for the GPU. Drawing
+         pauses then and resumes on return; what is on screen never changes. */
+      let onScreen = true
+      const sync = () => globe?.toggle(onScreen && !document.hidden)
+      const seen =
+        typeof IntersectionObserver === 'undefined'
+          ? null
+          : new IntersectionObserver(([entry]) => {
+              onScreen = entry.isIntersecting
+              sync()
+            })
+      seen?.observe(canvas)
+      document.addEventListener('visibilitychange', sync)
+
       return () => {
+        seen?.disconnect()
+        document.removeEventListener('visibilitychange', sync)
         globe?.destroy()
         canvas.removeEventListener('pointerdown', onPointerDown)
         canvas.removeEventListener('pointerup', onPointerUp)
