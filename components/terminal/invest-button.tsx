@@ -41,7 +41,7 @@ export function InvestButton() {
       target="_blank"
       rel="noopener noreferrer"
       title="Open the Platizio Global trading platform"
-      className="flex min-h-12 flex-none items-center gap-2.5 rounded-full border border-gold-deep bg-[var(--tint-gold)] px-4 text-gold transition-colors hover:border-gold hover:text-gold-hi sm:min-h-11"
+      className="flex min-h-11 flex-none items-center gap-2 rounded-full border border-gold-deep bg-[var(--tint-gold)] px-3.5 text-gold transition-colors hover:border-gold hover:text-gold-hi sm:gap-2.5 sm:px-4"
     >
       <span className="text-[13px] font-semibold whitespace-nowrap">Invest</span>
       <span aria-hidden="true" className="h-3 w-px flex-none bg-rule-mono" />

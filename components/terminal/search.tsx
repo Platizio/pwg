@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { IconClose, IconSearch } from "@/components/icons";
 import { Delta } from "@/components/ui/surface";
 import { withTick } from "@/components/dashboard/same-session";
@@ -97,6 +97,15 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
   });
 
   const term = query.trim().toLowerCase();
+  const narrow = useSyncExternalStore(
+    (notify) => {
+      const mq = window.matchMedia("(max-width: 639px)");
+      mq.addEventListener("change", notify);
+      return () => mq.removeEventListener("change", notify);
+    },
+    () => window.matchMedia("(max-width: 639px)").matches,
+    () => false,
+  );
   const universe = data.universe;
 
   /* Memoised because this is nine hundred rows scored, sorted and cut, and it
@@ -398,7 +407,7 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
       */}
       <div
         className={cn(
-          "group/search flex h-12 items-center gap-3 rounded-full px-4 transition-[border-color,box-shadow,background-color] duration-300 sm:px-5",
+          "group/search flex h-11 items-center gap-2.5 rounded-full px-3.5 transition-[border-color,box-shadow,background-color] duration-300 sm:h-12 sm:gap-3 sm:px-5",
           /* 2px, not 1.5. Chrome snaps a fractional border down to a whole
              pixel — measured at 1px on both a 1x and a 2x screen — so 1.5
              would have drawn the very hairline this replaces. */
@@ -436,7 +445,9 @@ export function InstrumentSearch({ data }: { data: SearchData }) {
              a figure stating something untrue about the market rather than
              about the box. */
           placeholder={
-            universe.length > 0
+            /* The count does not fit a phone's box beside Invest: it read
+               "Search 900 stock" cut off at the edge. */
+            universe.length > 0 && !narrow
               ? `Search ${COUNT_FMT.format(universe.length)} stocks`
               : "Search stocks"
           }

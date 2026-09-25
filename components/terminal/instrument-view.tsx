@@ -4,7 +4,7 @@ import { useLiveSession } from "@/components/home/use-session";
 
 import { motion } from "motion/react";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { BUCKET_MINUTES } from "@/lib/market/intraday-buckets";
 import {
   coversSessions,
@@ -43,10 +43,10 @@ import { PerformancePanel } from "./panels/performance-panel";
 import { AnalystPanel } from "./panels/analyst-panel";
 import { analystModelFromAvailability } from "@/lib/market/analyst";
 import { TechnicalsPanel } from "./panels/technicals-panel";
-import { PriceHeader } from "./price-header";
+import { PriceHeader, RangePills } from "./price-header";
 import { RightRail } from "./right-rail";
 import { TabBar } from "./tab-bar";
-import { cn } from "./ui";
+import { GoldButton, cn } from "./ui";
 import { WorkColumn } from "./work-column";
 
 /* The canvas has nothing to render on the server, and shipping it there only
@@ -465,6 +465,10 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
      transformed box would put the jump below out by that much. */
   const panelLeadRef = useRef<HTMLDivElement>(null);
   const [condensed, setCondensed] = useState(false);
+  /* The pinned, condensing header is a desktop behaviour; below lg the header
+     scrolls away and the tabs pin instead, so condensing it would only make
+     the page jump under the reader's thumb. */
+  const wide = useMinWidth(1024);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -582,6 +586,13 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
     >
       <div ref={sentinelRef} aria-hidden="true" className="h-px" />
 
+      {/* Below lg the page is laid out like a phone app: name, price, a tall
+          chart, the range under it, then the tabs, pinned once they reach the
+          top. The DOM keeps the desktop order and each block takes its phone
+          place with `order`; the pinned block dissolves into this column
+          (`contents`) so its two halves can be placed apart. */}
+      <div className="flex flex-col">
+
       {/* The name and the tabs stay; everything under them scrolls.
 
           One wrapper rather than two sticky elements: InstrumentHeader returns
@@ -618,7 +629,7 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
       <div
         ref={blockRef}
         className={cn(
-          "sticky top-[69px] z-20 -mx-4 px-4 pt-4 sm:-mx-6 sm:px-6 lg:top-0 lg:-mx-7 lg:px-7",
+          "max-lg:contents sticky top-[69px] z-20 -mx-4 px-4 pt-4 sm:-mx-6 sm:px-6 lg:top-0 lg:-mx-7 lg:px-7",
           condensed &&
             "bg-shell before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-6 before:bg-shell before:content-['']",
           condensed && PIN_SHADOW,
@@ -629,22 +640,28 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
           following={!!following[stock.id]}
           onToggleFollow={() => toggleFollow(stock.id)}
           onTrade={trade}
-          condensed={condensed}
+          condensed={condensed && wide}
         />
 
-        <TabBar active={tab} onChange={selectTab} />
+        <div className="max-lg:sticky max-lg:top-[65px] max-lg:z-20 max-lg:order-5 max-lg:-mx-4 max-lg:bg-shell max-lg:px-4 sm:max-lg:-mx-6 sm:max-lg:px-6">
+          <TabBar active={tab} onChange={selectTab} />
+        </div>
       </div>
 
-      <div className="pt-7" />
+      <div className="pt-7 max-lg:hidden" />
 
-      <PriceHeader
-        profile={stock}
-        session={snapshot.session}
-        range={range}
-        onRange={setRange}
-      />
+      <div className="max-lg:order-2 max-lg:pt-4">
+        <PriceHeader
+          profile={stock}
+          session={snapshot.session}
+          range={range}
+          onRange={setRange}
+        />
+      </div>
 
-      <div className="h-[240px] sm:h-[300px] lg:h-[340px]">
+      {/* Taller on a phone than anywhere else: the chart is what the page is
+          for, and at 240px it was a strip under a 56px name block. */}
+      <div className="h-[clamp(300px,50vh,440px)] max-lg:order-3 max-lg:mt-3 sm:h-[340px] lg:h-[340px]">
         <PriceChart
           history={chartHistory}
           range={range}
@@ -658,7 +675,11 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
 
       {/* The space above the panel, as an element so selectTab can measure
           where the panel starts without its entrance transform. */}
-      <div ref={panelLeadRef} aria-hidden="true" className="h-8" />
+      <div className="pt-3 pb-1 max-lg:order-4 lg:hidden">
+        <RangePills range={range} onRange={setRange} />
+      </div>
+
+      <div ref={panelLeadRef} aria-hidden="true" className="h-8 max-lg:order-6 max-lg:h-5" />
 
       {/* Keyed entrance rather than AnimatePresence: the outgoing panel has
           nothing to say on its way out, and `mode="wait"` would hold the
@@ -672,10 +693,25 @@ export function InstrumentView({ snapshot }: { snapshot: InstrumentSnapshot }) {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: EASE }}
-        className="focus-visible:outline-offset-8"
+        className="focus-visible:outline-offset-8 max-lg:order-7 max-sm:pb-24"
       >
         {panels[tab]}
       </motion.div>
+      </div>
+
+      {/* The phone's action bar, pinned to the foot of the screen like a
+          broker app's Buy/Sell: Trade is always one thumb away instead of a
+          row the header gave up to it. */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-rule-section bg-shell/95 px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur sm:hidden">
+        <GoldButton
+          className="w-full"
+          onClick={trade}
+          disabled={stock.price === null}
+          title={stock.price === null ? "No current price for this stock, so it cannot be traded right now." : undefined}
+        >
+          Trade {stock.id}
+        </GoldButton>
+      </div>
     </WorkColumn>
   );
 }
@@ -691,4 +727,19 @@ function barMinutes(points: readonly { at: number }[]): number | null {
     if (gap > 0 && gap < best) best = gap;
   }
   return Number.isFinite(best) ? Math.round(best / 60_000) || null : null;
+}
+
+/* Whether the viewport is at least `px` wide. False on the server and for the
+   first client render, so nothing mismatches at hydration. */
+function useMinWidth(px: number): boolean {
+  const query = `(min-width: ${px}px)`;
+  return useSyncExternalStore(
+    (notify) => {
+      const mq = window.matchMedia(query);
+      mq.addEventListener("change", notify);
+      return () => mq.removeEventListener("change", notify);
+    },
+    () => window.matchMedia(query).matches,
+    () => false,
+  );
 }

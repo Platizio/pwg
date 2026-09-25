@@ -66,32 +66,18 @@ export function Dashboard({ data }: { data: HomeSnapshot }) {
             to the sidebar and 340px to the rail at xl, so a viewport
             breakpoint put three boards side by side exactly where each was
             too narrow to hold a company name. */}
-        <div className="@container flex-1 px-4 pt-5 pb-10 sm:px-6 lg:overflow-y-auto lg:px-7">
+        <div className="@container flex-1 px-4 pt-5 pb-10 sm:px-6 lg:overflow-y-auto lg:px-7 max-lg:pt-4">
           <MarketCard views={data.indices.data} />
 
-          {/* Three across only once the column is wide enough to hold them
-              (62rem). Below that, two boards share a row and "Most active"
-              takes the whole row beneath, its list in two columns, rather than
-              sitting at half width beside an empty cell. */}
-          <div className="mt-5 grid gap-5 md:grid-cols-2 @min-[62rem]:grid-cols-3">
-            <MoversCard title="Top gainers" panel={data.gainers} tone="up" />
-            <MoversCard title="Top losers" panel={data.losers} tone="down" />
-            <MoversCard
-              title="Most active"
-              note="By value traded"
-              panel={data.mostActive}
-              metric="turnover"
-              wide
-            />
-          </div>
+          <MoversBoards data={data} />
 
-          <Card lit className={cn("mt-5 py-7", CARD_X)}>
+          <Card lit className={cn("mt-5 py-7 max-lg:mt-4 max-lg:py-5", CARD_X)}>
             <div className="flex flex-wrap items-baseline justify-between gap-4">
               {/* "right now" went with the old relative-volume screen, which
                   really did change hour to hour. The ribbon is a curated list
                   of household names now, so the qualifier promised a liveness
                   the card no longer has. */}
-              <h2 className="font-serif text-[21px] leading-none text-ink-2">
+              <h2 className="font-serif text-[21px] leading-none text-ink-2 max-lg:text-[18px]">
                 Popular
               </h2>
               <p className="text-[13px] text-ink-3">Hold to read</p>
@@ -113,7 +99,7 @@ export function Dashboard({ data }: { data: HomeSnapshot }) {
                     cut by the card border rather than by a hard line inside
                     it. Its padding puts the first cell back on CARD_X at
                     rest. */}
-                <div className={cn("mt-7", CARD_BLEED)}>
+                <div className={cn("mt-7 max-lg:mt-5", CARD_BLEED)}>
                   <PopularRibbon rows={data.popular.data} className={CARD_X} />
                 </div>
               </>
@@ -127,7 +113,7 @@ export function Dashboard({ data }: { data: HomeSnapshot }) {
               instead of being a fixed-height box with two scrollers inside
               it, which on a phone stacked three scrolls on top of each other,
               and it sits on the same edges as every card above it. */}
-          <div className="mt-5 xl:hidden">
+          <div className="mt-5 xl:hidden max-lg:mt-4">
             <Rail events={data.events} news={data.wire} inline />
           </div>
 
@@ -246,6 +232,101 @@ function freshen(quote: Quote, ticks: ReadonlyMap<string, Tick>): Quote {
   return withTick(quote, ticks.get(quote.id.toUpperCase()));
 }
 
+/** The three boards, and on a phone the switch that shows one at a time. */
+const BOARDS = [
+  { key: "gainers", label: "Top gainers" },
+  { key: "losers", label: "Top losers" },
+  { key: "active", label: "Most active" },
+] as const;
+
+type BoardKey = (typeof BOARDS)[number]["key"];
+
+/**
+ * Gainers, losers and most active.
+ *
+ * Three stacked boards on a phone put the losers two screens down, under a
+ * board of the same shape. Below `md` the three are one card with a
+ * segmented switch in its head, so every ranking is one tap from the top of
+ * the page and the page stays short. From `md` up nothing changes: the
+ * switch is not rendered visible and every board shows.
+ */
+function MoversBoards({ data }: { data: HomeSnapshot }) {
+  const [board, setBoard] = useState<BoardKey>("gainers");
+  const switcher = <BoardSwitch value={board} onChange={setBoard} />;
+
+  return (
+    /* Three across only once the column is wide enough to hold them
+       (62rem). Below that, two boards share a row and "Most active"
+       takes the whole row beneath, its list in two columns, rather than
+       sitting at half width beside an empty cell. */
+    <div className="mt-5 grid gap-5 md:grid-cols-2 @min-[62rem]:grid-cols-3 max-lg:mt-4 max-lg:gap-4">
+      <MoversCard
+        title="Top gainers"
+        panel={data.gainers}
+        tone="up"
+        switcher={switcher}
+        phoneHidden={board !== "gainers"}
+      />
+      <MoversCard
+        title="Top losers"
+        panel={data.losers}
+        tone="down"
+        switcher={switcher}
+        phoneHidden={board !== "losers"}
+      />
+      <MoversCard
+        title="Most active"
+        note="By value traded"
+        panel={data.mostActive}
+        metric="turnover"
+        wide
+        switcher={switcher}
+        phoneHidden={board !== "active"}
+      />
+    </div>
+  );
+}
+
+/**
+ * A segmented control: 30px to the eye, 44px to the thumb (the pseudo-element
+ * carries the hit area into the gap around the track).
+ */
+function BoardSwitch({
+  value,
+  onChange,
+}: {
+  value: BoardKey;
+  onChange: (key: BoardKey) => void;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label="Movers"
+      className="grid grid-cols-3 rounded-full border border-rule-control p-[3px]"
+    >
+      {BOARDS.map(({ key, label }) => {
+        const selected = key === value;
+        return (
+          <button
+            key={key}
+            type="button"
+            aria-pressed={selected}
+            onClick={() => onChange(key)}
+            className={cn(
+              "relative h-[30px] rounded-full px-2 text-[12px] font-medium whitespace-nowrap transition-all duration-300 before:absolute before:inset-x-0 before:-inset-y-[7px]",
+              selected
+                ? "bg-[image:var(--cta-buy)] text-on-gold shadow-[0_6px_16px_-10px_rgba(217,189,139,0.6)]"
+                : "text-ink-3 hover:text-ink",
+            )}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function MoversCard({
   title,
   note = "Session",
@@ -253,6 +334,8 @@ function MoversCard({
   metric = "price",
   tone,
   wide = false,
+  switcher,
+  phoneHidden = false,
 }: {
   title: string;
   note?: string;
@@ -269,6 +352,10 @@ function MoversCard({
      two columns (read down, then across, as a ranking is). Three across, it
      is one board among three again. */
   wide?: boolean;
+  /* Below `md` the boards are one card: the switch heads whichever board is
+     showing, and the other two are hidden. */
+  switcher?: React.ReactNode;
+  phoneHidden?: boolean;
 }) {
   const rows = panel.data;
 
@@ -283,27 +370,45 @@ function MoversCard({
   return (
     <Card
       tone={tone}
-      className={cn("py-6", CARD_X, wide && "md:col-span-2 @min-[62rem]:col-span-1")}
+      className={cn(
+        "py-6 max-lg:py-4",
+        CARD_X,
+        wide && "md:col-span-2 @min-[62rem]:col-span-1",
+        phoneHidden && "max-md:hidden",
+      )}
     >
+      {switcher && <div className="mb-3 md:hidden">{switcher}</div>}
+
       {/* The title never wraps: a two-line title pushed one board's list
-          below its neighbours'. The note gives way instead. */}
-      <div className="flex items-baseline justify-between gap-3">
+          below its neighbours'. The note gives way instead. Below `md` the
+          switch above already names the board, so the heading is kept for
+          screen readers and the note becomes the column head under it. */}
+      <div className="flex items-baseline justify-between gap-3 max-md:sr-only">
         <h2 className="font-serif text-[21px] leading-none whitespace-nowrap text-ink-2">
           {title}
         </h2>
         <p className="min-w-0 truncate text-[12.5px] text-ink-3">{note}</p>
       </div>
+      {rows.length > 0 && (
+        <div
+          aria-hidden="true"
+          className="flex items-baseline justify-between gap-3 text-[11px] text-ink-3 md:hidden"
+        >
+          <span>{note}</span>
+          <span>{metric === "turnover" ? "Traded · change" : "Price · change"}</span>
+        </div>
+      )}
 
       {rows.length === 0 ? (
-        <p className="mt-6 text-[13.5px] leading-[1.7] text-ink-3">
+        <p className="mt-6 text-[13.5px] leading-[1.7] text-ink-3 max-md:mt-2">
           {emptyReason(panel, "Nothing moved that way this session.")}
         </p>
       ) : (
         <>
-          <PanelNote panel={panel} className="mt-4" />
+          <PanelNote panel={panel} className="mt-4 max-md:mt-2" />
           <ul
             className={cn(
-              "m-0 mt-6 flex list-none flex-col gap-1 p-0",
+              "m-0 mt-6 flex list-none flex-col gap-1 p-0 max-lg:gap-0.5 max-md:mt-1.5",
               ROW_BLEED,
               wide &&
                 "md:grid md:grid-flow-col md:grid-cols-2 md:gap-x-6 md:[grid-template-rows:repeat(var(--rows),auto)] @min-[62rem]:flex",
@@ -318,35 +423,37 @@ function MoversCard({
                   <span
                     aria-hidden="true"
                     /* Sized from its tile, per the monogram rule. */
-                    className="font-serif grid h-8 w-8 flex-none place-items-center rounded-[9px] border border-[rgba(217,189,139,0.14)]"
-                    style={{ color: q.color, fontSize: 15 }}
+                    className="font-serif grid h-8 w-8 flex-none place-items-center rounded-[9px] border border-[rgba(217,189,139,0.14)] text-[15px] max-lg:h-7 max-lg:w-7 max-lg:rounded-[8px] max-lg:text-[13px]"
+                    style={{ color: q.color }}
                   >
                     {q.mark}
                   </span>
-                  <span className="min-w-0 flex-1">
+                  <span className="min-w-0 flex-1 max-lg:flex max-lg:flex-col">
                     {/* Two lines, not one. SOXL and SOXS are both "Direxion
                         Daily Semiconductor Bull/Bear 3x ETF", and one line cut
                         off "Bull" and "Bear", the only words that tell them
-                        apart. line-clamp sets its own display, so no `block`. */}
-                    <span className="line-clamp-2 text-[13.5px] font-medium break-words text-ink">
+                        apart. line-clamp sets its own display, so no `block`.
+                        On a phone the symbol leads — it is what tells SOXL
+                        from SOXS there — and the name is one line under it. */}
+                    <span className="line-clamp-2 text-[13.5px] font-medium break-words text-ink max-lg:mt-0.5 max-lg:block max-lg:truncate max-lg:text-[11.5px] max-lg:font-normal max-lg:text-ink-3">
                       {q.name}
                     </span>
-                    <span className="font-mono mt-1 block text-[12px] tracking-[0.05em] text-ink-3">
+                    <span className="font-mono mt-1 block text-[12px] tracking-[0.05em] text-ink-3 max-lg:order-first max-lg:mt-0 max-lg:text-[13px] max-lg:font-medium max-lg:text-ink">
                       {q.id}
                     </span>
                   </span>
-                  <span className="w-[66px] flex-none text-right">
-                    <span className="font-mono block text-[13.5px] text-ink-2">
+                  <span className="w-[66px] flex-none text-right max-lg:w-auto">
+                    <span className="font-mono block text-[13.5px] text-ink-2 max-lg:text-[13px]">
                       {metric === "turnover" ? traded(q) : money(q.price)}
                     </span>
-                    <span className="mt-1 flex justify-end">
-                      <Delta value={q.chg} size="text-[12px]" />
+                    <span className="mt-1 flex justify-end max-lg:mt-0.5">
+                      <Delta value={q.chg} size="text-[12px] max-lg:text-[11.5px] max-lg:gap-1" />
                     </span>
                   </span>
                 </>
               );
               const inner =
-                "flex min-h-[58px] items-center gap-2.5 rounded-[var(--radius-tile)] px-2 transition-colors";
+                "flex min-h-[58px] items-center gap-2.5 rounded-[var(--radius-tile)] px-2 transition-colors max-lg:min-h-12";
 
               return (
                 <li key={q.id}>
@@ -395,12 +502,12 @@ function SectorCards({ panel }: { panel: Panel<SectorGroup[]> }) {
   const shown = expanded ? groups : groups.slice(0, COLLAPSED);
 
   return (
-    <section className="mt-5">
+    <section className="mt-5 max-lg:mt-6">
       {/* Text outside a card sits on the page gutter, like the footnote at the
           foot of the page. Text inside a card sits on CARD_X. The old px-1 put
           this heading at 20px, which matched neither. */}
       <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 className="font-serif text-[21px] leading-none text-ink-2">By sector</h2>
+        <h2 className="font-serif text-[21px] leading-none text-ink-2 max-lg:text-[18px]">By sector</h2>
         {groups.length > 0 && (
           <p className="text-[12.5px] text-ink-3">
             {groups.length} sectors · four largest movers each
@@ -416,11 +523,11 @@ function SectorCards({ panel }: { panel: Panel<SectorGroup[]> }) {
         <>
           <PanelNote panel={panel} className="mt-4" />
 
-          <div className="mt-4 grid gap-5 md:grid-cols-2 2xl:grid-cols-4">
+          <div className="mt-4 grid gap-5 md:grid-cols-2 2xl:grid-cols-4 max-lg:mt-3 max-lg:gap-4">
             {shown.map((group) => (
               <Card key={group.name} className={cn("flex flex-col py-5", CARD_X)}>
                 <header className="flex items-baseline justify-between gap-3">
-                  <h3 className="font-serif min-w-0 text-[20px] leading-tight text-balance">
+                  <h3 className="font-serif min-w-0 text-[20px] leading-tight text-balance max-lg:text-[17px]">
                     {group.name}
                   </h3>
                   {group.day === null ? (
@@ -679,7 +786,7 @@ function Rail({
                       <span aria-hidden="true" className="h-2.5 w-px bg-rule-mono" />
                       <span className="text-[12px] text-ink-3">{item.time}</span>
                     </span>
-                    <span className="font-serif mt-2 block text-[20px] leading-[1.4] text-pretty text-ink">
+                    <span className="font-serif mt-2 block text-[20px] leading-[1.4] text-pretty text-ink max-lg:text-[17px]">
                       {item.title}
                     </span>
                   </button>
@@ -795,7 +902,7 @@ function RailCard({
   return (
     <Card className="flex min-h-0 flex-col">
       <div className={cn("flex flex-none items-baseline justify-between gap-3 pt-5 pb-3", CARD_X)}>
-        <h2 className="font-serif text-[21px] leading-none text-ink-2">{title}</h2>
+        <h2 className="font-serif text-[21px] leading-none text-ink-2 max-lg:text-[18px]">{title}</h2>
         <p className="flex-none text-[12.5px] text-ink-3">{note}</p>
       </div>
       {/* The scroller, not the card. The heading above stays put. Its padding

@@ -189,6 +189,11 @@ export function Shell({
         >
           <Grain />
 
+          {/* Only where there is no chrome row. On a phone the chrome row itself
+              carries the menu, the search and Invest, and the owner asked for
+              exactly that: the SPY strip above it spent a row on a figure the
+              page already shows. */}
+          {!chrome && (
           <CompactBar
             onOpenNav={() => setNavOpen(true)}
             navOpen={navOpen}
@@ -196,6 +201,7 @@ export function Shell({
             lead={lead}
             leadAsOf={leadAsOf}
           />
+          )}
 
           {/* Full height beside both rows, so the search heads the working
               column rather than the whole frame — the rail opens with the
@@ -284,10 +290,14 @@ export function Shell({
           {chrome && (
             <div
               className={cn(
-                "relative z-[25] grid items-center border-b border-rule-section px-4 py-3 sm:px-6 lg:px-7",
+                "relative z-[25] grid items-center border-b border-rule-section px-4 py-2.5 sm:px-6 sm:py-3 lg:px-7",
+                /* On a phone this row is the app bar: pinned, opaque, 65px
+                   (10 + 44 + 10 + the rule), which the instrument page's
+                   pinned tabs clear with top-[65px]. */
+                "max-lg:sticky max-lg:top-0 max-lg:z-30 max-lg:bg-shell",
                 /* Below `lg` the box takes every pixel the right-hand end
                    leaves it: on a phone a centred, capped search is a stub. */
-                "grid-cols-[minmax(0,1fr)_auto] gap-x-4 sm:gap-x-6",
+                "grid-cols-[auto_minmax(0,1fr)_auto] gap-x-2.5 sm:gap-x-4",
                 /*
                   From `lg` the search is centred on the bar and long.
 
@@ -319,6 +329,16 @@ export function Shell({
                 "lg:grid-cols-[minmax(0,1fr)_minmax(0,min(680px,52vw))_minmax(max-content,1fr)]",
               )}
             >
+              <button
+                type="button"
+                onClick={() => setNavOpen(true)}
+                aria-label="Open navigation and watchlist"
+                aria-expanded={navOpen}
+                className="grid h-11 w-11 flex-none place-items-center rounded-[10px] border border-rule-control text-ink-3 transition-colors hover:border-gold hover:text-ink lg:hidden"
+              >
+                <IconMenu className="h-4 w-4" />
+              </button>
+
               <div className="min-w-0 lg:col-start-2">
                 {search && <InstrumentSearch data={search} />}
               </div>

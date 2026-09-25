@@ -134,22 +134,22 @@ export function PriceHeader({
      second line. Given the full width they read as one toolbar under the
      price. */
   return (
-    <div className="mb-6 flex flex-col gap-6">
+    <div className="flex flex-col gap-6 lg:mb-6">
       <div>
-        <p className="eyebrow eyebrow-wide mb-2.5">Last traded price · USD</p>
-        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-3">
+        <p className="eyebrow eyebrow-wide mb-2.5 hidden sm:block">Last traded price · USD</p>
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1.5 sm:gap-x-4 sm:gap-y-3">
           <p className="font-serif flex items-baseline gap-1.5">
-            <span className="text-[24px] text-gold-dim">$</span>
+            <span className="text-[18px] text-gold-dim sm:text-[24px]">$</span>
             <span
               ref={priceRef}
-              className="text-[42px] leading-[0.9] tracking-[0.005em] sm:text-[58px]"
+              className="text-[34px] leading-[0.9] tracking-[0.005em] sm:text-[58px]"
             >
               {price === null ? "—" : money(price)}
             </span>
           </p>
 
           <span
-            className="font-mono border px-3 py-1.5 text-[11.5px] tracking-[0.04em]"
+            className="font-mono border px-2 py-1 text-[11px] tracking-[0.04em] sm:px-3 sm:py-1.5 sm:text-[11.5px]"
             style={{
               color: up ? C.up : C.down,
               borderColor: `color-mix(in srgb, var(${up ? "--color-up" : "--color-down"}) 35%, transparent)`,
@@ -197,7 +197,9 @@ export function PriceHeader({
       {/* The range is the control reached for repeatedly, so it keeps the
           bordered strip. There is no candlestick link: the owner wants every
           chart as a line ("i dont want any candle chart or bar chart"). */}
-      <div className="flex flex-wrap items-center gap-x-8 gap-y-5 sm:justify-end">
+      {/* Below lg the range sits under the chart as small pills (RangePills,
+          placed by instrument-view.tsx), the way a phone app sets it. */}
+      <div className="hidden flex-wrap items-center gap-x-8 gap-y-5 sm:justify-end lg:flex">
         {/* Full width on a phone, six equal cells between the gutters; its
             natural width, at the right, from sm up. */}
         <Segmented label="Time range" className="w-full sm:w-auto">
@@ -213,6 +215,38 @@ export function PriceHeader({
           ))}
         </Segmented>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The time range as small pills, for a phone: under the chart, 32px tall and
+ * spread across the width, so it reads as part of the chart rather than a
+ * toolbar above it. The hit area reaches 44px through a transparent band.
+ */
+export function RangePills({ range, onRange }: { range: RangeId; onRange: (id: RangeId) => void }) {
+  return (
+    <div role="group" aria-label="Time range" className="flex items-center justify-between gap-1">
+      {RANGES.map((r) => {
+        const active = range === r.id;
+        return (
+          <button
+            key={r.id}
+            type="button"
+            onClick={() => onRange(r.id)}
+            aria-pressed={active}
+            className={cn(
+              "font-mono relative h-8 min-w-[46px] rounded-full px-3 text-[11px] tracking-[0.06em] transition-colors",
+              "before:absolute before:inset-x-0 before:-inset-y-1.5 before:content-['']",
+              active
+                ? "bg-[var(--tint-gold)] text-gold ring-1 ring-[rgba(var(--c-gold-rgb),0.45)]"
+                : "text-ink-3 hover:text-ink",
+            )}
+          >
+            {r.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

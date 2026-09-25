@@ -18,7 +18,7 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import { motion, useReducedMotion } from "motion/react";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { formatStamp, money } from "@/lib/market/format";
 import { emptyChartText, rangeCaptionParts, readerZone, viewShowsAll } from "@/lib/market/ranges";
 import { chartReference } from "@/lib/market/prior-close";
@@ -581,6 +581,17 @@ export function PriceChart({
      labelled PREV CLOSE at 0.00 behind the "no trades yet this session"
      message, and handed the price axis a zero to scale against. And skipped
      when the page has no previous close to show — the card prints a dash. */
+  /* On a phone the plot takes the whole width, the way a broker app draws it:
+     no price ladder (56px of a 343px column) and no grid. The crosshair still
+     reads the price at any point, and the caption keeps the previous close. */
+  const narrow = useMaxWidth(639);
+  useEffect(() => {
+    chartRef.current?.applyOptions({
+      leftPriceScale: { visible: !narrow },
+      grid: { horzLines: { visible: !narrow }, vertLines: { visible: !narrow } },
+    });
+  }, [narrow]);
+
   useEffect(() => {
     const series = mainRef.current;
     if (!series) return;
@@ -801,5 +812,19 @@ export function PriceChart({
         </span>
       </figcaption>
     </figure>
+  );
+}
+
+/* Whether the viewport is at most `px` wide; false on the server. */
+function useMaxWidth(px: number): boolean {
+  const query = `(max-width: ${px}px)`;
+  return useSyncExternalStore(
+    (notify) => {
+      const mq = window.matchMedia(query);
+      mq.addEventListener("change", notify);
+      return () => mq.removeEventListener("change", notify);
+    },
+    () => window.matchMedia(query).matches,
+    () => false,
   );
 }

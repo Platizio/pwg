@@ -33,7 +33,17 @@ const LABEL_BOX = "min-w-[13.25rem]";
  * sit in several. The label says where things stand — "Following" when any
  * list holds the stock, "Add to watchlist" when none does.
  */
-export function FollowButton({ symbol, name }: { symbol: string; name?: string | null }) {
+export function FollowButton({
+  symbol,
+  name,
+  compact = false,
+}: {
+  symbol: string;
+  name?: string | null;
+  /* A 40px square with the glyph alone, for the phone header, where the
+     label's 212px would push the name onto a second line. */
+  compact?: boolean;
+}) {
   const state = useWatchlists();
   /* The server knows only the seeded list, so until the reader's own lists are
      in, the label and caret would state the seed's answer — "Following" for a
@@ -138,8 +148,12 @@ export function FollowButton({ symbol, name }: { symbol: string; name?: string |
         }
         title={hydrated ? where : undefined}
         className={cn(
-          "inline-flex min-h-11 w-full items-center justify-center gap-2 border px-4 text-[11px] font-bold tracking-[0.16em] uppercase transition-colors sm:w-auto",
-          LABEL_BOX,
+          compact
+            ? "grid h-10 w-10 place-items-center rounded-[10px] border transition-colors"
+            : cn(
+                "inline-flex min-h-11 w-full items-center justify-center gap-2 border px-4 text-[11px] font-bold tracking-[0.16em] uppercase transition-colors sm:w-auto",
+                LABEL_BOX,
+              ),
           hydrated && following
             ? "border-[rgba(var(--c-gold-rgb),0.4)] text-gold hover:border-gold"
             : "border-rule-control text-ink-2 hover:border-gold hover:text-ink",
@@ -150,12 +164,12 @@ export function FollowButton({ symbol, name }: { symbol: string; name?: string |
             arrive. */}
         <span className={cn("inline-flex items-center gap-2 whitespace-nowrap", !hydrated && "invisible")}>
           {following ? (
-            <GlyphCheck className="h-3.5 w-3.5 flex-none" />
+            <GlyphCheck className={cn("flex-none", compact ? "h-[18px] w-[18px]" : "h-3.5 w-3.5")} />
           ) : (
-            <IconPlus className="h-3.5 w-3.5 flex-none" />
+            <IconPlus className={cn("flex-none", compact ? "h-[18px] w-[18px]" : "h-3.5 w-3.5")} />
           )}
-          {label}
-          {!single && (
+          {compact ? <span className="sr-only">{label}</span> : label}
+          {!single && !compact && (
             <GlyphCaret
               className={cn("h-3.5 w-3.5 flex-none transition-transform duration-300", open && "rotate-180")}
             />
@@ -188,7 +202,12 @@ export function FollowButton({ symbol, name }: { symbol: string; name?: string |
            right of the header and the panel hangs from the right as before. */
         <div
           ref={panelRef}
-          className="absolute top-[calc(100%+8px)] right-auto left-0 z-30 w-[min(300px,calc(100vw-32px))] sm:right-0 sm:left-auto"
+          className={cn(
+            "absolute top-[calc(100%+8px)] z-30 w-[min(300px,calc(100vw-32px))]",
+            /* The compact square sits at the right of the phone header, so its
+               panel hangs from the right edge like the desktop one. */
+            compact ? "right-0 left-auto" : "right-auto left-0 sm:right-0 sm:left-auto",
+          )}
         >
           <div
             id={panelId}
